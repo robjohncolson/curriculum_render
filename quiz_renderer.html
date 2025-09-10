@@ -652,6 +652,137 @@
               margin-left: 10px;
               font-weight: bold;
           }
+          
+          /* Step 5: View section styles */
+          .view-section {
+              border: 1px solid #ccc;
+              padding: 10px;
+              margin: 10px 0;
+              display: none;
+              background: #f9f9f9;
+              border-radius: 5px;
+          }
+          .view-section.show {
+              display: block;
+          }
+          .consensus {
+              color: green;
+              font-weight: bold;
+              padding: 5px;
+              background: #e8f5e9;
+              border-radius: 3px;
+              display: inline-block;
+              margin: 5px 0;
+          }
+          .low-consensus {
+              color: red;
+              font-style: italic;
+              padding: 5px;
+              background: #ffebee;
+              border-radius: 3px;
+              display: inline-block;
+              margin: 5px 0;
+          }
+          .vote-btn {
+              padding: 4px 8px;
+              margin: 2px;
+              border: none;
+              border-radius: 3px;
+              cursor: pointer;
+              font-size: 12px;
+          }
+          .approve-btn {
+              background: #4caf50;
+              color: white;
+          }
+          .approve-btn:hover {
+              background: #45a049;
+          }
+          .disapprove-btn {
+              background: #f44336;
+              color: white;
+          }
+          .disapprove-btn:hover {
+              background: #da190b;
+          }
+          .response-li {
+              border: 1px solid #ddd;
+              padding: 8px;
+              margin: 5px 0;
+              background: white;
+              border-radius: 3px;
+              list-style: none;
+          }
+          .preview-note {
+              color: gray;
+              font-style: italic;
+              padding: 10px;
+              text-align: center;
+          }
+          .side-by-side {
+              display: flex;
+              gap: 20px;
+          }
+          .side-by-side > div {
+              flex: 1;
+          }
+          .contributors-list {
+              margin-top: 15px;
+              padding: 10px;
+              background: white;
+              border-radius: 3px;
+          }
+          .contributor-item {
+              padding: 5px 0;
+              border-bottom: 1px solid #eee;
+          }
+          .contributor-item:last-child {
+              border-bottom: none;
+          }
+          .vote-reason-input {
+              width: 100%;
+              padding: 4px;
+              margin: 4px 0;
+              border: 1px solid #ddd;
+              border-radius: 3px;
+              font-size: 12px;
+              display: none;
+          }
+          .vote-reason-input.show {
+              display: block;
+          }
+          .vote-record {
+              font-size: 12px;
+              color: #666;
+              margin: 2px 0;
+              padding: 3px 5px;
+              background: #f5f5f5;
+              border-radius: 2px;
+          }
+          .dotplot-container {
+              margin: 20px 0;
+              padding: 15px;
+              background: white;
+              border-radius: 5px;
+          }
+          .net-votes {
+              font-weight: bold;
+              padding: 2px 6px;
+              border-radius: 3px;
+              margin-left: 10px;
+          }
+          .net-votes.positive {
+              background: #c8e6c9;
+              color: #2e7d32;
+          }
+          .net-votes.negative {
+              background: #ffcdd2;
+              color: #c62828;
+          }
+          .net-votes.neutral {
+              background: #e0e0e0;
+              color: #616161;
+          }
       </style>
   </head>
   <body>
@@ -1009,7 +1140,7 @@
               // Enable view button if exists
               let viewBtn = document.querySelector(`#view-${questionId}`);
               if (viewBtn) {
-                  viewBtn.disabled = false;
+                  viewBtn.disabled = false; viewBtn.style.display = "inline-block";
               }
 
               // Show success message
@@ -1037,7 +1168,7 @@
                           if (header) header.appendChild(check);
                       }
                       let viewBtn = qDiv.querySelector('.view-button');
-                      if (viewBtn) viewBtn.disabled = false;
+                      if (viewBtn) { viewBtn.disabled = false; viewBtn.style.display = "inline-block"; }
                   }
               }
 
@@ -1201,6 +1332,448 @@
                   setTimeout(() => status.textContent = '', 5000);
               }
           }
+
+          // Step 5: Aggregation and View Functions
+          
+          // Initialize votes structure if not exists
+          function initVotes() {
+              if (!classData.users[currentUsername].votes) {
+                  classData.users[currentUsername].votes = {};
+              }
+          }
+
+          // Aggregate MCQ responses
+          function aggregateMCQ(questionId) {
+              const choiceCounts = {};
+              let totalCount = 0;
+              const contributors = [];
+
+              // Count choices across all users
+              for (let username in classData.users) {
+                  const userAnswers = classData.users[username].answers;
+                  if (userAnswers && userAnswers[questionId]) {
+                      const answer = userAnswers[questionId];
+                      const choice = answer.value || answer;
+                      const reason = classData.users[username].reasons?.[questionId] || '';
+                      const attempt = answer.attempt || 1;
+                      
+                      if (choice) {
+                          choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
+                          totalCount++;
+                          contributors.push({
+                              username: username,
+                              choice: choice,
+                              reason: reason,
+                              attempt: attempt
+                          });
+                      }
+                  }
+              }
+
+              return {
+                  choiceCounts: choiceCounts,
+                  totalCount: totalCount,
+                  contributors: contributors
+              };
+          }
+
+          // Aggregate FRQ responses
+          function aggregateFRQ(questionId) {
+              const responses = [];
+              
+              // Collect all responses
+              for (let username in classData.users) {
+                  const userAnswers = classData.users[username].answers;
+                  if (userAnswers && userAnswers[questionId]) {
+                      const answer = userAnswers[questionId];
+                      const response = answer.value || answer;
+                      const reason = classData.users[username].reasons?.[questionId] || '';
+                      const attempt = answer.attempt || 1;
+                      
+                      if (response) {
+                          // Calculate net votes for this response
+                          let approves = 0;
+                          let disapproves = 0;
+                          const voteRecords = [];
+                          
+                          // Count votes from all users
+                          for (let voter in classData.users) {
+                              const voterVotes = classData.users[voter].votes;
+                              if (voterVotes && voterVotes[questionId] && voterVotes[questionId][username]) {
+                                  const vote = voterVotes[questionId][username];
+                                  if (vote.vote === 'approve') {
+                                      approves++;
+                                  } else if (vote.vote === 'disapprove') {
+                                      disapproves++;
+                                  }
+                                  if (vote.reason) {
+                                      voteRecords.push({
+                                          voter: voter,
+                                          vote: vote.vote,
+                                          reason: vote.reason
+                                      });
+                                  }
+                              }
+                          }
+                          
+                          responses.push({
+                              username: username,
+                              response: response,
+                              reason: reason,
+                              attempt: attempt,
+                              approves: approves,
+                              disapproves: disapproves,
+                              netVotes: approves - disapproves,
+                              voteRecords: voteRecords
+                          });
+                      }
+                  }
+              }
+              
+              // Sort by net votes (highest first)
+              responses.sort((a, b) => b.netVotes - a.netVotes);
+              
+              return responses;
+          }
+
+          // Check consensus
+          function checkConsensus(aggregateData, questionType) {
+              if (questionType === 'multiple-choice') {
+                  const { choiceCounts, totalCount } = aggregateData;
+                  if (totalCount === 0) return { hasConsensus: false, message: 'No responses yet' };
+                  
+                  // Find mode (most common choice)
+                  let mode = null;
+                  let maxCount = 0;
+                  for (let choice in choiceCounts) {
+                      if (choiceCounts[choice] > maxCount) {
+                          maxCount = choiceCounts[choice];
+                          mode = choice;
+                      }
+                  }
+                  
+                  const percentage = maxCount / totalCount;
+                  if (percentage >= 0.7) {
+                      return {
+                          hasConsensus: true,
+                          message: `Consensus on ${mode} (${Math.round(percentage * 100)}%)`,
+                          choice: mode,
+                          percentage: percentage
+                      };
+                  } else {
+                      return {
+                          hasConsensus: false,
+                          message: `No consensus yet (highest: ${mode} at ${Math.round(percentage * 100)}%)`,
+                          choice: mode,
+                          percentage: percentage
+                      };
+                  }
+              } else {
+                  // FRQ consensus based on net votes
+                  const responses = aggregateData;
+                  if (responses.length === 0) return { hasConsensus: false, message: 'No responses yet' };
+                  
+                  let totalVotes = 0;
+                  let maxNetVotes = 0;
+                  for (let resp of responses) {
+                      totalVotes += resp.approves + resp.disapproves;
+                      if (resp.netVotes > maxNetVotes) {
+                          maxNetVotes = resp.netVotes;
+                      }
+                  }
+                  
+                  if (totalVotes === 0) return { hasConsensus: false, message: 'No votes yet - vote with reasons' };
+                  
+                  const netPercentage = maxNetVotes / totalVotes;
+                  if (netPercentage >= 0.7) {
+                      return {
+                          hasConsensus: true,
+                          message: `Emerging agreement (${Math.round(netPercentage * 100)}% net approval)`,
+                          percentage: netPercentage
+                      };
+                  } else {
+                      return {
+                          hasConsensus: false,
+                          message: `Low agreement - vote with reasons`,
+                          percentage: netPercentage
+                      };
+                  }
+              }
+          }
+
+          // Toggle view section
+          window.toggleView = function(questionId) {
+              const viewSection = document.getElementById(`view-section-${questionId}`);
+              if (viewSection) {
+                  viewSection.classList.toggle('show');
+                  if (viewSection.classList.contains('show')) {
+                      renderView(questionId);
+                  }
+              }
+          }
+
+          // Render view for a question
+          function renderView(questionId) {
+              const viewSection = document.getElementById(`view-section-${questionId}`);
+              if (!viewSection) return;
+              
+              // Determine question type
+              const qDiv = document.querySelector(`[data-question-id="${questionId}"]`);
+              if (!qDiv) return;
+              
+              const questionType = qDiv.querySelector('input[type="radio"]') ? 'multiple-choice' : 'free-response';
+              
+              // Check for pre/post pairs
+              const isPrePost = questionId.includes('_pre') || questionId.includes('_post');
+              if (isPrePost) {
+                  const baseId = questionId.replace(/_pre|_post/, '');
+                  const preId = baseId + '_pre';
+                  const postId = baseId + '_post';
+                  
+                  // Check if both exist
+                  const preExists = classData.users[currentUsername]?.answers?.[preId];
+                  const postExists = classData.users[currentUsername]?.answers?.[postId];
+                  
+                  if (preExists && postExists) {
+                      // Render side-by-side
+                      viewSection.innerHTML = `
+                          <div class="side-by-side">
+                              <div>
+                                  <h4>Pre-Assessment</h4>
+                                  ${renderSingleView(preId, questionType)}
+                              </div>
+                              <div>
+                                  <h4>Post-Assessment</h4>
+                                  ${renderSingleView(postId, questionType)}
+                              </div>
+                          </div>
+                      `;
+                      return;
+                  }
+              }
+              
+              // Render single view
+              viewSection.innerHTML = renderSingleView(questionId, questionType);
+          }
+
+          // Render single view (for reuse in side-by-side)
+          function renderSingleView(questionId, questionType) {
+              let html = '';
+              
+              if (questionType === 'multiple-choice') {
+                  const aggregateData = aggregateMCQ(questionId);
+                  
+                  // Check if self-only
+                  if (aggregateData.totalCount <= 1) {
+                      html += '<div class="preview-note">Preview – sync peers for class view</div>';
+                  }
+                  
+                  // Create dotplot
+                  html += '<div class="dotplot-container">';
+                  html += `<canvas id="dotplot-${questionId}" width="400" height="200"></canvas>`;
+                  html += '</div>';
+                  
+                  // Check consensus
+                  const consensus = checkConsensus(aggregateData, questionType);
+                  if (consensus.hasConsensus) {
+                      html += `<div class="consensus">${consensus.message}</div>`;
+                  } else {
+                      html += `<div class="low-consensus">${consensus.message}</div>`;
+                  }
+                  
+                  // Contributors list
+                  html += '<div class="contributors-list">';
+                  html += '<h4>Contributors:</h4>';
+                  for (let contributor of aggregateData.contributors) {
+                      html += `<div class="contributor-item">`;
+                      html += `<strong>${contributor.username}</strong> chose <strong>${contributor.choice}</strong> (Attempt ${contributor.attempt})`;
+                      if (contributor.reason) {
+                          html += `<br>Reason: <em>${contributor.reason}</em>`;
+                      }
+                      html += '</div>';
+                  }
+                  html += '</div>';
+                  
+                  // Schedule dotplot rendering
+                  setTimeout(() => renderDotplot(questionId, aggregateData), 100);
+                  
+              } else {
+                  // FRQ view
+                  const responses = aggregateFRQ(questionId);
+                  
+                  // Check if self-only
+                  if (responses.length <= 1) {
+                      html += '<div class="preview-note">Preview – sync peers for class view</div>';
+                  }
+                  
+                  // Check consensus
+                  const consensus = checkConsensus(responses, questionType);
+                  if (consensus.hasConsensus) {
+                      html += `<div class="consensus">${consensus.message}</div>`;
+                  } else {
+                      html += `<div class="low-consensus">${consensus.message}</div>`;
+                  }
+                  
+                  // Responses list
+                  html += '<ul style="list-style: none; padding: 0;">';
+                  for (let resp of responses) {
+                      const netClass = resp.netVotes > 0 ? 'positive' : (resp.netVotes < 0 ? 'negative' : 'neutral');
+                      html += `<li class="response-li">`;
+                      html += `<strong>${resp.username}</strong> (Attempt ${resp.attempt})`;
+                      html += `<span class="net-votes ${netClass}">Net: ${resp.netVotes} (↑${resp.approves} ↓${resp.disapproves})</span>`;
+                      html += `<div style="margin: 8px 0;">${resp.response}</div>`;
+                      if (resp.reason) {
+                          html += `<div style="font-style: italic; color: #666;">Reason: ${resp.reason}</div>`;
+                      }
+                      
+                      // Voting buttons
+                      html += `<div style="margin-top: 8px;">`;
+                      html += `<button class="vote-btn approve-btn" onclick="vote('${questionId}', '${resp.username}', 'approve')">Approve</button>`;
+                      html += `<button class="vote-btn disapprove-btn" onclick="vote('${questionId}', '${resp.username}', 'disapprove')">Disapprove</button>`;
+                      html += `<input type="text" class="vote-reason-input" id="vote-reason-${questionId}-${resp.username}" 
+                               placeholder="Optional: Why this vote?" onblur="saveVoteReason('${questionId}', '${resp.username}')">`;
+                      html += '</div>';
+                      
+                      // Display vote records
+                      if (resp.voteRecords.length > 0) {
+                          html += '<div style="margin-top: 8px;">';
+                          for (let record of resp.voteRecords) {
+                              const voteText = record.vote === 'approve' ? 'Approved' : 'Disapproved';
+                              html += `<div class="vote-record">${voteText} by ${record.voter}: "${record.reason}"</div>`;
+                          }
+                          html += '</div>';
+                      }
+                      
+                      html += '</li>';
+                  }
+                  html += '</ul>';
+              }
+              
+              return html;
+          }
+
+          // Render dotplot using Chart.js
+          function renderDotplot(questionId, aggregateData) {
+              const canvas = document.getElementById(`dotplot-${questionId}`);
+              if (!canvas) return;
+              
+              const ctx = canvas.getContext('2d');
+              
+              // Prepare data for Chart.js horizontal bar chart (acting as dotplot)
+              const choices = Object.keys(aggregateData.choiceCounts).sort();
+              const counts = choices.map(c => aggregateData.choiceCounts[c]);
+              
+              new Chart(ctx, {
+                  type: 'bar',
+                  data: {
+                      labels: choices,
+                      datasets: [{
+                          label: 'Responses',
+                          data: counts,
+                          backgroundColor: '#36A2EB',
+                          borderColor: '#36A2EB',
+                          borderWidth: 1
+                      }]
+                  },
+                  options: {
+                      indexAxis: 'y',
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                          x: {
+                              beginAtZero: true,
+                              ticks: {
+                                  stepSize: 1
+                              },
+                              title: {
+                                  display: true,
+                                  text: 'Count'
+                              }
+                          },
+                          y: {
+                              title: {
+                                  display: true,
+                                  text: 'Choice'
+                              }
+                          }
+                      },
+                      plugins: {
+                          legend: {
+                              display: false
+                          },
+                          datalabels: {
+                              display: true,
+                              color: 'black',
+                              anchor: 'end',
+                              align: 'right',
+                              formatter: (value) => value
+                          }
+                      }
+                  }
+              });
+          }
+
+          // Vote function
+          window.vote = function(questionId, targetUser, voteType) {
+              if (!currentUsername) {
+                  alert('Please enter your username first!');
+                  return;
+              }
+              
+              initVotes();
+              
+              // Initialize vote structure
+              if (!classData.users[currentUsername].votes[questionId]) {
+                  classData.users[currentUsername].votes[questionId] = {};
+              }
+              
+              // Show reason input
+              const reasonInput = document.getElementById(`vote-reason-${questionId}-${targetUser}`);
+              if (reasonInput) {
+                  reasonInput.classList.add('show');
+              }
+              
+              // Save vote
+              classData.users[currentUsername].votes[questionId][targetUser] = {
+                  vote: voteType,
+                  reason: '',
+                  timestamp: Date.now()
+              };
+              
+              // Save to localStorage
+              try {
+                  localStorage.setItem('classData', JSON.stringify(classData));
+              } catch(e) {
+                  console.log("Storage quota exceeded—data not saved");
+              }
+              
+              // Re-render view
+              renderView(questionId);
+          }
+
+          // Save vote reason
+          window.saveVoteReason = function(questionId, targetUser) {
+              const reasonInput = document.getElementById(`vote-reason-${questionId}-${targetUser}`);
+              if (!reasonInput) return;
+              
+              const reason = reasonInput.value.trim();
+              
+              if (classData.users[currentUsername].votes?.[questionId]?.[targetUser]) {
+                  classData.users[currentUsername].votes[questionId][targetUser].reason = reason;
+                  classData.users[currentUsername].votes[questionId][targetUser].timestamp = Date.now();
+                  
+                  // Save to localStorage
+                  try {
+                      localStorage.setItem('classData', JSON.stringify(classData));
+                  } catch(e) {
+                      console.log("Storage quota exceeded—data not saved");
+                  }
+                  
+                  // Re-render view
+                  renderView(questionId);
+              }
+          }
+
 
           // Theme management
           function initTheme() {
@@ -3162,8 +3735,9 @@
                           class="view-button" 
                           style="margin-left: 10px; display: none;"
                           disabled
+                          onclick="toggleView('${question.id}')"
                       >
-                          View Answers
+                          View Distribution
                       </button>
                       <div id="success-${question.id}" class="submission-success"></div>
                       ${attempts >= 3 ? '<div class="max-attempts-message" style="color: #ff9800; font-weight: bold;">Maximum 3 attempts reached - no further changes allowed</div>' :
@@ -3171,6 +3745,9 @@
                   </div>
               `;
 
+              
+              // Add view section container
+              questionHtml += `<div id="view-section-${question.id}" class="view-section"></div>`;
               questionHtml += '</div>';
               return questionHtml;
           }
