@@ -1,0 +1,3191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive AP Stats Quiz Renderer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- Chart.js DataLabels plugin for point labeling -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- MathJax for rendering LaTeX/TeX notation in prompts, choices, and explanations -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .json-input {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .load-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+            margin: 5px;
+        }
+        .load-button:hover {
+            background: #218838;
+        }
+        .clear-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+            margin: 5px;
+        }
+        .clear-button:hover {
+            background: #545b62;
+        }
+        .debug-button {
+            background: #6f42c1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .debug-button:hover {
+            background: #5a2d9c;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .file-input {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .question-header {
+            background: #3498db;
+            color: white;
+            padding: 10px 15px;
+            margin: -25px -25px 20px -25px;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .question-id {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .question-prompt {
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #2c3e50;
+        }
+        .table-container {
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+            background: #f8f9fa;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .chart-container {
+            margin: 20px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 2px solid #e9ecef;
+        }
+        .chart-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #495057;
+        }
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        .multiple-charts-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .multiple-charts-container .chart-container {
+            flex: 1;
+            min-width: 300px;
+            max-width: 450px;
+        }
+        .choices {
+            margin-top: 15px;
+        }
+        .choice {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px 15px;
+            margin: 8px 0;
+            transition: all 0.3s ease;
+        }
+        /* Hover state for MCQ choices (light theme) */
+        .choice:hover {
+            /* Soft yellow highlight to distinguish from correct-answer green */
+            background: #fff9c4; /* light yellow */
+            border-color: #ffd54f; /* vivid yellow border */
+        }
+        .choice-key {
+            font-weight: bold;
+            display: inline-block;
+            width: 30px;
+            color: #495057;
+        }
+        .answer-key {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #155724;
+        }
+        .reasoning {
+            background: #e7f3ff;
+            border: 2px solid #007bff;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #004085;
+            line-height: 1.6;
+        }
+        .reasoning strong {
+            color: #0056b3;
+        }
+        .solution {
+            background: #f8f9fa;
+            border: 2px solid #6c757d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .solution-title {
+            color: #495057;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .solution-part {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .solution-part-id {
+            color: #6c757d;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        .solution-description {
+            color: #495057;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        .solution-response {
+            color: #212529;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .solution-calculations {
+            background: #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .solution-calculations-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        .calculation-step {
+            font-family: monospace;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        .scoring-rubric {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .scoring-title {
+            color: #856404;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .scoring-part {
+            background: white;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .scoring-part-header {
+            color: #856404;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .scoring-criteria {
+            margin-bottom: 10px;
+        }
+        .scoring-criterion {
+            color: #495057;
+            margin-bottom: 5px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .scoring-criterion::before {
+            content: "•";
+            color: #ffc107;
+            position: absolute;
+            left: 0;
+        }
+        .scoring-notes {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-style: italic;
+            color: #6c757d;
+        }
+        .error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .stats {
+            background: #e7f3ff;
+            border: 2px solid #0066cc;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        /* Dark mode adaptations */
+        body.dark-theme {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .container {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .upload-section {
+            background: #333333;
+            border-color: #555555;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .quiz-container {
+            background: #2d2d2d;
+            border-color: #5BC0EB;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .question-header {
+            background: #5BC0EB;
+            color: #1a1a1a;
+        }
+        
+        body.dark-theme .chart-container {
+            background: #2d2d2d;
+            border-color: #555555;
+        }
+        
+        body.dark-theme .choice {
+            background: #333333;
+            border-color: #555555;
+            color: #e0e0e0;
+        }
+        
+        /* Hover state for MCQ choices (dark theme) */
+        body.dark-theme .choice:hover {
+            background: #665c00; /* deep yellow/brown for dark mode */
+            border-color: #ffcc00; /* bright yellow border */
+            color: #fffbe6; /* ensure text remains legible */
+        }
+        
+        body.dark-theme .answer-key {
+            background: #2d4a2d;
+            border-color: #4a7c59;
+            color: #90ee90;
+        }
+        
+        body.dark-theme .reasoning {
+            background: #1e3a5f;
+            border-color: #5BC0EB;
+            color: #b3d9ff;
+        }
+        
+        body.dark-theme .reasoning strong {
+            color: #87ceeb;
+        }
+        
+        body.dark-theme .solution {
+            background: #333333;
+            border-color: #666666;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .solution-title {
+            color: #e0e0e0;
+            border-bottom-color: #666666;
+        }
+        
+        body.dark-theme .solution-part {
+            background: #404040;
+            border-color: #666666;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .solution-part-id {
+            color: #b0b0b0;
+        }
+        
+        body.dark-theme .solution-description {
+            color: #c0c0c0;
+        }
+        
+        body.dark-theme .solution-response {
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .solution-calculations {
+            background: #404040;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .solution-calculations-title {
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .calculation-step {
+            color: #b0b0b0;
+        }
+        
+        body.dark-theme .scoring-rubric {
+            background: #3d3d00;
+            border-color: #ffcc00;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .scoring-title {
+            color: #ffcc00;
+        }
+        
+        body.dark-theme .scoring-part {
+            background: #404040;
+            border-color: #666600;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .scoring-part-header {
+            color: #ffcc00;
+        }
+        
+        body.dark-theme .scoring-criterion {
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .scoring-criterion::before {
+            color: #ffcc00;
+        }
+        
+        body.dark-theme .scoring-notes {
+            background: #404040;
+            color: #c0c0c0;
+        }
+        
+        body.dark-theme .stats {
+            background: #1a2332;
+            border-color: #5BC0EB;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .json-input {
+            background: #333333;
+            border-color: #555555;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .file-input {
+            background: #333333;
+            border-color: #555555;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme .debug-button {
+            background: #9c5ce0;
+            border-color: #9c5ce0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        
+        body.dark-theme .debug-button:hover {
+            background: #b472e6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        
+        body.dark-theme table {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme th {
+            background-color: #404040;
+            color: #e0e0e0;
+        }
+        
+        body.dark-theme tr:nth-child(even) {
+            background-color: #333333;
+        }
+        
+        /* Highlight correct MCQ choice */
+        .choice.correct-choice {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        body.dark-theme .choice.correct-choice {
+            background: #2d4a2d;
+            border-color: #4a7c59;
+            color: #90ee90;
+        }
+        
+        body.dark-theme .choice.correct-choice:hover {
+            background: #355d35;
+            border-color: #4a7c59;
+        }
+
+        /* Volume Slider */
+        .volume-slider {
+            width: 120px;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+            cursor: pointer;
+        }
+
+        .volume-slider:hover {
+            opacity: 1;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        .volume-slider::-moz-range-thumb:hover {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        body.dark-theme .volume-slider {
+            background: #555;
+        }
+
+        body.dark-theme .volume-slider::-webkit-slider-thumb {
+            background: #5BC0EB;
+        }
+
+        body.dark-theme .volume-slider::-webkit-slider-thumb:hover {
+            background: #87ceeb;
+        }
+
+        body.dark-theme .volume-slider::-moz-range-thumb {
+            background: #5BC0EB;
+        }
+
+        body.dark-theme .volume-slider::-moz-range-thumb:hover {
+            background: #87ceeb;
+        }
+
+        body.dark-theme label[for="volumeSlider"],
+        body.dark-theme #volumeDisplay {
+            color: #e0e0e0 !important;
+        }
+
+        /* Floating Context Finder */
+        .context-finder {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ffffff;
+            color: #333333;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 260px;
+            pointer-events: none; /* so it doesn't block clicks */
+        }
+
+        body.dark-theme .context-finder {
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border-color: #5BC0EB;
+        }
+
+        /* Image styling */
+        .image-container {
+            margin: 20px 0;
+            text-align: center;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .image-caption {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .images-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .images-container .image-container {
+            flex: 1;
+            min-width: 300px;
+            max-width: 450px;
+        }
+
+        /* Dark theme image styling */
+        body.dark-theme .image-container {
+            background: #2d2d2d;
+            border-color: #555555;
+        }
+
+        body.dark-theme .question-image {
+            filter: drop-shadow(0 2px 8px rgba(255,255,255,0.1));
+        }
+
+        body.dark-theme .image-caption {
+            color: #c0c0c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 Interactive AP Stats Quiz Renderer</h1>
+        
+        <div class="upload-section">
+            <h3>📁 Load Quiz JSON File</h3>
+            <input type="file" id="jsonFile" accept=".json" class="file-input" onchange="if(this.files.length > 0) { playTone(440, 0.1, 'sine', 0.06); }">
+            <button class="load-button" onclick="loadFromFile()">📂 Load from File</button>
+            
+            <div style="margin: 20px 0; color: #666; font-weight: bold;">
+                — OR —
+            </div>
+            
+            <h3>📝 Paste JSON Data</h3>
+            <textarea class="json-input" id="jsonInput" placeholder="Paste your JSON quiz data here..."></textarea>
+            <button class="load-button" onclick="loadFromText()">📋 Load from Text</button>
+            <button class="clear-button" onclick="clearAll()">🗑️ Clear All</button>
+            <button class="debug-button" id="themeToggle" onclick="toggleTheme()">🌙 Switch to Dark</button>
+            <button class="debug-button" id="audioToggle" onclick="toggleAudio()">🔊 Audio On</button>
+            
+            <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px; justify-content: center;">
+                <label for="volumeSlider" style="font-weight: bold; color: #666;">🔊 Volume:</label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="70" class="volume-slider" oninput="adjustVolume(this.value)">
+                <span id="volumeDisplay" style="font-weight: bold; color: #666; min-width: 35px;">70%</span>
+            </div>
+        </div>
+        
+        <div id="messageContainer"></div>
+        <div id="statsContainer"></div>
+        <div id="questionsContainer"></div>
+    </div>
+
+    <!-- Floating context finder (hidden until questions are rendered) -->
+    <div id="contextFinder" class="context-finder" style="display:none;"></div>
+
+    <script>
+        let chartInstances = [];
+        let currentTheme = 'light'; // Default to light theme
+        let audioContext = null;
+        let audioEnabled = true; // Audio feedback enabled by default
+        let masterGain = null; // Global gain node for volume control
+        let lastExplicitSound = 0; // Timestamp for last explicitly-triggered sound
+        
+        // Scroll-based tracker for current question context
+        let contextObserver = null; // kept in case we re-use
+        let contextScrollHandlerAttached = false;
+        
+        // Initialize audio context (must be done after user interaction)
+        function initAudioContext() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    // Create master gain so we can easily tweak overall volume or add global effects later
+                    masterGain = audioContext.createGain();
+                    const savedVolume = localStorage.getItem('quizRendererVolume') || '70';
+                    masterGain.gain.setValueAtTime(parseFloat(savedVolume) / 100, audioContext.currentTime);
+                    masterGain.connect(audioContext.destination);
+                } catch (e) {
+                    console.warn('Web Audio API not supported:', e);
+                }
+            }
+            return audioContext;
+        }
+        
+        // Generate a synthesized tone
+        function playTone(frequency, duration = 0.3, type = 'sine', volume = 1, detuneCents = 8) {
+            if (!audioEnabled) return;
+
+            const ctx = initAudioContext();
+            if (!ctx || !masterGain) return;
+
+            try {
+                const now = ctx.currentTime;
+
+                // Gain envelope (ADSR)
+                const gainNode = ctx.createGain();
+                gainNode.gain.setValueAtTime(0.0001, now);
+                gainNode.gain.linearRampToValueAtTime(volume, now + 0.02);               // Attack
+                gainNode.gain.linearRampToValueAtTime(volume * 0.7, now + duration * 0.6); // Decay/Sustain
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);       // Release
+
+                gainNode.connect(masterGain);
+
+                // Introduce slight random pitch offset for uniqueness (±15 cents)
+                const jitterCents = (Math.random() * 30) - 15;
+                const primaryFreq = frequency * Math.pow(2, jitterCents / 1200);
+
+                // Primary oscillator
+                const osc1 = ctx.createOscillator();
+                osc1.type = type;
+                osc1.frequency.setValueAtTime(primaryFreq, now);
+
+                // Secondary oscillator (slightly detuned) for a richer sound
+                const osc2 = ctx.createOscillator();
+                osc2.type = type;
+                osc2.frequency.setValueAtTime(primaryFreq * Math.pow(2, detuneCents / 1200), now);
+
+                osc1.connect(gainNode);
+                osc2.connect(gainNode);
+
+                osc1.start(now);
+                osc2.start(now);
+
+                osc1.stop(now + duration);
+                osc2.stop(now + duration);
+
+                // Mark explicit sound time so generic handler can avoid double playback
+                lastExplicitSound = Date.now();
+
+            } catch (e) {
+                console.warn('Audio playback failed:', e);
+            }
+        }
+        
+        // Generate a chord (multiple tones)
+        function playChord(frequencies, duration = 0.3, type = 'sine', volume = 0.08) {
+            frequencies.forEach(freq => {
+                playTone(freq, duration, type, volume);
+            });
+        }
+        
+        // Play a short melodic sequence
+        function playMelody(notes, noteDuration = 0.2, gap = 0.05, type = 'sine', volume = 0.12) {
+            let offset = 0;
+            notes.forEach(freq => {
+                setTimeout(() => playTone(freq, noteDuration, type, volume), offset * 1000);
+                offset += noteDuration + gap;
+            });
+        }
+        
+        // ------------------------------------------------------------
+        // Randomized success and error tones
+        // ------------------------------------------------------------
+        const successPool = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99]; // C major notes C4–G5
+        const errorPool   = [164.81, 196.00, 246.94, 329.63, 392.00, 493.88]; // E minor notes E3–B4
+        
+        function pickRandomDistinct(pool, count = 2) {
+            const copy = [...pool];
+            const selected = [];
+            for (let i = 0; i < count && copy.length > 0; i++) {
+                const idx = Math.floor(Math.random() * copy.length);
+                selected.push(copy.splice(idx, 1)[0]);
+            }
+            return selected;
+        }
+        
+        function playRandomSuccess() {
+            const notes = pickRandomDistinct(successPool, 2).sort((a,b) => a-b); // ascending
+            playMelody(notes, 0.14, 0.03, 'triangle', 0.14);
+        }
+        
+        function playRandomError() {
+            const notes = pickRandomDistinct(errorPool, 2).sort((a,b) => b-a); // descending
+            playMelody(notes, 0.22, 0.05, 'sine', 0.08);
+        }
+        
+        const buttonTones = {
+            load: () => playMelody([523.25, 659.25], 0.15, 0.03, 'triangle', 0.14),       // "ding-dong" load tone
+            loadText: () => playMelody([659.25, 783.99], 0.15, 0.03, 'triangle', 0.14),  // higher variant
+            clear: () => playChord([392.00, 196.00], 0.35, 'square', 0.12),              // deep boom for clear
+            theme: () => playChord([261.63, 329.63, 392.00, 523.25], 0.2, 'sawtooth', 0.10), // richer theme chord
+            success: () => playRandomSuccess(),
+            error: () => playRandomError()
+        };
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            
+            // Save preference to localStorage
+            localStorage.setItem('quizRendererAudio', audioEnabled);
+            
+            // Update button text
+            const audioButton = document.getElementById('audioToggle');
+            audioButton.textContent = audioEnabled ? '🔊 Audio On' : '🔇 Audio Off';
+            
+            // Play a test tone if audio was just enabled
+            if (audioEnabled) {
+                // Quick test tone to confirm audio is working
+                setTimeout(() => playTone(440, 0.1, 'sine', 0.08), 100);
+            }
+            
+            // Show feedback message without playing tone (since we're toggling audio)
+            const messageContainer = document.getElementById('messageContainer');
+            messageContainer.innerHTML = `<div class="success"><strong>Success:</strong> Audio feedback ${audioEnabled ? 'enabled' : 'disabled'}.</div>`;
+        }
+
+        function adjustVolume(value) {
+            // Save volume to localStorage
+            localStorage.setItem('quizRendererVolume', value);
+            
+            // Update volume display
+            const volumeDisplay = document.getElementById('volumeDisplay');
+            volumeDisplay.textContent = `${value}%`;
+            
+            // Update master gain if audio context exists
+            if (masterGain) {
+                masterGain.gain.setValueAtTime(parseFloat(value) / 100, audioContext.currentTime);
+            }
+            
+            // Play a test tone to give immediate feedback
+            if (audioEnabled && parseFloat(value) > 0) {
+                setTimeout(() => playTone(523.25, 0.12, 'triangle', 0.15), 50);
+            }
+        }
+
+        function clearAll() {
+            // Play clear tone
+            buttonTones.clear();
+            
+            document.getElementById('messageContainer').innerHTML = '';
+            document.getElementById('questionsContainer').innerHTML = '';
+            document.getElementById('statsContainer').innerHTML = '';
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('jsonFile').value = '';
+            
+            // Destroy existing charts
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+            
+            // Hide and reset context finder
+            const contextDiv = document.getElementById('contextFinder');
+            if (contextDiv) {
+                contextDiv.style.display = 'none';
+                contextDiv.innerHTML = '';
+            }
+            if (contextObserver) {
+                contextObserver.disconnect();
+            }
+        }
+
+        function showMessage(message, type = 'error') {
+            // Play appropriate tone
+            if (type === 'success') {
+                buttonTones.success();
+            } else {
+                buttonTones.error();
+            }
+            
+            const messageContainer = document.getElementById('messageContainer');
+            const className = type === 'success' ? 'success' : 'error';
+            messageContainer.innerHTML = `<div class="${className}"><strong>${type === 'success' ? 'Success' : 'Error'}:</strong> ${message}</div>`;
+        }
+
+        function showStats(questions) {
+            const statsContainer = document.getElementById('statsContainer');
+            const totalQuestions = questions.length;
+            const mcQuestions = questions.filter(q => q.type === 'multiple-choice').length;
+            const frQuestions = questions.filter(q => q.type === 'free-response').length;
+            const hasAnswers = questions.filter(q => q.answerKey).length;
+            const hasReasoning = questions.filter(q => q.reasoning).length;
+            const hasSolutions = questions.filter(q => q.solution).length;
+            const hasScoring = questions.filter(q => q.solution && q.solution.scoring).length;
+            const hasCharts = questions.filter(q => q.attachments && q.attachments.chartType).length;
+            const hasTables = questions.filter(q => q.attachments && q.attachments.table).length;
+            
+            // Count solution charts (charts in solution parts)
+            const hasSolutionCharts = questions.filter(q => 
+                q.solution && q.solution.parts && 
+                q.solution.parts.some(part => part.attachments && part.attachments.chartType)
+            ).length;
+            
+            const barCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'bar').length;
+            const histograms = questions.filter(q => q.attachments && q.attachments.chartType === 'histogram').length;
+            const pieCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'pie').length;
+            const scatterCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'scatter').length;
+            const dotplots = questions.filter(q => q.attachments && q.attachments.chartType === 'dotplot').length;
+            const boxplots = questions.filter(q => q.attachments && q.attachments.chartType === 'boxplot').length;
+            
+            let chartBreakdown = '';
+            if (hasCharts > 0) {
+                const chartTypes = [];
+                if (barCharts > 0) chartTypes.push(`📊 Bar: ${barCharts}`);
+                if (histograms > 0) chartTypes.push(`📈 Histogram: ${histograms}`);
+                if (pieCharts > 0) chartTypes.push(`🥧 Pie: ${pieCharts}`);
+                if (scatterCharts > 0) chartTypes.push(`📈 Scatter: ${scatterCharts}`);
+                if (dotplots > 0) chartTypes.push(`🔘 Dotplot: ${dotplots}`);
+                if (boxplots > 0) chartTypes.push(`📦 Boxplot: ${boxplots}`);
+                chartBreakdown = ` (${chartTypes.join(', ')})`;
+            }
+            
+            statsContainer.innerHTML = `
+                <div class="stats">
+                    <strong>📊 Quiz Statistics:</strong><br>
+                    Total Questions: ${totalQuestions} | 
+                    Multiple Choice: ${mcQuestions} | 
+                    Free Response: ${frQuestions}<br>
+                    With Answer Keys: ${hasAnswers} | 
+                    With Reasoning: ${hasReasoning} | 
+                    With Solutions: ${hasSolutions} | 
+                    With Scoring: ${hasScoring}<br>
+                    📈 Question Charts: ${hasCharts}${chartBreakdown} | 
+                    📋 Tables: ${hasTables} | 
+                    🎯 Solution Charts: ${hasSolutionCharts}
+                </div>
+            `;
+        }
+
+        function isDarkMode() {
+            return currentTheme === 'dark';
+        }
+
+        function toggleTheme() {
+            // Play theme toggle tone
+            buttonTones.theme();
+            
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            // Save preference to localStorage
+            localStorage.setItem('quizRendererTheme', currentTheme);
+            
+            // Update body class for CSS styling
+            document.body.className = currentTheme === 'dark' ? 'dark-theme' : '';
+            
+            // Update button text
+            const themeButton = document.getElementById('themeToggle');
+            themeButton.textContent = currentTheme === 'dark' ? '☀️ Switch to Light' : '🌙 Switch to Dark';
+            
+            // Show feedback message (but don't play success tone since we already played theme tone)
+            const messageContainer = document.getElementById('messageContainer');
+            messageContainer.innerHTML = `<div class="success"><strong>Success:</strong> Switched to ${currentTheme} mode. Re-rendering charts...</div>`;
+            
+            // Re-render charts with new theme
+            forceChartRerender();
+        }
+
+        function initTheme() {
+            // Load saved theme preference or default to light
+            const savedTheme = localStorage.getItem('quizRendererTheme') || 'light';
+            currentTheme = savedTheme;
+            
+            // Apply theme to body
+            document.body.className = currentTheme === 'dark' ? 'dark-theme' : '';
+            
+            // Update button text
+            const themeButton = document.getElementById('themeToggle');
+            if (themeButton) {
+                themeButton.textContent = currentTheme === 'dark' ? '☀️ Switch to Light' : '🌙 Switch to Dark';
+            }
+            
+            // Load saved audio preference or default to enabled
+            const savedAudio = localStorage.getItem('quizRendererAudio');
+            audioEnabled = savedAudio !== null ? savedAudio === 'true' : true;
+            
+            // Update audio button text
+            const audioButton = document.getElementById('audioToggle');
+            if (audioButton) {
+                audioButton.textContent = audioEnabled ? '🔊 Audio On' : '🔇 Audio Off';
+            }
+            
+            // Load saved volume preference or default to 70%
+            const savedVolume = localStorage.getItem('quizRendererVolume') || '70';
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumeDisplay = document.getElementById('volumeDisplay');
+            if (volumeSlider && volumeDisplay) {
+                volumeSlider.value = savedVolume;
+                volumeDisplay.textContent = `${savedVolume}%`;
+            }
+        }
+
+        function generateChartColors(count) {
+            const lightColors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+            ];
+            
+            const darkColors = [
+                '#FF8FA3', '#5BC0EB', '#FFE066', '#6BE6E6', 
+                '#B366FF', '#FFB366', '#FF8FA3', '#E9EBEF',
+                '#6BE6E6', '#FF8FA3', '#5BC0EB', '#FFE066'
+            ];
+            
+            const colors = isDarkMode() ? darkColors : lightColors;
+            return colors.slice(0, count);
+        }
+
+        function getGridColor() {
+            return isDarkMode() ? '#555555' : '#e9ecef';
+        }
+
+        function getScatterPointColor() {
+            return isDarkMode() ? '#5BC0EB' : '#36A2EB';
+        }
+
+        function getTextColor() {
+            return isDarkMode() ? '#e0e0e0' : '#333333';
+        }
+
+        function forceChartRerender() {
+            // Destroy existing charts
+            chartInstances.forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+            chartInstances = [];
+            
+            // Re-render if we have data
+            if (window.lastLoadedData) {
+                setTimeout(() => {
+                    renderQuiz(window.lastLoadedData);
+                }, 100);
+            }
+        }
+
+        function renderChart(chartData, questionId) {
+            const chartId = `chart-${questionId}`;
+            const config = chartData.chartConfig || {};
+            
+            // Use the chart's title if available, otherwise use the chart type
+            const chartTitle = chartData.title ? 
+                chartData.title : 
+                (config.description ? 
+                    `📊 ${chartData.chartType.toUpperCase()} CHART` : 
+                    `📊 ${chartData.chartType.toUpperCase()} CHART`);
+            
+            // Allow a chart to request full horizontal space when rendered inside a "multiple-charts-container"
+            const containerStyle = chartData.fullWidth ? 'style="flex:0 0 100%; max-width:100%; width:100%;"' : '';
+            
+            let chartHtml = `
+                <div class="chart-container" ${containerStyle}>
+                    <div class="chart-title">${chartTitle}</div>
+                    ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` : ''}
+                    <div class="chart-canvas">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                </div>
+            `;
+
+            // Return HTML first, then we'll create the chart after the DOM is updated
+            setTimeout(() => {
+                const canvas = document.getElementById(chartId);
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                
+                if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
+                    // Ensure every segment in a stacked / segmented bar gets its own visually distinct color
+                    // 1. Compute one shared palette sized to the total number of series.
+                    // 2. Pick the palette entry matching the series index (wrap-around safety for very large N).
+                    const colorPalette = generateChartColors(chartData.series.length);
+
+                    const datasets = chartData.series.map((series, index) => {
+                        const color = colorPalette[index % colorPalette.length] || '#36A2EB';
+                        return {
+                            label: series.name,
+                            data: series.values,
+                            backgroundColor: color,
+                            borderColor: color,
+                            borderWidth: 1
+                        };
+                    });
+
+                    // Use chartConfig if available, otherwise use defaults
+                    const yAxisConfig = config.yAxis || {};
+                    const xAxisConfig = config.xAxis || {};
+                    
+                    // Handle grid lines - support both old and new formats
+                    let showHorizontalGrid = true;
+                    let showVerticalGrid = false;
+                    
+                    if (config.gridLines !== undefined) {
+                        if (typeof config.gridLines === 'boolean') {
+                            // Old format: gridLines: true/false
+                            showHorizontalGrid = config.gridLines;
+                            showVerticalGrid = false;
+                        } else if (typeof config.gridLines === 'object') {
+                            // New format: gridLines: {horizontal: true, vertical: false}
+                            showHorizontalGrid = config.gridLines.horizontal !== false;
+                            showVerticalGrid = config.gridLines.vertical === true;
+                        }
+                    }
+                    
+                    // Configure bar spacing - gaps for bar charts, no gaps for histograms
+                    const isHistogram = chartData.chartType === 'histogram';
+                    const categoryPercentage = isHistogram ? 1.0 : 0.8;
+                    const barPercentage = isHistogram ? 1.0 : 0.9;
+
+                    // NEW: Detect orientation for bar charts (default to vertical)
+                    const orientation = config.orientation || 'vertical';
+                    const isHorizontalBar = orientation === 'horizontal';
+
+                    // NEW: Detect if bars should be stacked (applies only to bar charts)
+                    const isStacked = config.stacked === true || config.stacked === 'true';
+
+                    // Handle labels based on orientation - support both xLabels and yLabels
+                    let displayLabels = isHorizontalBar ? (chartData.yLabels || chartData.xLabels) : (chartData.xLabels || chartData.yLabels);
+
+                    // Preserve existing labelType overrides
+                    if (xAxisConfig.labelType === 'upperBound' && xAxisConfig.labels) {
+                        displayLabels = xAxisConfig.labels;
+                    } else if (xAxisConfig.labelType === 'range' && chartData.xLabels) {
+                        displayLabels = chartData.xLabels;
+                    } else if (xAxisConfig.labelType === 'lowerBound') {
+                        displayLabels = xAxisConfig.labels || chartData.xLabels;
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: displayLabels,
+                            datasets: datasets
+                        },
+                        options: {
+                            indexAxis: isHorizontalBar ? 'y' : 'x',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            categoryPercentage: categoryPercentage,
+                            barPercentage: barPercentage,
+                            scales: isHorizontalBar ? {
+                                x: {
+                                    beginAtZero: xAxisConfig.min !== undefined ? (xAxisConfig.min === 0) : true,
+                                    min: xAxisConfig.min,
+                                    max: xAxisConfig.max,
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    },
+                                    stacked: isStacked,
+                                    ticks: {
+                                        stepSize: xAxisConfig.tickInterval,
+                                        maxTicksLimit: xAxisConfig.tickInterval ? undefined : 10,
+                                        precision: 2,
+                                        color: getTextColor(),
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (xAxisConfig.tickInterval) {
+                                                const step = xAxisConfig.tickInterval;
+                                                const min = xAxisConfig.min !== undefined ? xAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: yAxisConfig.title || 'Category',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        color: getTextColor()
+                                    },
+                                    offset: true
+                                }
+                            } : {
+                                y: {
+                                    beginAtZero: yAxisConfig.min !== undefined ? (yAxisConfig.min === 0) : true,
+                                    min: yAxisConfig.min,
+                                    max: yAxisConfig.max,
+                                    title: {
+                                        display: true,
+                                        text: yAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor(),
+                                        lineWidth: 1,
+                                        drawBorder: true,
+                                        drawOnChartArea: true,
+                                        drawTicks: !yAxisConfig.hideTicks
+                                    },
+                                    stacked: isStacked,
+                                    ticks: {
+                                        stepSize: yAxisConfig.tickInterval,
+                                        maxTicksLimit: yAxisConfig.tickInterval ? undefined : 10,
+                                        precision: 2,
+                                        color: getTextColor(),
+                                        display: !yAxisConfig.hideTicks,
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            if (yAxisConfig.hideTicks) return '';
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (yAxisConfig.tickInterval) {
+                                                const step = yAxisConfig.tickInterval;
+                                                const min = yAxisConfig.min !== undefined ? yAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Category',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    },
+                                    stacked: isStacked,
+                                    ticks: {
+                                        color: getTextColor()
+                                    },
+                                    offset: true
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: datasets.length > 1,
+                                    labels: {
+                                        color: getTextColor()
+                                    }
+                                },
+                                // Enable data labels for bar/histogram charts when requested via chartConfig.showPointLabels
+                                datalabels: {
+                                    display: config.showPointLabels === true,
+                                    color: getTextColor(),
+                                    anchor: isHorizontalBar ? 'center' : 'end',
+                                    align: isHorizontalBar ? 'right' : 'top',
+                                    formatter: (value) => value
+                                }
+                            }
+                        }
+                    });
+                    chartInstances.push(chart);
+                
+                } else if (chartData.chartType === 'pie') {
+                    const seriesData = chartData.series[0].values;
+                    const labels = seriesData.map(item => item.name);
+                    const values = seriesData.map(item => item.value);
+                    
+                    const chart = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: generateChartColors(values.length),
+                                borderWidth: 2,
+                                borderColor: isDarkMode() ? '#2d2d2d' : '#fff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        usePointStyle: true,
+                                        color: getTextColor()
+                                    }
+                                },
+                                // Optional data labels for pie charts (percentages) when chartConfig.showPointLabels is true
+                                datalabels: {
+                                    display: (config.showPointLabels === true),
+                                    color: getTextColor(),
+                                    formatter: function(value, context) {
+                                        const total = values.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return percentage + '%';
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const total = values.reduce((a, b) => a + b, 0);
+                                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    chartInstances.push(chart);
+                
+                } else if (chartData.chartType === 'scatter') {
+                    const config = chartData.chartConfig || {};
+                    const xAxisConfig = config.xAxis || {};
+                    const yAxisConfig = config.yAxis || {};
+                    
+                    // Handle grid lines - support both old and new formats
+                    let showHorizontalGrid = true;
+                    let showVerticalGrid = true; // Scatter plots often show both grids
+                    
+                    if (config.gridLines !== undefined) {
+                        if (typeof config.gridLines === 'boolean') {
+                            // Old format: gridLines: true/false
+                            showHorizontalGrid = config.gridLines;
+                            showVerticalGrid = config.gridLines;
+                        } else if (typeof config.gridLines === 'object') {
+                            // New format: gridLines: {horizontal: true, vertical: false}
+                            showHorizontalGrid = config.gridLines.horizontal === true;
+                            showVerticalGrid = config.gridLines.vertical === true;
+                        }
+                    }
+                    
+                    // Build primary dataset (scatter points)
+                    const datasets = [{
+                        label: 'Data Points',
+                        data: chartData.points,
+                        backgroundColor: getScatterPointColor(),
+                        borderColor: getScatterPointColor(),
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }];
+
+                    // Determine if we should render point labels
+                    const hasPointLabels = (chartData.points || []).some(pt => pt.label !== undefined);
+
+                    // --------------------------------------------------
+                    // Optional regression line (least-squares)            <-- ADD
+                    // --------------------------------------------------
+                    if (config.regressionLine) {
+                        const pts = chartData.points || [];
+                        if (Array.isArray(pts) && pts.length >= 2) {
+                            // Compute least-squares slope and intercept
+                            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+                            pts.forEach(p => {
+                                sumX += p.x;
+                                sumY += p.y;
+                                sumXY += p.x * p.y;
+                                sumXX += p.x * p.x;
+                            });
+                            const n = pts.length;
+                            const denominator = n * sumXX - sumX * sumX;
+                            if (denominator !== 0) {
+                                const slope = (n * sumXY - sumX * sumY) / denominator;
+                                const intercept = (sumY - slope * sumX) / n;
+
+                                // Determine the horizontal span for the line
+                                let minX = typeof xAxisConfig.min === 'number' ? xAxisConfig.min : undefined;
+                                let maxX = typeof xAxisConfig.max === 'number' ? xAxisConfig.max : undefined;
+                                if (minX === undefined || maxX === undefined) {
+                                    const xs = pts.map(p => p.x);
+                                    if (minX === undefined) minX = Math.min(...xs);
+                                    if (maxX === undefined) maxX = Math.max(...xs);
+                                }
+
+                                // Style overrides (optional)
+                                const regColor = config.regressionLineColor || getTextColor();
+                                const regDash  = config.regressionLineDash  || [];
+
+                                datasets.push({
+                                    label: 'Regression Line',
+                                    type: 'line',
+                                    data: [
+                                        { x: minX, y: slope * minX + intercept },
+                                        { x: maxX, y: slope * maxX + intercept }
+                                    ],
+                                    borderColor: regColor,
+                                    borderDash: regDash,
+                                    borderWidth: 2,
+                                    fill: false,
+                                    pointRadius: 0,
+                                    tension: 0,
+                                    order: 0
+                                });
+                            }
+                        }
+                    }
+
+                    // --------------------------------------------------
+                    // Optional reference line at y = 0 (useful for residual plots)
+                    // --------------------------------------------------
+                    if (config.referenceLineAtZero) {
+                        // Determine horizontal span of the scatter data (fallback to axis min/max)
+                        let minX = typeof xAxisConfig.min === 'number' ? xAxisConfig.min : undefined;
+                        let maxX = typeof xAxisConfig.max === 'number' ? xAxisConfig.max : undefined;
+                        if (minX === undefined || maxX === undefined) {
+                            const xs = chartData.points.map(p => p.x);
+                            if (minX === undefined) minX = Math.min(...xs);
+                            if (maxX === undefined) maxX = Math.max(...xs);
+                        }
+
+                        datasets.push({
+                            label: 'Reference Line y = 0',
+                            type: 'line',
+                            data: [
+                                { x: minX, y: 0 },
+                                { x: maxX, y: 0 }
+                            ],
+                            borderColor: '#CC0000',
+                            borderDash: [6, 4],
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            order: 0
+                        });
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    min: xAxisConfig.min,
+                                    max: xAxisConfig.max,
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'X Variable',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        stepSize: xAxisConfig.tickInterval,
+                                        color: getTextColor(),
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (xAxisConfig.tickInterval) {
+                                                const step = xAxisConfig.tickInterval;
+                                                const min = xAxisConfig.min !== undefined ? xAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                },
+                                y: {
+                                    min: yAxisConfig.min,
+                                    max: yAxisConfig.max,
+                                    title: {
+                                        display: true,
+                                        text: yAxisConfig.title || 'Y Variable',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        stepSize: yAxisConfig.tickInterval,
+                                        color: getTextColor(),
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (yAxisConfig.tickInterval) {
+                                                const step = yAxisConfig.tickInterval;
+                                                const min = yAxisConfig.min !== undefined ? yAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                datalabels: {
+                                    display: (ctx) => {
+                                        const d = ctx.dataset.data[ctx.dataIndex];
+                                        // Show label if point has 'label' or global chartConfig requests labels
+                                        return (d && d.label !== undefined) || config.showPointLabels === true;
+                                    },
+                                    align: 'top',
+                                    anchor: 'center',
+                                    color: getTextColor(),
+                                    formatter: (value) => {
+                                        // If value has explicit label use that, otherwise display y
+                                        if (value.label !== undefined) return value.label;
+                                        if (config.showPointLabels === true) {
+                                            return `(${value.x}, ${value.y})`;
+                                        }
+                                        return '';
+                                    },
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    chartInstances.push(chart);
+
+                    // Add point label plugin AFTER chart creation to ensure meta is available
+                    if (false && (hasPointLabels || config.showPointLabels)) {
+                        // Create inline plugin specific to this chart instance
+                        const labelPlugin = {
+                            id: 'scatterPointLabels',
+                            afterDatasetsDraw: (c) => {
+                                if (c !== chart) return; // Only draw for this chart instance
+                                const ctx = c.ctx;
+                                ctx.save();
+                                c.data.datasets.forEach((ds, dsi) => {
+                                    // Only annotate the point dataset (assumed first) or explicitly marked datasets
+                                    if (dsi !== 0) return;
+                                    const meta = c.getDatasetMeta(dsi);
+                                    meta.data.forEach((elem, idx) => {
+                                        const pointData = ds.data[idx];
+                                        const lbl = pointData && pointData.label;
+                                        if (lbl === undefined) return;
+                                        const {x, y} = elem.getCenterPoint();
+                                        ctx.fillStyle = getTextColor();
+                                        ctx.font = '12px sans-serif';
+                                        ctx.textAlign = 'center';
+                                        ctx.textBaseline = 'bottom';
+                                        ctx.fillText(lbl, x, y - 6);
+                                    });
+                                });
+                                ctx.restore();
+                            }
+                        };
+                        chart.options.plugins = chart.options.plugins || [];
+                        chart.options.plugins.push(labelPlugin);
+                        chart.update();
+                    }
+                
+                } else if (chartData.chartType === 'dotplot') {
+                    const config = chartData.chartConfig || {};
+                    const xAxisConfig = config.xAxis || {};
+                    
+                    // Handle grid lines - dotplots typically have no grid lines
+                    let showHorizontalGrid = false;
+                    let showVerticalGrid = false;
+                    
+                    if (config.gridLines !== undefined) {
+                        if (typeof config.gridLines === 'boolean') {
+                            showHorizontalGrid = config.gridLines;
+                            showVerticalGrid = config.gridLines;
+                        } else if (typeof config.gridLines === 'object') {
+                            showHorizontalGrid = config.gridLines.horizontal === true;
+                            showVerticalGrid = config.gridLines.vertical === true;
+                        }
+                    }
+                    
+                    // Convert raw values to frequency data for dotplot
+                    const valueFrequency = {};
+                    chartData.values.forEach(value => {
+                        valueFrequency[value] = (valueFrequency[value] || 0) + 1;
+                    });
+                    
+                    // Create stacked dots data
+                    const dotplotData = [];
+                    for (const [value, frequency] of Object.entries(valueFrequency)) {
+                        for (let i = 1; i <= frequency; i++) {
+                            dotplotData.push({
+                                x: parseFloat(value),
+                                y: i
+                            });
+                        }
+                    }
+                    
+                    // Find max frequency for y-axis
+                    const maxFrequency = Math.max(...Object.values(valueFrequency));
+                    
+                    // Allow caller to set dot radius (default 4)
+                    const dotRadius = (config.dotRadius !== undefined ? config.dotRadius : 4);
+                    
+                    const chart = new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: 'Data Points',
+                                data: dotplotData,
+                                backgroundColor: getScatterPointColor(),
+                                borderColor: getScatterPointColor(),
+                                pointRadius: dotRadius,
+                                pointHoverRadius: dotRadius + 2,
+                                showLine: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    min: xAxisConfig.min,
+                                    max: xAxisConfig.max,
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        stepSize: xAxisConfig.tickInterval,
+                                        color: getTextColor(),
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (xAxisConfig.tickInterval) {
+                                                const step = xAxisConfig.tickInterval;
+                                                const min = xAxisConfig.min !== undefined ? xAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                },
+                                y: {
+                                    type: 'linear',
+                                    min: 0,
+                                    max: maxFrequency + 1,
+                                    title: {
+                                        display: false  // Dotplots don't typically show y-axis labels
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        display: false,  // Hide y-axis tick labels
+                                        stepSize: 1
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                datalabels: {
+                                    display: () => config.showPointLabels === true,
+                                    align: 'top',
+                                    anchor: 'center',
+                                    color: getTextColor(),
+                                    formatter: (value) => value.y,
+                                    font: { size: 12 }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            return `Value: ${context[0].parsed.x}`;
+                                        },
+                                        label: function(context) {
+                                            return `Count: ${valueFrequency[context.parsed.x]}`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                     chartInstances.push(chart);
+
+                    // Adjust chart height so stacked dots appear closer (rough heuristic)
+                    const minHeight = 120;
+                    const desiredHeight = Math.max(minHeight, (dotRadius * 2 + 4) * (maxFrequency + 1));
+                    canvas.parentElement.style.height = desiredHeight + 'px';
+                 
+
+                } else if (chartData.chartType === 'boxplot') {
+                    const config = chartData.chartConfig || {};
+                    const xAxisConfig = config.xAxis || {};
+                    const boxplotData = config.boxplotData || {};
+                    
+                    // Handle grid lines
+                    let showHorizontalGrid = false;
+                    let showVerticalGrid = false;
+                    
+                    if (config.gridLines !== undefined) {
+                        if (typeof config.gridLines === 'boolean') {
+                            showHorizontalGrid = config.gridLines;
+                            showVerticalGrid = config.gridLines;
+                        } else if (typeof config.gridLines === 'object') {
+                            showHorizontalGrid = config.gridLines.horizontal === true;
+                            showVerticalGrid = config.gridLines.vertical === true;
+                        }
+                    }
+                    
+                    // Handle multiple boxplots (array) or single boxplot (object)
+                    const boxplots = Array.isArray(boxplotData) ? boxplotData : [boxplotData];
+                    
+                    // Check orientation from config (default to horizontal)
+                    const orientation = config.orientation || 'horizontal';
+                    const isHorizontal = orientation === 'horizontal';
+                    
+                    // Find overall min/max for axis scaling
+                    let overallMin = Infinity;
+                    let overallMax = -Infinity;
+                    
+                    boxplots.forEach(boxplot => {
+                        const { Q1, Q3, median, min, max, whiskerMin, whiskerMax, outliers } = boxplot;
+                        
+                        // Support both old format (min/max) and new format (whiskerMin/whiskerMax + outliers)
+                        const actualWhiskerMin = whiskerMin !== undefined ? whiskerMin : min;
+                        const actualWhiskerMax = whiskerMax !== undefined ? whiskerMax : max;
+                        const actualOutliers = outliers || [];
+                        
+                        // Calculate overall range including outliers
+                        const allValues = [actualWhiskerMin, actualWhiskerMax, ...actualOutliers];
+                        overallMin = Math.min(overallMin, Math.min(...allValues));
+                        overallMax = Math.max(overallMax, Math.max(...allValues));
+                                         });
+                    
+                    // Create boxplot visualization with orientation support
+                    let datasets = [];
+                    
+                    // Generate colors for multiple boxplots
+                    const boxplotColors = generateChartColors(boxplots.length);
+                    
+                    boxplots.forEach((boxplot, index) => {
+                        const { Q1, Q3, median, min, max, whiskerMin, whiskerMax, outliers, name } = boxplot;
+                        
+                        // Support both old format (min/max) and new format (whiskerMin/whiskerMax + outliers)
+                        const actualWhiskerMin = whiskerMin !== undefined ? whiskerMin : min;
+                        const actualWhiskerMax = whiskerMax !== undefined ? whiskerMax : max;
+                        const actualOutliers = outliers || [];
+                        
+                        // Calculate position for multiple boxplots
+                        const boxplotSpacing = 0.8; // Space between boxplots
+                        const yPos = isHorizontal ? (index - (boxplots.length - 1) / 2) * boxplotSpacing : 0;
+                        const xPos = !isHorizontal ? (index - (boxplots.length - 1) / 2) * boxplotSpacing : 0;
+                        
+                        const color = boxplotColors[index];
+                        const boxplotName = name || `Boxplot ${index + 1}`;
+                        
+                        if (isHorizontal) {
+                            // Horizontal boxplot
+                            datasets.push(
+                                // Median line (vertical in horizontal boxplot)
+                                {
+                                    label: `${boxplotName} Median`,
+                                    data: [{ x: median, y: yPos - 0.2 }, { x: median, y: yPos + 0.2 }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 3,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Lower whisker (horizontal)
+                                {
+                                    label: `${boxplotName} Lower Whisker`,
+                                    data: [{ x: actualWhiskerMin, y: yPos }, { x: Q1, y: yPos }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Upper whisker (horizontal)
+                                {
+                                    label: `${boxplotName} Upper Whisker`,
+                                    data: [{ x: Q3, y: yPos }, { x: actualWhiskerMax, y: yPos }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Whisker caps (vertical)
+                                {
+                                    label: `${boxplotName} Lower Cap`,
+                                    data: [
+                                        { x: actualWhiskerMin, y: yPos - 0.1 },
+                                        { x: actualWhiskerMin, y: yPos + 0.1 }
+                                    ],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                {
+                                    label: `${boxplotName} Upper Cap`,
+                                    data: [
+                                        { x: actualWhiskerMax, y: yPos - 0.1 },
+                                        { x: actualWhiskerMax, y: yPos + 0.1 }
+                                    ],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                }
+                            );
+                            
+                            // Add outliers if any
+                            if (actualOutliers.length > 0) {
+                                const outlierData = actualOutliers.map(outlierValue => ({ x: outlierValue, y: yPos }));
+                                datasets.push({
+                                    label: `${boxplotName} Outliers`,
+                                    data: outlierData,
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 5,
+                                    showLine: false,
+                                    type: 'scatter'
+                                });
+                            }
+                        } else {
+                            // Vertical boxplot
+                            datasets.push(
+                                // Median line (horizontal in vertical boxplot)
+                                {
+                                    label: `${boxplotName} Median`,
+                                    data: [{ x: xPos - 0.2, y: median }, { x: xPos + 0.2, y: median }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 3,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Lower whisker (vertical)
+                                {
+                                    label: `${boxplotName} Lower Whisker`,
+                                    data: [{ x: xPos, y: actualWhiskerMin }, { x: xPos, y: Q1 }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Upper whisker (vertical)
+                                {
+                                    label: `${boxplotName} Upper Whisker`,
+                                    data: [{ x: xPos, y: Q3 }, { x: xPos, y: actualWhiskerMax }],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                // Whisker caps (horizontal)
+                                {
+                                    label: `${boxplotName} Lower Cap`,
+                                    data: [
+                                        { x: xPos - 0.1, y: actualWhiskerMin },
+                                        { x: xPos + 0.1, y: actualWhiskerMin }
+                                    ],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                },
+                                {
+                                    label: `${boxplotName} Upper Cap`,
+                                    data: [
+                                        { x: xPos - 0.1, y: actualWhiskerMax },
+                                        { x: xPos + 0.1, y: actualWhiskerMax }
+                                    ],
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 0,
+                                    showLine: true,
+                                    type: 'line'
+                                }
+                            );
+                            
+                            // Add outliers if any
+                            if (actualOutliers.length > 0) {
+                                const outlierData = actualOutliers.map(outlierValue => ({ x: xPos, y: outlierValue }));
+                                datasets.push({
+                                    label: `${boxplotName} Outliers`,
+                                    data: outlierData,
+                                    backgroundColor: color,
+                                    borderColor: color,
+                                    borderWidth: 2,
+                                    pointRadius: 5,
+                                    showLine: false,
+                                    type: 'scatter'
+                                });
+                            }
+                        }
+                    }); // End of boxplots.forEach
+                    
+                    // High DPI canvas resize for crisp rendering
+                    const dpr = window.devicePixelRatio || 1;
+                    const parentRect = canvas.parentElement.getBoundingClientRect();
+                    const displayWidth = parentRect.width;
+                    const displayHeight = parentRect.height;
+                    canvas.width = displayWidth * dpr;
+                    canvas.height = displayHeight * dpr;
+                    canvas.style.width = displayWidth + 'px';
+                    canvas.style.height = displayHeight + 'px';
+                    // Do NOT manually scale ctx – Chart.js handles DPR internally
+                    
+                    const chart = new Chart(ctx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: isHorizontal ? {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    min: xAxisConfig.min || (overallMin - 2),
+                                    max: xAxisConfig.max || (overallMax + 2),
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        stepSize: xAxisConfig.tickInterval,
+                                        color: getTextColor(),
+                                        // Force Chart.js to respect our stepSize by providing a callback
+                                        callback: function(value, index, values) {
+                                            // If we have a specific tickInterval, ensure we only show ticks at those intervals
+                                            if (xAxisConfig.tickInterval) {
+                                                const step = xAxisConfig.tickInterval;
+                                                const min = xAxisConfig.min !== undefined ? xAxisConfig.min : 0;
+                                                const adjustedValue = value - min;
+                                                if (Math.abs(adjustedValue % step) < 0.000001 || Math.abs(adjustedValue % step - step) < 0.000001) {
+                                                    // Round to mitigate floating-point artifacts
+                                                    return Number(value.toFixed(6));
+                                                }
+                                                return '';
+                                            }
+                                            return value;
+                                        }
+                                    }
+                                },
+                                y: {
+                                    type: 'linear',
+                                    min: -(boxplots.length) * 0.5,
+                                    max: (boxplots.length) * 0.5,
+                                    display: boxplots.length > 1,  // Show y-axis labels for multiple boxplots
+                                    title: {
+                                        display: boxplots.length > 1,
+                                        text: 'Groups',
+                                        color: getTextColor()
+                                    },
+                                    ticks: {
+                                        display: boxplots.length > 1,
+                                        color: getTextColor(),
+                                        callback: function(value, index) {
+                                            const boxplotIndex = Math.round(value + (boxplots.length - 1) / 2);
+                                            if (boxplotIndex >= 0 && boxplotIndex < boxplots.length) {
+                                                return boxplots[boxplotIndex].name || `Group ${boxplotIndex + 1}`;
+                                            }
+                                            return '';
+                                        }
+                                    }
+                                }
+                            } : {
+                                x: {
+                                    type: 'linear',
+                                    min: -(boxplots.length) * 0.5,
+                                    max: (boxplots.length) * 0.5,
+                                    display: boxplots.length > 1,  // Show x-axis labels for multiple boxplots
+                                    title: {
+                                        display: boxplots.length > 1,
+                                        text: 'Groups',
+                                        color: getTextColor()
+                                    },
+                                    ticks: {
+                                        display: boxplots.length > 1,
+                                        color: getTextColor(),
+                                        callback: function(value, index) {
+                                            const boxplotIndex = Math.round(value + (boxplots.length - 1) / 2);
+                                            if (boxplotIndex >= 0 && boxplotIndex < boxplots.length) {
+                                                return boxplots[boxplotIndex].name || `Group ${boxplotIndex + 1}`;
+                                            }
+                                            return '';
+                                        }
+                                    }
+                                },
+                                y: {
+                                    type: 'linear',
+                                    position: 'left',
+                                    min: xAxisConfig.min || (overallMin - 2),
+                                    max: xAxisConfig.max || (overallMax + 2),
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor()
+                                    },
+                                    ticks: {
+                                        display: !yAxisConfig.hideTicks,
+                                        stepSize: yAxisConfig.tickInterval,
+                                        color: getTextColor()
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            const dataset = context[0].dataset;
+                                            return dataset.label;
+                                        },
+                                        label: function(context) {
+                                            const dataset = context.dataset;
+                                            
+                                            if (dataset.label.includes('Median')) {
+                                                const value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                                return `Median: ${value}`;
+                                            } else if (dataset.label.includes('Outliers')) {
+                                                const value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                                return `Outlier: ${value}`;
+                                            } else if (dataset.label.includes('Whisker')) {
+                                                const value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                                return `Whisker endpoint: ${value}`;
+                                            } else if (dataset.label.includes('Cap')) {
+                                                const value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                                return `Whisker cap: ${value}`;
+                                            }
+                                            const value = isHorizontal ? context.parsed.x : context.parsed.y;
+                                            return `Value: ${value}`;
+                                        }
+                                    }
+                                },
+                                datalabels: {
+                                    display: (ctx) => {
+                                        const cfg = (chartData.chartConfig || {});
+                                        return cfg.showPointLabels === true; // off by default
+                                    },
+                                    color: getTextColor(),
+                                    align: 'top',
+                                    anchor: 'center'
+                                }
+                            }
+                        },
+                        plugins: [{
+                            id: 'boxplotBox',
+                            afterDraw: function(chart) {
+                                const ctx = chart.ctx;
+                                const chartArea = chart.chartArea;
+                                ctx.save();
+                                
+                                // Draw boxes for each boxplot
+                                const boxplotSpacing = 0.8; // Space between boxplots
+                                boxplots.forEach((boxplot, index) => {
+                                    const { Q1, Q3, name } = boxplot;
+                                    const color = boxplotColors[index];
+                                    
+                                    // Set fill and stroke styles
+                                    ctx.fillStyle = color + '33'; // Add transparency
+                                    ctx.strokeStyle = color;
+                                    ctx.lineWidth = 2;
+                                    
+                                    if (isHorizontal) {
+                                        const xScale = chart.scales.x;
+                                        const yScale = chart.scales.y;
+                                        const boxHeight = 30;
+                                        const yPos = (index - (boxplots.length - 1) / 2) * boxplotSpacing;
+                                        const centerY = yScale.getPixelForValue(yPos);
+                                        const q1X = xScale.getPixelForValue(Q1);
+                                        const q3X = xScale.getPixelForValue(Q3);
+                                        ctx.fillRect(q1X, centerY - boxHeight/2, q3X - q1X, boxHeight);
+                                        ctx.strokeRect(q1X, centerY - boxHeight/2, q3X - q1X, boxHeight);
+                                    } else {
+                                        const xScale = chart.scales.x;
+                                        const yScale = chart.scales.y;
+                                        const boxWidth = 30;
+                                        const xPos = (index - (boxplots.length - 1) / 2) * boxplotSpacing;
+                                        const centerX = xScale.getPixelForValue(xPos);
+                                        const q1Y = yScale.getPixelForValue(Q1);
+                                        const q3Y = yScale.getPixelForValue(Q3);
+                                        ctx.fillRect(centerX - boxWidth/2, q3Y, boxWidth, q1Y - q3Y);
+                                        ctx.strokeRect(centerX - boxWidth/2, q3Y, boxWidth, q1Y - q3Y);
+                                    }
+                                });
+                                
+                                ctx.restore();
+                            }
+                        }]
+                    });
+                    chartInstances.push(chart);
+                } else if (chartData.chartType === 'normal') {
+                    // --------------------------------------------------
+                    // Normal distribution curve with optional shaded region
+                    // --------------------------------------------------
+                    const mean = (typeof chartData.mean === 'number') ? chartData.mean : 0;
+                    const sd   = (typeof chartData.sd   === 'number' && chartData.sd > 0) ? chartData.sd : 1;
+                    const shade = chartData.shade || null; // {lower: number|null, upper: number|null}
+
+                    const config        = chartData.chartConfig || {};
+                    const xAxisConfig   = config.xAxis || {};
+                    const yAxisConfig   = config.yAxis || {};
+
+                    const xMin = (typeof xAxisConfig.min === 'number') ? xAxisConfig.min : mean - 3 * sd;
+                    const xMax = (typeof xAxisConfig.max === 'number') ? xAxisConfig.max : mean + 3 * sd;
+                    const tickInterval = (typeof xAxisConfig.tickInterval === 'number') ? xAxisConfig.tickInterval : sd;
+
+                    const pdf = (x) => (1 / (sd * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / sd, 2));
+
+                    const numPoints = 120;
+                    const curvePoints = [];
+                    const shadePoints = [];
+
+                    const peakY = pdf(mean);
+
+                    for (let i = 0; i <= numPoints; i++) {
+                        const x = xMin + (i / numPoints) * (xMax - xMin);
+                        const rawY = pdf(x);
+                        const y = rawY / peakY; // scale
+                        curvePoints.push({ x, y });
+
+                        if (shade) {
+                            const inLower = (shade.lower == null) || (x >= shade.lower);
+                            const inUpper = (shade.upper == null) || (x <= shade.upper);
+                            shadePoints.push({ x, y: (inLower && inUpper) ? y : null });
+                        }
+                    }
+
+                    const datasets = [{
+                        label: 'Normal Curve',
+                        type: 'line',
+                        data: curvePoints,
+                        borderColor: getTextColor(),
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.15
+                    }];
+
+                    if (shade) {
+                        const shadeColor = isDarkMode() ? 'rgba(200,200,200,0.35)' : 'rgba(0,0,0,0.25)';
+                        datasets.push({
+                            label: 'Shaded Region',
+                            type: 'line',
+                            data: shadePoints,
+                            borderColor: 'transparent',
+                            backgroundColor: shadeColor,
+                            fill: 'origin',
+                            pointRadius: 0,
+                            tension: 0.15,
+                            borderWidth: 0
+                        });
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: 'line',
+                        data: { datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    min: xMin,
+                                    max: xMax,
+                                    ticks: {
+                                        stepSize: tickInterval,
+                                        color: getTextColor()
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'Value',
+                                        color: getTextColor()
+                                    },
+                                    grid: { display: false }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    display: false,
+                                    min: 0,
+                                    title: {
+                                        display: !!yAxisConfig.title,
+                                        text: yAxisConfig.title || '',
+                                        color: getTextColor()
+                                    },
+                                    grid: { display: false },
+                                    ticks: { display: false }
+                                }
+                            },
+                            plugins: { legend: { display: false }, datalabels: { display: false } }
+                        }
+                    });
+                    chartInstances.push(chart);
+                } else if (chartData.chartType === 'chisquare') {
+                    // --- New chi-square distribution rendering ---
+                    const cfg = chartData.chartConfig || {};
+                    const xAxisConfig = cfg.xAxis || {};
+                    const yAxisConfig = cfg.yAxis || {};
+
+                    // Accept list of degrees of freedom or single df
+                    const dfList = Array.isArray(chartData.dfList) && chartData.dfList.length > 0 ?
+                                    chartData.dfList :
+                                    (typeof chartData.df === 'number' ? [chartData.df] : [1]);
+
+                    // Optional labels array; default to "df = k" notation
+                    const labels = Array.isArray(chartData.labels) && chartData.labels.length === dfList.length ?
+                                    chartData.labels : dfList.map(df => `df = ${df}`);
+
+                    const xMin = typeof xAxisConfig.min === 'number' ? xAxisConfig.min : 0;
+                    const xMax = typeof xAxisConfig.max === 'number' ? xAxisConfig.max : Math.max(...dfList) * 3.5;
+                    const numPoints = cfg.numPoints || 120;
+
+                    // Lightweight Lanczos approximation for Gamma function
+                    function gamma(z) {
+                        const p = [
+                            0.99999999999980993,
+                            676.5203681218851,
+                            -1259.1392167224028,
+                            771.32342877765313,
+                            -176.61502916214059,
+                            12.507343278686905,
+                            -0.13857109526572012,
+                            9.9843695780195716e-6,
+                            1.5056327351493116e-7
+                        ];
+                        const g = 7;
+                        if (z < 0.5) {
+                            return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+                        }
+                        z -= 1;
+                        let x = p[0];
+                        for (let i = 1; i < p.length; i++) {
+                            x += p[i] / (z + i);
+                        }
+                        const t = z + g + 0.5;
+                        return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+                    }
+
+                    // Chi-square probability density function
+                    function chiSquarePdf(x, k) {
+                        if (x <= 0) return 0;
+                        const coeff = 1 / (Math.pow(2, k / 2) * gamma(k / 2));
+                        return coeff * Math.pow(x, k / 2 - 1) * Math.exp(-x / 2);
+                    }
+
+                    const colorPalette = generateChartColors(dfList.length);
+                    const datasets = dfList.map((df, idx) => {
+                        const pts = [];
+                        for (let i = 0; i <= numPoints; i++) {
+                            const xVal = xMin + (i / numPoints) * (xMax - xMin);
+                            pts.push({ x: xVal, y: chiSquarePdf(xVal, df) });
+                        }
+                        const color = colorPalette[idx % colorPalette.length] || '#36A2EB';
+                        return {
+                            label: labels[idx],
+                            type: 'line',
+                            data: pts,
+                            borderColor: color,
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.15
+                        };
+                    });
+
+                    // Grid line settings (reuse existing pattern)
+                    let showHorizontalGrid = true;
+                    let showVerticalGrid = false;
+                    if (cfg.gridLines !== undefined) {
+                        if (typeof cfg.gridLines === 'boolean') {
+                            showHorizontalGrid = cfg.gridLines;
+                        } else if (typeof cfg.gridLines === 'object') {
+                            showHorizontalGrid = cfg.gridLines.horizontal !== false;
+                            showVerticalGrid = cfg.gridLines.vertical === true;
+                        }
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: 'line',
+                        data: { datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    position: 'bottom',
+                                    min: xMin,
+                                    max: xMax,
+                                    title: {
+                                        display: true,
+                                        text: xAxisConfig.title || 'χ²',
+                                        color: getTextColor()
+                                    },
+                                    ticks: {
+                                        stepSize: xAxisConfig.tickInterval,
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showVerticalGrid,
+                                        color: getGridColor()
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: !!yAxisConfig.title,
+                                        text: yAxisConfig.title || '',
+                                        color: getTextColor()
+                                    },
+                                    ticks: {
+                                        display: yAxisConfig.hideTicks !== true,
+                                        color: getTextColor()
+                                    },
+                                    grid: {
+                                        display: showHorizontalGrid,
+                                        color: getGridColor()
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: dfList.length > 1,
+                                    labels: { color: getTextColor() }
+                                },
+                                datalabels: {
+                                    display: cfg.showPointLabels === true,
+                                    color: getTextColor()
+                                }
+                            }
+                        }
+                    });
+                    chartInstances.push(chart);
+                } else if (chartData.chartType === 'numberline') {
+                    // --------------------------------------------------
+                    // Custom number line (baseline with ticks & labels)
+                    // --------------------------------------------------
+                    const ticksData = Array.isArray(chartData.ticks) && chartData.ticks.length > 0 ? chartData.ticks : [
+                        { x: -2, label: 'a' },
+                        { x: -1, label: 'b' },
+                        { x:  0, label: 'c' },
+                        { x:  1, label: 'd' },
+                        { x:  2, label: 'e' }
+                    ];
+
+                    // Determine horizontal span (add small margin so arrow-heads don't clip)
+                    const xs = ticksData.map(t => t.x);
+                    const minX = Math.min(...xs) - 0.5;
+                    const maxX = Math.max(...xs) + 0.5;
+
+                    // Build baseline dataset (straight line at y = 0)
+                    const baselineDS = {
+                        label: 'Number Line',
+                        type: 'line',
+                        data: [ { x: minX, y: 0 }, { x: maxX, y: 0 } ],
+                        borderColor: getTextColor(),
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
+                    };
+
+                    // Inline plugin to draw ticks, labels, and arrow-heads
+                    const numberLinePlugin = {
+                        id: 'numberLinePlugin',
+                        afterDraw: (chart) => {
+                            const ctx = chart.ctx;
+                            const xScale = chart.scales.x;
+                            const yScale = chart.scales.y;
+                            const y0 = yScale.getPixelForValue(0);
+
+                            ctx.save();
+                            ctx.strokeStyle = getTextColor();
+                            ctx.fillStyle   = getTextColor();
+                            ctx.lineWidth   = 2;
+
+                            // Arrow-heads
+                            const arrowSize = 6;
+                            const leftPx  = xScale.getPixelForValue(minX);
+                            const rightPx = xScale.getPixelForValue(maxX);
+
+                            // Left arrow
+                            ctx.beginPath();
+                            ctx.moveTo(leftPx + arrowSize, y0 - arrowSize);
+                            ctx.lineTo(leftPx, y0);
+                            ctx.lineTo(leftPx + arrowSize, y0 + arrowSize);
+                            ctx.closePath();
+                            ctx.fill();
+
+                            // Right arrow
+                            ctx.beginPath();
+                            ctx.moveTo(rightPx - arrowSize, y0 - arrowSize);
+                            ctx.lineTo(rightPx, y0);
+                            ctx.lineTo(rightPx - arrowSize, y0 + arrowSize);
+                            ctx.closePath();
+                            ctx.fill();
+
+                            // Ticks & labels
+                            const tickHeight = 12; // increased for visibility
+                            ctx.font = '14px sans-serif';
+                            ctx.textAlign = 'center';
+                            ticksData.forEach(tk => {
+                                const xPx = xScale.getPixelForValue(tk.x);
+                                // Tick mark
+                                if (tk.drawTick !== false) {
+                                  ctx.beginPath();
+                                  ctx.moveTo(xPx, y0 - tickHeight);
+                                  ctx.lineTo(xPx, y0 + tickHeight);
+                                  ctx.stroke();
+                                }
+                                // Top label
+                                if (tk.label || tk.topLabel) {
+                                  ctx.textBaseline = 'bottom';
+                                  ctx.fillText(tk.label || tk.topLabel, xPx, y0 - tickHeight - 4);
+                                }
+                                // Bottom label
+                                if (tk.bottomLabel || tk.valueLabel) {
+                                  ctx.textBaseline = 'top';
+                                  ctx.fillText(tk.bottomLabel || tk.valueLabel, xPx, y0 + tickHeight + 4);
+                                }
+                            });
+                            ctx.restore();
+                        }
+                    };
+
+                    const xAxisCfg = chartData.xAxis || {};
+
+                    const chart = new Chart(ctx, {
+                        type: 'line',
+                        data: { datasets: [baselineDS] },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            scales: {
+                                x: {
+                                    type: 'linear',
+                                    min: xAxisCfg.min !== undefined ? xAxisCfg.min : minX,
+                                    max: xAxisCfg.max !== undefined ? xAxisCfg.max : maxX,
+                                    ticks: {
+                                        display: false
+                                    },
+                                    grid: { display: false },
+                                    title: {
+                                        display: !!xAxisCfg.title,
+                                        text: xAxisCfg.title || '',
+                                        color: getTextColor()
+                                    }
+                                },
+                                y: {
+                                    min: -1,
+                                    max: 1,
+                                    display: false,
+                                    grid: { display: false }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                datalabels: { display: false }
+                            }
+                        },
+                        plugins: [numberLinePlugin]
+                    });
+                    chartInstances.push(chart);
+                }
+            }, 100);
+
+            return chartHtml;
+        }
+
+        function renderTable(tableData) {
+            if (!tableData || !Array.isArray(tableData) || tableData.length === 0) return '';
+            
+            const headers = tableData[0];
+            const rows = tableData.slice(1);
+            
+            let tableHtml = '<div class="table-container"><table>';
+            
+            // Headers
+            tableHtml += '<thead><tr>';
+            headers.forEach(header => {
+                tableHtml += `<th>${header}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+            
+            // Rows
+            tableHtml += '<tbody>';
+            rows.forEach(row => {
+                tableHtml += '<tr>';
+                row.forEach(cell => {
+                    tableHtml += `<td>${cell}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table></div>';
+            
+            return tableHtml;
+        }
+
+        function renderChoices(choices, answerKey) {
+            if (!choices || !Array.isArray(choices)) return '';
+            
+            const normalizedAnswer = (answerKey || '').toString().trim().toUpperCase();
+            let choicesHtml = '<div class="choices">';
+            choices.forEach(choice => {
+                const isCorrect = choice.key.toString().trim().toUpperCase() === normalizedAnswer;
+                choicesHtml += `
+                    <div class="choice ${isCorrect ? 'correct-choice' : ''}">
+                        <span class="choice-key">${choice.key}.</span> ${choice.value}
+                    </div>
+                `;
+            });
+            choicesHtml += '</div>';
+            
+            return choicesHtml;
+        }
+
+        function renderSolutionPart(part, questionId) {
+            let partHtml = `
+                <div class="solution-part">
+                    <div class="solution-part-id">Part ${part.partId}</div>
+                    <div class="solution-description">${part.description}</div>
+                    <div class="solution-response">${part.response}</div>
+            `;
+            
+            // Render solution attachments (charts, tables, images, etc.)
+            if (part.attachments) {
+                // Render image if present
+                if (part.attachments.image) {
+                    const imageAlt = part.attachments.imageAlt || 'Solution diagram';
+                    const imageCaption = part.attachments.imageCaption || '';
+                    partHtml += `
+                        <div class="image-container">
+                            <img src="${part.attachments.image}" 
+                                 alt="${imageAlt}" 
+                                 class="question-image" 
+                                 loading="lazy" 
+                                 decoding="async">
+                            ${imageCaption ? `<div class="image-caption">${imageCaption}</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                // Render multiple images if present
+                if (part.attachments.images && Array.isArray(part.attachments.images)) {
+                    partHtml += '<div class="images-container">';
+                    part.attachments.images.forEach((img, imgIndex) => {
+                        const imageAlt = img.imageAlt || `Solution diagram ${imgIndex + 1}`;
+                        const imageCaption = img.imageCaption || '';
+                        partHtml += `
+                            <div class="image-container">
+                                <img src="${img.image}" 
+                                     alt="${imageAlt}" 
+                                     class="question-image" 
+                                     loading="lazy" 
+                                     decoding="async">
+                                ${imageCaption ? `<div class="image-caption">${imageCaption}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    partHtml += '</div>';
+                }
+                
+                if (part.attachments.chartType) {
+                    partHtml += renderChart(part.attachments, `${questionId}-solution-${part.partId}`);
+                }
+                if (part.attachments.table) {
+                    partHtml += renderTable(part.attachments.table);
+                }
+            }
+            
+            // Render calculations if present
+            if (part.calculations && Array.isArray(part.calculations)) {
+                partHtml += `
+                    <div class="solution-calculations">
+                        <div class="solution-calculations-title">Calculations:</div>
+                `;
+                part.calculations.forEach(calc => {
+                    partHtml += `<div class="calculation-step">${calc}</div>`;
+                });
+                partHtml += `</div>`;
+            }
+            
+            partHtml += `</div>`;
+            return partHtml;
+        }
+
+        function renderScoringRubric(scoring) {
+            if (!scoring || !scoring.rubric) return '';
+            
+            let rubricHtml = `
+                <div class="scoring-rubric">
+                    <div class="scoring-title">Scoring Rubric (Total: ${scoring.totalPoints} points)</div>
+            `;
+            
+            scoring.rubric.forEach(rubricPart => {
+                rubricHtml += `
+                    <div class="scoring-part">
+                        <div class="scoring-part-header">
+                            Part ${rubricPart.part} (${rubricPart.maxPoints} point${rubricPart.maxPoints !== 1 ? 's' : ''})
+                        </div>
+                        <div class="scoring-criteria">
+                `;
+                
+                if (rubricPart.criteria && Array.isArray(rubricPart.criteria)) {
+                    rubricPart.criteria.forEach(criterion => {
+                        rubricHtml += `<div class="scoring-criterion">${criterion}</div>`;
+                    });
+                }
+                
+                rubricHtml += `</div>`;
+                
+                if (rubricPart.scoringNotes) {
+                    rubricHtml += `<div class="scoring-notes">${rubricPart.scoringNotes}</div>`;
+                }
+                
+                rubricHtml += `</div>`;
+            });
+            
+            rubricHtml += `</div>`;
+            return rubricHtml;
+        }
+
+        function renderSolution(solution, questionId) {
+            if (!solution) return '';
+            
+            let solutionHtml = `
+                <div class="solution">
+                    <div class="solution-title">📝 Solution</div>
+            `;
+            
+            // Render solution parts
+            if (solution.parts && Array.isArray(solution.parts)) {
+                solution.parts.forEach(part => {
+                    solutionHtml += renderSolutionPart(part, questionId);
+                });
+            }
+            
+            solutionHtml += `</div>`;
+            
+            // Render scoring rubric separately
+            if (solution.scoring) {
+                solutionHtml += renderScoringRubric(solution.scoring);
+            }
+            
+            return solutionHtml;
+        }
+
+        function renderQuestion(question, index) {
+            const questionNumber = index + 1;
+            let questionHtml = `
+                <div class="quiz-container" data-question-number="${questionNumber}" data-question-id="${question.id || ''}">
+                    <div class="question-header">Question ${questionNumber}</div>
+                    <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                    <div class="question-id">Type: ${question.type || 'N/A'}</div>
+                    
+                    <div class="question-prompt">
+                        ${question.prompt || 'No prompt provided'}
+                    </div>
+            `;
+
+            // Handle attachments
+            if (question.attachments) {
+                // Render image if present
+                if (question.attachments.image) {
+                    const imageAlt = question.attachments.imageAlt || 'Question diagram';
+                    const imageCaption = question.attachments.imageCaption || '';
+                    questionHtml += `
+                        <div class="image-container">
+                            <img src="${question.attachments.image}" 
+                                 alt="${imageAlt}" 
+                                 class="question-image" 
+                                 loading="lazy" 
+                                 decoding="async">
+                            ${imageCaption ? `<div class="image-caption">${imageCaption}</div>` : ''}
+                        </div>
+                    `;
+                }
+                
+                // Render multiple images if present
+                if (question.attachments.images && Array.isArray(question.attachments.images)) {
+                    questionHtml += '<div class="images-container">';
+                    question.attachments.images.forEach((img, imgIndex) => {
+                        const imageAlt = img.imageAlt || `Question diagram ${imgIndex + 1}`;
+                        const imageCaption = img.imageCaption || '';
+                        questionHtml += `
+                            <div class="image-container">
+                                <img src="${img.image}" 
+                                     alt="${imageAlt}" 
+                                     class="question-image" 
+                                     loading="lazy" 
+                                     decoding="async">
+                                ${imageCaption ? `<div class="image-caption">${imageCaption}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    questionHtml += '</div>';
+                }
+                
+                // Render multiple charts if present
+                if (question.attachments.charts && Array.isArray(question.attachments.charts)) {
+                    questionHtml += '<div class="multiple-charts-container">';
+                    question.attachments.charts.forEach((chart, chartIndex) => {
+                        questionHtml += renderChart(chart, `${question.id}-chart-${chartIndex}`);
+                    });
+                    questionHtml += '</div>';
+                }
+                // Render single chart if present
+                else if (question.attachments.chartType) {
+                    questionHtml += renderChart(question.attachments, question.id);
+                }
+                
+                // Render table if present
+                if (question.attachments.table) {
+                    questionHtml += renderTable(question.attachments.table);
+                }
+                
+                // Render choices if present (in attachments)
+                if (question.attachments.choices) {
+                    questionHtml += renderChoices(question.attachments.choices, question.answerKey);
+                }
+            }
+
+            // Handle choices at top level (new format)
+            if (question.choices) {
+                questionHtml += renderChoices(question.choices, question.answerKey);
+            }
+
+            // Render reasoning/explanation if present
+            if (question.reasoning) {
+                questionHtml += `
+                    <div class="reasoning">
+                        <strong>Explanation:</strong> ${question.reasoning}
+                    </div>
+                `;
+            }
+
+            // Render solution if present (for free response questions)
+            if (question.solution) {
+                questionHtml += renderSolution(question.solution, question.id);
+            }
+
+            questionHtml += '</div>';
+            return questionHtml;
+        }
+
+        function cleanJsonText(text) {
+            try {
+                // Step 1: Remove all comment lines and empty lines
+                const lines = text.split('\n');
+                const cleanedLines = lines.filter(line => {
+                    const trimmed = line.trim();
+                    return !trimmed.startsWith('//') && trimmed !== '';
+                });
+                
+                // Step 2: Join and fix basic JSON issues
+                let cleanedText = cleanedLines.join('\n');
+                cleanedText = cleanedText.replace(/,(\s*[}\]])/g, '$1'); // Fix trailing commas
+                
+                // Step 3: Try to parse as-is first (might be valid JSON already)
+                try {
+                    JSON.parse(cleanedText);
+                    return cleanedText; // Already valid JSON
+                } catch (e) {
+                    // Continue with multi-object processing
+                }
+                
+                // Step 4: Handle multiple JSON objects
+                const jsonObjects = [];
+                let currentObject = '';
+                let braceCount = 0;
+                let inString = false;
+                let escapeNext = false;
+                
+                for (let i = 0; i < cleanedText.length; i++) {
+                    const char = cleanedText[i];
+                    currentObject += char;
+                    
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+                    
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+                    
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+                    
+                    if (!inString) {
+                        if (char === '{') {
+                            braceCount++;
+                        } else if (char === '}') {
+                            braceCount--;
+                            
+                            // When braceCount reaches 0, we have a complete object
+                            if (braceCount === 0) {
+                                const trimmedObject = currentObject.trim();
+                                if (trimmedObject) {
+                                    // Validate this individual object
+                                    try {
+                                        JSON.parse(trimmedObject);
+                                        jsonObjects.push(trimmedObject);
+                                    } catch (e) {
+                                        console.warn('Skipping invalid JSON object:', e.message);
+                                    }
+                                }
+                                currentObject = '';
+                            }
+                        }
+                    }
+                }
+                
+                // Handle any remaining content
+                if (currentObject.trim()) {
+                    try {
+                        JSON.parse(currentObject.trim());
+                        jsonObjects.push(currentObject.trim());
+                    } catch (e) {
+                        console.warn('Skipping invalid remaining JSON:', e.message);
+                    }
+                }
+                
+                if (jsonObjects.length === 0) {
+                    throw new Error('No valid JSON objects found');
+                }
+                
+                // If we have multiple objects, wrap in array
+                if (jsonObjects.length > 1) {
+                    return '[' + jsonObjects.join(',') + ']';
+                } else {
+                    return jsonObjects[0];
+                }
+                
+            } catch (error) {
+                throw new Error(`JSON sanitization failed: ${error.message}`);
+            }
+        }
+
+        function renderQuiz(data) {
+            try {
+                // Store data for dark mode re-rendering
+                window.lastLoadedData = data;
+                
+                // Clear existing charts first
+                chartInstances.forEach(chart => chart.destroy());
+                chartInstances = [];
+                
+                let questions = [];
+                
+                // Handle different JSON structures
+                if (Array.isArray(data)) {
+                    questions = data;
+                } else if (data.questions && Array.isArray(data.questions)) {
+                    questions = data.questions;
+                } else if (typeof data === 'object') {
+                    // Check if it's a single question object
+                    if (data.id && data.prompt) {
+                        questions = [data];
+                    } else {
+                        // Try to extract questions from object properties
+                        questions = Object.values(data).filter(item => 
+                            typeof item === 'object' && item.id && item.prompt
+                        );
+                    }
+                }
+
+                if (questions.length === 0) {
+                    showMessage('No valid questions found in the JSON data. Please check the format.');
+                    return;
+                }
+
+                showStats(questions);
+                
+                const questionsContainer = document.getElementById('questionsContainer');
+                let questionsHtml = '';
+                
+                questions.forEach((question, index) => {
+                    questionsHtml += renderQuestion(question, index);
+                });
+                
+                questionsContainer.innerHTML = questionsHtml;
+                
+                // Initialize context finder now that questions are in the DOM
+                initContextFinder();
+                
+                showMessage(`Successfully loaded ${questions.length} question(s) with tables and charts! Advanced chart configurations and dark mode support enabled.`, 'success');
+                
+                // Trigger MathJax typesetting for dynamically inserted content
+                if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                    MathJax.typesetPromise();
+                }
+                
+            } catch (error) {
+                showMessage(`Error rendering quiz: ${error.message}`);
+            }
+        }
+
+        function loadFromFile() {
+            // Play load tone
+            buttonTones.load();
+            
+            const fileInput = document.getElementById('jsonFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('Please select a JSON file first.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const cleanedJson = cleanJsonText(e.target.result);
+                    const jsonData = JSON.parse(cleanedJson);
+                    renderQuiz(jsonData);
+                } catch (error) {
+                    showMessage(`Invalid JSON file: ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadFromText() {
+            // Play load text tone
+            buttonTones.loadText();
+            
+            const jsonInput = document.getElementById('jsonInput');
+            const jsonText = jsonInput.value.trim();
+            
+            if (!jsonText) {
+                showMessage('Please paste some JSON data first.');
+                return;
+            }
+            
+            try {
+                const cleanedJson = cleanJsonText(jsonText);
+                const jsonData = JSON.parse(cleanedJson);
+                renderQuiz(jsonData);
+            } catch (error) {
+                showMessage(`Invalid JSON format: ${error.message}`);
+            }
+        }
+
+        function updateContextFinder() {
+            const contextDiv = document.getElementById('contextFinder');
+            if (!contextDiv) return;
+
+            const questionElements = document.querySelectorAll('.quiz-container');
+            let currentEl = null;
+            let minDistance = Number.POSITIVE_INFINITY;
+
+            questionElements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                // Distance from viewport center
+                const distance = Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2);
+                if (rect.bottom >= 0 && rect.top <= window.innerHeight) {
+                    // Element is at least partially in viewport
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        currentEl = el;
+                    }
+                }
+            });
+
+            if (currentEl) {
+                const questionNumber = currentEl.dataset.questionNumber || '?';
+                const questionId = currentEl.dataset.questionId || 'N/A';
+                contextDiv.innerHTML = `<strong>Viewing Question ${questionNumber}</strong><br>ID: ${questionId}`;
+            }
+        }
+
+        function initContextFinder() {
+            const contextDiv = document.getElementById('contextFinder');
+            if (!contextDiv) return;
+
+            // Disconnect previous observer if it exists (not used now but for cleanup)
+            if (contextObserver) {
+                contextObserver.disconnect();
+            }
+
+            // Attach scroll handler once
+            if (!contextScrollHandlerAttached) {
+                window.addEventListener('scroll', () => requestAnimationFrame(updateContextFinder));
+                window.addEventListener('resize', () => requestAnimationFrame(updateContextFinder));
+                contextScrollHandlerAttached = true;
+            }
+
+            // Initial content and display
+            const questionElements = document.querySelectorAll('.quiz-container');
+            if (questionElements.length === 0) {
+                contextDiv.style.display = 'none';
+                return;
+            }
+
+            contextDiv.style.display = 'block';
+            updateContextFinder();
+        }
+
+        // Load sample data on page load
+        window.onload = function() {
+            initTheme();
+            showMessage('🎵 Ready to load quiz JSON files! Now featuring enhanced audio feedback with synthesized tones and volume control! Supports tables, bar/histogram/pie/scatter/dotplot/boxplot charts with detailed tick intervals, axis ranges, grid line controls, manual theme switching, JSON with // comments, and comprehensive free response solutions with scoring rubrics. Use the volume slider to adjust audio levels and the theme toggle to switch between light and dark modes.', 'success');
+        };
+
+        // ------------------------------------------------------------
+        // Generic click sound for ANY interactive element
+        // ------------------------------------------------------------
+        document.addEventListener('click', function(e) {
+            // Avoid double-triggering if another explicit sound just occurred
+            if (Date.now() - lastExplicitSound < 50) return;
+
+            // Priority: multiple-choice selections
+            const choiceEl = e.target.closest('.choice');
+            if (choiceEl) {
+                if (choiceEl.classList.contains('correct-choice')) {
+                    buttonTones.success(); // triumphant sound for correct answer
+                } else {
+                    buttonTones.error();   // sombre sound for wrong answer
+                }
+                return; // Skip generic click
+            }
+
+            // Generic interactive elements
+            const interactive = e.target.closest('button, input[type="button"], input[type="submit"], a');
+            if (interactive) {
+                // Slight variation for each generic click
+                const clickFreqs = [392.00, 415.30, 440.00, 466.16, 493.88];
+                const wfChoices = ['square', 'triangle'];
+                const freq = clickFreqs[Math.floor(Math.random() * clickFreqs.length)];
+                const wave = wfChoices[Math.floor(Math.random() * wfChoices.length)];
+                playTone(freq, 0.1 + Math.random()*0.05, wave, 0.08);
+            }
+        });
+
+        // Register the Chart.js DataLabels plugin if available
+        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
+    </script>
+</body>
+</html> 
