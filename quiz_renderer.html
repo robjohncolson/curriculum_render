@@ -2049,7 +2049,8 @@
                     canvas.parentElement.style.height = desiredHeight + 'px';
                  
 
-                } else if (chartData.chartType === 'boxplot') {
+                } 
+                else if (chartData.chartType === 'boxplot') {
                     const config = chartData.chartConfig || {};
                     const xAxisConfig = config.xAxis || {};
                     const boxplotData = config.boxplotData || {};

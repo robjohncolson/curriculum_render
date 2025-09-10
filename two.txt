@@ -1,0 +1,607 @@
+CHUNK_2_START
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 AP Statistics Consensus Quiz Renderer</h1>
+        
+        <div class="upload-section">
+            <h2>📥 Load Quiz Data</h2>
+            <input type="file" id="fileInput" class="file-input" accept=".json">
+            <p>or paste JSON content below:</p>
+            <textarea id="jsonInput" class="json-input" placeholder='Paste your JSON data here. Example:
+[
+    {
+        "id": "U1-L1-Q01",
+        "type": "multiple-choice",
+        "prompt": "What is the mean of [1, 2, 3, 4, 5]?",
+        "choices": [
+            {"key": "A", "value": "2"},
+            {"key": "B", "value": "3"},
+            {"key": "C", "value": "4"},
+            {"key": "D", "value": "5"}
+        ]
+    }
+]'></textarea>
+            <button onclick="loadFromFile()" class="load-button">📁 Load from File</button>
+            <button onclick="loadFromTextarea()" class="load-button">📝 Load from Text</button>
+            <button onclick="clearQuiz()" class="clear-button">🗑️ Clear Quiz</button>
+            <button onclick="loadDebugData()" class="debug-button">🔧 Load Debug Data</button>
+        </div>
+        
+        <div id="messageArea"></div>
+        <div id="statsArea"></div>
+        <div id="questionsContainer"></div>
+    </div>
+
+    <!-- Volume control slider -->
+    <div class="volume-control">
+        <label for="volumeSlider">🔊</label>
+        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="50">
+        <span id="volumeLabel">50%</span>
+    </div>
+
+    <!-- Theme toggle button -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+
+    <!-- Floating context finder (hidden until questions are rendered) -->
+    <div id="contextFinder" class="context-finder" style="display:none;"></div>
+
+    <script>
+        let chartInstances = [];
+        let currentTheme = 'light'; // Default to light theme
+        let audioContext = null;
+        let globalVolume = 0.5;
+        let contextObserver = null;
+        let contextScrollHandlerAttached = false;
+        
+        // User data storage - Step 3: These will be removed after migration
+        let currentUsername = null;
+        let userAnswers = {};
+        let userReasons = {};
+        
+        // Step 3: New localStorage-based storage
+        let classData = null;
+        let completed = new Set();
+
+        // Initialize audio context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Volume control
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeLabel = document.getElementById('volumeLabel');
+        
+        volumeSlider.addEventListener('input', (e) => {
+            globalVolume = e.target.value / 100;
+            volumeLabel.textContent = `${e.target.value}%`;
+        });
+
+        // Enhanced audio feedback system
+        const buttonTones = {
+            success: () => playTone([523, 659, 784], 150), // C-E-G major chord
+            error: () => playTone([349, 330], 200), // F-E descending
+            click: () => playTone([440], 50), // A4 short click
+            hover: () => playTone([554], 30), // C#5 very short
+            load: () => playTone([392, 523, 659], 100), // G-C-E
+            clear: () => playTone([659, 523, 392], 100), // E-C-G descending
+        };
+
+        function playTone(frequencies, duration) {
+            initAudioContext();
+            if (!audioContext) return;
+            
+            frequencies.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(globalVolume * 0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (duration / 1000));
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + (duration / 1000));
+                }, index * 50);
+            });
+        }
+
+        // Step 3: Initialize class data structure in localStorage
+        function initClassData() {
+            let classDataStr = localStorage.getItem('classData');
+            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+            
+            if (!classData.users[currentUsername]) {
+                classData.users[currentUsername] = {
+                    answers: {},
+                    reasons: {},
+                    timestamps: {},
+                    attempts: {}
+                };
+            }
+            
+            // Migrate in-memory data if exists
+            if (userAnswers[currentUsername]) {
+                for (let qId in userAnswers[currentUsername]) {
+                    if (!classData.users[currentUsername].answers[qId]) {
+                        classData.users[currentUsername].answers[qId] = {
+                            value: userAnswers[currentUsername][qId].answer || userAnswers[currentUsername][qId],
+                            attempt: 1,
+                            timestamp: Date.now()
+                        };
+                    }
+                }
+                delete userAnswers[currentUsername];
+            }
+            
+            if (userReasons[currentUsername]) {
+                for (let qId in userReasons[currentUsername]) {
+                    if (!classData.users[currentUsername].reasons[qId]) {
+                        classData.users[currentUsername].reasons[qId] = userReasons[currentUsername][qId];
+                    }
+                }
+                delete userReasons[currentUsername];
+            }
+            
+            try {
+                localStorage.setItem('classData', JSON.stringify(classData));
+            } catch(e) {
+                console.log("Storage quota exceeded—data not saved");
+            }
+            
+            // Load completed set
+            let completedStr = localStorage.getItem('completed');
+            completed = completedStr ? new Set(JSON.parse(completedStr)) : new Set();
+        }
+
+        // Username management
+        function promptUsername() {
+            const savedUsername = localStorage.getItem('consensusUsername');
+            if (savedUsername) {
+                currentUsername = savedUsername;
+                initClassData();
+                showUsernameWelcome();
+            } else {
+                showUsernamePrompt();
+            }
+        }
+        
+        function showUsernamePrompt() {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            const promptDiv = document.createElement('div');
+            promptDiv.className = 'username-prompt';
+            promptDiv.innerHTML = `
+                <label>Enter your username: 
+                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name">
+                    <button onclick="saveUsername()" class="submit-button">Start</button>
+                </label>
+            `;
+            container.insertBefore(promptDiv, container.firstChild);
+        }
+        
+        window.saveUsername = function() {
+            const input = document.getElementById('usernameInput');
+            if (input && input.value.trim()) {
+                currentUsername = input.value.trim();
+                localStorage.setItem('consensusUsername', currentUsername);
+                
+                // Step 3: Initialize class data structure
+                initClassData();
+                
+                // Remove prompt and show welcome
+                const prompt = document.querySelector('.username-prompt');
+                if (prompt) prompt.remove();
+                showUsernameWelcome();
+            }
+        }
+        
+        function showUsernameWelcome() {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            const existingWelcome = document.querySelector('.username-welcome');
+            if (existingWelcome) existingWelcome.remove();
+            
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.className = 'username-welcome';
+            welcomeDiv.textContent = `Welcome ${currentUsername} - Your contributions are visible for reputation!`;
+            container.insertBefore(welcomeDiv, container.firstChild);
+        }
+        
+        // Attempt tracking
+        function getAttemptCount(questionId) {
+            const key = `attempts_${questionId}`;
+            return parseInt(localStorage.getItem(key) || '0');
+        }
+        
+        function incrementAttemptCount(questionId) {
+            const key = `attempts_${questionId}`;
+            const current = getAttemptCount(questionId);
+            localStorage.setItem(key, (current + 1).toString());
+            return current + 1;
+        }
+        
+        function isQuestionCompleted(questionId) {
+            return localStorage.getItem(`completed_${questionId}`) === 'true';
+        }
+        
+        function markQuestionCompleted(questionId) {
+            localStorage.setItem(`completed_${questionId}`, 'true');
+        }
+        
+        // Step 3: Modified answer submission with localStorage
+        window.submitAnswer = function(questionId, questionType) {
+            if (!currentUsername) {
+                alert('Please enter your username first!');
+                return;
+            }
+            
+            // Check attempts from classData
+            let currentAttempt = classData.users[currentUsername].attempts[questionId] || 0;
+            if (currentAttempt >= 3) {
+                console.log('Max attempts reached');
+                return;
+            }
+            
+            // Get error span
+            let errorSpan = document.getElementById('error-' + questionId);
+            if (errorSpan) {
+                errorSpan.style.display = 'none';
+            }
+            
+            let value = '';
+            
+            // Get answer based on question type
+            if (questionType === 'multiple-choice') {
+                let radios = document.querySelectorAll(`input[name="choice-${questionId}"]`);
+                for (let radio of radios) {
+                    if (radio.checked) {
+                        value = radio.value;
+                        break;
+                    }
+                }
+                if (!value) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please select an answer';
+                        errorSpan.style.display = 'block';
+                    }
+                    return;
+                }
+            } else {
+                let textarea = document.getElementById('frq-textarea-' + questionId);
+                if (textarea) {
+                    value = textarea.value.trim();
+                }
+                if (!value) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please fill the response';
+                        errorSpan.style.display = 'block';
+                    }
+                    return;
+                }
+            }
+            
+            // Get reason
+            let reason = '';
+            let reasonTextarea = document.getElementById('reason-textarea-' + questionId);
+            if (reasonTextarea) {
+                reason = reasonTextarea.value.trim();
+            }
+            
+            // Update classData
+            classData.users[currentUsername].answers[questionId] = {
+                value: value,
+                attempt: currentAttempt + 1,
+                timestamp: Date.now()
+            };
+            classData.users[currentUsername].reasons[questionId] = reason;
+            classData.users[currentUsername].timestamps[questionId] = Date.now();
+            classData.users[currentUsername].attempts[questionId] = currentAttempt + 1;
+            
+            // Save to localStorage
+            try {
+                localStorage.setItem('classData', JSON.stringify(classData));
+            } catch(e) {
+                console.log("Storage quota exceeded—data not saved");
+            }
+            
+            // Update completed set
+            completed.add(questionId);
+            localStorage.setItem('completed', JSON.stringify(Array.from(completed)));
+            
+            // Update UI
+            let submitBtn = document.getElementById('submit-' + questionId);
+            if (submitBtn) {
+                submitBtn.textContent = `Submitted (Attempt ${currentAttempt + 1}/3)`;
+                if (currentAttempt + 1 >= 3) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('disabled');
+                    
+                    // Disable all inputs
+                    document.querySelectorAll(`[data-question-id="${questionId}"] input, [data-question-id="${questionId}"] textarea, [data-question-id="${questionId}"] button`).forEach(el => {
+                        el.classList.add('disabled');
+                        el.disabled = true;
+                    });
+                    
+                    // Add max attempts message
+                    let msg = document.createElement('span');
+                    msg.textContent = 'Max attempts reached (3/3)';
+                    msg.style.color = 'red';
+                    msg.style.marginLeft = '10px';
+                    submitBtn.parentNode.appendChild(msg);
+                }
+            }
+            
+            // Add completed class and checkmark
+            let qDiv = document.querySelector(`[data-question-id="${questionId}"]`);
+            if (qDiv) {
+                qDiv.classList.add('completed');
+                if (!qDiv.querySelector('.checkmark')) {
+                    let check = document.createElement('span');
+                    check.className = 'checkmark';
+                    check.textContent = '✓';
+                    qDiv.querySelector('.question-header').appendChild(check);
+                }
+            }
+            
+            // Enable view button if exists
+            let viewBtn = document.querySelector(`#view-${questionId}`);
+            if (viewBtn) {
+                viewBtn.disabled = false;
+            }
+            
+            // Show success message
+            let successMsg = document.getElementById('success-' + questionId);
+            if (successMsg) {
+                successMsg.textContent = `Answer submitted! (Attempt ${currentAttempt + 1} of 3)`;
+                successMsg.classList.add('show');
+            }
+        }
+        
+        // Step 3: Load progress function
+        function loadProgress() {
+            if (!currentUsername || !classData) return;
+            
+            // Restore completed questions UI
+            for (let qId of completed) {
+                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
+                if (qDiv) {
+                    qDiv.classList.add('completed');
+                    if (!qDiv.querySelector('.checkmark')) {
+                        let check = document.createElement('span');
+                        check.className = 'checkmark';
+                        check.textContent = '✓';
+                        let header = qDiv.querySelector('.question-header');
+                        if (header) header.appendChild(check);
+                    }
+                    let viewBtn = qDiv.querySelector('.view-button');
+                    if (viewBtn) viewBtn.disabled = false;
+                }
+            }
+            
+            // Restore answers and UI state for each question
+            for (let qId in classData.users[currentUsername].answers) {
+                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
+                
+                if (qDiv) {
+                    let saved = classData.users[currentUsername].answers[qId];
+                    let questionType = qDiv.querySelector('input[type="radio"]') ? 'multiple-choice' : 'free-response';
+                    
+                    // Restore answer value
+                    if (questionType === 'multiple-choice') {
+                        let radios = qDiv.querySelectorAll(`input[name="choice-${qId}"]`);
+                        for (let radio of radios) {
+                            if (radio.value === saved.value) {
+                                radio.checked = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        let textarea = qDiv.querySelector(`#frq-textarea-${qId}`);
+                        if (textarea) {
+                            textarea.value = saved.value;
+                        }
+                    }
+                    
+                    // Restore reason
+                    let reasonTa = qDiv.querySelector(`#reason-textarea-${qId}`);
+                    if (reasonTa && classData.users[currentUsername].reasons[qId]) {
+                        reasonTa.value = classData.users[currentUsername].reasons[qId];
+                    }
+                    
+                    // Update submit button and handle max attempts
+                    let attempts = classData.users[currentUsername].attempts[qId] || 0;
+                    let submitBtn = qDiv.querySelector(`#submit-${qId}`);
+                    if (submitBtn) {
+                        submitBtn.textContent = `Submitted (Attempt ${attempts}/3)`;
+                        if (attempts >= 3) {
+                            submitBtn.disabled = true;
+                            submitBtn.classList.add('disabled');
+                            
+                            // Disable all inputs
+                            qDiv.querySelectorAll('input, textarea, button').forEach(el => {
+                                el.classList.add('disabled');
+                                el.disabled = true;
+                            });
+                            
+                            // Add max attempts message if not already there
+                            if (!submitBtn.parentNode.querySelector('span[style*="red"]')) {
+                                let msg = document.createElement('span');
+                                msg.textContent = 'Max attempts reached (3/3)';
+                                msg.style.color = 'red';
+                                msg.style.marginLeft = '10px';
+                                submitBtn.parentNode.appendChild(msg);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Re-apply MathJax if needed
+            if (window.MathJax) {
+                MathJax.typesetPromise().catch((e) => console.log('MathJax error:', e));
+            }
+        }
+        
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('quizTheme') || 'light';
+            currentTheme = savedTheme;
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            const body = document.body;
+            const themeButton = document.querySelector('.theme-toggle');
+            
+            if (theme === 'dark') {
+                body.classList.add('dark-theme');
+                themeButton.textContent = '☀️';
+            } else {
+                body.classList.remove('dark-theme');
+                themeButton.textContent = '🌙';
+            }
+            
+            currentTheme = theme;
+            localStorage.setItem('quizTheme', theme);
+            
+            // Re-render charts with appropriate theme
+            if (window.lastLoadedData) {
+                clearQuiz(true); // Silent clear
+                renderQuiz(window.lastLoadedData);
+            }
+        }
+
+        function toggleTheme() {
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            applyTheme(newTheme);
+            buttonTones.click();
+        }
+
+        function isDarkMode() {
+            return currentTheme === 'dark';
+        }
+
+        function generateChartColors(count) {
+            const lightColors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+            ];
+            
+            const darkColors = [
+                '#FF8FA3', '#5BC0EB', '#FFE066', '#6BE6E6', 
+                '#B366FF', '#FFB366', '#FF8FA3', '#E9EBEF',
+                '#6BE6E6', '#FF8FA3', '#5BC0EB', '#FFE066'
+            ];
+            
+            const colors = isDarkMode() ? darkColors : lightColors;
+            return colors.slice(0, count);
+        }
+
+        function getGridColor() {
+            return isDarkMode() ? '#555555' : '#e9ecef';
+        }
+
+        function getScatterPointColor() {
+            return isDarkMode() ? '#5BC0EB' : '#36A2EB';
+        }
+
+        function getTextColor() {
+            return isDarkMode() ? '#e0e0e0' : '#333333';
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            const messageClass = type === 'error' ? 'error' : 'success';
+            messageArea.innerHTML = `<div class="${messageClass}">${message}</div>`;
+            
+            // Play appropriate tone
+            if (type === 'error') {
+                buttonTones.error();
+            } else {
+                buttonTones.success();
+            }
+            
+            // Clear message after 5 seconds
+            setTimeout(() => {
+                messageArea.innerHTML = '';
+            }, 5000);
+        }
+
+        function showStats(questions) {
+            const totalQuestions = questions.length;
+            const mcQuestions = questions.filter(q => q.type === 'multiple-choice').length;
+            const frQuestions = questions.filter(q => q.type === 'free-response').length;
+            const hasCharts = questions.filter(q => q.attachments && q.attachments.chartType).length;
+            const hasTables = questions.filter(q => q.attachments && q.attachments.table).length;
+            
+            const barCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'bar').length;
+            const histograms = questions.filter(q => q.attachments && q.attachments.chartType === 'histogram').length;
+            const pieCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'pie').length;
+            const scatterPlots = questions.filter(q => q.attachments && q.attachments.chartType === 'scatter').length;
+            const dotplots = questions.filter(q => q.attachments && q.attachments.chartType === 'dotplot').length;
+            const boxplots = questions.filter(q => q.attachments && q.attachments.chartType === 'boxplot').length;
+            
+            let statsHtml = `
+                <div class="stats">
+                    <strong>📊 Quiz Statistics:</strong><br>
+                    Total Questions: ${totalQuestions} | 
+                    Multiple Choice: ${mcQuestions} | 
+                    Free Response: ${frQuestions}<br>
+                    Charts: ${hasCharts} | 
+                    Tables: ${hasTables}
+            `;
+            
+            if (hasCharts > 0) {
+                statsHtml += `<br>Chart Types: `;
+                const chartTypes = [];
+                if (barCharts > 0) chartTypes.push(`Bar: ${barCharts}`);
+                if (histograms > 0) chartTypes.push(`Histogram: ${histograms}`);
+                if (pieCharts > 0) chartTypes.push(`Pie: ${pieCharts}`);
+                if (scatterPlots > 0) chartTypes.push(`Scatter: ${scatterPlots}`);
+                if (dotplots > 0) chartTypes.push(`Dotplot: ${dotplots}`);
+                if (boxplots > 0) chartTypes.push(`Boxplot: ${boxplots}`);
+                statsHtml += chartTypes.join(' | ');
+            }
+            
+            statsHtml += `</div>`;
+            document.getElementById('statsArea').innerHTML = statsHtml;
+        }
+
+        function clearQuiz(silent = false) {
+            // Destroy all chart instances
+            chartInstances.forEach(chart => chart.destroy());
+            chartInstances = [];
+            
+            // Clear containers
+            document.getElementById('questionsContainer').innerHTML = '';
+            document.getElementById('statsArea').innerHTML = '';
+            if (!silent) {
+                document.getElementById('messageArea').innerHTML = '';
+                document.getElementById('jsonInput').value = '';
+            }
+            
+            // Hide and reset context finder
+            const contextDiv = document.getElementById('contextFinder');
+            if (contextDiv) {
+                contextDiv.style.display = 'none';
+                contextDiv.innerHTML = '';
+            }
+            if (contextObserver) {
+                contextObserver.disconnect();
+            }
+            
+            if (!silent) {
+                showMessage('Quiz cleared successfully', 'success');
+                buttonTones.clear();
+            }
+        }
+CHUNK_2_END
