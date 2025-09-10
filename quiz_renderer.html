@@ -237,6 +237,111 @@
         }
         .choice input[type="radio"] {
             margin-right: 10px;
+            cursor: pointer;
+        }
+        .choice label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .reason-wrapper {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .reason-textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .reason-textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.2);
+        }
+        .frq-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .frq-textarea:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 5px rgba(33, 150, 243, 0.2);
+        }
+        .submit-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .submit-button:hover:not(:disabled) {
+            background: #45a049;
+        }
+        .submit-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .validation-error {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .validation-error.show {
+            display: block;
+        }
+        .submission-success {
+            color: #4CAF50;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .submission-success.show {
+            display: block;
+        }
+        .max-attempts-message {
+            color: #ff9800;
+            font-size: 14px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .username-welcome {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .username-prompt {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .username-input {
+            padding: 8px 12px;
+            border: 2px solid #ff9800;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 0 10px;
         }
         .choice-key {
             font-weight: bold;
@@ -575,6 +680,11 @@
         let globalVolume = 0.5;
         let contextObserver = null;
         let contextScrollHandlerAttached = false;
+        
+        // User data storage
+        let currentUsername = null;
+        let userAnswers = {};
+        let userReasons = {};
 
         // Initialize audio context
         function initAudioContext() {
@@ -626,6 +736,188 @@
             });
         }
 
+        // Username management
+        function promptUsername() {
+            const savedUsername = localStorage.getItem('consensusUsername');
+            if (savedUsername) {
+                currentUsername = savedUsername;
+                showUsernameWelcome();
+            } else {
+                showUsernamePrompt();
+            }
+        }
+        
+        function showUsernamePrompt() {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            const promptDiv = document.createElement('div');
+            promptDiv.className = 'username-prompt';
+            promptDiv.innerHTML = `
+                <label>Enter your username: 
+                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name">
+                    <button onclick="saveUsername()" class="submit-button">Start</button>
+                </label>
+            `;
+            container.insertBefore(promptDiv, container.firstChild);
+        }
+        
+        window.saveUsername = function() {
+            const input = document.getElementById('usernameInput');
+            if (input && input.value.trim()) {
+                currentUsername = input.value.trim();
+                localStorage.setItem('consensusUsername', currentUsername);
+                
+                // Initialize user data structure
+                if (!userAnswers[currentUsername]) {
+                    userAnswers[currentUsername] = {};
+                    userReasons[currentUsername] = {};
+                }
+                
+                // Remove prompt and show welcome
+                const prompt = document.querySelector('.username-prompt');
+                if (prompt) prompt.remove();
+                showUsernameWelcome();
+            }
+        }
+        
+        function showUsernameWelcome() {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            const existingWelcome = document.querySelector('.username-welcome');
+            if (existingWelcome) existingWelcome.remove();
+            
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.className = 'username-welcome';
+            welcomeDiv.textContent = `Welcome ${currentUsername} - Your contributions are visible for reputation!`;
+            container.insertBefore(welcomeDiv, container.firstChild);
+        }
+        
+        // Attempt tracking
+        function getAttemptCount(questionId) {
+            const key = `attempts_${questionId}`;
+            return parseInt(localStorage.getItem(key) || '0');
+        }
+        
+        function incrementAttemptCount(questionId) {
+            const key = `attempts_${questionId}`;
+            const current = getAttemptCount(questionId);
+            localStorage.setItem(key, (current + 1).toString());
+            return current + 1;
+        }
+        
+        function isQuestionCompleted(questionId) {
+            return localStorage.getItem(`completed_${questionId}`) === 'true';
+        }
+        
+        function markQuestionCompleted(questionId) {
+            localStorage.setItem(`completed_${questionId}`, 'true');
+        }
+        
+        // Answer submission
+        window.submitAnswer = function(questionId, questionType) {
+            if (!currentUsername) {
+                alert('Please enter your username first!');
+                return;
+            }
+            
+            const attempts = getAttemptCount(questionId);
+            if (attempts >= 3) {
+                return;
+            }
+            
+            let answer = null;
+            let reason = '';
+            const errorMsg = document.querySelector(`#error-${questionId}`);
+            const successMsg = document.querySelector(`#success-${questionId}`);
+            
+            // Get answer based on question type
+            if (questionType === 'multiple-choice') {
+                const radios = document.querySelectorAll(`input[name="q-${questionId}"]:checked`);
+                if (radios.length === 0) {
+                    if (errorMsg) {
+                        errorMsg.textContent = 'Please select an answer';
+                        errorMsg.classList.add('show');
+                    }
+                    return;
+                }
+                answer = radios[0].value;
+            } else {
+                const textarea = document.querySelector(`#frq-${questionId}`);
+                if (!textarea || !textarea.value.trim()) {
+                    if (errorMsg) {
+                        errorMsg.textContent = 'Please enter your response';
+                        errorMsg.classList.add('show');
+                    }
+                    return;
+                }
+                answer = textarea.value.trim();
+            }
+            
+            // Get optional reason
+            const reasonTextarea = document.querySelector(`#reason-${questionId}`);
+            if (reasonTextarea) {
+                reason = reasonTextarea.value.trim();
+            }
+            
+            // Store in memory (tied to username)
+            if (!userAnswers[currentUsername]) {
+                userAnswers[currentUsername] = {};
+                userReasons[currentUsername] = {};
+            }
+            
+            userAnswers[currentUsername][questionId] = {
+                answer: answer,
+                timestamp: Date.now(),
+                attempt: attempts + 1
+            };
+            
+            if (reason) {
+                userReasons[currentUsername][questionId] = reason;
+            }
+            
+            // Increment attempts and update UI
+            const newAttempts = incrementAttemptCount(questionId);
+            
+            // Clear error and show success
+            if (errorMsg) errorMsg.classList.remove('show');
+            if (successMsg) {
+                successMsg.textContent = `Answer submitted! (Attempt ${newAttempts} of 3)`;
+                successMsg.classList.add('show');
+            }
+            
+            // Mark as completed if applicable
+            markQuestionCompleted(questionId);
+            
+            // Update button state
+            const submitBtn = document.querySelector(`#submit-${questionId}`);
+            if (submitBtn) {
+                if (newAttempts >= 3) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Maximum attempts reached';
+                    
+                    // Disable inputs
+                    if (questionType === 'multiple-choice') {
+                        document.querySelectorAll(`input[name="q-${questionId}"]`).forEach(radio => {
+                            radio.disabled = true;
+                        });
+                    } else {
+                        const frqTextarea = document.querySelector(`#frq-${questionId}`);
+                        if (frqTextarea) frqTextarea.disabled = true;
+                    }
+                    const reasonTextarea = document.querySelector(`#reason-${questionId}`);
+                    if (reasonTextarea) reasonTextarea.disabled = true;
+                    
+                    // Show max attempts message
+                    const maxMsg = document.createElement('div');
+                    maxMsg.className = 'max-attempts-message';
+                    maxMsg.textContent = 'Maximum attempts reached (3/3)';
+                    submitBtn.parentNode.appendChild(maxMsg);
+                } else {
+                    submitBtn.textContent = `Submit Answer (Attempt ${newAttempts + 1} of 3)`;
+                }
+            }
+        }
+        
         // Theme management
         function initTheme() {
             const savedTheme = localStorage.getItem('quizTheme') || 'light';
@@ -2450,16 +2742,22 @@
             return tableHtml;
         }
 
-        function renderChoices(choices) {
+        function renderChoices(choices, question) {
             if (!choices || !Array.isArray(choices)) return '';
+            
+            const questionId = question ? question.id : 'unknown';
+            const attempts = question ? getAttemptCount(questionId) : 0;
             
             let choicesHtml = '<div class="choices">';
             choices.forEach(choice => {
                 choicesHtml += `
                     <div class="choice">
-                        <input type="radio" name="question-choice" value="${choice.key}" disabled />
-                        <span class="choice-key">${choice.key}.</span>
-                        <span class="choice-value">${choice.value}</span>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="q-${questionId}" value="${choice.key}" 
+                                   ${attempts >= 3 ? 'disabled' : ''} />
+                            <span class="choice-key">${choice.key}.</span>
+                            <span class="choice-value">${choice.value}</span>
+                        </label>
                     </div>
                 `;
             });
@@ -2512,25 +2810,58 @@
                 
                 // Render choices if present (in attachments)
                 if (question.attachments.choices) {
-                    questionHtml += renderChoices(question.attachments.choices);
+                    questionHtml += renderChoices(question.attachments.choices, question);
                 }
             }
 
-            // Handle choices at top level (new format)
-            if (question.choices) {
-                questionHtml += renderChoices(question.choices);
+            // Handle choices at top level (new format) for MCQ
+            if (question.type === 'multiple-choice' && question.choices) {
+                questionHtml += renderChoices(question.choices, question);
+            }
+            
+            // Add FRQ textarea for free-response questions
+            if (question.type === 'free-response') {
+                const attempts = getAttemptCount(question.id);
+                questionHtml += `
+                    <div class="frq-wrapper">
+                        <textarea 
+                            id="frq-${question.id}"
+                            class="frq-textarea" 
+                            placeholder="Enter your complete response here"
+                            ${attempts >= 3 ? 'disabled' : ''}
+                        ></textarea>
+                    </div>
+                `;
             }
 
-            // Add question controls for consensus features
+            // Add reason textarea and submit button for all questions
+            const attempts = getAttemptCount(question.id);
             questionHtml += `
-                <div class="question-controls" data-question-id="${question.id || ''}">
-                    <div class="answer-section">
-                        <textarea class="reason-input" placeholder="Explain your reasoning (optional)" disabled></textarea>
-                        <button class="submit-answer" disabled>Submit Answer</button>
-                    </div>
-                    <div class="view-section">
-                        <p>Consensus view will appear here after submission.</p>
-                    </div>
+                <div class="reason-wrapper">
+                    <label for="reason-${question.id}" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                        Optional: Explain your reasoning (visible to peers)
+                    </label>
+                    <textarea 
+                        id="reason-${question.id}"
+                        class="reason-textarea" 
+                        placeholder="Why did you choose this answer?"
+                        ${attempts >= 3 ? 'disabled' : ''}
+                    ></textarea>
+                </div>
+                
+                <!-- Submit button and messages -->
+                <div class="submission-controls">
+                    <button 
+                        id="submit-${question.id}"
+                        class="submit-button" 
+                        onclick="submitAnswer('${question.id}', '${question.type}')"
+                        ${attempts >= 3 ? 'disabled' : ''}
+                    >
+                        ${attempts >= 3 ? 'Maximum attempts reached' : `Submit Answer (Attempt ${attempts + 1} of 3)`}
+                    </button>
+                    <div id="error-${question.id}" class="validation-error"></div>
+                    <div id="success-${question.id}" class="submission-success"></div>
+                    ${attempts >= 3 ? '<div class="max-attempts-message">Maximum attempts reached (3/3)</div>' : ''}
                 </div>
             `;
 
@@ -2731,6 +3062,7 @@
         // Load sample data on page load
         window.onload = function() {
             initTheme();
+            promptUsername();
             showMessage('🚀 Consensus Quiz Renderer Ready! Load your curriculum.json or use the debug button to start.', 'success');
         };
 
