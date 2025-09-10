@@ -625,6 +625,28 @@
         .volume-slider {
             width: 100px;
         }
+        
+        /* Step 3 additions */
+        .error-msg {
+            color: red;
+            font-weight: bold;
+            display: none;
+            margin-top: 5px;
+        }
+        .completed {
+            border-left: 4px solid green;
+            padding-left: 10px;
+        }
+        .checkmark {
+            color: green;
+            font-size: 1.2em;
+            margin-left: 5px;
+        }
+        .disabled {
+            opacity: 0.5;
+            pointer-events: none;
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -681,10 +703,14 @@
         let contextObserver = null;
         let contextScrollHandlerAttached = false;
         
-        // User data storage
+        // User data storage - Step 3: These will be removed after migration
         let currentUsername = null;
         let userAnswers = {};
         let userReasons = {};
+        
+        // Step 3: New localStorage-based storage
+        let classData = null;
+        let completed = new Set();
 
         // Initialize audio context
         function initAudioContext() {
@@ -736,11 +762,60 @@
             });
         }
 
+        // Step 3: Initialize class data structure in localStorage
+        function initClassData() {
+            let classDataStr = localStorage.getItem('classData');
+            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+            
+            if (!classData.users[currentUsername]) {
+                classData.users[currentUsername] = {
+                    answers: {},
+                    reasons: {},
+                    timestamps: {},
+                    attempts: {}
+                };
+            }
+            
+            // Migrate in-memory data if exists
+            if (userAnswers[currentUsername]) {
+                for (let qId in userAnswers[currentUsername]) {
+                    if (!classData.users[currentUsername].answers[qId]) {
+                        classData.users[currentUsername].answers[qId] = {
+                            value: userAnswers[currentUsername][qId].answer || userAnswers[currentUsername][qId],
+                            attempt: 1,
+                            timestamp: Date.now()
+                        };
+                    }
+                }
+                delete userAnswers[currentUsername];
+            }
+            
+            if (userReasons[currentUsername]) {
+                for (let qId in userReasons[currentUsername]) {
+                    if (!classData.users[currentUsername].reasons[qId]) {
+                        classData.users[currentUsername].reasons[qId] = userReasons[currentUsername][qId];
+                    }
+                }
+                delete userReasons[currentUsername];
+            }
+            
+            try {
+                localStorage.setItem('classData', JSON.stringify(classData));
+            } catch(e) {
+                console.log("Storage quota exceeded—data not saved");
+            }
+            
+            // Load completed set
+            let completedStr = localStorage.getItem('completed');
+            completed = completedStr ? new Set(JSON.parse(completedStr)) : new Set();
+        }
+
         // Username management
         function promptUsername() {
             const savedUsername = localStorage.getItem('consensusUsername');
             if (savedUsername) {
                 currentUsername = savedUsername;
+                initClassData();
                 showUsernameWelcome();
             } else {
                 showUsernamePrompt();
@@ -767,11 +842,8 @@
                 currentUsername = input.value.trim();
                 localStorage.setItem('consensusUsername', currentUsername);
                 
-                // Initialize user data structure
-                if (!userAnswers[currentUsername]) {
-                    userAnswers[currentUsername] = {};
-                    userReasons[currentUsername] = {};
-                }
+                // Step 3: Initialize class data structure
+                initClassData();
                 
                 // Remove prompt and show welcome
                 const prompt = document.querySelector('.username-prompt');
@@ -813,108 +885,217 @@
             localStorage.setItem(`completed_${questionId}`, 'true');
         }
         
-        // Answer submission
+        // Step 3: Modified answer submission with localStorage
         window.submitAnswer = function(questionId, questionType) {
             if (!currentUsername) {
                 alert('Please enter your username first!');
                 return;
             }
             
-            const attempts = getAttemptCount(questionId);
-            if (attempts >= 3) {
+            // Check attempts from classData
+            let currentAttempt = classData.users[currentUsername].attempts[questionId] || 0;
+            if (currentAttempt >= 3) {
+                console.log('Max attempts reached');
                 return;
             }
             
-            let answer = null;
-            let reason = '';
-            const errorMsg = document.querySelector(`#error-${questionId}`);
-            const successMsg = document.querySelector(`#success-${questionId}`);
+            // Get error span
+            let errorSpan = document.getElementById('error-' + questionId);
+            if (errorSpan) {
+                errorSpan.style.display = 'none';
+            }
+            
+            let value = '';
             
             // Get answer based on question type
             if (questionType === 'multiple-choice') {
-                const radios = document.querySelectorAll(`input[name="q-${questionId}"]:checked`);
-                if (radios.length === 0) {
-                    if (errorMsg) {
-                        errorMsg.textContent = 'Please select an answer';
-                        errorMsg.classList.add('show');
+                let radios = document.querySelectorAll(`input[name="choice-${questionId}"]`);
+                for (let radio of radios) {
+                    if (radio.checked) {
+                        value = radio.value;
+                        break;
+                    }
+                }
+                if (!value) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please select an answer';
+                        errorSpan.style.display = 'block';
                     }
                     return;
                 }
-                answer = radios[0].value;
             } else {
-                const textarea = document.querySelector(`#frq-${questionId}`);
-                if (!textarea || !textarea.value.trim()) {
-                    if (errorMsg) {
-                        errorMsg.textContent = 'Please enter your response';
-                        errorMsg.classList.add('show');
+                let textarea = document.getElementById('frq-textarea-' + questionId);
+                if (textarea) {
+                    value = textarea.value.trim();
+                }
+                if (!value) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please fill the response';
+                        errorSpan.style.display = 'block';
                     }
                     return;
                 }
-                answer = textarea.value.trim();
             }
             
-            // Get optional reason
-            const reasonTextarea = document.querySelector(`#reason-${questionId}`);
+            // Get reason
+            let reason = '';
+            let reasonTextarea = document.getElementById('reason-textarea-' + questionId);
             if (reasonTextarea) {
                 reason = reasonTextarea.value.trim();
             }
             
-            // Store in memory (tied to username)
-            if (!userAnswers[currentUsername]) {
-                userAnswers[currentUsername] = {};
-                userReasons[currentUsername] = {};
-            }
-            
-            userAnswers[currentUsername][questionId] = {
-                answer: answer,
-                timestamp: Date.now(),
-                attempt: attempts + 1
+            // Update classData
+            classData.users[currentUsername].answers[questionId] = {
+                value: value,
+                attempt: currentAttempt + 1,
+                timestamp: Date.now()
             };
+            classData.users[currentUsername].reasons[questionId] = reason;
+            classData.users[currentUsername].timestamps[questionId] = Date.now();
+            classData.users[currentUsername].attempts[questionId] = currentAttempt + 1;
             
-            if (reason) {
-                userReasons[currentUsername][questionId] = reason;
+            // Save to localStorage
+            try {
+                localStorage.setItem('classData', JSON.stringify(classData));
+            } catch(e) {
+                console.log("Storage quota exceeded—data not saved");
             }
             
-            // Increment attempts and update UI
-            const newAttempts = incrementAttemptCount(questionId);
+            // Update completed set
+            completed.add(questionId);
+            localStorage.setItem('completed', JSON.stringify(Array.from(completed)));
             
-            // Clear error and show success
-            if (errorMsg) errorMsg.classList.remove('show');
+            // Update UI
+            let submitBtn = document.getElementById('submit-' + questionId);
+            if (submitBtn) {
+                submitBtn.textContent = `Submitted (Attempt ${currentAttempt + 1}/3)`;
+                if (currentAttempt + 1 >= 3) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('disabled');
+                    
+                    // Disable all inputs
+                    document.querySelectorAll(`[data-question-id="${questionId}"] input, [data-question-id="${questionId}"] textarea, [data-question-id="${questionId}"] button`).forEach(el => {
+                        el.classList.add('disabled');
+                        el.disabled = true;
+                    });
+                    
+                    // Add max attempts message
+                    let msg = document.createElement('span');
+                    msg.textContent = 'Max attempts reached (3/3)';
+                    msg.style.color = 'red';
+                    msg.style.marginLeft = '10px';
+                    submitBtn.parentNode.appendChild(msg);
+                }
+            }
+            
+            // Add completed class and checkmark
+            let qDiv = document.querySelector(`[data-question-id="${questionId}"]`);
+            if (qDiv) {
+                qDiv.classList.add('completed');
+                if (!qDiv.querySelector('.checkmark')) {
+                    let check = document.createElement('span');
+                    check.className = 'checkmark';
+                    check.textContent = '✓';
+                    qDiv.querySelector('.question-header').appendChild(check);
+                }
+            }
+            
+            // Enable view button if exists
+            let viewBtn = document.querySelector(`#view-${questionId}`);
+            if (viewBtn) {
+                viewBtn.disabled = false;
+            }
+            
+            // Show success message
+            let successMsg = document.getElementById('success-' + questionId);
             if (successMsg) {
-                successMsg.textContent = `Answer submitted! (Attempt ${newAttempts} of 3)`;
+                successMsg.textContent = `Answer submitted! (Attempt ${currentAttempt + 1} of 3)`;
                 successMsg.classList.add('show');
             }
+        }
+        
+        // Step 3: Load progress function
+        function loadProgress() {
+            if (!currentUsername || !classData) return;
             
-            // Mark as completed if applicable
-            markQuestionCompleted(questionId);
-            
-            // Update button state
-            const submitBtn = document.querySelector(`#submit-${questionId}`);
-            if (submitBtn) {
-                if (newAttempts >= 3) {
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Maximum attempts reached';
-                    
-                    // Disable inputs
-                    if (questionType === 'multiple-choice') {
-                        document.querySelectorAll(`input[name="q-${questionId}"]`).forEach(radio => {
-                            radio.disabled = true;
-                        });
-                    } else {
-                        const frqTextarea = document.querySelector(`#frq-${questionId}`);
-                        if (frqTextarea) frqTextarea.disabled = true;
+            // Restore completed questions UI
+            for (let qId of completed) {
+                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
+                if (qDiv) {
+                    qDiv.classList.add('completed');
+                    if (!qDiv.querySelector('.checkmark')) {
+                        let check = document.createElement('span');
+                        check.className = 'checkmark';
+                        check.textContent = '✓';
+                        let header = qDiv.querySelector('.question-header');
+                        if (header) header.appendChild(check);
                     }
-                    const reasonTextarea = document.querySelector(`#reason-${questionId}`);
-                    if (reasonTextarea) reasonTextarea.disabled = true;
-                    
-                    // Show max attempts message
-                    const maxMsg = document.createElement('div');
-                    maxMsg.className = 'max-attempts-message';
-                    maxMsg.textContent = 'Maximum attempts reached (3/3)';
-                    submitBtn.parentNode.appendChild(maxMsg);
-                } else {
-                    submitBtn.textContent = `Submit Answer (Attempt ${newAttempts + 1} of 3)`;
+                    let viewBtn = qDiv.querySelector('.view-button');
+                    if (viewBtn) viewBtn.disabled = false;
                 }
+            }
+            
+            // Restore answers and UI state for each question
+            for (let qId in classData.users[currentUsername].answers) {
+                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
+                
+                if (qDiv) {
+                    let saved = classData.users[currentUsername].answers[qId];
+                    let questionType = qDiv.querySelector('input[type="radio"]') ? 'multiple-choice' : 'free-response';
+                    
+                    // Restore answer value
+                    if (questionType === 'multiple-choice') {
+                        let radios = qDiv.querySelectorAll(`input[name="choice-${qId}"]`);
+                        for (let radio of radios) {
+                            if (radio.value === saved.value) {
+                                radio.checked = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        let textarea = qDiv.querySelector(`#frq-textarea-${qId}`);
+                        if (textarea) {
+                            textarea.value = saved.value;
+                        }
+                    }
+                    
+                    // Restore reason
+                    let reasonTa = qDiv.querySelector(`#reason-textarea-${qId}`);
+                    if (reasonTa && classData.users[currentUsername].reasons[qId]) {
+                        reasonTa.value = classData.users[currentUsername].reasons[qId];
+                    }
+                    
+                    // Update submit button and handle max attempts
+                    let attempts = classData.users[currentUsername].attempts[qId] || 0;
+                    let submitBtn = qDiv.querySelector(`#submit-${qId}`);
+                    if (submitBtn) {
+                        submitBtn.textContent = `Submitted (Attempt ${attempts}/3)`;
+                        if (attempts >= 3) {
+                            submitBtn.disabled = true;
+                            submitBtn.classList.add('disabled');
+                            
+                            // Disable all inputs
+                            qDiv.querySelectorAll('input, textarea, button').forEach(el => {
+                                el.classList.add('disabled');
+                                el.disabled = true;
+                            });
+                            
+                            // Add max attempts message if not already there
+                            if (!submitBtn.parentNode.querySelector('span[style*="red"]')) {
+                                let msg = document.createElement('span');
+                                msg.textContent = 'Max attempts reached (3/3)';
+                                msg.style.color = 'red';
+                                msg.style.marginLeft = '10px';
+                                submitBtn.parentNode.appendChild(msg);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Re-apply MathJax if needed
+            if (window.MathJax) {
+                MathJax.typesetPromise().catch((e) => console.log('MathJax error:', e));
             }
         }
         
@@ -2746,14 +2927,19 @@
             if (!choices || !Array.isArray(choices)) return '';
             
             const questionId = question ? question.id : 'unknown';
-            const attempts = question ? getAttemptCount(questionId) : 0;
+            
+            // Step 3: Check attempts from classData instead
+            let attempts = 0;
+            if (currentUsername && classData && classData.users[currentUsername]) {
+                attempts = classData.users[currentUsername].attempts[questionId] || 0;
+            }
             
             let choicesHtml = '<div class="choices">';
             choices.forEach(choice => {
                 choicesHtml += `
                     <div class="choice">
                         <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="q-${questionId}" value="${choice.key}" 
+                            <input type="radio" name="choice-${questionId}" value="${choice.key}" 
                                    ${attempts >= 3 ? 'disabled' : ''} />
                             <span class="choice-key">${choice.key}.</span>
                             <span class="choice-value">${choice.value}</span>
@@ -2821,11 +3007,15 @@
             
             // Add FRQ textarea for free-response questions
             if (question.type === 'free-response') {
-                const attempts = getAttemptCount(question.id);
+                // Step 3: Check attempts from classData
+                let attempts = 0;
+                if (currentUsername && classData && classData.users[currentUsername]) {
+                    attempts = classData.users[currentUsername].attempts[question.id] || 0;
+                }
                 questionHtml += `
                     <div class="frq-wrapper">
                         <textarea 
-                            id="frq-${question.id}"
+                            id="frq-textarea-${question.id}"
                             class="frq-textarea" 
                             placeholder="Enter your complete response here"
                             ${attempts >= 3 ? 'disabled' : ''}
@@ -2834,34 +3024,46 @@
                 `;
             }
 
-            // Add reason textarea and submit button for all questions
-            const attempts = getAttemptCount(question.id);
+            // Add reason textarea and submit button zone
+            // Step 3: Check attempts from classData
+            let attempts = 0;
+            if (currentUsername && classData && classData.users[currentUsername]) {
+                attempts = classData.users[currentUsername].attempts[question.id] || 0;
+            }
             questionHtml += `
                 <div class="reason-wrapper">
-                    <label for="reason-${question.id}" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                    <label for="reason-textarea-${question.id}" style="display: block; margin-bottom: 5px; font-weight: bold;">
                         Optional: Explain your reasoning (visible to peers)
                     </label>
                     <textarea 
-                        id="reason-${question.id}"
+                        id="reason-textarea-${question.id}"
                         class="reason-textarea" 
                         placeholder="Why did you choose this answer?"
                         ${attempts >= 3 ? 'disabled' : ''}
                     ></textarea>
                 </div>
                 
-                <!-- Submit button and messages -->
-                <div class="submission-controls">
+                <!-- Submit button zone with error message -->
+                <div class="question-submit-zone">
+                    <span id="error-${question.id}" class="error-msg"></span>
                     <button 
                         id="submit-${question.id}"
                         class="submit-button" 
                         onclick="submitAnswer('${question.id}', '${question.type}')"
                         ${attempts >= 3 ? 'disabled' : ''}
                     >
-                        ${attempts >= 3 ? 'Maximum attempts reached' : `Submit Answer (Attempt ${attempts + 1} of 3)`}
+                        ${attempts >= 3 ? 'Maximum attempts reached (3/3)' : `Submit Answer (Attempt ${attempts + 1} of 3)`}
                     </button>
-                    <div id="error-${question.id}" class="validation-error"></div>
+                    <button 
+                        id="view-${question.id}"
+                        class="view-button" 
+                        style="margin-left: 10px; display: none;"
+                        disabled
+                    >
+                        View Answers
+                    </button>
                     <div id="success-${question.id}" class="submission-success"></div>
-                    ${attempts >= 3 ? '<div class="max-attempts-message">Maximum attempts reached (3/3)</div>' : ''}
+                    ${attempts >= 3 ? '<div class="max-attempts-message" style="color: #ff9800; font-weight: bold;">Maximum 3 attempts reached - no further changes allowed</div>' : ''}
                 </div>
             `;
 
@@ -2955,6 +3157,9 @@
                 
                 // Initialize context finder after questions are rendered
                 initContextFinder();
+                
+                // Step 3: Load progress after rendering
+                loadProgress();
                 
                 showMessage(`Successfully loaded ${questions.length} question(s)!`, 'success');
             } catch (error) {
