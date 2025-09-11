@@ -587,6 +587,16 @@
             return isDarkMode() ? '#5BC0EB' : '#36A2EB';
         }
 
+        // Username Generation
+        const fruits = ['Apple', 'Banana', 'Cherry', 'Grape', 'Lemon', 'Mango', 'Orange', 'Peach', 'Pear', 'Plum', 'Berry', 'Melon', 'Kiwi', 'Lime', 'Papaya', 'Guava', 'Apricot', 'Date', 'Fig', 'Coconut'];
+        const animals = ['Bear', 'Cat', 'Dog', 'Eagle', 'Fox', 'Goat', 'Horse', 'Iguana', 'Jaguar', 'Koala', 'Lion', 'Monkey', 'Newt', 'Owl', 'Panda', 'Quail', 'Rabbit', 'Snake', 'Tiger', 'Wolf'];
+
+        function generateRandomUsername() {
+            const fruit = fruits[Math.floor(Math.random() * fruits.length)];
+            const animal = animals[Math.floor(Math.random() * animals.length)];
+            return `${fruit}_${animal}`;
+        }
+
         // Global variables
         let currentUsername = null;
         let classData = null;
@@ -814,31 +824,29 @@
         }
 
         function showUsernamePrompt() {
+            const suggestedName = generateRandomUsername();
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
                 <div class="username-prompt">
                     <h2>Welcome to AP Statistics Consensus Quiz</h2>
-                    <p>Please enter your username to begin:</p>
-                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name" autofocus>
-                    <button onclick="saveUsername()" class="start-button">Start</button>
+                    <p>Your generated username:</p>
+                    <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
+                    <button onclick="acceptUsername('${suggestedName}')" class="start-button">Accept This Name</button>
+                    <button onclick="rerollUsername()" class="start-button" style="background: #7f8c8d;">Generate New Name</button>
                 </div>
             `;
-            
-            // Allow Enter key to submit
-            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') saveUsername();
-            });
         }
 
-        window.saveUsername = function() {
-            const input = document.getElementById('usernameInput');
-            if (input && input.value.trim()) {
-                currentUsername = input.value.trim();
-                localStorage.setItem('consensusUsername', currentUsername);
-                initClassData();
-                showUsernameWelcome();
-                renderFileUpload();
-            }
+        window.rerollUsername = function() {
+            showUsernamePrompt();
+        }
+
+        window.acceptUsername = function(name) {
+            currentUsername = name;
+            localStorage.setItem('consensusUsername', currentUsername);
+            initClassData();
+            showUsernameWelcome();
+            renderFileUpload();
         }
 
         function showUsernameWelcome() {
