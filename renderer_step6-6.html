@@ -547,6 +547,27 @@
             color: #f57c00;
             border: 2px solid #ff9800;
         }
+
+/* Vote button styles */
+.vote-btn {
+    padding: 5px 10px;
+    margin: 0 5px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+.vote-btn:hover {
+    background: #f8f9fa;
+    border-color: #bbb;
+}
+.vote-btn.active {
+    background: #e3f2fd;
+    border-color: #2196F3;
+    color: #1976D2;
+}
     </style>
 </head>
 <body>
@@ -3597,6 +3618,7 @@ function renderAttachments(attachments, questionId) {
             if (contributorsDiv) {
                 let html = '<h4>Responses:</h4>';
                 responses.forEach(r => {
+                    const userVotes = classData.users[currentUsername]?.votes?.[questionId]?.[r.username] || {};
                     html += `
                         <div class="contributor-item">
                             <strong>${r.username}:</strong>
@@ -3604,11 +3626,62 @@ function renderAttachments(attachments, questionId) {
                                 ${r.response}
                             </div>
                             ${r.reason ? `<div class="contributor-reason">${r.reason}</div>` : ''}
+                            <div style="margin-top: 10px;">
+                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'helpful')"
+                                        class="vote-btn ${userVotes.type === 'helpful' ? 'active' : ''}">
+                                    💡 Helpful (${getVoteCount(questionId, r.username, 'helpful')})
+                                </button>
+                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'unclear')"
+                                        class="vote-btn ${userVotes.type === 'unclear' ? 'active' : ''}">
+                                    🤔 Unclear (${getVoteCount(questionId, r.username, 'unclear')})
+                                </button>
+                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'contradicts')"
+                                        class="vote-btn ${userVotes.type === 'contradicts' ? 'active' : ''}">
+                                    ⚔️ Contradicts (${getVoteCount(questionId, r.username, 'contradicts')})
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
                 contributorsDiv.innerHTML = html;
             }
+        }
+
+        // Helper function to get vote count
+        function getVoteCount(questionId, targetUser, voteType) {
+            let count = 0;
+            for (let username in classData.users) {
+                const userVotes = classData.users[username].votes?.[questionId]?.[targetUser];
+                if (userVotes?.type === voteType) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        // Vote FRQ function
+        window.voteFRQ = function(questionId, targetUser, voteType) {
+            if (!classData.users[currentUsername].votes) {
+                classData.users[currentUsername].votes = {};
+            }
+            if (!classData.users[currentUsername].votes[questionId]) {
+                classData.users[currentUsername].votes[questionId] = {};
+            }
+
+            const existingVote = classData.users[currentUsername].votes[questionId][targetUser];
+            if (existingVote?.type === voteType) {
+                // Remove vote if clicking same button
+                delete classData.users[currentUsername].votes[questionId][targetUser];
+            } else {
+                // Set new vote
+                classData.users[currentUsername].votes[questionId][targetUser] = {
+                    type: voteType,
+                    timestamp: Date.now()
+                };
+            }
+
+            saveClassData();
+            renderFRQResponses(questionId);
         }
 
         // Load progress
