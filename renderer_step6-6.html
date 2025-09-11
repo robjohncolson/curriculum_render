@@ -765,14 +765,18 @@
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
-                    <h2>Load a Unit to Begin</h2>
-                    <p>Select a unit JSON file (e.g., unit1.json, unit2.json, etc.)</p>
-                    <input type="file" id="fileInput" accept=".json"
-                           style="padding: 10px; font-size: 16px; margin: 20px;">
-                    <br>
-                    <button onclick="loadFromFile()" class="submit-button">
-                        Load Unit
+                    <h2>Load a Unit File</h2>
+                    <p style="margin-bottom: 20px;">Select a unit JSON file (unit1.json, unit2.json, etc.)</p>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <input type="file" id="fileInput" accept=".json"
+                               style="padding: 10px; font-size: 16px;">
+                    </div>
+                    <button onclick="loadFromFile()" class="submit-button" style="padding: 12px 30px;">
+                        Load Unit File
                     </button>
+                    <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                        <strong>Note:</strong> The app will automatically detect which unit you've loaded based on question IDs (U1, U2, etc.)
+                    </div>
                 </div>
             `;
         }
@@ -849,30 +853,30 @@
             container.insertBefore(welcomeDiv, container.firstChild.nextSibling);
         }
 
-        // Unit selector
-        function renderUnitSelector() {
-            const questionsContainer = document.getElementById('questionsContainer');
-            let buttonsHtml = '';
-            
-            for (let unitNum in unitStructure) {
-                const unit = unitStructure[unitNum];
-                buttonsHtml += `
-                    <button onclick="loadUnit(${unitNum})" class="unit-btn" id="unit-btn-${unitNum}">
-                        <strong>Unit ${unitNum}</strong><br>
-                        ${unit.name}
-                    </button>
-                `;
-            }
-            
-            questionsContainer.innerHTML = `
-                <div class="unit-selector">
-                    <h2>Select a Unit</h2>
-                    <div class="unit-buttons">
-                        ${buttonsHtml}
-                    </div>
-                </div>
-            `;
-        }
+        // Unit selector - REMOVED: No longer needed due to CORS issues
+        // function renderUnitSelector() {
+        //     const questionsContainer = document.getElementById('questionsContainer');
+        //     let buttonsHtml = '';
+        //
+        //     for (let unitNum in unitStructure) {
+        //         const unit = unitStructure[unitNum];
+        //         buttonsHtml += `
+        //             <button onclick="loadUnit(${unitNum})" class="unit-btn" id="unit-btn-${unitNum}">
+        //                 <strong>Unit ${unitNum}</strong><br>
+        //                 ${unit.name}
+        //             </button>
+        //         `;
+        //     }
+        //
+        //     questionsContainer.innerHTML = `
+        //         <div class="unit-selector">
+        //             <h2>Select a Unit</h2>
+        //             <div class="unit-buttons">
+        //                 ${buttonsHtml}
+        //             </div>
+        //         </div>
+        //     `;
+        // }
 
         // Load unit
         window.loadUnit = async function(unitNumber) {
@@ -933,7 +937,7 @@
             }
             
             questionsContainer.innerHTML = `
-                <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
                 <div class="lesson-selector">
                     <h3>Unit ${currentUnit}: ${unit.name}</h3>
                     <p>Select a lesson to begin:</p>
@@ -990,7 +994,9 @@
             allUnitQuestions = [];
             currentUnit = null;
             currentLesson = null;
-            renderUnitSelector();
+
+            // Go to file upload instead of unit selector
+            renderFileUpload();
         }
 
         // Back to lessons
