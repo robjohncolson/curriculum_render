@@ -1,0 +1,4172 @@
+[
+  {
+    "id": "U1-L2-Q01",
+    "type": "multiple-choice",
+    "prompt": "The following table shows data for the 8 longest roller coasters in the world as of 2015. Which of the following variables is categorical?",
+    "answerKey": "B",
+    "attachments": {
+      "table": [
+        [
+          "Length (feet)",
+          "Type",
+          "Speed (miles per hour)",
+          "Height (feet)",
+          "Drop (feet)",
+          "Continent"
+        ],
+        [
+          "8,133",
+          "Steel",
+          "95",
+          "318",
+          "310",
+          "Asia"
+        ],
+        [
+          "7,442",
+          "Steel",
+          "50",
+          "107",
+          "102",
+          "Europe"
+        ],
+        [
+          "7,359",
+          "Wood",
+          "65",
+          "110",
+          "135",
+          "North America"
+        ],
+        [
+          "6,709",
+          "Steel",
+          "81",
+          "259",
+          "230",
+          "Asia"
+        ],
+        [
+          "6,602",
+          "Steel",
+          "95",
+          "325",
+          "320",
+          "North America"
+        ],
+        [
+          "6,595",
+          "Steel",
+          "93",
+          "310",
+          "300",
+          "North America"
+        ],
+        [
+          "6,562",
+          "Steel",
+          "149",
+          "171",
+          "168",
+          "Asia"
+        ],
+        [
+          "6,442",
+          "Wood",
+          "67",
+          "163",
+          "154",
+          "North America"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "Length"
+        },
+        {
+          "key": "B",
+          "value": "Type"
+        },
+        {
+          "key": "C",
+          "value": "Speed"
+        },
+        {
+          "key": "D",
+          "value": "Height"
+        },
+        {
+          "key": "E",
+          "value": "Drop"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L2-Q02",
+    "type": "multiple-choice",
+    "prompt": "Which of the following questions about cars in a school parking lot will allow for the collection of a set of categorical data?",
+    "answerKey": "E",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "How many blue cars are in the lot?"
+        },
+        {
+          "key": "B",
+          "value": "What are the gas mileages, in miles per gallon, of the cars in the lot?"
+        },
+        {
+          "key": "C",
+          "value": "What are the weights, in pounds, of the cars in the lot?"
+        },
+        {
+          "key": "D",
+          "value": "What is the number of cars in the lot with out-of-state license plates?"
+        },
+        {
+          "key": "E",
+          "value": "What are the colors of the cars in the lot?"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L2-Q03",
+    "type": "multiple-choice",
+    "prompt": "Data were collected on 100 United States coins minted in 2018. Which of the following represents a quantitative variable for the data collected?",
+    "answerKey": "B",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The type of metal used in the coin"
+        },
+        {
+          "key": "B",
+          "value": "The value of the coin"
+        },
+        {
+          "key": "C",
+          "value": "The color of the coin"
+        },
+        {
+          "key": "D",
+          "value": "The person depicted on the face of the coin"
+        },
+        {
+          "key": "E",
+          "value": "The location where the coin was minted"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L3-Q01",
+    "type": "multiple-choice",
+    "prompt": "The following frequency table shows the responses from a group of college students who were asked to choose their favorite flavor of ice cream. Which of the following statements is not supported by the table?",
+    "answerKey": "E",
+    "attachments": {
+      "table": [
+        [
+          "Flavor",
+          "Frequency"
+        ],
+        [
+          "Vanilla",
+          "100"
+        ],
+        [
+          "Chocolate",
+          "65"
+        ],
+        [
+          "Strawberry",
+          "35"
+        ],
+        [
+          "Mint chip",
+          "45"
+        ],
+        [
+          "Coffee",
+          "30"
+        ],
+        [
+          "Butter pecan",
+          "25"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The number of student responses is 300."
+        },
+        {
+          "key": "B",
+          "value": "One-third of the students chose vanilla."
+        },
+        {
+          "key": "C",
+          "value": "One-third of the students chose chocolate or strawberry."
+        },
+        {
+          "key": "D",
+          "value": "One-fourth of the students chose mint chip or coffee."
+        },
+        {
+          "key": "E",
+          "value": "One-half of the students chose vanilla or chocolate."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L3-Q02",
+    "type": "multiple-choice",
+    "prompt": "The following relative frequency table shows the political party affiliation for a sample of 500 people in a certain town. Which of the following statements is supported by the table?",
+    "answerKey": "B",
+    "attachments": {
+      "table": [
+        [
+          "Political Party",
+          "Relative Frequency"
+        ],
+        [
+          "Democrat",
+          "0.35"
+        ],
+        [
+          "Republican",
+          "0.30"
+        ],
+        [
+          "Independent",
+          "0.20"
+        ],
+        [
+          "Green Party",
+          "0.11"
+        ],
+        [
+          "Libertarian",
+          "0.03"
+        ],
+        [
+          "Other",
+          "0.01"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The number of people affiliated with the Republicans is 30."
+        },
+        {
+          "key": "B",
+          "value": "The number of people affiliated with the Independents is 100."
+        },
+        {
+          "key": "C",
+          "value": "Less than half of the people are affiliated with the Democrats or the Republicans."
+        },
+        {
+          "key": "D",
+          "value": "At least 200 people are affiliated with the Democrats."
+        },
+        {
+          "key": "E",
+          "value": "At least 80 people are affiliated with the Green Party or the Libertarians."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L3-Q03",
+    "type": "multiple-choice",
+    "prompt": "The following table summarizes the number of pies sold at a booth one day at a local farmers market. Which of the following statements is supported by the table?",
+    "answerKey": "E",
+    "attachments": {
+      "table": [
+        [
+          "Type of Pie",
+          "Frequency"
+        ],
+        [
+          "Apple",
+          "18"
+        ],
+        [
+          "Blueberry",
+          "14"
+        ],
+        [
+          "Cherry",
+          "16"
+        ],
+        [
+          "Key Lime",
+          "12"
+        ],
+        [
+          "Peach",
+          "12"
+        ],
+        [
+          "Pumpkin",
+          "18"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "More cherry pies were sold than any other type of pie."
+        },
+        {
+          "key": "B",
+          "value": "Twice as many apple pies as key lime pies were sold."
+        },
+        {
+          "key": "C",
+          "value": "More than half the pies sold were apple."
+        },
+        {
+          "key": "D",
+          "value": "Fewer than 50 pies were sold at the booth that day."
+        },
+        {
+          "key": "E",
+          "value": "The combined percentage of key lime pies sold and pumpkin pies sold was less than 50%."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q01",
+    "type": "multiple-choice",
+    "prompt": "A market researcher asked a group of men and women to choose their favorite color design from a sample of advertisements. Which of the following statements is not supported by the table?",
+    "answerKey": "C",
+    "attachments": {
+      "table": [
+        [
+          "",
+          "Red with Black",
+          "Green with Black",
+          "Yellow with Black",
+          "Red with Blue",
+          "Green with Blue",
+          "Yellow with Blue"
+        ],
+        [
+          "Men",
+          "21",
+          "15",
+          "8",
+          "12",
+          "35",
+          "9"
+        ],
+        [
+          "Women",
+          "15",
+          "3",
+          "11",
+          "31",
+          "24",
+          "16"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "More men than women chose the color design red with black."
+        },
+        {
+          "key": "B",
+          "value": "More women than men chose the color design yellow with black."
+        },
+        {
+          "key": "C",
+          "value": "For men, the number who chose a design with black was greater than the number who chose a design with blue."
+        },
+        {
+          "key": "D",
+          "value": "The color design chosen by the most people was green with blue."
+        },
+        {
+          "key": "E",
+          "value": "The total number of men surveyed by the market researcher was equal to the total number of women surveyed by the market researcher."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q02",
+    "type": "multiple-choice",
+    "prompt": "In a certain school district, students from grade 6 through grade 12 can participate in a school-sponsored community service activity. The following bar chart shows the relative frequencies of students from each grade who participate in the community service activity. Which of the following statements is supported by the bar chart?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12"
+      ],
+      "series": [
+        {
+          "name": "Relative Frequency",
+          "values": [
+            0.3,
+            0.3,
+            0.375,
+            0.55,
+            0.45,
+            0.5,
+            0.1
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The greatest number of participating students was in grade 9."
+        },
+        {
+          "key": "B",
+          "value": "The number of participating students in grade 6 was equal to the number of participating students in grade 7."
+        },
+        {
+          "key": "C",
+          "value": "The relative frequency of all participating students in grades 6 and 7 combined was 0.60."
+        },
+        {
+          "key": "D",
+          "value": "Grade 12 had the least relative frequency of participating students."
+        },
+        {
+          "key": "E",
+          "value": "Grade 11 had the greatest relative frequency of participating students."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q03",
+    "type": "multiple-choice",
+    "prompt": "A child psychologist asked 100 five year olds and 50 ten year olds to name their favorite color. Which of the following statements is supported by the table?",
+    "answerKey": "A",
+    "attachments": {
+      "table": [
+        [
+          "",
+          "Red",
+          "Orange",
+          "Yellow",
+          "Green",
+          "Blue",
+          "Purple"
+        ],
+        [
+          "Five year olds",
+          "21",
+          "15",
+          "8",
+          "10",
+          "35",
+          "11"
+        ],
+        [
+          "Ten year olds",
+          "7",
+          "2",
+          "6",
+          "15",
+          "12",
+          "8"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The percentage of five year olds who selected red or blue as their favorite color is greater than the percentage of ten year olds who selected red or blue as their favorite color."
+        },
+        {
+          "key": "B",
+          "value": "The percentage of five year olds who selected yellow as their favorite color is greater than the percentage of ten year olds who selected yellow as their favorite color."
+        },
+        {
+          "key": "C",
+          "value": "The percentage of children who selected red, yellow, or blue as their favorite color was equal for both ages."
+        },
+        {
+          "key": "D",
+          "value": "Less than half of the five year olds selected red, yellow, or blue as their favorite color."
+        },
+        {
+          "key": "E",
+          "value": "Less than half of the ten year olds selected red, yellow, or blue as their favorite color."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q04",
+    "type": "multiple-choice",
+    "prompt": "The following pie chart summarizes the results of a survey given to airlines about the primary reason for flight delays. Which of the following statements is supported by the pie chart?",
+    "answerKey": "B",
+    "attachments": {
+      "chartType": "pie",
+      "series": [
+        {
+          "name": "Flight Delay Reasons",
+          "values": [
+            {
+              "name": "Weather",
+              "value": 70
+            },
+            {
+              "name": "Overbooking",
+              "value": 15
+            },
+            {
+              "name": "Runway Closure",
+              "value": 8
+            },
+            {
+              "name": "Other",
+              "value": 5
+            },
+            {
+              "name": "Equipment Failure",
+              "value": 2
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The reason given most frequently was runway closure."
+        },
+        {
+          "key": "B",
+          "value": "More delays were caused by weather than by all other reasons combined."
+        },
+        {
+          "key": "C",
+          "value": "More delays were caused by runway closure than were caused by overbooking."
+        },
+        {
+          "key": "D",
+          "value": "Overbooking and runway closure accounted for greater than one-fourth of the reasons given for flight delays."
+        },
+        {
+          "key": "E",
+          "value": "The combined percentage for other and runway closure was equal to the percentage for overbooking."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q05",
+    "type": "multiple-choice",
+    "prompt": "A sample of 100 students from Liberty High School and a sample of 60 students from Central High School were asked what they planned to do after graduation. Responses fell into five categories: four-year university (4Y), community college (CC), join the workforce (W), join the military (M), or undecided (UD). Which of the following statements is supported by the bar chart?",
+    "answerKey": "E",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "4Y",
+        "CC",
+        "W",
+        "M",
+        "UD"
+      ],
+      "series": [
+        {
+          "name": "Liberty High School",
+          "values": [
+            0.2,
+            0.3,
+            0.2,
+            0.2,
+            0.1
+          ]
+        },
+        {
+          "name": "Central High School",
+          "values": [
+            0.3,
+            0.2,
+            0.2,
+            0.2,
+            0.1
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "For the category four-year university, the number of students from Central High School was 10 greater than the number of students from Liberty High School."
+        },
+        {
+          "key": "B",
+          "value": "At Liberty High School, more students selected a four-year university than any other activity."
+        },
+        {
+          "key": "C",
+          "value": "For the category join the workforce, the number of students from each school was equal."
+        },
+        {
+          "key": "D",
+          "value": "At Central High School, the same number of students selected four-year university and military."
+        },
+        {
+          "key": "E",
+          "value": "For the category undecided, the number of students from Liberty High School was 4 greater than the number of students from Central High School."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L4-Q06",
+    "type": "multiple-choice",
+    "prompt": "The following bar chart shows the relative frequency of days of rain for 30 days in four regions of a certain state. Which of the following statements is not supported by the bar chart?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "series": [
+        {
+          "name": "Relative Frequency",
+          "values": [
+            0.65,
+            0.275,
+            0.35,
+            0.7
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "Region D had the greatest percentage of days of rain."
+        },
+        {
+          "key": "B",
+          "value": "Region B had the least percentage of days of rain."
+        },
+        {
+          "key": "C",
+          "value": "Region A had more than 15 days of rain."
+        },
+        {
+          "key": "D",
+          "value": "Region C had more than 25 days of rain."
+        },
+        {
+          "key": "E",
+          "value": "Region D had less than 23 days of rain."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L5-Q01",
+    "type": "multiple-choice",
+    "prompt": "Which of the following describes a continuous variable?",
+    "answerKey": "C",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The number of items sold at a craft booth for one day"
+        },
+        {
+          "key": "B",
+          "value": "The number of apps downloaded from a website one day"
+        },
+        {
+          "key": "C",
+          "value": "The diameters of the tree trunks at an evergreen farm"
+        },
+        {
+          "key": "D",
+          "value": "The number of baskets made by a basketball player"
+        },
+        {
+          "key": "E",
+          "value": "The shoe sizes of all shoes on sale at a department store"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L5-Q02",
+    "type": "multiple-choice",
+    "prompt": "Data will be collected on the following variables. Which variable can be considered discrete?",
+    "answerKey": "E",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The height of a person"
+        },
+        {
+          "key": "B",
+          "value": "The weight of a person"
+        },
+        {
+          "key": "C",
+          "value": "The length of a person's arm span"
+        },
+        {
+          "key": "D",
+          "value": "The time it takes for a person to solve a puzzle"
+        },
+        {
+          "key": "E",
+          "value": "The number of books a person finished reading last month"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L5-Q03",
+    "type": "multiple-choice",
+    "prompt": "The following list shows the number of video games sold at a game store each day for one week.\n\n15, 43, 50, 39, 22, 16, 20\n\nWhich of the following is the best classification of the data in the list?",
+    "answerKey": "D",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Categorical and continuous"
+        },
+        {
+          "key": "B",
+          "value": "Quantitative and continuous"
+        },
+        {
+          "key": "C",
+          "value": "Categorical and discrete"
+        },
+        {
+          "key": "D",
+          "value": "Quantitative and discrete"
+        },
+        {
+          "key": "E",
+          "value": "Neither categorical nor quantitative, and neither discrete nor continuous"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L6-Q01",
+    "type": "multiple-choice",
+    "prompt": "Which of the following statements is true about a distribution that appears to have a gap when displayed as a histogram?",
+    "answerKey": "B",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The distribution must have an outlier."
+        },
+        {
+          "key": "B",
+          "value": "The distribution has a region between two data values where no data were observed."
+        },
+        {
+          "key": "C",
+          "value": "The distribution is approximately normal."
+        },
+        {
+          "key": "D",
+          "value": "The distribution cannot be symmetric."
+        },
+        {
+          "key": "E",
+          "value": "The distribution must be bimodal."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L6-Q02",
+    "type": "multiple-choice",
+    "prompt": "If the interval size is decreased from $200 to $100, which of the following must remain the same on the new histogram?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "200",
+        "400",
+        "600",
+        "800",
+        "1000",
+        "1200"
+      ],
+      "series": [
+        {
+          "name": "Number of Students",
+          "values": [
+            4,
+            6,
+            9,
+            7,
+            3,
+            1
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 10,
+          "tickInterval": 1,
+          "title": "Number of Students"
+        },
+        "xAxis": {
+          "title": "Amount Spent (Dollars)",
+          "labelType": "upperBound",
+          "labels": [
+            200,
+            400,
+            600,
+            800,
+            1000,
+            1200
+          ]
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Histogram showing spending distribution with upper bound labels"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The heights of the bars"
+        },
+        {
+          "key": "B",
+          "value": "The widths of the bars"
+        },
+        {
+          "key": "C",
+          "value": "The number of bars"
+        },
+        {
+          "key": "D",
+          "value": "The sum of the frequencies"
+        },
+        {
+          "key": "E",
+          "value": "The shape of the distribution"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L6-Q03",
+    "type": "multiple-choice",
+    "prompt": "Which of the following statements is the best description of the distribution of scores?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "dotplot",
+      "values": [
+        55,
+        60,
+        60,
+        60,
+        60,
+        65,
+        65,
+        65,
+        70,
+        70,
+        70,
+        70,
+        75,
+        75,
+        80,
+        85,
+        90,
+        95
+      ],
+      "chartConfig": {
+        "xAxis": {
+          "min": 50,
+          "max": 100,
+          "tickInterval": 5,
+          "title": "Score"
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Dotplot showing distribution of scores with dots stacked vertically"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The distribution is roughly symmetric."
+        },
+        {
+          "key": "B",
+          "value": "The distribution is roughly uniform."
+        },
+        {
+          "key": "C",
+          "value": "The distribution is skewed left."
+        },
+        {
+          "key": "D",
+          "value": "The distribution is skewed right."
+        },
+        {
+          "key": "E",
+          "value": "The distribution is bimodal."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q01",
+    "type": "multiple-choice",
+    "prompt": "Roger claims that the two statistics most likely to change greatly when an outlier is added to a small data set are the mean and the median. Is Roger's claim correct?",
+    "answerKey": "B",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Yes, both the mean and median are likely to change greatly."
+        },
+        {
+          "key": "B",
+          "value": "No, only the mean is likely to change greatly."
+        },
+        {
+          "key": "C",
+          "value": "No, only the median is likely to change greatly."
+        },
+        {
+          "key": "D",
+          "value": "No, neither the mean nor the median are likely to change greatly."
+        },
+        {
+          "key": "E",
+          "value": "There is not enough information to determine if the mean or the median is likely to change greatly."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q02",
+    "type": "multiple-choice",
+    "prompt": "A golfer recorded the following scores for each of four rounds of golf: 86, 81, 87, 82. The mean of the scores is 84. What is the sum of the squared deviations of the scores from the mean?",
+    "answerKey": "D",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Σ(x - x̄) = (86 - 84) + (81 - 84) + (87 - 84) + (82 - 84)"
+        },
+        {
+          "key": "B",
+          "value": "Σ|x - x̄| = |86 - 84| + |81 - 84| + |87 - 84| + |82 - 84|"
+        },
+        {
+          "key": "C",
+          "value": "2Σ|x - x̄| = 2[|86 - 84| + |81 - 84| + |87 - 84| + |82 - 84|]"
+        },
+        {
+          "key": "D",
+          "value": "Σ(x - x̄)² = (86 - 84)² + (81 - 84)² + (87 - 84)² + (82 - 84)²"
+        },
+        {
+          "key": "E",
+          "value": "|Σ|x - x̄||² = [|86 - 84| + |81 - 84| + |87 - 84| + |82 - 84|]²"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q03",
+    "type": "multiple-choice",
+    "prompt": "What is the median selling price of the houses in the list?",
+    "answerKey": "B",
+    "attachments": {
+      "table": [
+        [
+          "House",
+          "Price",
+          "House",
+          "Price"
+        ],
+        [
+          "A",
+          "$302,100",
+          "E",
+          "$275,800"
+        ],
+        [
+          "B",
+          "$275,800",
+          "F",
+          "$295,000"
+        ],
+        [
+          "C",
+          "$305,400",
+          "G",
+          "$281,900"
+        ],
+        [
+          "D",
+          "$250,600",
+          "H",
+          "$284,700"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "$263,200"
+        },
+        {
+          "key": "B",
+          "value": "$283,300"
+        },
+        {
+          "key": "C",
+          "value": "$288,450"
+        },
+        {
+          "key": "D",
+          "value": "$290,600"
+        },
+        {
+          "key": "E",
+          "value": "$293,400"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q04",
+    "type": "multiple-choice",
+    "prompt": "A statistician at a metal manufacturing plant is sampling the thickness of metal plates. If an outlier occurs within a particular sample, the statistician must check the configuration of the machine. The distribution of metal thickness has mean 23.5 millimeters and standard deviation 1.4. Based on the two-standard deviations rule for outliers, of the following, which is the greatest thickness that would require the statistician to check the configuration of the machine?",
+    "answerKey": "B",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "19.3 mm"
+        },
+        {
+          "key": "B",
+          "value": "20.6 mm"
+        },
+        {
+          "key": "C",
+          "value": "22.1 mm"
+        },
+        {
+          "key": "D",
+          "value": "23.5 mm"
+        },
+        {
+          "key": "E",
+          "value": "24.9 mm"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q05",
+    "type": "multiple-choice",
+    "prompt": "At a photography contest, entries are scored on a scale from 1 to 100. At a recent contest with 1,000 entries, a score of 68 was at the 77th percentile of the distribution of all the scores. Which of the following is the best description of the 77th percentile of the distribution?",
+    "answerKey": "A",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "There were 770 entries with a score less than or equal to 68."
+        },
+        {
+          "key": "B",
+          "value": "There were at least 230 entries with a score of 77."
+        },
+        {
+          "key": "C",
+          "value": "There were 23% of the entries with a score less than or equal to 68."
+        },
+        {
+          "key": "D",
+          "value": "There were 77% of the entries with a score equal to 68."
+        },
+        {
+          "key": "E",
+          "value": "There were at least 77% of the entries with a score greater than 68."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L7-Q06",
+    "type": "multiple-choice",
+    "prompt": "The following boxplot summarizes the heights of a sample of 100 trees growing on a tree farm. Emily claims that a tree height of 43 inches is an outlier for the distribution. Based on the 1.5 × IQR rule for outliers, is there evidence to support the claim?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 28,
+          "max": 44,
+          "tickInterval": 2,
+          "title": "Tree Height (inches)"
+        },
+        "boxplotData": {
+          "Q1": 32,
+          "Q3": 38,
+          "median": 34.5,
+          "min": 29,
+          "max": 42
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing the heights of a sample of 100 trees growing on a tree farm"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "Yes, because (max - Q3) is greater than (Q1 - min)."
+        },
+        {
+          "key": "B",
+          "value": "Yes, because 43 is greater than (Q3 + IQR)."
+        },
+        {
+          "key": "C",
+          "value": "Yes, because 43 is greater than (Q1 - 1.5 × IQR)."
+        },
+        {
+          "key": "D",
+          "value": "No, because 43 is not greater than (Q3 + 1.5 × IQR)."
+        },
+        {
+          "key": "E",
+          "value": "No, because 43 is greater than (Q1 - 1.5 × IQR)."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L8-Q01",
+    "type": "multiple-choice",
+    "prompt": "The following boxplot shows the typical gas mileage, in miles per gallon, for 20 different car models. Based on the boxplot, the top 25 percent of the cars have a typical gas mileage of at least how many miles per gallon?",
+    "answerKey": "D",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 10,
+          "max": 50,
+          "tickInterval": 10,
+          "title": "Typical Gas Mileage (Miles Per Gallon)"
+        },
+        "boxplotData": {
+          "Q1": 20,
+          "Q3": 35,
+          "median": 25,
+          "min": 15,
+          "max": 50
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing the typical gas mileage, in miles per gallon, for 20 different car models"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "15"
+        },
+        {
+          "key": "B",
+          "value": "20"
+        },
+        {
+          "key": "C",
+          "value": "25"
+        },
+        {
+          "key": "D",
+          "value": "35"
+        },
+        {
+          "key": "E",
+          "value": "50"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L8-Q02",
+    "type": "multiple-choice",
+    "prompt": "An amusement park attraction has a sign that indicates that a person must be at least 48 inches tall to ride the attraction. The following boxplot shows the heights of a sample of people who entered the amusement park on one day. Based on the boxplot, approximately what percent of the people who entered the amusement park met the height requirement for the attraction?",
+    "answerKey": "C",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "vertical",
+        "yAxis": {
+          "min": 46,
+          "max": 66,
+          "tickInterval": 4,
+          "title": "Height (inches)"
+        },
+        "boxplotData": {
+          "Q1": 46,
+          "Q3": 58,
+          "median": 48,
+          "min": 45,
+          "max": 64
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing the heights of a sample of people who entered the amusement park on one day"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "25%"
+        },
+        {
+          "key": "B",
+          "value": "48%"
+        },
+        {
+          "key": "C",
+          "value": "50%"
+        },
+        {
+          "key": "D",
+          "value": "75%"
+        },
+        {
+          "key": "E",
+          "value": "100%"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L8-Q03",
+    "type": "multiple-choice",
+    "prompt": "The following histogram shows the ages, in years, of the people who attended a documentary at a movie theater. Based on the histogram, which of the following statements best describes the relationship between the mean and the median of the distribution of ages?",
+    "answerKey": "C",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "15-20",
+        "20-25",
+        "25-30",
+        "30-35",
+        "35-40",
+        "40-45",
+        "45-50"
+      ],
+      "series": [
+        {
+          "name": "Frequency",
+          "values": [
+            2,
+            3,
+            5,
+            10,
+            20,
+            12,
+            8
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 20,
+          "tickInterval": 5,
+          "title": "Frequency"
+        },
+        "xAxis": {
+          "title": "Age (years)",
+          "labelType": "range"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Histogram showing the ages, in years, of the people who attended a documentary at a movie theater with no gaps between bars"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The mean and the median are equal in value because the distribution is symmetric."
+        },
+        {
+          "key": "B",
+          "value": "The mean is most likely less than the median because the distribution is skewed to the right."
+        },
+        {
+          "key": "C",
+          "value": "The mean is most likely less than the median because the distribution is skewed to the left."
+        },
+        {
+          "key": "D",
+          "value": "The mean is most likely greater than the median because the distribution is skewed to the right."
+        },
+        {
+          "key": "E",
+          "value": "The mean is most likely greater than the median because the distribution is skewed to the left."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L9-Q01",
+    "type": "multiple-choice",
+    "prompt": "One statistic calculated for pitchers in baseball is called the earned run average, or \\(ERA\\). Based on the boxplots, which of the following statistics is the same for both leagues?",
+    "answerKey": "B",
+    "reasoning": "The interquartile range is equal to the length of the box in a boxplot. Both boxes appear to have the same length. The \\(IQR = Q3 - Q1\\), and by visual inspection of the boxplots, both League A and League B have boxes of the same width, indicating identical interquartile ranges despite having different medians, ranges, minimums, and maximums.",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 0,
+          "max": 12.5,
+          "tickInterval": 2.5,
+          "title": "ERA"
+        },
+        "boxplotData": [
+          {
+            "name": "League A",
+            "Q1": 2.5,
+            "Q3": 5.0,
+            "median": 3.5,
+            "whiskerMin": 1.5,
+            "whiskerMax": 7.5,
+            "outliers": [
+              0.8,
+              10.2
+            ]
+          },
+          {
+            "name": "League B",
+            "Q1": 2.5,
+            "Q3": 5.0,
+            "median": 4.0,
+            "whiskerMin": 1.2,
+            "whiskerMax": 8.5,
+            "outliers": [
+              0.4,
+              12.0
+            ]
+          }
+        ],
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplots comparing ERA for pitchers in leagues A and B, showing outliers marked with asterisks"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The range"
+        },
+        {
+          "key": "B",
+          "value": "The interquartile range"
+        },
+        {
+          "key": "C",
+          "value": "The median"
+        },
+        {
+          "key": "D",
+          "value": "The minimum"
+        },
+        {
+          "key": "E",
+          "value": "The maximum"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L9-Q02",
+    "type": "multiple-choice",
+    "prompt": "One way to measure the duration of subterranean disturbances such as earthquakes and mining is to calculate the root-mean-square time. Based on the histograms, which of the following correctly compares the two distributions?",
+    "answerKey": "B",
+    "reasoning": "The median is located at the fiftieth percentile of a distribution. To determine the bar in which the median is located, the relative frequencies of the bars are added until the sum first exceeds 0.5. For earthquake disturbances: 0.35 + 0.20 = 0.55, so the median is located in the interval between 0.2 and 0.4. For mining disturbances: 0.0 + 0.22 + 0.35 = 0.57, so the median is located in the interval between 0.6 and 0.8. Therefore, the median of the earthquake disturbances must be less than the median of the mining disturbances.",
+    "attachments": {
+      "charts": [
+        {
+          "chartType": "histogram",
+          "title": "Earthquake Disturbances",
+          "xLabels": [
+            "0.2",
+            "0.4",
+            "0.6",
+            "0.8",
+            "1.0",
+            "1.2",
+            "1.4"
+          ],
+          "series": [
+            {
+              "name": "Earthquake Disturbances",
+              "values": [
+                0.35,
+                0.2,
+                0.1,
+                0.1,
+                0.08,
+                0.07,
+                0.06
+              ]
+            }
+          ],
+          "chartConfig": {
+            "yAxis": {
+              "min": 0.0,
+              "max": 0.4,
+              "tickInterval": 0.05,
+              "title": "Relative Frequency"
+            },
+            "xAxis": {
+              "title": "Root Mean Square Time",
+              "labelType": "upperBound"
+            },
+            "gridLines": {
+              "horizontal": true,
+              "vertical": false
+            }
+          }
+        },
+        {
+          "chartType": "histogram",
+          "title": "Mining Disturbances",
+          "xLabels": [
+            "0.2",
+            "0.4",
+            "0.6",
+            "0.8",
+            "1.0",
+            "1.2",
+            "1.4"
+          ],
+          "series": [
+            {
+              "name": "Mining Disturbances",
+              "values": [
+                0.0,
+                0.22,
+                0.35,
+                0.25,
+                0.1,
+                0.08,
+                0.0
+              ]
+            }
+          ],
+          "chartConfig": {
+            "yAxis": {
+              "min": 0.0,
+              "max": 0.4,
+              "tickInterval": 0.05,
+              "title": "Relative Frequency"
+            },
+            "xAxis": {
+              "title": "Root Mean Square Time",
+              "labelType": "upperBound"
+            },
+            "gridLines": {
+              "horizontal": true,
+              "vertical": false
+            }
+          }
+        }
+      ],
+      "description": "Histograms showing the distributions of root-mean-square times for earthquake and mining disturbances",
+      "choices": [
+        {
+          "key": "A",
+          "value": "The median of the earthquake disturbances is equal to the median of the mining disturbances."
+        },
+        {
+          "key": "B",
+          "value": "The median of the earthquake disturbances is less than the median of the mining disturbances."
+        },
+        {
+          "key": "C",
+          "value": "The range of the earthquake disturbances is equal to the range of the mining disturbances."
+        },
+        {
+          "key": "D",
+          "value": "The range of the earthquake disturbances is less than the range of the mining disturbances."
+        },
+        {
+          "key": "E",
+          "value": "The mode of the earthquake disturbances is equal to the mode of the mining disturbances."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L9-Q03",
+    "type": "multiple-choice",
+    "prompt": "The following table shows summary statistics for the number of hours a group of students spent playing video games last Monday and last Saturday. Based on the summary statistics, which of the following gives the best comparison of the range and the interquartile range (\\(IQR\\)) of the two days?",
+    "answerKey": "B",
+    "reasoning": "The range (maximum minus minimum) is calculated as follows: Monday range = 12 - 0 = 12 hours, Saturday range = 18 - 1 = 17 hours. The \\(IQR\\) (\\(Q3\\) minus \\(Q1\\)) is calculated as follows: Monday \\(IQR\\) = 4 - 1 = 3 hours, Saturday \\(IQR\\) = 8 - 4 = 4 hours. Therefore, both the range and \\(IQR\\) of hours played on Monday are less than the corresponding statistics for Saturday.",
+    "attachments": {
+      "table": [
+        [
+          "Day",
+          "Minimum",
+          "Q1",
+          "Median",
+          "Q3",
+          "Maximum"
+        ],
+        [
+          "Monday",
+          "0",
+          "1",
+          "2",
+          "4",
+          "12"
+        ],
+        [
+          "Saturday",
+          "1",
+          "4",
+          "6",
+          "8",
+          "18"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The range and \\(IQR\\) of hours played on Monday are both greater than the range and \\(IQR\\) of hours played on Saturday."
+        },
+        {
+          "key": "B",
+          "value": "The range and \\(IQR\\) of hours played on Monday are both less than the range and \\(IQR\\) of hours played on Saturday."
+        },
+        {
+          "key": "C",
+          "value": "The range and \\(IQR\\) of hours played on Monday are both equal to the range and \\(IQR\\) of hours played on Saturday."
+        },
+        {
+          "key": "D",
+          "value": "The range of hours played on Monday is greater than the range of hours played on Saturday, and the \\(IQR\\) of hours played on Monday is less than the \\(IQR\\) of hours played on Saturday."
+        },
+        {
+          "key": "E",
+          "value": "The range of hours played on Monday is less than the range of hours played on Saturday, and the \\(IQR\\) of hours played on Monday is greater than the \\(IQR\\) of hours played on Saturday."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q01",
+    "type": "multiple-choice",
+    "prompt": "The distribution of the number of transactions per day at a certain automated teller machine (ATM) is approximately normal with a mean of 80 transactions and a standard deviation of 10 transactions. Which of the following represents the parameters of the distribution?",
+    "answerKey": "D",
+    "reasoning": "The values provided in the question represent known parameter values for the distribution, and the correct symbols for these values are μ (for the population mean) and σ (for the population standard deviation).",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "x̄ = 80; s = 10"
+        },
+        {
+          "key": "B",
+          "value": "x̄ = 80; s² = 10"
+        },
+        {
+          "key": "C",
+          "value": "x̄ = 80; σ = 10"
+        },
+        {
+          "key": "D",
+          "value": "μ = 80; σ = 10"
+        },
+        {
+          "key": "E",
+          "value": "μ = 80; s = 10"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q02",
+    "type": "multiple-choice",
+    "prompt": "At a small coffee shop, the distribution of the number of seconds it takes for a cashier to process an order is approximately normal with mean 276 seconds and standard deviation 38 seconds. Which of the following is closest to the proportion of orders that are processed in less than 240 seconds?",
+    "answerKey": "A",
+    "reasoning": "The correct z-score is z = (240-276)/38 = -0.95. The area under the standard normal curve to the left of that value is approximately 0.17.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "0.17"
+        },
+        {
+          "key": "B",
+          "value": "0.25"
+        },
+        {
+          "key": "C",
+          "value": "0.36"
+        },
+        {
+          "key": "D",
+          "value": "0.83"
+        },
+        {
+          "key": "E",
+          "value": "0.95"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q03",
+    "type": "multiple-choice",
+    "prompt": "A researcher is studying a group of field mice. The distribution of the weight of field mice is approximately normal with mean 25 grams and standard deviation 4 grams. Which of the following is closest to the proportion of field mice with a weight greater than 33 grams?",
+    "answerKey": "A",
+    "reasoning": "The z-score associated with a weight of 33 grams is z = (33-25)/4 = 2. The area under the curve to the right of z = 2 in a standard normal distribution is approximately 0.023.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "0.023"
+        },
+        {
+          "key": "B",
+          "value": "0.046"
+        },
+        {
+          "key": "C",
+          "value": "0.954"
+        },
+        {
+          "key": "D",
+          "value": "0.977"
+        },
+        {
+          "key": "E",
+          "value": "1.000"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q04",
+    "type": "free-response",
+    "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nThe following frequency table summarizes the total amounts, in dollars, for 91 orders from a food truck during a certain day.\n\n(a-i) Use the data in the table to create a histogram showing the distribution of the amounts of the orders.\n(a-ii) Describe the shape of the distribution of amounts.\n(b) Identify a possible amount for the median of the distribution. Justify your answer.",
+    "solution": {
+      "parts": [
+        {
+          "partId": "a-i",
+          "description": "Use the data in the table to create a histogram showing the distribution of the amounts of the orders.",
+          "response": "Create a histogram with 6 bars representing the frequency data from the table. The x-axis shows the amount ranges and the y-axis shows the frequency values.",
+          "attachments": {
+            "chartType": "histogram",
+            "xLabels": [
+              "0-5",
+              "5-10",
+              "10-15",
+              "15-20",
+              "20-25",
+              "25-30"
+            ],
+            "series": [
+              {
+                "name": "Frequency",
+                "values": [
+                  8,
+                  14,
+                  25,
+                  27,
+                  12,
+                  5
+                ]
+              }
+            ],
+            "chartConfig": {
+              "yAxis": {
+                "min": 0,
+                "max": 30,
+                "tickInterval": 5,
+                "title": "Frequency"
+              },
+              "xAxis": {
+                "title": "Amounts (in dollars)",
+                "labelType": "range"
+              },
+              "gridLines": {
+                "horizontal": true,
+                "vertical": false
+              },
+              "description": "Histogram showing distribution of order amounts with no gaps between bars"
+            }
+          }
+        },
+        {
+          "partId": "a-ii",
+          "description": "Describe the shape of the distribution of amounts.",
+          "response": "The distribution of the amounts of the orders appears to be roughly symmetric and mound shaped or approximately normal."
+        },
+        {
+          "partId": "b",
+          "description": "Identify a possible amount for the median of the distribution. Justify your answer.",
+          "response": "The median could be any value from $10 up to but not including $15. In a distribution of 91 values, the median value is the 46th value when all 91 values are ordered. The frequency of the first three bars sums to 47: 8 + 14 + 25 = 47. The 46th value corresponds to a value in the third bar of the histogram.",
+          "calculations": [
+            "Total values: 91",
+            "Median position: (91+1)/2 = 46th value",
+            "Cumulative frequency through $0-5: 8",
+            "Cumulative frequency through $5-10: 8 + 14 = 22",
+            "Cumulative frequency through $10-15: 8 + 14 + 25 = 47",
+            "Since 46 < 47, the 46th value falls in the $10-15 interval"
+          ]
+        }
+      ],
+      "scoring": {
+        "totalPoints": 4,
+        "rubric": [
+          {
+            "part": "a-i",
+            "maxPoints": 2,
+            "criteria": [
+              "The histogram contains six bars with approximately correct heights of the bars",
+              "The horizontal axis is labeled with correct numbers and a correct verbal description",
+              "The vertical axis is labeled with correct numbers and a correct verbal description"
+            ],
+            "scoringNotes": "Essentially correct (E) if the response contains all components. Partially correct (P) if the response satisfies 3 of the 4 components. Incorrect (I) if the response does not satisfy the criteria for E or P."
+          },
+          {
+            "part": "a-ii",
+            "maxPoints": 1,
+            "criteria": [
+              "The shape of the distribution is described as roughly symmetric and mound shaped or approximately normal"
+            ]
+          },
+          {
+            "part": "b",
+            "maxPoints": 1,
+            "criteria": [
+              "Response correctly identifies a value for the median that is contained within the interval from $10 up to but not including $15 AND provides a reasonable justification for how the median was determined"
+            ],
+            "scoringNotes": "Essentially correct (E) if both criteria met. Partially correct (P) if identifies correct interval BUT provides weak justification. Incorrect (I) if response does not satisfy criteria for E or P."
+          }
+        ]
+      }
+    },
+    "reasoning": "This question tests students' ability to construct and interpret histograms, describe distribution shapes, and calculate medians from grouped data. The key concepts include histogram construction, shape description using statistical vocabulary, and understanding median position in ordered data.",
+    "attachments": {
+      "table": [
+        [
+          "Amount",
+          "Frequency"
+        ],
+        [
+          "$0 up to but not including $5",
+          "8"
+        ],
+        [
+          "$5 up to but not including $10",
+          "14"
+        ],
+        [
+          "$10 up to but not including $15",
+          "25"
+        ],
+        [
+          "$15 up to but not including $20",
+          "27"
+        ],
+        [
+          "$20 up to but not including $25",
+          "12"
+        ],
+        [
+          "$25 up to but not including $30",
+          "5"
+        ]
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q05",
+    "type": "multiple-choice",
+    "prompt": "Shalise competed in a jigsaw puzzle competition where participants are timed on how long they take to complete puzzles of various sizes. Shalise completed a small puzzle in 75 minutes and a large jigsaw puzzle in 140 minutes. For all participants, the distribution of completion time for the small puzzle was approximately normal with mean 60 minutes and standard deviation 15 minutes. The distribution of completion time for the large puzzle was approximately normal with mean 180 minutes and standard deviation 40 minutes.\n\nApproximately what percent of the participants had finishing times greater than Shalise's for each puzzle?",
+    "answerKey": "B",
+    "reasoning": "According to the empirical rule, approximately 68% of the completion times are within one standard deviation of the mean of 60 minutes for the smaller puzzle. By symmetry, 16% of the remaining completion times are less than 45 minutes and 16% of the completion times are greater than 75 minutes. For the large puzzle, the empirical rule guarantees that approximately 68% of the times will be within 1 standard deviation of the mean of 180 minutes. By symmetry, 16% of the remaining times are less than 140 minutes, and 16% of the times are greater than 220 minutes. Therefore 84% of the times will be greater than Shalise's time of 140 minutes on the large puzzle.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "16% on the small puzzle and 16% on the large puzzle"
+        },
+        {
+          "key": "B",
+          "value": "16% on the small puzzle and 84% on the large puzzle"
+        },
+        {
+          "key": "C",
+          "value": "32% on the small puzzle and 68% on the large puzzle"
+        },
+        {
+          "key": "D",
+          "value": "84% on the small puzzle and 84% on the large puzzle"
+        },
+        {
+          "key": "E",
+          "value": "84% on the small puzzle and 16% on the large puzzle"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q06",
+    "type": "free-response",
+    "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nKathy and her brother Clay recently ran in a local marathon. The distribution of finishing time for women was approximately normal with mean 259 minutes and standard deviation 32 minutes. The distribution of finishing time for men was approximately normal with mean 242 minutes and standard deviation 29 minutes.\n\n(a) The finishing time for Clay was 289 minutes. Calculate and interpret the standardized score for Clay's marathon time. Show your work.\n(b) The finishing time for Kathy was 272 minutes. What proportion of women who ran the marathon had a finishing time less than Kathy's? Show your work.\n(c) The standard deviation of finishing time is greater for women than for men. What does this indicate about the finishing times of the women who ran the marathon compared to the finishing times of the men who ran the marathon?",
+    "reasoning": "Part (a): Clay's finishing time was 289 minutes and the distribution of finishing time for men had a mean of 242 minutes and a standard deviation of 29 minutes. The standardized score for Clay's marathon time is: z = (289-242)/29 ≈ 1.62. Clay's finishing time is 1.62 standard deviations greater than the men's mean finishing time. Part (b): Kathy's finishing time was 272 minutes and the distribution of finishing time for women had a mean of 259 minutes and a standard deviation of 32 minutes. The standardized score for Kathy's marathon time is: z = (272-259)/32 ≈ 0.41. Using technology or the standard normal table, the proportion of women who ran the marathon with a finishing time less than Kathy is approximately 0.66. Part (c): Since the standard deviation for women's times is greater than the standard deviation for men's times, there is more variability in the women's times than in the men's times. This indicates that, on average, women's times are further away from the women's mean marathon time than the average distance men's times are away from the men's mean marathon time."
+  },
+  {
+    "id": "U1-L10-Q07",
+    "type": "multiple-choice",
+    "prompt": "For a certain online store, the distribution of number of purchases per hour is approximately normal with mean 1,200 purchases and standard deviation 200 purchases. For what proportion of hours will the number of purchases at the online store exceed 1,400?",
+    "answerKey": "C",
+    "reasoning": "By the empirical rule, 68% of the number of purchases in an hour will be between 1,000 and 1,400, so 100% - 68% = 32% of the number of purchases in an hour will fall outside of the interval. Since the normal distribution is symmetric around the mean, half of 32%, which is 16%, of the number of purchases in an hour will exceed 1,400.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "68%"
+        },
+        {
+          "key": "B",
+          "value": "32%"
+        },
+        {
+          "key": "C",
+          "value": "16%"
+        },
+        {
+          "key": "D",
+          "value": "5%"
+        },
+        {
+          "key": "E",
+          "value": "2.5%"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-L10-Q08",
+    "type": "multiple-choice",
+    "prompt": "The distribution of lengths of salmon from a certain river is approximately normal with standard deviation 3.5 inches. If 10 percent of salmon are longer than 30 inches, which of the following is closest to the mean of the distribution?",
+    "answerKey": "A",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "26 inches"
+        },
+        {
+          "key": "B",
+          "value": "28 inches"
+        },
+        {
+          "key": "C",
+          "value": "30 inches"
+        },
+        {
+          "key": "D",
+          "value": "33 inches"
+        },
+        {
+          "key": "E",
+          "value": "34 inches"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-FRQ-Q01",
+    "type": "free-response",
+    "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nThe manager of a vacation resort believes that the ages of adult visitors to the resort can be modeled by a normal distribution. The manager surveyed a random sample of visitors and recorded their age. A summary of the responses is shown in the frequency table, where x represents the age of the visitor.\n\n(a) Construct a histogram of the distribution of ages.\n(b) Write a few sentences to describe the distribution of ages of the adult visitors to the resort.\n(c) Does the histogram provide convincing evidence that the surveyed ages come from a normal distribution? Explain your answer.",
+    "solution": {
+      "parts": [
+        {
+          "partId": "a",
+          "description": "Construct a histogram of the distribution of ages.",
+          "response": "A histogram should be constructed with six bars representing the age ranges. The horizontal axis should be labeled with correct age intervals (20-30, 30-40, 40-50, 50-60, 60-70, 70-80) and titled 'Age (in years)'. The vertical axis should be labeled with frequency values (0, 20, 40, 60, 80, 100, 120, 140, 160, 180) and titled 'Frequency'. The bars should have heights corresponding to the frequencies: 160, 130, 100, 115, 125, and 135 respectively.",
+          "attachments": {
+            "chartType": "histogram",
+            "xLabels": [
+              "20-30",
+              "30-40",
+              "40-50",
+              "50-60",
+              "60-70",
+              "70-80"
+            ],
+            "series": [
+              {
+                "name": "Frequency",
+                "values": [
+                  160,
+                  130,
+                  100,
+                  115,
+                  125,
+                  135
+                ]
+              }
+            ],
+            "chartConfig": {
+              "yAxis": {
+                "min": 0,
+                "max": 180,
+                "tickInterval": 20,
+                "title": "Frequency"
+              },
+              "xAxis": {
+                "title": "Age (in years)",
+                "labelType": "range"
+              },
+              "gridLines": {
+                "horizontal": true,
+                "vertical": false
+              },
+              "description": "Histogram showing distribution of ages of adult visitors to resort"
+            }
+          }
+        },
+        {
+          "partId": "b",
+          "description": "Write a few sentences to describe the distribution of ages of the adult visitors to the resort.",
+          "response": "The distribution of ages of the adult visitors to the resort appears to be roughly symmetric. The distribution has a median between 40 and 50 years. The ages of adult visitors vary from a minimum value between 20 and 30 years to a maximum value between 70 and 80 years. The range in the ages of adult visitors could be between 40 and 60 years. From the frequency table and histogram, outliers and gaps cannot be identified."
+        },
+        {
+          "partId": "c",
+          "description": "Does the histogram provide convincing evidence that the surveyed ages come from a normal distribution? Explain your answer.",
+          "response": "The histogram does not suggest that the data come from a normal distribution. A normal distribution is symmetric and mound-shaped. In the histogram above, values farther from the mean are more frequent than values near the mean, which is not likely if the data had come from a normal distribution."
+        }
+      ],
+      "scoring": {
+        "totalPoints": 4,
+        "rubric": [
+          {
+            "part": "a",
+            "maxPoints": 1,
+            "criteria": [
+              "The histogram contains six bars with approximately correct values",
+              "The horizontal axis is labeled with correct numbers",
+              "The horizontal axis is labeled with a correct verbal description",
+              "The vertical axis is labeled with correct numbers",
+              "The vertical axis is labeled with a correct verbal description"
+            ],
+            "scoringNotes": "Essentially correct (E) if the histogram contains six bars with approximately correct values and contains all four axis labeling components. Partially correct (P) if the histogram contains six bars with approximately correct values and contains two or three of the four components. Incorrect (I) if the response does not satisfy the criteria for E or P."
+          },
+          {
+            "part": "b",
+            "maxPoints": 1,
+            "criteria": [
+              "Shape",
+              "Center",
+              "Variability",
+              "Context"
+            ],
+            "scoringNotes": "Essentially correct (E) if the response includes reasonable comments on all 4 components: Shape, Center, Variability, Context. Partially correct (P) if the response includes 2 or 3 of the 4 components. Incorrect (I) if the response does not satisfy the criteria for E or P."
+          },
+          {
+            "part": "c",
+            "maxPoints": 1,
+            "criteria": [
+              "Response indicates that the histogram does not suggest that the data come from a normal distribution",
+              "Provides strong justification for this conclusion"
+            ],
+            "scoringNotes": "Essentially correct (E) if the response indicates that the histogram does not suggest that the data come from a normal distribution and provides strong justification. Partially correct (P) if the response indicates that the histogram does not suggest that the data come from a normal distribution and provides weak justification. Incorrect (I) if the response does not satisfy the criteria for E or P."
+          }
+        ]
+      },
+      "reasoning": "This question assesses students' ability to create histograms from frequency data, describe distributions using shape, center, variability and context, and evaluate whether a distribution appears normal. The key insight is recognizing that this distribution is not mound-shaped like a normal distribution, as the frequencies at the extremes are higher than those near the center."
+    },
+    "attachments": {
+      "table": [
+        [
+          "Age (years)",
+          "Frequency"
+        ],
+        [
+          "20 ≤ x < 30",
+          "160"
+        ],
+        [
+          "30 ≤ x < 40",
+          "130"
+        ],
+        [
+          "40 ≤ x < 50",
+          "100"
+        ],
+        [
+          "50 ≤ x < 60",
+          "115"
+        ],
+        [
+          "60 ≤ x < 70",
+          "125"
+        ],
+        [
+          "70 ≤ x < 80",
+          "135"
+        ]
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-FRQ-Q02",
+    "type": "free-response",
+    "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nA certain type of bird lives in two regions of a state. The distribution of weight for birds of this type in the northern region is approximately normal with mean 10 ounces and standard deviation 3 ounces. The distribution of weight for birds of this type in the southern region is approximately normal with mean 16 ounces and standard deviation 2.5 ounces.\n\n(a) Calculate the z-scores for a weight of 13 ounces for a bird living in the northern region and for a weight of 13 ounces for a bird living in the southern region.\n(b) Is it more likely that a bird of this type with a weight greater than 13 ounces lives in the northern region or the southern region? Justify your answer.",
+    "solution": {
+      "parts": [
+        {
+          "partId": "a",
+          "description": "Calculate the z-scores for a weight of 13 ounces for a bird living in the northern region and for a weight of 13 ounces for a bird living in the southern region.",
+          "response": "For the northern region: z_n = (x - μ)/σ = (13 - 10)/3 = 1\n\nFor the southern region: z_s = (x - μ)/σ = (13 - 16)/2.5 = -1.2",
+          "calculations": [
+            "Northern region: z_n = (13 - 10)/3 = 3/3 = 1",
+            "Southern region: z_s = (13 - 16)/2.5 = -3/2.5 = -1.2"
+          ]
+        },
+        {
+          "partId": "b",
+          "description": "Is it more likely that a bird of this type with a weight greater than 13 ounces lives in the northern region or the southern region? Justify your answer.",
+          "response": "A bird with a weight of 13 ounces is 1 standard deviation above the mean if the bird is from the northern region. Approximately 16% of the birds from the northern region have a weight greater than 13 ounces. A bird with a weight of 13 ounces is 1.2 standard deviations below the mean if the bird is from the southern region. Approximately 88% of the birds from the southern region have a weight greater than 13 ounces. Therefore, it is more likely that a bird of this type with a weight greater than 13 ounces lives in the southern region."
+        }
+      ],
+      "scoring": {
+        "totalPoints": 4,
+        "rubric": [
+          {
+            "part": "a",
+            "maxPoints": 2,
+            "criteria": [
+              "The correct z-scores are listed with supporting calculations and appropriate labeling"
+            ],
+            "scoringNotes": "Essentially correct (E) if the correct z-scores are listed with supporting calculations and appropriate labeling. Partially correct (P) if the correct z-scores are listed but without supporting calculations or appropriate labeling. Incorrect (I) if the response does not satisfy the criteria for E or P. Note: Including the general formula for z-score is not necessary to earn an E."
+          },
+          {
+            "part": "b",
+            "maxPoints": 2,
+            "criteria": [
+              "Response concludes that it is more likely that a bird of this type with a weight greater than 13 ounces lives in the southern region",
+              "Directly compares the two z-scores calculated in part (a) or the proportions based on the standard normal curve"
+            ],
+            "scoringNotes": "Essentially correct (E) if the response concludes that it is more likely that a bird of this type with a weight greater than 13 ounces lives in the southern region AND directly compares the two z-scores calculated in part (a) or the proportions based on the standard normal curve. Partially correct (P) if the response correctly calculates the proportions based on the standard normal curve but fails to make a comparison. Incorrect (I) if the response does not satisfy the criteria for E or P."
+          }
+        ]
+      },
+      "reasoning": "This question tests students' ability to calculate z-scores and use them to compare probabilities across different normal distributions. The key insight is that a weight of 13 ounces is above the mean in the northern region (z = 1) but below the mean in the southern region (z = -1.2), making it much more likely that a bird weighing more than 13 ounces comes from the southern region where 88% exceed this weight compared to only 16% in the northern region."
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q01",
+    "type": "multiple-choice",
+    "prompt": "Data are collected on the 35 students in a college history course. Which of the following is not a variable for the data set?",
+    "answerKey": "E",
+    "reasoning": "A variable is a characteristic that can vary from student to student. The number of students in the data set is a single, fixed value (35), not a variable that changes between individual students.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Student birth month"
+        },
+        {
+          "key": "B",
+          "value": "Political affiliation of student"
+        },
+        {
+          "key": "C",
+          "value": "Student age"
+        },
+        {
+          "key": "D",
+          "value": "Student address"
+        },
+        {
+          "key": "E",
+          "value": "Number of students in the data set"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q02",
+    "type": "multiple-choice",
+    "prompt": "A local ice-cream shop sells ice-cream cones for $2.00, and customers can choose from the following options.\n\nIce-cream flavor\nType of cone: sugar or waffle\nChocolate dipped for an additional $0.50\nSprinkles for an additional $0.50\n\nWhich of the following is a quantitative variable?",
+    "answerKey": "E",
+    "reasoning": "A quantitative variable is one that takes on numerical values for a measured or counted quantity. The total cost of the cone is a quantitative variable since it can assume different numerical values representing the cost of each cone. The total cost could be $2.00 (ice cream in cone only), $2.50 (ice cream with sprinkles only or ice-cream cone with chocolate only), or $3.00 (ice-cream cone that is both chocolate dipped and has sprinkles).",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Ice-cream flavor"
+        },
+        {
+          "key": "B",
+          "value": "Type of cone"
+        },
+        {
+          "key": "C",
+          "value": "Chocolate dipped or not"
+        },
+        {
+          "key": "D",
+          "value": "Sprinkles or not"
+        },
+        {
+          "key": "E",
+          "value": "The total cost of the cone"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q03",
+    "type": "multiple-choice",
+    "prompt": "The following table shows data collected about the thirty-third through fortieth presidents of the United States. All variables reported in the table are categorical.\n\nWhich of the variables in the table could have been reported differently such that the variable would be classified as quantitative?",
+    "answerKey": "D",
+    "reasoning": "Age at inauguration could have been measured as a number of years, making it a quantitative variable instead of the categorical descriptions (Typical, Younger, Older) shown in the table.",
+    "attachments": {
+      "table": [
+        [
+          "Name",
+          "Political Party",
+          "Eye Color",
+          "Age at Inauguration",
+          "Dominant Hand"
+        ],
+        [
+          "Harry S. Truman",
+          "Democrat",
+          "Blue",
+          "Typical",
+          "Left"
+        ],
+        [
+          "Dwight D. Eisenhower",
+          "Republican",
+          "Blue",
+          "Typical",
+          "Right"
+        ],
+        [
+          "John F. Kennedy",
+          "Democrat",
+          "Blue",
+          "Typical",
+          "Right"
+        ],
+        [
+          "Lyndon B. Johnson",
+          "Democrat",
+          "Brown",
+          "Typical",
+          "Right"
+        ],
+        [
+          "Richard Nixon",
+          "Republican",
+          "Brown",
+          "Typical",
+          "Right"
+        ],
+        [
+          "Gerald Ford",
+          "Republican",
+          "Blue",
+          "Typical",
+          "Both"
+        ],
+        [
+          "Jimmy Carter",
+          "Democrat",
+          "Hazel",
+          "Younger",
+          "Right"
+        ],
+        [
+          "Ronald Reagan",
+          "Republican",
+          "Blue",
+          "Older",
+          "Left"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "Name"
+        },
+        {
+          "key": "B",
+          "value": "Political Party"
+        },
+        {
+          "key": "C",
+          "value": "Eye color"
+        },
+        {
+          "key": "D",
+          "value": "Age at inauguration"
+        },
+        {
+          "key": "E",
+          "value": "Dominant hand"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q04",
+    "type": "multiple-choice",
+    "prompt": "Students in a class were asked to choose their favorite school subject. The following frequency table summarizes the responses.\n\nWhich of the following statements is supported by the frequency table?",
+    "answerKey": "E",
+    "reasoning": "Thirty-five percent of the students chose math as their favorite subject (7 out of 20 total students = 7/20 = 0.35 = 35%), which is less than half (50%).",
+    "attachments": {
+      "table": [
+        [
+          "School Subject",
+          "Frequency"
+        ],
+        [
+          "Math",
+          "7"
+        ],
+        [
+          "English",
+          "5"
+        ],
+        [
+          "Science",
+          "4"
+        ],
+        [
+          "Social Studies",
+          "2"
+        ],
+        [
+          "Other",
+          "2"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "More students chose math as their favorite subject than the combined number of students who chose English and science."
+        },
+        {
+          "key": "B",
+          "value": "Fewer students chose math as their favorite subject than the combined number of students who chose science and social studies."
+        },
+        {
+          "key": "C",
+          "value": "The total number of students in the class is less than 20."
+        },
+        {
+          "key": "D",
+          "value": "Seventy percent of the students chose math as their favorite subject."
+        },
+        {
+          "key": "E",
+          "value": "Less than half of the students chose math as their favorite subject."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q05",
+    "type": "multiple-choice",
+    "prompt": "A group of first-grade students were asked to name their favorite color. The responses are shown in the following frequency table.\n\nWhich of the following statements is supported by the frequency table?",
+    "answerKey": "B",
+    "reasoning": "The number of students who chose red is 15, and 30 students chose blue. Since 30 is twice 15, the statement 'Twice as many students chose blue as chose red' is supported by the data in the table.",
+    "attachments": {
+      "table": [
+        [
+          "Color",
+          "Frequency"
+        ],
+        [
+          "Red",
+          "15"
+        ],
+        [
+          "Blue",
+          "30"
+        ],
+        [
+          "Green",
+          "8"
+        ],
+        [
+          "Yellow",
+          "12"
+        ],
+        [
+          "Purple",
+          "25"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "More students chose purple than any other color."
+        },
+        {
+          "key": "B",
+          "value": "Twice as many students chose blue as chose red."
+        },
+        {
+          "key": "C",
+          "value": "Yellow was chosen by the least number of students."
+        },
+        {
+          "key": "D",
+          "value": "The total number of student responses is 80."
+        },
+        {
+          "key": "E",
+          "value": "The combined number of students who chose green and yellow is greater than the number of students who chose purple."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q06",
+    "type": "multiple-choice",
+    "prompt": "The following relative frequency table shows reasons given by high school students for their last absence from school.\n\nWhich of the following statements is not supported by the relative frequency table?",
+    "answerKey": "D",
+    "reasoning": "The statement is not supported by the relative frequency table. The proportion of students who gave a reason of did not finish assignment is 0.07, meaning that 7% of the total number of students gave this reason. The number of students giving this reason is 0.07T, but this number cannot be determined because T (the total number of students) is not known.",
+    "attachments": {
+      "table": [
+        [
+          "Reason",
+          "Relative Frequency"
+        ],
+        [
+          "Illness",
+          "0.57"
+        ],
+        [
+          "Overslept",
+          "0.20"
+        ],
+        [
+          "College visit",
+          "0.16"
+        ],
+        [
+          "Did not finish assignment",
+          "0.07"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "More than half the students were absent because of illness."
+        },
+        {
+          "key": "B",
+          "value": "More than one-third of the students were absent because of oversleeping or college visits."
+        },
+        {
+          "key": "C",
+          "value": "The reason given the least number of times was did not finish assignment."
+        },
+        {
+          "key": "D",
+          "value": "Only 7 students were absent because they did not finish an assignment."
+        },
+        {
+          "key": "E",
+          "value": "Less than one-fourth of the students were absent because they overslept."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q07",
+    "type": "multiple-choice",
+    "prompt": "Residents from five districts of a city were asked whether they were in favor of a city proposal to create new bike lanes in the roads. The following bar chart shows the relative frequency in each district of those who responded that they were in favor of the proposal.\n\nWhich of the following statements is supported by the bar chart?",
+    "answerKey": "E",
+    "reasoning": "The bars represent percentages, and District 2 has the highest bar (around 71%), indicating it has the greatest percentage of residents who are in favor of the proposal.",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "District 1",
+        "District 2",
+        "District 3",
+        "District 4",
+        "District 5"
+      ],
+      "series": [
+        {
+          "name": "In Favor of Proposal",
+          "values": [
+            0.4,
+            0.71,
+            0.55,
+            0.63,
+            0.46
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 0.8,
+          "tickInterval": 0.1,
+          "title": "Relative Frequency"
+        },
+        "xAxis": {
+          "title": "In Favor of Proposal"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Bar chart showing relative frequency of residents in favor of bike lane proposal by district"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "District 2 has the greatest number of residents who are in favor of the proposal."
+        },
+        {
+          "key": "B",
+          "value": "District 1 has the least number of residents who are in favor of the proposal."
+        },
+        {
+          "key": "C",
+          "value": "All districts show at least 60% of residents in favor of the proposal."
+        },
+        {
+          "key": "D",
+          "value": "In 3 districts, less than half of the residents were in favor of the proposal."
+        },
+        {
+          "key": "E",
+          "value": "District 2 has the greatest percentage of residents who are in favor of the proposal."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q08",
+    "type": "multiple-choice",
+    "prompt": "The following bar chart shows the average price per gallon of gasoline for each month in 2004.\n\nWhich of the following statements is not supported by the bar chart?",
+    "answerKey": "D",
+    "reasoning": "The statement is not supported by the bar chart. January has the lowest bar in the bar chart, not February.",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "series": [
+        {
+          "name": "Price per Gallon",
+          "values": [
+            1.6,
+            1.7,
+            1.8,
+            1.85,
+            2.0,
+            2.1,
+            1.9,
+            1.95,
+            1.85,
+            2.1,
+            2.0,
+            1.8
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 2.5,
+          "tickInterval": 0.5,
+          "title": "Price per Gallon"
+        },
+        "xAxis": {
+          "title": "Month"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Bar chart showing average price per gallon of gasoline for each month in 2004"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The gas price was highest in June and October."
+        },
+        {
+          "key": "B",
+          "value": "The gas price increased each month from January through June."
+        },
+        {
+          "key": "C",
+          "value": "All months had gas prices greater than $1.50 per gallon."
+        },
+        {
+          "key": "D",
+          "value": "The gas price was lowest in February."
+        },
+        {
+          "key": "E",
+          "value": "The September gas price was higher than the January gas price."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q09",
+    "type": "multiple-choice",
+    "prompt": "The following bar chart shows the number of wins for four middle-school basketball teams. Each team played 12 games.\n\nWhich of the following statements is not supported by the bar chart?",
+    "answerKey": "B",
+    "reasoning": "The statement is not supported by the bar chart. Team B won 6 games, and 6 out of 12 is 50%, not 60%.",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "series": [
+        {
+          "name": "Frequency",
+          "values": [
+            9,
+            6,
+            7,
+            4
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 10,
+          "tickInterval": 1,
+          "title": "Frequency"
+        },
+        "xAxis": {
+          "title": "Team"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Bar chart showing number of wins for four middle-school basketball teams"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "Team A won 75% of its games."
+        },
+        {
+          "key": "B",
+          "value": "Team B won 60% of its games."
+        },
+        {
+          "key": "C",
+          "value": "Team C won 7 games."
+        },
+        {
+          "key": "D",
+          "value": "Team D won less than half its games."
+        },
+        {
+          "key": "E",
+          "value": "Team C won 2 fewer games than Team A."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q10",
+    "type": "multiple-choice",
+    "prompt": "The following table shows the numbers of students in grades 7 and 8 at a middle school who are participating in extracurricular activities.\n\nWhich of the following statements is supported by the table?",
+    "answerKey": "E",
+    "reasoning": "The total number of students in Chorus is 42 (22 + 20), which is greater than the other totals: Band (31), Chess Club (18), Drama Club (41), and School Newspaper (25).",
+    "attachments": {
+      "table": [
+        [
+          "",
+          "Band",
+          "Chorus",
+          "Chess Club",
+          "Drama Club",
+          "School Newspaper"
+        ],
+        [
+          "Grade 7",
+          "15",
+          "22",
+          "8",
+          "16",
+          "10"
+        ],
+        [
+          "Grade 8",
+          "16",
+          "20",
+          "10",
+          "25",
+          "15"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "Each activity has more grade 8 students than grade 7 students."
+        },
+        {
+          "key": "B",
+          "value": "The number of students in Band is less than the number of students in the Chess Club."
+        },
+        {
+          "key": "C",
+          "value": "The total number of grade 7 students is greater than the total number of grade 8 students."
+        },
+        {
+          "key": "D",
+          "value": "The number of students in the Drama Club is more than twice the number of students in the School Newspaper."
+        },
+        {
+          "key": "E",
+          "value": "The activity with the greatest number of students is Chorus."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q11",
+    "type": "multiple-choice",
+    "prompt": "A group of middle school students were asked which school subject was their favorite. The results are displayed by grade of student in the following bar chart.\n\nWhich of the following statements is supported by the bar chart?",
+    "answerKey": "A",
+    "reasoning": "The grade 7 bar for art extends to at most 8 students. A 100% increase would reach 16 students, and the grade 8 bar extends to at least 16 students.",
+    "attachments": {
+      "chartType": "bar",
+      "yLabels": [
+        "Art",
+        "Social Studies",
+        "Science",
+        "Math",
+        "Language Arts"
+      ],
+      "series": [
+        {
+          "name": "Grade 8",
+          "values": [
+            17,
+            26,
+            43,
+            23,
+            36
+          ]
+        },
+        {
+          "name": "Grade 7",
+          "values": [
+            6,
+            16,
+            54,
+            32,
+            26
+          ]
+        }
+      ],
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 0,
+          "max": 60,
+          "tickInterval": 10,
+          "title": "Number of Students"
+        },
+        "yAxis": {
+          "title": "School Subject"
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": true
+        },
+        "description": "Horizontal bar chart showing favorite school subjects by grade level"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "For students who chose art, the number of grade 8 students was at least 100% greater than the number of grade 7 students."
+        },
+        {
+          "key": "B",
+          "value": "For students who chose social studies, the number of grade 8 students was at least 100% greater than the number of grade 7 students."
+        },
+        {
+          "key": "C",
+          "value": "For students who chose science, the number of grade 8 students was at least 50% less than the number of grade 7 students."
+        },
+        {
+          "key": "D",
+          "value": "For students who chose math, the number of grade 8 students was at least 50% less than the number of grade 7 students."
+        },
+        {
+          "key": "E",
+          "value": "For students who chose language arts, the number of grade 8 students was at least 100% greater than the number of grade 7 students."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q12",
+    "type": "multiple-choice",
+    "prompt": "Just before graduation, a random sample of high school seniors were asked what their plans were for the coming year. A year after graduation, those same individuals were asked what their main activity was in the year since graduation. Their responses are shown in the following bar chart.\n\nWhich of the following statements is supported by the bar chart?",
+    "answerKey": "A",
+    "reasoning": "The bars for Work increased from below 0.3 to above 0.3, showing an increase in the percentage of students who selected Work as their main activity after graduation.",
+    "attachments": {
+      "chartType": "bar",
+      "xLabels": [
+        "Work",
+        "College",
+        "Tech School",
+        "Other"
+      ],
+      "series": [
+        {
+          "name": "Before",
+          "values": [
+            0.26,
+            0.53,
+            0.16,
+            0.06
+          ]
+        },
+        {
+          "name": "After",
+          "values": [
+            0.33,
+            0.48,
+            0.1,
+            0.08
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0.0,
+          "max": 0.8,
+          "tickInterval": 0.1,
+          "title": "Relative Frequency"
+        },
+        "xAxis": {
+          "title": "Activity"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Bar chart comparing planned vs actual activities of high school graduates"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The percentage of students who selected Work as their main activity increased after graduation."
+        },
+        {
+          "key": "B",
+          "value": "The percentage of students who selected College as their main activity increased after graduation."
+        },
+        {
+          "key": "C",
+          "value": "Before graduation, there is no activity that greater than 50% of the students selected."
+        },
+        {
+          "key": "D",
+          "value": "Before graduation, the percentage of students who selected Tech School as their main activity was greater than the percentage who selected Work as their main activity."
+        },
+        {
+          "key": "E",
+          "value": "After graduation, the percentage of students who selected College as their main activity was twice the percentage of those who selected Work as their main activity."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q13",
+    "type": "multiple-choice",
+    "prompt": "Which of the following variables for data about a track team is a discrete variable?",
+    "answerKey": "C",
+    "reasoning": "The number of times that a team member finished first in a race is a count and is a discrete number. Discrete variables can only take on specific, countable values (like 0, 1, 2, 3 wins), while continuous variables can take on any value within a range.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The height of a team member"
+        },
+        {
+          "key": "B",
+          "value": "The weight of a team member"
+        },
+        {
+          "key": "C",
+          "value": "The number of times that a team member finished first in a race"
+        },
+        {
+          "key": "D",
+          "value": "The time recorded for the last race that was run by a team member"
+        },
+        {
+          "key": "E",
+          "value": "The time recorded for a one-mile race by a team member"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q14",
+    "type": "multiple-choice",
+    "prompt": "The traffic engineer for a large city is conducting a study on traffic flow at a certain intersection near the city administration building. The engineer will collect data on different variables related to the intersection each day for ten days. Of the following variables, which will be measured using continuous data?",
+    "answerKey": "E",
+    "reasoning": "The number of minutes is a continuous variable. Between any two minutes, fractions of a minute can always be recorded. Time measurements are continuous because they can take on any value within a range (like 2.5 minutes, 2.53 minutes, etc.).",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The number of cars passing through the intersection in one hour"
+        },
+        {
+          "key": "B",
+          "value": "The number of pedestrians crossing the intersection in one hour"
+        },
+        {
+          "key": "C",
+          "value": "The number of bicyclists crossing the intersection in one hour"
+        },
+        {
+          "key": "D",
+          "value": "The number of food trucks that park within four blocks of the intersection"
+        },
+        {
+          "key": "E",
+          "value": "The number of minutes for a car to get from the intersection to the administration building"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q15",
+    "type": "multiple-choice",
+    "prompt": "The following dotplot shows the number of strokes taken by 20 professional golfers competing at an 18-hole golf course.\n\nWhich of the following best describes the type of variable represented in the dotplot?",
+    "answerKey": "A",
+    "reasoning": "The number of strokes is a whole number, making it quantitative (numerical) and discrete (can only take on specific countable values like 64, 65, 66, etc.).",
+    "attachments": {
+      "chartType": "dotplot",
+      "values": [
+        64,
+        64,
+        65,
+        65,
+        65,
+        65,
+        66,
+        66,
+        67,
+        67,
+        67,
+        67,
+        67,
+        67,
+        68,
+        68,
+        68,
+        69,
+        69,
+        69
+      ],
+      "chartConfig": {
+        "xAxis": {
+          "min": 62,
+          "max": 70,
+          "tickInterval": 1,
+          "title": "Number of Strokes"
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Dotplot showing the number of strokes taken by 20 professional golfers competing at an 18-hole golf course"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "Quantitative and discrete"
+        },
+        {
+          "key": "B",
+          "value": "Quantitative and continuous"
+        },
+        {
+          "key": "C",
+          "value": "Categorical and discrete"
+        },
+        {
+          "key": "D",
+          "value": "Categorical and continuous"
+        },
+        {
+          "key": "E",
+          "value": "Quantitative and categorical"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q16",
+    "type": "multiple-choice",
+    "prompt": "Relative humidity is a measure, expressed as a percentage, of the amount of water vapor present in air. The following histogram summarizes the relative humidity, at noon, for a random sample of 100 days for a certain city.\n\nBased on the histogram, which of the following is the best description of the distribution?",
+    "answerKey": "A",
+    "reasoning": "There are no observed data values between 45% relative humidity and 55% relative humidity, so there is a gap displayed in the distribution. The value located between 40% and 45% is unusually small when compared with the other data values. The value is a potential outlier; to test that it is an outlier would require using the 1.5 × IQR rule or using the two standard deviations rule.",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "40-45",
+        "45-50",
+        "50-55",
+        "55-60",
+        "60-65",
+        "65-70",
+        "70-75",
+        "75-80",
+        "80-85",
+        "85-90",
+        "90-95"
+      ],
+      "series": [
+        {
+          "name": "Relative Frequency",
+          "values": [
+            0.01,
+            0.0,
+            0.0,
+            0.11,
+            0.14,
+            0.18,
+            0.15,
+            0.17,
+            0.1,
+            0.08,
+            0.06
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 0.2,
+          "tickInterval": 0.02,
+          "title": "Relative Frequency"
+        },
+        "xAxis": {
+          "title": "Relative Humidity (percent)",
+          "labelType": "upperBound"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Histogram showing relative humidity distribution for 100 days"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The distribution displays a gap with a potential outlier located between 40% and 45%."
+        },
+        {
+          "key": "B",
+          "value": "The distribution displays a gap with potential outliers located between 90% and 95%."
+        },
+        {
+          "key": "C",
+          "value": "The distribution displays a gap with potential outliers located between 70% and 75%."
+        },
+        {
+          "key": "D",
+          "value": "The distribution displays two clusters with no apparent outliers."
+        },
+        {
+          "key": "E",
+          "value": "The distribution is uniform."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q17",
+    "type": "multiple-choice",
+    "prompt": "The occupancy rate of a motel is the percentage of rooms that are occupied on a particular night. The histogram shown summarizes the occupancy rates for a random sample of 100 nights for a motel. Based on the histogram, which of the following best describes the shape of the distribution of occupancy rates?",
+    "answerKey": "B",
+    "reasoning": "The distribution of occupancy rates is skewed to the right because the right tail is longer than the left tail. The majority of data is concentrated on the left side with a longer tail extending to the right.",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "0.60-0.65",
+        "0.65-0.70",
+        "0.70-0.75",
+        "0.75-0.80",
+        "0.80-0.85",
+        "0.85-0.90",
+        "0.90-0.95"
+      ],
+      "series": [
+        {
+          "name": "Relative Frequency",
+          "values": [
+            0.3,
+            0.27,
+            0.23,
+            0.04,
+            0.04,
+            0.08,
+            0.05
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 0.35,
+          "tickInterval": 0.05,
+          "title": "Relative Frequency"
+        },
+        "xAxis": {
+          "title": "Motel Occupancy Rate",
+          "labelType": "upperBound"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Histogram showing occupancy rates for a random sample of 100 nights for a motel"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "Skewed to the left"
+        },
+        {
+          "key": "B",
+          "value": "Skewed to the right"
+        },
+        {
+          "key": "C",
+          "value": "Symmetric"
+        },
+        {
+          "key": "D",
+          "value": "Bimodal"
+        },
+        {
+          "key": "E",
+          "value": "Uniform"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-A-Q18",
+    "type": "multiple-choice",
+    "prompt": "The diameter, in centimeters (cm), of each tree in a random sample of trees in a forest was measured. The histogram shown summarizes the diameters.\n\nWhich of the following is the best description of the distribution?",
+    "answerKey": "A",
+    "reasoning": "The best description indicates the noticeable gap between 25 cm and 40 cm. A cluster is a concentration of data. Based on the histogram, there appears to be two clusters of data: one cluster from 0-25 cm and another cluster from 40-55 cm, with a clear gap in between.",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "0-5",
+        "5-10",
+        "10-15",
+        "15-20",
+        "20-25",
+        "25-30",
+        "30-35",
+        "35-40",
+        "40-45",
+        "45-50",
+        "50-55"
+      ],
+      "series": [
+        {
+          "name": "Frequency",
+          "values": [
+            4,
+            20,
+            28,
+            22,
+            6,
+            0,
+            0,
+            0,
+            4,
+            10,
+            5
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 30,
+          "tickInterval": 5,
+          "title": "Frequency"
+        },
+        "xAxis": {
+          "title": "Tree Diameter (cm)",
+          "labelType": "upperBound"
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Histogram showing tree diameter distribution in a forest sample"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The distribution consists of two clusters and a gap."
+        },
+        {
+          "key": "B",
+          "value": "The distribution is approximately normal."
+        },
+        {
+          "key": "C",
+          "value": "The distribution is symmetric with a skew to the right."
+        },
+        {
+          "key": "D",
+          "value": "The distribution is skewed to the left."
+        },
+        {
+          "key": "E",
+          "value": "The distribution is uniform."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q01",
+    "type": "multiple-choice",
+    "prompt": "The following table shows the number of miles a hiker walked on a trail each day for 6 days. What was the mean number of miles the hiker walked for the 6 days?",
+    "answerKey": "C",
+    "reasoning": "The mean number of miles is the sum of the number of miles divided by the number of values. The sum of the number of miles is 8 + 5 + 7 + 2 + 9 + 8 = 39. The sum of the miles divided by the number of values is 39/6 = 6.5 miles.",
+    "attachments": {
+      "table": [
+        [
+          "Day",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        [
+          "Number of Miles",
+          "8",
+          "5",
+          "7",
+          "2",
+          "9",
+          "8"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "3.5"
+        },
+        {
+          "key": "B",
+          "value": "4.5"
+        },
+        {
+          "key": "C",
+          "value": "6.5"
+        },
+        {
+          "key": "D",
+          "value": "7.5"
+        },
+        {
+          "key": "E",
+          "value": "8"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q02",
+    "type": "multiple-choice",
+    "prompt": "The following list shows the number of goals scored by a soccer team in each of 9 games. How does the median number of goals scored compare with the mean number of goals scored?",
+    "answerKey": "B",
+    "reasoning": "The median is the middle value of a data set when the data are ordered. The median is the fifth value of the ordered data set, which is equal to 1. The mean is the sum of all data values divided by the number of values, which is equal to 2. The median is less than the mean by 1.",
+    "attachments": {
+      "table": [
+        [
+          "Goals",
+          "0",
+          "0",
+          "1",
+          "1",
+          "1",
+          "3",
+          "3",
+          "4",
+          "5"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The median is equal to the mean."
+        },
+        {
+          "key": "B",
+          "value": "The median is less than the mean by 1."
+        },
+        {
+          "key": "C",
+          "value": "The median is greater than the mean by 1."
+        },
+        {
+          "key": "D",
+          "value": "The median is less than the mean by 2."
+        },
+        {
+          "key": "E",
+          "value": "The median is greater than the mean by 2."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q03",
+    "type": "multiple-choice",
+    "prompt": "To gather data for a statistics project, a student asked 10 friends how many hours of sleep they got on the previous night. The data are shown in the following list. What is the interquartile range (IQR) of the number of hours of sleep shown in the list?",
+    "answerKey": "A",
+    "reasoning": "For the ordered set of data, the third quartile is 8 and the first quartile is 5. The IQR is the difference of 3.",
+    "attachments": {
+      "table": [
+        [
+          "Hours",
+          "7",
+          "6",
+          "5",
+          "9",
+          "3",
+          "4",
+          "7",
+          "9",
+          "5",
+          "8"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "3 hours"
+        },
+        {
+          "key": "B",
+          "value": "4 hours"
+        },
+        {
+          "key": "C",
+          "value": "6 hours"
+        },
+        {
+          "key": "D",
+          "value": "6.3 hours"
+        },
+        {
+          "key": "E",
+          "value": "6.5 hours"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q04",
+    "type": "multiple-choice",
+    "prompt": "The time, in minutes, it took each of 11 students to complete a puzzle was recorded and is shown in the following list. One of the students who completed the puzzle claimed that there were two outliers in the data set. Based on the 1.5 × IQR rule for outliers, is there evidence to support the student's claim?",
+    "answerKey": "C",
+    "reasoning": "There is one outlier, 58, since it is more than 1.5 IQRs above the upper quartile (Q3), and all other data values are within 1.5 IQRs of either the first or third quartile (Q1 or Q3).",
+    "attachments": {
+      "table": [
+        [
+          "Time",
+          "9",
+          "17",
+          "20",
+          "21",
+          "27",
+          "29",
+          "30",
+          "31",
+          "32",
+          "35",
+          "58"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "Yes, there are two outliers. One outlier is 9 minutes and the other outlier is 58 minutes."
+        },
+        {
+          "key": "B",
+          "value": "No, there is only one outlier at 9 minutes."
+        },
+        {
+          "key": "C",
+          "value": "No, there is only one outlier at 58 minutes."
+        },
+        {
+          "key": "D",
+          "value": "No, there are three outliers. One outlier is 9 minutes, one outlier is 35 minutes, and one outlier is 58 minutes."
+        },
+        {
+          "key": "E",
+          "value": "No, there are no outliers."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q05",
+    "type": "multiple-choice",
+    "prompt": "A reporter collected data on the purchase prices, in thousands of dollars, of 72 cars sold in a region. The following histogram summarizes the reporter's data. For a presentation on the data collected, the reporter used the median of the distribution to describe the typical purchase price. Which of the following might explain the use of median to describe the typical purchase price?",
+    "answerKey": "A",
+    "reasoning": "Means are not resistant to outliers because their value is influenced by outliers. Medians are considered resistant because outliers do not greatly affect their value. The median better represents the typical purchase price.",
+    "attachments": {
+      "chartType": "histogram",
+      "xLabels": [
+        "25-30",
+        "30-35",
+        "35-40",
+        "40-45",
+        "45-50",
+        "50-55",
+        "55-60",
+        "60-65",
+        "65-70",
+        "70-75",
+        "75-80",
+        "80-85"
+      ],
+      "series": [
+        {
+          "name": "Frequency",
+          "values": [
+            1,
+            7,
+            13,
+            28,
+            15,
+            5,
+            2,
+            0,
+            0,
+            0,
+            0,
+            2
+          ]
+        }
+      ],
+      "chartConfig": {
+        "yAxis": {
+          "min": 0,
+          "max": 30,
+          "tickInterval": 5,
+          "title": "Frequency"
+        },
+        "xAxis": {
+          "title": "Price (thousands of dollars)",
+          "labelType": "upperBound"
+        },
+        "gridLines": {
+          "horizontal": true,
+          "vertical": false
+        },
+        "description": "Histogram showing car purchase prices with an outlier between $80,000 and $85,000"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "There is an outlier between $80,000 and $85,000. Medians are resistant to outliers, while means are not."
+        },
+        {
+          "key": "B",
+          "value": "The number of observations that fall within a given interval is known. However, within each interval, the actual values are not known."
+        },
+        {
+          "key": "C",
+          "value": "The distribution is left skewed."
+        },
+        {
+          "key": "D",
+          "value": "The values represented in the histogram are in the thousands."
+        },
+        {
+          "key": "E",
+          "value": "The distribution is uniform."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q06",
+    "type": "multiple-choice",
+    "prompt": "The distribution of 27 salaries at a small company has mean $35,000 and standard deviation $2,000. Suppose the company hires a 28th employee at a salary of $120,000. Which of the following claims about the new salary distribution is supported? I. The median is not likely to change. II. The range is not likely to change. III. The mean is likely to increase.",
+    "answerKey": "D",
+    "reasoning": "The new salary of $120,000 is an outlier since it is far above the rest of the data. The median is resistant to outliers, so it is unlikely to change, and the mean is not resistant to outliers, so it is likely to change. The range is not resistant to outliers, so it will likely change.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "I only"
+        },
+        {
+          "key": "B",
+          "value": "III only"
+        },
+        {
+          "key": "C",
+          "value": "I and II only"
+        },
+        {
+          "key": "D",
+          "value": "I and III only"
+        },
+        {
+          "key": "E",
+          "value": "I, II, and III"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q07",
+    "type": "multiple-choice",
+    "prompt": "The following boxplot summarizes the heights of a group of people who participate in a weekend biking club. Which of the following statements is supported by the boxplot?",
+    "answerKey": "D",
+    "reasoning": "The interquartile range accounts for about 50% of the data. The first quartile is located at 62 and the third quartile is located at 70. Therefore approximately 50% of the people have a height between 62 inches and 70 inches.",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 60,
+          "max": 76,
+          "tickInterval": 2,
+          "title": "Height (inches)"
+        },
+        "boxplotData": {
+          "Q1": 62,
+          "Q3": 70,
+          "median": 67,
+          "whiskerMin": 61,
+          "whiskerMax": 73,
+          "outliers": []
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing heights of weekend biking club participants"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The mean height is 67 inches."
+        },
+        {
+          "key": "B",
+          "value": "The number of people with height at least 70 inches is greater than the number of people with height at most 62 inches."
+        },
+        {
+          "key": "C",
+          "value": "The number of people with height at least 67 inches is less than the number of people with height at most 67 inches."
+        },
+        {
+          "key": "D",
+          "value": "Approximately 50% of the people have a height between 62 inches and 70 inches."
+        },
+        {
+          "key": "E",
+          "value": "Approximately 25% of the people have a height greater than 62 inches."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q08",
+    "type": "multiple-choice",
+    "prompt": "The following table shows statistics on the ages, in years, of the people who attended a lecture last week. The data are summarized in the boxplot shown. Which of the following statements is supported by the table and boxplot?",
+    "answerKey": "D",
+    "reasoning": "The third quartile, Q3, is 53. This indicates that at least 75% of the ages are at or below this value.",
+    "attachments": {
+      "table": [
+        [
+          "N",
+          "Mean",
+          "StDev",
+          "Minimum",
+          "Q1",
+          "Median",
+          "Q3",
+          "Maximum"
+        ],
+        [
+          "45",
+          "43",
+          "12",
+          "20",
+          "33",
+          "44",
+          "53",
+          "65"
+        ]
+      ],
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 10,
+          "max": 70,
+          "tickInterval": 10,
+          "title": "Age of People Attending Lecture"
+        },
+        "boxplotData": {
+          "Q1": 33,
+          "Q3": 53,
+          "median": 44,
+          "whiskerMin": 20,
+          "whiskerMax": 65,
+          "outliers": []
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing ages of people attending lecture"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The range of the distribution is 20 years."
+        },
+        {
+          "key": "B",
+          "value": "There were 43 people who attended the lecture."
+        },
+        {
+          "key": "C",
+          "value": "At least 50% of the people who attended the lecture were 43 years or younger."
+        },
+        {
+          "key": "D",
+          "value": "At least 75% of the people who attended the lecture were age 53 years or younger."
+        },
+        {
+          "key": "E",
+          "value": "At least 25% of the people who attended the lecture were 33 years old."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q09",
+    "type": "multiple-choice",
+    "prompt": "The following boxplot summarizes the earnings made on one day at 45 movie theaters. Which of the following best compares the median movie theater earnings with the mean movie theater earnings?",
+    "answerKey": "D",
+    "reasoning": "Although complete shape information cannot be determined from a boxplot, the position of the outliers and quartiles appears to indicate the distribution is skewed to the right. In a distribution that is skewed to the right, the median is likely less than the mean.",
+    "attachments": {
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "vertical",
+        "yAxis": {
+          "min": 0,
+          "max": 5000,
+          "tickInterval": 1000,
+          "title": "Earnings"
+        },
+        "boxplotData": {
+          "Q1": 600,
+          "Q3": 1000,
+          "median": 800,
+          "whiskerMin": 200,
+          "whiskerMax": 1800,
+          "outliers": [
+            3000,
+            4500,
+            4700
+          ]
+        },
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Boxplot showing movie theater earnings with high outliers indicating right skew"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The median and mean are equal because the distribution is likely symmetric."
+        },
+        {
+          "key": "B",
+          "value": "The median and mean are equal because the distribution is likely skewed to the right."
+        },
+        {
+          "key": "C",
+          "value": "The median is less than the mean because the distribution is likely symmetric."
+        },
+        {
+          "key": "D",
+          "value": "The median is less than the mean because the distribution is likely skewed to the right."
+        },
+        {
+          "key": "E",
+          "value": "The median is less than the mean because the distribution is likely skewed to the left."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q10",
+    "type": "multiple-choice",
+    "prompt": "Researchers studying catfish estimated the number of fingerling catfish and large catfish living in different rivers throughout the country. The following histograms summarize the relative frequency for each type of catfish. Based on the histograms, which of the following is the best comparison of the means and the ranges for the two distributions?",
+    "answerKey": "C",
+    "reasoning": "The range of the distribution of fingerling catfish is between 6,000 and 8,000, while the range of the distribution of large catfish is between 1,500 and 2,000. Therefore the range of the distribution of fingerling catfish is greater than the range of the distribution of large catfish. The least value in the distribution of fingerling catfish is more than the greatest value of the distribution of large catfish. Therefore the mean of the distribution of fingerling catfish must be greater than the mean of the distribution of large catfish.",
+    "attachments": {
+      "charts": [
+        {
+          "chartType": "histogram",
+          "title": "Distribution of Fingerling Catfish",
+          "xLabels": [
+            "2,000-3,000",
+            "3,000-4,000",
+            "4,000-5,000",
+            "5,000-6,000",
+            "6,000-7,000",
+            "7,000-8,000",
+            "8,000-9,000",
+            "9,000-10,000",
+            "10,000-11,000",
+            "11,000-12,000"
+          ],
+          "series": [
+            {
+              "name": "Fingerling Catfish",
+              "values": [
+                0,
+                0.07,
+                0.15,
+                0.04,
+                0.1,
+                0.28,
+                0.07,
+                0.04,
+                0.26,
+                0
+              ]
+            }
+          ],
+          "chartConfig": {
+            "yAxis": {
+              "min": 0,
+              "max": 0.35,
+              "tickInterval": 0.05,
+              "title": "Relative Frequency"
+            },
+            "xAxis": {
+              "title": "Number per River",
+              "labelType": "upperBound"
+            },
+            "gridLines": {
+              "horizontal": true,
+              "vertical": false
+            }
+          }
+        },
+        {
+          "chartType": "histogram",
+          "title": "Distribution of Large Catfish",
+          "xLabels": [
+            "250-500",
+            "500-750",
+            "750-1,000",
+            "1,000-1,250",
+            "1,250-1,500",
+            "1,500-1,750",
+            "1,750-2,000",
+            "2,000-2,250"
+          ],
+          "series": [
+            {
+              "name": "Large Catfish",
+              "values": [
+                0.2,
+                0.18,
+                0.18,
+                0.15,
+                0.15,
+                0.08,
+                0.03,
+                0.03
+              ]
+            }
+          ],
+          "chartConfig": {
+            "yAxis": {
+              "min": 0,
+              "max": 0.35,
+              "tickInterval": 0.05,
+              "title": "Relative Frequency"
+            },
+            "xAxis": {
+              "title": "Number per River",
+              "labelType": "upperBound"
+            },
+            "gridLines": {
+              "horizontal": true,
+              "vertical": false
+            }
+          }
+        }
+      ],
+      "description": "Histograms comparing fingerling catfish and large catfish distributions",
+      "choices": [
+        {
+          "key": "A",
+          "value": "The mean and range of the fingerling catfish are both equal to those of the large catfish."
+        },
+        {
+          "key": "B",
+          "value": "The mean and range of the fingerling catfish are both less than those of the large catfish."
+        },
+        {
+          "key": "C",
+          "value": "The mean and range of the fingerling catfish are both greater than those of the large catfish."
+        },
+        {
+          "key": "D",
+          "value": "The mean of the fingerling catfish is equal to that of the large catfish, and the range of the fingerling catfish is greater than that of the large catfish."
+        },
+        {
+          "key": "E",
+          "value": "The mean of the fingerling catfish is equal to that of the large catfish, and the range of the fingerling catfish is less than that of the large catfish."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q11",
+    "type": "multiple-choice",
+    "prompt": "A sociologist studying marriage customs collected data on the length of time, in months, between the proposal and wedding. The following boxplots and table give the five-number summary for couples in which at least one person was getting married for the first time and for couples in which both people had been previously married. Based on the summary statistics, which of the following statements is supported by the boxplots and table?",
+    "answerKey": "E",
+    "reasoning": "The IQR (Q3 minus Q1) of length of time for first-time couples is 10 months (20 minus 10), while that of previously married couples is only 8 months (16 minus 8).",
+    "attachments": {
+      "table": [
+        [
+          "Period",
+          "Minimum",
+          "Q1",
+          "Median",
+          "Q3",
+          "Maximum"
+        ],
+        [
+          "First Time",
+          "0.5",
+          "10",
+          "18",
+          "20",
+          "36"
+        ],
+        [
+          "Previously Married",
+          "0.5",
+          "8",
+          "12",
+          "16",
+          "20"
+        ]
+      ],
+      "chartType": "boxplot",
+      "chartConfig": {
+        "orientation": "horizontal",
+        "xAxis": {
+          "min": 0,
+          "max": 40,
+          "tickInterval": 5,
+          "title": "Time (months) Between Proposal and Wedding"
+        },
+        "boxplotData": [
+          {
+            "name": "First Time Married",
+            "Q1": 10,
+            "Q3": 20,
+            "median": 18,
+            "whiskerMin": 0.5,
+            "whiskerMax": 36,
+            "outliers": []
+          },
+          {
+            "name": "Previously Married",
+            "Q1": 8,
+            "Q3": 16,
+            "median": 12,
+            "whiskerMin": 0.5,
+            "whiskerMax": 20,
+            "outliers": []
+          }
+        ],
+        "gridLines": {
+          "horizontal": false,
+          "vertical": false
+        },
+        "description": "Comparative boxplots showing time between proposal and wedding for first-time vs previously married couples"
+      },
+      "choices": [
+        {
+          "key": "A",
+          "value": "The mean length of time for first-time couples is 18 months, and the mean length of time for previously married couples is 12 months."
+        },
+        {
+          "key": "B",
+          "value": "There is a gap between 20 and 36 for the first-time married distribution."
+        },
+        {
+          "key": "C",
+          "value": "Because both distributions have a minimum of 0.5 months, the distributions are skewed to the left."
+        },
+        {
+          "key": "D",
+          "value": "The number of first-time couples in the study is greater than the number of previously married couples in the study."
+        },
+        {
+          "key": "E",
+          "value": "The interquartile range of length of time for first-time couples is greater than that of previously married couples."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q12",
+    "type": "multiple-choice",
+    "prompt": "The following table shows summary statistics, in thousands, for the number of electrical workers and the number of concrete workers in the construction industry each month for the past 5 years. Based on the 1.5 × IQR rule for outliers, which of the following statements is a correct comparison of the two distributions?",
+    "answerKey": "D",
+    "reasoning": "For the concrete distribution, the minimum of 186 is less than the lower bound of 193. For the electrical distribution, the minimum of 239 is not less than the lower bound of 215.",
+    "attachments": {
+      "table": [
+        [
+          "Type of Worker",
+          "Minimum",
+          "First Quartile",
+          "Median",
+          "Third Quartile",
+          "Maximum"
+        ],
+        [
+          "Electrical",
+          "239",
+          "278",
+          "307",
+          "320",
+          "330"
+        ],
+        [
+          "Concrete",
+          "186",
+          "262",
+          "290",
+          "308",
+          "335"
+        ]
+      ],
+      "choices": [
+        {
+          "key": "A",
+          "value": "The electrical and concrete distributions both have high outliers."
+        },
+        {
+          "key": "B",
+          "value": "The electrical and concrete distributions both have lower outliers."
+        },
+        {
+          "key": "C",
+          "value": "Neither the electrical distribution nor concrete distribution has outliers."
+        },
+        {
+          "key": "D",
+          "value": "The concrete distribution has at least one lower outlier, and the electrical distribution has no lower outliers."
+        },
+        {
+          "key": "E",
+          "value": "The concrete distribution has at least one high outlier, and the electrical distribution has no high outliers."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q13",
+    "type": "multiple-choice",
+    "prompt": "In the Dominican Republic in August, the distribution of daily high temperature is approximately normal with mean 86 degrees Fahrenheit (°F). Approximately 95% of all daily high temperatures are between 83°F and 89°F. What is the standard deviation of the distribution?",
+    "answerKey": "B",
+    "reasoning": "The empirical rule states that approximately 95% of the observations in a data set that is approximated by a normal curve will lie within 2 standard deviations of the mean. Since 95% of all daily high temperatures are between 83°F and 89°F, the interval from 83°F to 89°F has a width of 4 standard deviations (2 above the mean and 2 below the mean). So 1 standard deviation is (89-83)/4 = 1.5°F.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "1°F"
+        },
+        {
+          "key": "B",
+          "value": "1.5°F"
+        },
+        {
+          "key": "C",
+          "value": "2°F"
+        },
+        {
+          "key": "D",
+          "value": "3°F"
+        },
+        {
+          "key": "E",
+          "value": "6°F"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q14",
+    "type": "multiple-choice",
+    "prompt": "Which of the following can be reasonably modeled by a normal distribution?",
+    "answerKey": "B",
+    "reasoning": "The heights of plants is a numeric and continuous variable, with a distribution that is typically symmetrically grouped around the mean with very few heights that are much larger or smaller than the mean.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "The favorite colors of students in a kindergarten class"
+        },
+        {
+          "key": "B",
+          "value": "The heights of tomato plants that were all planted on the same day"
+        },
+        {
+          "key": "C",
+          "value": "The percent of employees from a company who attended a company retreat"
+        },
+        {
+          "key": "D",
+          "value": "The average number of siblings of all students at a particular high school"
+        },
+        {
+          "key": "E",
+          "value": "The parental guidance ratings (G, PG, PG-13, R) of movies filmed in 2019"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q15",
+    "type": "multiple-choice",
+    "prompt": "A family has two cats named Gordo and Flaco. Gordo weighs 15 pounds and Flaco weighs 8 pounds. A cat's weight is classified as unhealthy if the weight is located in the top 5% or bottom 5% of all cat weights. The distribution of cat weights is approximately normal with mean 9.5 pounds and standard deviation 1.5 pounds. Which of the following is the best description of Gordo's and Flaco's weights?",
+    "answerKey": "B",
+    "reasoning": "Because Gordo's weight is over 3 standard deviations above the mean, his weight is in the top 5% of all weights and is classified as unhealthy. Flaco's weight is less than 2 standard deviations below the mean, so his weight is not in the bottom 5% of all weights and is not classified as unhealthy.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "Neither Gordo's nor Flaco's weight is classified as unhealthy."
+        },
+        {
+          "key": "B",
+          "value": "Gordo's weight is classified as unhealthy but Flaco's weight is not."
+        },
+        {
+          "key": "C",
+          "value": "Flaco's weight is classified as unhealthy but Gordo's weight is not."
+        },
+        {
+          "key": "D",
+          "value": "Flaco's weight and Gordo's weight are both classified as unhealthy."
+        },
+        {
+          "key": "E",
+          "value": "The classification of weight cannot be determined without more information."
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q16",
+    "type": "multiple-choice",
+    "prompt": "The distribution of the number of transactions performed at a bank each day is approximately normal with mean 478 transactions and standard deviation 64 transactions. Which of the following is closest to the proportion of daily transactions greater than 350?",
+    "answerKey": "E",
+    "reasoning": "The value 0.977 is the total proportion of transactions that are greater than 350. The z-score associated with 350 transactions is −2. The proportion of daily transactions greater than 350 can be found using the z-score and technology, such as a calculator, a standard normal table, or computer-generated output.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "0.023"
+        },
+        {
+          "key": "B",
+          "value": "0.046"
+        },
+        {
+          "key": "C",
+          "value": "0.477"
+        },
+        {
+          "key": "D",
+          "value": "0.954"
+        },
+        {
+          "key": "E",
+          "value": "0.977"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q17",
+    "type": "multiple-choice",
+    "prompt": "The distribution of the amount of a customer's purchase at a convenience store is approximately normal, with mean $15.50 and standard deviation $1.72. Which of the following is closest to the proportion of customer purchase amounts between $14.00 and $16.00?",
+    "answerKey": "C",
+    "reasoning": "The z-score associated with a purchase amount of $14.00 is (14-15.5)/1.72 ≈ -0.872, and the z-score associated with a purchase amount of $16.00 is (16-15.5)/1.72 ≈ 0.291. The area under the standard normal curve between -0.872 and 0.291 is approximately 0.42, so this is the approximate proportion of customer purchase amounts between $14.00 and $16.00.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "0.19"
+        },
+        {
+          "key": "B",
+          "value": "0.39"
+        },
+        {
+          "key": "C",
+          "value": "0.42"
+        },
+        {
+          "key": "D",
+          "value": "0.61"
+        },
+        {
+          "key": "E",
+          "value": "0.81"
+        }
+      ]
+    }
+  },
+  {
+    "id": "U1-PC-MCQ-B-Q18",
+    "type": "multiple-choice",
+    "prompt": "The distribution of the number of moths captured per night by a certain moth trap is approximately normal with mean 103. If 28 percent of the captures fall below 76 per night, which of the following equations can be used to find σ, the standard deviation of the distribution?",
+    "answerKey": "D",
+    "reasoning": "Approximately 28% of the area under the standard normal curve is below a z-score of -0.58. Therefore -0.58 = (76-103)/σ, and solving for σ yields σ ≈ 46.5 moths.",
+    "attachments": {
+      "choices": [
+        {
+          "key": "A",
+          "value": "0.28 = (103-76)/σ"
+        },
+        {
+          "key": "B",
+          "value": "0.28 = (76-103)/σ"
+        },
+        {
+          "key": "C",
+          "value": "-0.58 = (103-76)/σ"
+        },
+        {
+          "key": "D",
+          "value": "-0.58 = (76-103)/σ"
+        },
+        {
+          "key": "E",
+          "value": "0.58 = (76-103)/σ"
+        }
+      ]
+    }
+  }
+]

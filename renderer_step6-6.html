@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AP Stats Consensus Quiz Renderer</title>
+    <title>AP Stats Consensus Quiz</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <!-- Chart.js DataLabels plugin for point labeling -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <!-- MathJax for rendering LaTeX/TeX notation in prompts, choices, and explanations -->
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
     <style>
         body {
@@ -30,64 +28,54 @@
             text-align: center;
             margin-bottom: 30px;
         }
-        .upload-section {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 30px;
+        .unit-selector {
             text-align: center;
+            padding: 20px;
         }
-        .json-input {
-            width: 100%;
-            height: 200px;
-            font-family: monospace;
-            font-size: 14px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-            resize: vertical;
-            box-sizing: border-box;
+        .unit-selector h2 {
+            color: #2c3e50;
+            margin-bottom: 30px;
         }
-        .load-button {
-            background: #28a745;
+        .unit-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .unit-btn {
+            padding: 20px;
+            background: #3498db;
             color: white;
             border: none;
-            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+        .unit-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .unit-btn.loading {
+            background: #95a5a6;
+            cursor: wait;
+        }
+        .back-button {
+            background: #7f8c8d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
             font-weight: bold;
-            transition: background 0.3s ease;
-            margin: 5px;
+            margin-bottom: 20px;
         }
-        .load-button:hover {
-            background: #218838;
-        }
-        .clear-button {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background 0.3s ease;
-            margin: 5px;
-        }
-        .clear-button:hover {
-            background: #545b62;
-        }
-        .file-input {
-            margin-bottom: 15px;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            width: 100%;
-            box-sizing: border-box;
+        .back-button:hover {
+            background: #5f6c6d;
         }
         .quiz-container {
             background: white;
@@ -96,6 +84,11 @@
             padding: 25px;
             margin-bottom: 30px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            opacity: 0;
+            animation: fadeIn 0.3s forwards;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
         }
         .question-header {
             background: #3498db;
@@ -105,6 +98,9 @@
             border-radius: 6px 6px 0 0;
             font-weight: bold;
             font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .question-id {
             color: #666;
@@ -159,47 +155,6 @@
             height: 400px;
             width: 100%;
         }
-        .multiple-charts-container {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 20px 0;
-        }
-        .multiple-charts-container .chart-container {
-            flex: 1;
-            min-width: 300px;
-            max-width: 450px;
-        }
-        .image-container {
-            margin: 15px 0;
-            text-align: center;
-        }
-        .question-image {
-            max-width: 100%;
-            height: auto;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        .image-caption {
-            text-align: center;
-            font-style: italic;
-            color: #666;
-            margin-top: 5px;
-            font-size: 0.9em;
-        }
-        .images-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            margin: 15px 0;
-        }
-        .images-container .image-container {
-            flex: 1;
-            min-width: 200px;
-            max-width: 400px;
-        }
         .choices {
             margin-top: 15px;
         }
@@ -213,28 +168,60 @@
             display: flex;
             align-items: center;
         }
-        .choice:hover {
+        .choice:hover:not(.disabled) {
             background: #fff9c4;
             border-color: #ffd54f;
+            cursor: pointer;
+        }
+        .choice.selected {
+            background: #e3f2fd;
+            border-color: #2196F3;
+        }
+        .choice.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
         .choice input[type="radio"] {
             margin-right: 10px;
             cursor: pointer;
         }
+        .choice input[type="radio"]:disabled {
+            cursor: not-allowed;
+        }
         .choice label {
             cursor: pointer;
             display: flex;
             align-items: center;
+            width: 100%;
+        }
+        .choice.disabled label {
+            cursor: not-allowed;
+        }
+        .choice-key {
+            font-weight: bold;
+            display: inline-block;
+            width: 30px;
+            color: #495057;
+        }
+        .answer-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
         }
         .reason-wrapper {
-            margin-top: 15px;
             margin-bottom: 15px;
+        }
+        .reason-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
         }
         .reason-textarea {
             width: 100%;
-            min-height: 60px;
+            min-height: 80px;
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 2px solid #ddd;
             border-radius: 4px;
             font-family: inherit;
             font-size: 14px;
@@ -244,6 +231,9 @@
             outline: none;
             border-color: #4CAF50;
             box-shadow: 0 0 5px rgba(76, 175, 80, 0.2);
+        }
+        .reason-textarea.required {
+            border-color: #ff9800;
         }
         .frq-textarea {
             width: 100%;
@@ -264,43 +254,155 @@
             background: #4CAF50;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
-            margin-top: 10px;
+            transition: all 0.3s ease;
         }
         .submit-button:hover:not(:disabled) {
             background: #45a049;
+            transform: translateY(-1px);
         }
         .submit-button:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
-        .validation-error {
+        .error-msg {
             color: #f44336;
             font-size: 14px;
             margin-top: 5px;
             display: none;
         }
-        .validation-error.show {
+        .error-msg.show {
             display: block;
         }
-        .submission-success {
+        .success-msg {
             color: #4CAF50;
             font-size: 14px;
             margin-top: 5px;
             display: none;
         }
-        .submission-success.show {
+        .success-msg.show {
             display: block;
         }
-        .max-attempts-message {
-            color: #ff9800;
-            font-size: 14px;
-            margin-top: 10px;
+        .dotplot-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        .dotplot-section.show {
+            display: block;
+        }
+        .consensus-msg {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
             font-weight: bold;
+            text-align: center;
+        }
+        .consensus-msg.consensus {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .consensus-msg.no-consensus {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        .contributors-list {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .contributor-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .contributor-item:last-child {
+            border-bottom: none;
+        }
+        .contributor-choice {
+            font-weight: bold;
+            color: #3498db;
+        }
+        .contributor-reason {
+            font-style: italic;
+            color: #666;
+            margin-top: 4px;
+            font-size: 0.9em;
+        }
+        .app-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .sync-button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .sync-button:hover {
+            background: #1976D2;
+        }
+        .lesson-selector {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .lesson-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .lesson-btn {
+            padding: 10px 20px;
+            background: white;
+            color: #2196F3;
+            border: 2px solid #2196F3;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .lesson-btn:hover {
+            background: #2196F3;
+            color: white;
+        }
+        .lesson-btn.active {
+            background: #2196F3;
+            color: white;
+        }
+        .lesson-btn.completed {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        .loading-msg {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
         }
         .username-welcome {
             background: #e3f2fd;
@@ -313,252 +415,91 @@
         }
         .username-prompt {
             background: #fff3e0;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
             text-align: center;
         }
         .username-input {
-            padding: 8px 12px;
+            padding: 10px 15px;
             border: 2px solid #ff9800;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 16px;
             margin: 0 10px;
+            width: 250px;
         }
-        .choice-key {
-            font-weight: bold;
-            display: inline-block;
-            width: 30px;
-            color: #495057;
-        }
-
-        /* New consensus app styles */
-        .app-controls {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .user-info {
-            flex: 1;
-            min-width: 200px;
-        }
-        .user-info input {
-            width: 70%;
-            padding: 8px 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        .navigation-controls {
-            flex: 2;
-            min-width: 300px;
-            text-align: center;
-        }
-        #modeToggle {
-            padding: 10px 20px;
-            background: #007bff;
+        .start-button {
+            background: #ff9800;
             color: white;
             border: none;
-            border-radius: 5px;
+            padding: 10px 25px;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 16px;
             font-weight: bold;
-            transition: background 0.3s ease;
+            margin-left: 10px;
         }
-        #modeToggle:hover {
-            background: #0056b3;
+        .start-button:hover {
+            background: #f57c00;
         }
-        .question-controls {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid #e9ecef;
-        }
-        .answer-section {
-            display: none;
-        }
-        .reason-input {
-            width: 100%;
-            min-height: 80px;
-            margin: 10px 0;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-family: inherit;
-            font-size: 14px;
-            resize: vertical;
-        }
-        .submit-answer {
-            padding: 10px 20px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s ease;
-        }
-        .submit-answer:hover:not(:disabled) {
-            background: #218838;
-        }
-        .submit-answer:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        .view-section {
-            display: none;
+        .message {
             padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
+            border-radius: 6px;
+            margin: 20px 0;
+            animation: slideIn 0.3s ease;
         }
-
-        /* Mode-specific visibility */
-        body[data-mode="answer"] .answer-section {
-            display: block;
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
-        body[data-mode="view"] .view-section {
-            display: block;
-        }
-
-        .error {
+        .message.error {
             background: #f8d7da;
             border: 2px solid #dc3545;
             color: #721c24;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
         }
-        .success {
+        .message.success {
             background: #d4edda;
             border: 2px solid #28a745;
             color: #155724;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
         }
-        .stats {
-            background: #e7f3ff;
-            border: 2px solid #0066cc;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        /* Dark mode adaptations */
+        /* Dark mode */
         body.dark-theme {
             background-color: #1a1a1a;
             color: #e0e0e0;
         }
-
         body.dark-theme .container {
             background: #2d2d2d;
             color: #e0e0e0;
         }
-
-        body.dark-theme .upload-section {
-            background: #333333;
-            border-color: #555555;
-            color: #e0e0e0;
-        }
-
         body.dark-theme .quiz-container {
             background: #2d2d2d;
             border-color: #5BC0EB;
             color: #e0e0e0;
         }
-
         body.dark-theme .question-header {
             background: #5BC0EB;
             color: #1a1a1a;
         }
-
-        body.dark-theme .chart-container {
-            background: #2d2d2d;
-            border-color: #555555;
-        }
-
         body.dark-theme .choice {
             background: #333333;
             border-color: #555555;
             color: #e0e0e0;
         }
-
-        body.dark-theme .choice:hover {
+        body.dark-theme .choice:hover:not(.disabled) {
             background: #665c00;
             border-color: #ffcc00;
-            color: #fffbe6;
         }
-
-        body.dark-theme .app-controls {
-            background: #333333;
-            color: #e0e0e0;
-        }
-
-        body.dark-theme .question-controls {
-            border-top-color: #555555;
-        }
-
-        body.dark-theme .reason-input {
-            background: #404040;
-            border-color: #555555;
-            color: #e0e0e0;
-        }
-
-        body.dark-theme .view-section {
-            background: #333333;
-        }
-
-        body.dark-theme .stats {
+        body.dark-theme .choice.selected {
             background: #1e3a5f;
             border-color: #5BC0EB;
-            color: #e0e0e0;
         }
-
-        body.dark-theme table {
-            background: #333333;
-            color: #e0e0e0;
-        }
-
-        body.dark-theme th {
-            background-color: #1a1a1a;
-        }
-
-        body.dark-theme tr:nth-child(even) {
-            background-color: #404040;
-        }
-
-        body.dark-theme td, body.dark-theme th {
-            border-color: #555555;
-        }
-
-        /* Floating Context Finder */
-        .context-finder {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            max-width: 200px;
-            font-size: 0.9em;
-            color: #495057;
-            z-index: 1000;
-        }
-
-        body.dark-theme .context-finder {
-            background: #2d2d2d;
-            color: #e0e0e0;
-            border-color: #5BC0EB;
-        }
-
-        /* Theme toggle button */
+        /* Theme toggle */
         .theme-toggle {
             position: fixed;
             bottom: 20px;
@@ -575,341 +516,101 @@
             transition: all 0.3s ease;
             z-index: 1001;
         }
-
         .theme-toggle:hover {
             transform: scale(1.1);
             box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         }
-
         body.dark-theme .theme-toggle {
             background: #2d2d2d;
             color: #ffd700;
             border-color: #ffd700;
         }
 
-        /* Volume control */
-        .volume-control {
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            background: white;
-            border: 2px solid #3498db;
-            border-radius: 8px;
-            padding: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 1001;
-        }
-
-        body.dark-theme .volume-control {
-            background: #2d2d2d;
-            border-color: #5BC0EB;
-        }
-
-        .volume-slider {
-            width: 100px;
-        }
-
-        /* Step 3 additions */
-        .error-msg {
-            color: red;
+        .consensus-msg {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
             font-weight: bold;
-            display: none;
-            margin-top: 5px;
-        }
-        .completed {
-            border-left: 4px solid green;
-            padding-left: 10px;
-        }
-        .checkmark {
-            color: green;
-            font-size: 1.2em;
-            margin-left: 5px;
-        }
-        .disabled {
-            opacity: 0.5;
-            pointer-events: none;
-            background-color: #f0f0f0;
-        }
-        #sync-status {
-            color: blue;
-            margin-left: 10px;
-            font-weight: bold;
-        }
-        
-        /* Step 5: View section styles */
-        .view-section {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin: 10px 0;
-            display: none;
-            background: #f9f9f9;
-            border-radius: 5px;
-        }
-        .view-section.show {
-            display: block;
-        }
-        .consensus {
-            color: green;
-            font-weight: bold;
-            padding: 5px;
-            background: #e8f5e9;
-            border-radius: 3px;
-            display: inline-block;
-            margin: 5px 0;
-        }
-        .low-consensus {
-            color: red;
-            font-style: italic;
-            padding: 5px;
-            background: #ffebee;
-            border-radius: 3px;
-            display: inline-block;
-            margin: 5px 0;
-        }
-        .vote-btn {
-            padding: 4px 8px;
-            margin: 2px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .approve-btn {
-            background: #4caf50;
-            color: white;
-        }
-        .approve-btn:hover {
-            background: #45a049;
-        }
-        .disapprove-btn {
-            background: #f44336;
-            color: white;
-        }
-        .disapprove-btn:hover {
-            background: #da190b;
-        }
-        .response-li {
-            border: 1px solid #ddd;
-            padding: 8px;
-            margin: 5px 0;
-            background: white;
-            border-radius: 3px;
-            list-style: none;
-        }
-        .preview-note {
-            color: gray;
-            font-style: italic;
-            padding: 10px;
             text-align: center;
+            font-size: 16px;
         }
-        .side-by-side {
-            display: flex;
-            gap: 20px;
-        }
-        .side-by-side > div {
-            flex: 1;
-        }
-        .contributors-list {
-            margin-top: 15px;
-            padding: 10px;
-            background: white;
-            border-radius: 3px;
-        }
-        .contributor-item {
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .contributor-item:last-child {
-            border-bottom: none;
-        }
-        .vote-reason-input {
-            width: 100%;
-            padding: 4px;
-            margin: 4px 0;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            font-size: 12px;
-            display: none;
-        }
-        .vote-reason-input.show {
-            display: block;
-        }
-        .vote-record {
-            font-size: 12px;
-            color: #666;
-            margin: 2px 0;
-            padding: 3px 5px;
-            background: #f5f5f5;
-            border-radius: 2px;
-        }
-        .dotplot-container {
-            margin: 20px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 5px;
-        }
-        .net-votes {
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 3px;
-            margin-left: 10px;
-        }
-        .net-votes.positive {
-            background: #c8e6c9;
+
+        .consensus-msg.consensus {
+            background: #e8f5e9;
             color: #2e7d32;
+            border: 2px solid #4CAF50;
         }
-        .net-votes.negative {
-            background: #ffcdd2;
-            color: #c62828;
-        }
-        .net-votes.neutral {
-            background: #e0e0e0;
-            color: #616161;
-        }
-        .nav-button {
-            padding: 8px 16px;
-            margin: 0 5px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .nav-button:hover {
-            background: #0056b3;
-        }
-        .set-username-btn {
-            padding: 8px 16px;
-            margin-left: 10px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .set-username-btn:hover {
-            background: #218838;
+
+        .consensus-msg.no-consensus {
+            background: #fff3e0;
+            color: #f57c00;
+            border: 2px solid #ff9800;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧮 AP Statistics Consensus Quiz Renderer</h1>
-
-        <div class="upload-section">
-            <h2>📥 Load Quiz Data</h2>
-            <input type="file" id="fileInput" class="file-input" accept=".json">
-            <p>or paste JSON content below:</p>
-            <textarea id="jsonInput" class="json-input" placeholder='Paste your JSON data here. Example:
-[
-    {
-        "id": "U1-L1-Q01",
-        "type": "multiple-choice",
-        "prompt": "What is the mean of [1, 2, 3, 4, 5]?",
-        "choices": [
-            {"key": "A", "value": "2"},
-            {"key": "B", "value": "3"},
-            {"key": "C", "value": "4"},
-            {"key": "D", "value": "5"}
-        ]
-    }
-]'></textarea>
-            <button onclick="loadFromFile()" class="load-button">📁 Load from File</button>
-            <button onclick="loadFromTextarea()" class="load-button">📝 Load from Text</button>
-            <button onclick="clearQuiz()" class="clear-button">🗑️ Clear Quiz</button>
-        </div>
-
+        <h1>🧮 AP Statistics Consensus Quiz</h1>
         <div id="messageArea"></div>
-        <div id="statsArea"></div>
         <div id="questionsContainer"></div>
     </div>
 
-    <!-- Volume control slider -->
-    <div class="volume-control">
-        <label for="volumeSlider">🔊</label>
-        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="50">
-        <span id="volumeLabel">50%</span>
-    </div>
-
-    <!-- Theme toggle button -->
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
 
-    <!-- Floating context finder (hidden until questions are rendered) -->
-    <div id="contextFinder" class="context-finder" style="display:none;"></div>
-
     <script>
-        let chartInstances = [];
-        let currentTheme = 'light'; // Default to light theme
-        let audioContext = null;
-        let globalVolume = 0.5;
-        let contextObserver = null;
-        let contextScrollHandlerAttached = false;
-
-        // User data storage - Step 3: These will be removed after migration
-        let currentUsername = null;
-        let userAnswers = {};
-        let userReasons = {};
-
-        // Step 3: New localStorage-based storage
-        let classData = null;
-        let completed = new Set();
-        
-        // Step 6: Navigation tracking
-        let currentIndex = 0;
-
-        // Initialize audio context
-        function initAudioContext() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Helper functions for charts
+        function generateChartColors(count) {
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+            ];
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                result.push(colors[i % colors.length]);
             }
+            return result;
         }
 
-        // Volume control
-        const volumeSlider = document.getElementById('volumeSlider');
-        const volumeLabel = document.getElementById('volumeLabel');
+        function isDarkMode() {
+            return document.body.classList.contains('dark-theme');
+        }
 
-        volumeSlider.addEventListener('input', (e) => {
-            globalVolume = e.target.value / 100;
-            volumeLabel.textContent = `${e.target.value}%`;
-        });
+        function getTextColor() {
+            return isDarkMode() ? '#e0e0e0' : '#333333';
+        }
 
-        // Enhanced audio feedback system
-        const buttonTones = {
-            success: () => playTone([523, 659, 784], 150), // C-E-G major chord
-            error: () => playTone([349, 330], 200), // F-E descending
-            click: () => playTone([440], 50), // A4 short click
-            hover: () => playTone([554], 30), // C#5 very short
-            load: () => playTone([392, 523, 659], 100), // G-C-E
-            clear: () => playTone([659, 523, 392], 100), // E-C-G descending
+        function getGridColor() {
+            return isDarkMode() ? '#444444' : '#e0e0e0';
+        }
+
+        function getScatterPointColor() {
+            return isDarkMode() ? '#5BC0EB' : '#36A2EB';
+        }
+
+        // Global variables
+        let currentUsername = null;
+        let classData = null;
+        let currentUnit = null;
+        let currentLesson = null;
+        let currentQuestions = [];
+        let allUnitQuestions = [];
+        let chartInstances = {};
+        let currentTheme = 'light';
+
+        // Unit structure - defines lessons per unit
+        const unitStructure = {
+            1: { name: 'Exploring One-Variable Data', lessons: 5 },
+            2: { name: 'Exploring Two-Variable Data', lessons: 4 },
+            3: { name: 'Collecting Data', lessons: 3 },
+            4: { name: 'Probability & Random Variables', lessons: 5 },
+            5: { name: 'Sampling Distributions', lessons: 4 },
+            6: { name: 'Inference for Proportions', lessons: 4 },
+            7: { name: 'Inference for Means', lessons: 4 },
+            8: { name: 'Chi-Square Tests', lessons: 2 },
+            9: { name: 'Inference for Slopes', lessons: 2 }
         };
 
-        function playTone(frequencies, duration) {
-            initAudioContext();
-            if (!audioContext) return;
-
-            frequencies.forEach((freq, index) => {
-                setTimeout(() => {
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-
-                    oscillator.frequency.value = freq;
-                    oscillator.type = 'sine';
-
-                    gainNode.gain.setValueAtTime(globalVolume * 0.3, audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (duration / 1000));
-
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + (duration / 1000));
-                }, index * 50);
-            });
-        }
-
-        // Step 3: Initialize class data structure in localStorage
+        // Initialize class data
         function initClassData() {
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
@@ -923,39 +624,176 @@
                 };
             }
 
-            // Migrate in-memory data if exists
-            if (userAnswers[currentUsername]) {
-                for (let qId in userAnswers[currentUsername]) {
-                    if (!classData.users[currentUsername].answers[qId]) {
-                        classData.users[currentUsername].answers[qId] = {
-                            value: userAnswers[currentUsername][qId].answer || userAnswers[currentUsername][qId],
-                            attempt: 1,
-                            timestamp: Date.now()
-                        };
-                    }
-                }
-                delete userAnswers[currentUsername];
-            }
+            saveClassData();
+        }
 
-            if (userReasons[currentUsername]) {
-                for (let qId in userReasons[currentUsername]) {
-                    if (!classData.users[currentUsername].reasons[qId]) {
-                        classData.users[currentUsername].reasons[qId] = userReasons[currentUsername][qId];
-                    }
-                }
-                delete userReasons[currentUsername];
-            }
-
+        function saveClassData() {
             try {
                 localStorage.setItem('classData', JSON.stringify(classData));
             } catch(e) {
-                console.log("Storage quota exceeded—data not saved");
-                alert("Storage full—data not saved");
+                console.log("Storage quota exceeded");
+                showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
+            }
+        }
+
+        // Check if question has been answered
+        function isQuestionAnswered(questionId) {
+            return classData.users[currentUsername]?.answers?.[questionId] !== undefined;
+        }
+
+        // Get attempt count for a question
+        function getAttemptCount(questionId) {
+            return classData.users[currentUsername]?.attempts?.[questionId] || 0;
+        }
+
+        // Check if can retry (has reason in previous attempt and < 3 attempts)
+        function canRetry(questionId) {
+            const attempts = getAttemptCount(questionId);
+            if (attempts >= 3) return false;
+            if (attempts === 0) return true;
+            
+            // Check if previous attempt had a reason
+            const previousReason = classData.users[currentUsername]?.reasons?.[questionId];
+            return previousReason && previousReason.trim().length > 0;
+        }
+        // Detect unit and lesson from question IDs
+        function detectUnitAndLessons(questions) {
+            if (!questions || questions.length === 0) return null;
+
+            // Get unit number from first question's ID (e.g., "U1-L1-Q01" → 1)
+            const firstId = questions[0].id;
+            const unitMatch = firstId.match(/U(\d+)/i);
+            if (!unitMatch) return null;
+
+            const unitNum = parseInt(unitMatch[1]);
+
+            // Group questions by lesson
+            const lessonGroups = {};
+            questions.forEach(q => {
+                const lessonMatch = q.id.match(/L(\d+)/i);
+                if (lessonMatch) {
+                    const lessonNum = parseInt(lessonMatch[1]);
+                    if (!lessonGroups[lessonNum]) {
+                        lessonGroups[lessonNum] = [];
+                    }
+                    lessonGroups[lessonNum].push(q);
+                }
+            });
+
+            return {
+                unitNumber: unitNum,
+                lessons: lessonGroups,
+                lessonNumbers: Object.keys(lessonGroups).map(n => parseInt(n)).sort((a,b) => a-b)
+            };
+        }
+
+        // Modified loadFromFile function
+        function loadFromFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showMessage('Please select a unit JSON file', 'error');
+                return;
             }
 
-            // Load completed set
-            let completedStr = localStorage.getItem('completed');
-            completed = completedStr ? new Set(JSON.parse(completedStr)) : new Set();
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const questions = Array.isArray(data) ? data : (data.questions || []);
+
+                    const unitInfo = detectUnitAndLessons(questions);
+                    if (!unitInfo) {
+                        showMessage('Could not detect unit from question IDs', 'error');
+                        return;
+                    }
+
+                    currentUnit = unitInfo.unitNumber;
+                    allUnitQuestions = questions;
+
+                    // Show unit name if available
+                    const unitName = unitStructure[currentUnit]?.name || `Unit ${currentUnit}`;
+                    showMessage(`Loaded ${unitName} with ${unitInfo.lessonNumbers.length} lessons`, 'success');
+
+                    // Go directly to lesson selector
+                    renderLessonSelector(unitInfo);
+                } catch (error) {
+                    showMessage('Error parsing JSON: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Modified renderLessonSelector to use detected lessons
+        function renderLessonSelector(unitInfo) {
+            const questionsContainer = document.getElementById('questionsContainer');
+            let lessonButtonsHtml = '';
+
+            unitInfo.lessonNumbers.forEach(lessonNum => {
+                const questions = unitInfo.lessons[lessonNum];
+                const isCompleted = questions.every(q => isQuestionAnswered(q.id));
+                lessonButtonsHtml += `
+                    <button onclick="loadLesson(${lessonNum})"
+                            class="lesson-btn ${isCompleted ? 'completed' : ''}"
+                            id="lesson-btn-${lessonNum}">
+                        Lesson ${lessonNum}<br>
+                        <small>${questions.length} questions</small>
+                    </button>
+                `;
+            });
+
+            questionsContainer.innerHTML = `
+                <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
+                <div class="lesson-selector">
+                    <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
+                    <p>Select a lesson to begin:</p>
+                    <div class="lesson-buttons">
+                        ${lessonButtonsHtml}
+                    </div>
+                </div>
+                <div class="app-controls">
+                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                </div>
+            `;
+        }
+
+        // Add simple file upload UI at start
+        function renderFileUpload() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            questionsContainer.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h2>Load a Unit to Begin</h2>
+                    <p>Select a unit JSON file (e.g., unit1.json, unit2.json, etc.)</p>
+                    <input type="file" id="fileInput" accept=".json"
+                           style="padding: 10px; font-size: 16px; margin: 20px;">
+                    <br>
+                    <button onclick="loadFromFile()" class="submit-button">
+                        Load Unit
+                    </button>
+                </div>
+            `;
+        }
+
+        // New function to go back to file upload
+        window.backToFileUpload = function() {
+            // Clear current data
+            currentUnit = null;
+            currentLesson = null;
+            currentQuestions = [];
+            allUnitQuestions = [];
+
+            // Clear charts
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
+                }
+            });
+            chartInstances = {};
+
+            renderFileUpload();
         }
 
         // Username management
@@ -965,23 +803,27 @@
                 currentUsername = savedUsername;
                 initClassData();
                 showUsernameWelcome();
+                renderFileUpload(); // Show file upload instead of unit selector
             } else {
                 showUsernamePrompt();
             }
         }
 
         function showUsernamePrompt() {
-            const container = document.querySelector('.container');
-            if (!container) return;
-            const promptDiv = document.createElement('div');
-            promptDiv.className = 'username-prompt';
-            promptDiv.innerHTML = `
-                <label>Enter your username: 
-                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name">
-                    <button onclick="saveUsername()" class="submit-button">Start</button>
-                </label>
+            const questionsContainer = document.getElementById('questionsContainer');
+            questionsContainer.innerHTML = `
+                <div class="username-prompt">
+                    <h2>Welcome to AP Statistics Consensus Quiz</h2>
+                    <p>Please enter your username to begin:</p>
+                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name" autofocus>
+                    <button onclick="saveUsername()" class="start-button">Start</button>
+                </div>
             `;
-            container.insertBefore(promptDiv, container.firstChild);
+            
+            // Allow Enter key to submit
+            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') saveUsername();
+            });
         }
 
         window.saveUsername = function() {
@@ -989,14 +831,9 @@
             if (input && input.value.trim()) {
                 currentUsername = input.value.trim();
                 localStorage.setItem('consensusUsername', currentUsername);
-
-                // Step 3: Initialize class data structure
                 initClassData();
-
-                // Remove prompt and show welcome
-                const prompt = document.querySelector('.username-prompt');
-                if (prompt) prompt.remove();
                 showUsernameWelcome();
+                renderFileUpload();
             }
         }
 
@@ -1008,1092 +845,353 @@
 
             const welcomeDiv = document.createElement('div');
             welcomeDiv.className = 'username-welcome';
-            welcomeDiv.textContent = `Welcome ${currentUsername} - Your contributions are visible for reputation!`;
-            container.insertBefore(welcomeDiv, container.firstChild);
+            welcomeDiv.textContent = `Welcome ${currentUsername}!`;
+            container.insertBefore(welcomeDiv, container.firstChild.nextSibling);
         }
 
-        // Attempt tracking
-        function getAttemptCount(questionId) {
-            const key = `attempts_${questionId}`;
-            return parseInt(localStorage.getItem(key) || '0');
+        // Unit selector
+        function renderUnitSelector() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            let buttonsHtml = '';
+            
+            for (let unitNum in unitStructure) {
+                const unit = unitStructure[unitNum];
+                buttonsHtml += `
+                    <button onclick="loadUnit(${unitNum})" class="unit-btn" id="unit-btn-${unitNum}">
+                        <strong>Unit ${unitNum}</strong><br>
+                        ${unit.name}
+                    </button>
+                `;
+            }
+            
+            questionsContainer.innerHTML = `
+                <div class="unit-selector">
+                    <h2>Select a Unit</h2>
+                    <div class="unit-buttons">
+                        ${buttonsHtml}
+                    </div>
+                </div>
+            `;
         }
 
-        function incrementAttemptCount(questionId) {
-            const key = `attempts_${questionId}`;
-            const current = getAttemptCount(questionId);
-            localStorage.setItem(key, (current + 1).toString());
-            return current + 1;
+        // Load unit
+        window.loadUnit = async function(unitNumber) {
+            const btn = document.getElementById(`unit-btn-${unitNumber}`);
+            if (btn) {
+                btn.classList.add('loading');
+                btn.disabled = true;
+            }
+
+            try {
+                const response = await fetch(`unit${unitNumber}.json`);
+                if (!response.ok) {
+                    throw new Error(`Unit ${unitNumber} file not found`);
+                }
+                const data = await response.json();
+                currentUnit = unitNumber;
+                allUnitQuestions = Array.isArray(data) ? data : (data.questions || []);
+                
+                renderLessonSelector();
+                showMessage(`Unit ${unitNumber} loaded successfully!`, 'success');
+            } catch (error) {
+                showMessage(`Error loading Unit ${unitNumber}: ${error.message}`, 'error');
+                if (btn) {
+                    btn.classList.remove('loading');
+                    btn.disabled = false;
+                }
+            }
         }
 
-        function isQuestionCompleted(questionId) {
-            return localStorage.getItem(`completed_${questionId}`) === 'true';
+        // Render lesson selector
+        function renderLessonSelector() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            const unit = unitStructure[currentUnit];
+            let lessonButtonsHtml = '';
+            
+            // Group questions by lesson
+            const lessonGroups = {};
+            allUnitQuestions.forEach(q => {
+                const match = q.id.match(/L(\d+)/);
+                if (match) {
+                    const lessonNum = parseInt(match[1]);
+                    if (!lessonGroups[lessonNum]) {
+                        lessonGroups[lessonNum] = [];
+                    }
+                    lessonGroups[lessonNum].push(q);
+                }
+            });
+            
+            for (let i = 1; i <= unit.lessons; i++) {
+                const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
+                const isCompleted = checkLessonCompleted(currentUnit, i);
+                lessonButtonsHtml += `
+                    <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
+                        Lesson ${i}<br>
+                        <small>${questionCount} questions</small>
+                    </button>
+                `;
+            }
+            
+            questionsContainer.innerHTML = `
+                <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                <div class="lesson-selector">
+                    <h3>Unit ${currentUnit}: ${unit.name}</h3>
+                    <p>Select a lesson to begin:</p>
+                    <div class="lesson-buttons">
+                        ${lessonButtonsHtml}
+                    </div>
+                </div>
+                <div class="app-controls">
+                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                </div>
+            `;
         }
 
-        function markQuestionCompleted(questionId) {
-            localStorage.setItem(`completed_${questionId}`, 'true');
+        // Check if lesson is completed
+        function checkLessonCompleted(unitNum, lessonNum) {
+            const lessonQuestions = allUnitQuestions.filter(q => {
+                const match = q.id.match(/L(\d+)/);
+                return match && parseInt(match[1]) === lessonNum;
+            });
+            
+            if (lessonQuestions.length === 0) return false;
+            
+            return lessonQuestions.every(q => isQuestionAnswered(q.id));
         }
 
-        // Step 3: Modified answer submission with localStorage
-        window.submitAnswer = function(questionId, questionType) {
-            if (!currentUsername) {
-                alert('Please enter your username first!');
+        // Load lesson
+        window.loadLesson = function(lessonNumber) {
+            currentLesson = lessonNumber;
+            currentQuestions = allUnitQuestions.filter(q => {
+                const match = q.id.match(/L(\d+)/);
+                return match && parseInt(match[1]) === lessonNumber;
+            });
+            
+            if (currentQuestions.length === 0) {
+                showMessage(`No questions found for Lesson ${lessonNumber}`, 'error');
                 return;
             }
-
-            // Check attempts from classData
-            let currentAttempt = classData.users[currentUsername].attempts[questionId] || 0;
-            if (currentAttempt >= 3) {
-                console.log('Max attempts reached');
-                return;
-            }
-
-            // Get error span
-            let errorSpan = document.getElementById('error-' + questionId);
-            if (errorSpan) {
-                errorSpan.style.display = 'none';
-            }
-
-            let value = '';
-
-            // Get answer based on question type
-            if (questionType === 'multiple-choice') {
-                let radios = document.querySelectorAll(`input[name="choice-${questionId}"]`);
-                for (let radio of radios) {
-                    if (radio.checked) {
-                        value = radio.value;
-                        break;
-                    }
-                }
-                if (!value) {
-                    if (errorSpan) {
-                        errorSpan.textContent = 'Please select an answer';
-                        errorSpan.style.display = 'block';
-                    }
-                    return;
-                }
-            } else {
-                let textarea = document.getElementById('frq-textarea-' + questionId);
-                if (textarea) {
-                    value = textarea.value.trim();
-                }
-                if (!value) {
-                    if (errorSpan) {
-                        errorSpan.textContent = 'Please fill the response';
-                        errorSpan.style.display = 'block';
-                    }
-                    return;
-                }
-            }
-
-            // Get reason
-            let reason = '';
-            let reasonTextarea = document.getElementById('reason-textarea-' + questionId);
-            if (reasonTextarea) {
-                reason = reasonTextarea.value.trim();
-            }
-
-            // Update classData
-            classData.users[currentUsername].answers[questionId] = {
-                value: value,
-                attempt: currentAttempt + 1,
-                timestamp: Date.now()
-            };
-            classData.users[currentUsername].reasons[questionId] = reason;
-            classData.users[currentUsername].timestamps[questionId] = Date.now();
-            classData.users[currentUsername].attempts[questionId] = currentAttempt + 1;
-
-            // Save to localStorage
-            try {
-                localStorage.setItem('classData', JSON.stringify(classData));
-            } catch(e) {
-                console.log("Storage quota exceeded—data not saved");
-                alert("Storage full—data not saved");
-            }
-
-            // Update completed set
-            completed.add(questionId);
-            localStorage.setItem('completed', JSON.stringify(Array.from(completed)));
-
-            // Update UI
-            let submitBtn = document.getElementById('submit-' + questionId);
-            if (submitBtn) {
-                submitBtn.textContent = `Submitted (Attempt ${currentAttempt + 1}/3)`;
-                if (currentAttempt + 1 >= 3) {
-                    submitBtn.disabled = true;
-                    submitBtn.classList.add('disabled');
-
-                    // Disable all inputs
-                    document.querySelectorAll(`[data-question-id="${questionId}"] input, [data-question-id="${questionId}"] textarea, [data-question-id="${questionId}"] button`).forEach(el => {
-                        el.classList.add('disabled');
-                        el.disabled = true;
-                    });
-
-                    // Add max attempts message
-                    let msg = document.createElement('span');
-                    msg.textContent = 'Max attempts reached (3/3)';
-                    msg.style.color = 'red';
-                    msg.style.marginLeft = '10px';
-                    submitBtn.parentNode.appendChild(msg);
-                }
-            }
-
-            // Add completed class and checkmark
-            let qDiv = document.querySelector(`[data-question-id="${questionId}"]`);
-            if (qDiv) {
-                qDiv.classList.add('completed');
-                if (!qDiv.querySelector('.checkmark')) {
-                    let check = document.createElement('span');
-                    check.className = 'checkmark';
-                    check.textContent = '✓';
-                    qDiv.querySelector('.question-header').appendChild(check);
-                }
-            }
-
-            // Enable view button if exists
-            let viewBtn = document.querySelector(`#view-${questionId}`);
-            if (viewBtn) {
-                viewBtn.disabled = false; viewBtn.style.display = "inline-block";
-            }
-
-            // Show success message
-            let successMsg = document.getElementById('success-' + questionId);
-            if (successMsg) {
-                successMsg.textContent = `Answer submitted! (Attempt ${currentAttempt + 1} of 3)`;
-                successMsg.classList.add('show');
-            }
+            
+            renderQuiz();
         }
 
-        // Step 3: Load progress function
-        function loadProgress() {
-            if (!currentUsername || !classData) return;
-
-            // Restore completed questions UI
-            for (let qId of completed) {
-                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
-                if (qDiv) {
-                    qDiv.classList.add('completed');
-                    if (!qDiv.querySelector('.checkmark')) {
-                        let check = document.createElement('span');
-                        check.className = 'checkmark';
-                        check.textContent = '✓';
-                        let header = qDiv.querySelector('.question-header');
-                        if (header) header.appendChild(check);
-                    }
-                    let viewBtn = qDiv.querySelector('.view-button');
-                    if (viewBtn) { viewBtn.disabled = false; viewBtn.style.display = "inline-block"; }
+        // Back to units
+        window.backToUnits = function() {
+            // Clear any existing charts
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
                 }
-            }
+            });
+            chartInstances = {};
+            currentQuestions = [];
+            allUnitQuestions = [];
+            currentUnit = null;
+            currentLesson = null;
+            renderUnitSelector();
+        }
 
-            // Restore answers and UI state for each question
-            for (let qId in classData.users[currentUsername].answers) {
-                let qDiv = document.querySelector(`[data-question-id="${qId}"]`);
-
-                if (qDiv) {
-                    let saved = classData.users[currentUsername].answers[qId];
-                    let questionType = qDiv.querySelector('input[type="radio"]') ? 'multiple-choice' : 'free-response';
-
-                    // Restore answer value
-                    if (questionType === 'multiple-choice') {
-                        let radios = qDiv.querySelectorAll(`input[name="choice-${qId}"]`);
-                        for (let radio of radios) {
-                            if (radio.value === saved.value) {
-                                radio.checked = true;
-                                break;
-                            }
-                        }
-                    } else {
-                        let textarea = qDiv.querySelector(`#frq-textarea-${qId}`);
-                        if (textarea) {
-                            textarea.value = saved.value;
-                        }
-                    }
-
-                    // Restore reason
-                    let reasonTa = qDiv.querySelector(`#reason-textarea-${qId}`);
-                    if (reasonTa && classData.users[currentUsername].reasons[qId]) {
-                        reasonTa.value = classData.users[currentUsername].reasons[qId];
-                    }
-
-                    // Update submit button and handle max attempts
-                    let attempts = classData.users[currentUsername].attempts[qId] || 0;
-                    let submitBtn = qDiv.querySelector(`#submit-${qId}`);
-                    if (submitBtn) {
-                        submitBtn.textContent = `Submitted (Attempt ${attempts}/3)`;
-                        if (attempts >= 3) {
-                            submitBtn.disabled = true;
-                            submitBtn.classList.add('disabled');
-
-                            // Disable all inputs
-                            qDiv.querySelectorAll('input, textarea, button').forEach(el => {
-                                el.classList.add('disabled');
-                                el.disabled = true;
-                            });
-
-                            // Add max attempts message if not already there
-                            if (!submitBtn.parentNode.querySelector('span[style*="red"]')) {
-                                let msg = document.createElement('span');
-                                msg.textContent = 'Max attempts reached (3/3)';
-                                msg.style.color = 'red';
-                                msg.style.marginLeft = '10px';
-                                submitBtn.parentNode.appendChild(msg);
-                            }
-                        }
-                    }
+        // Back to lessons
+        window.backToLessons = function() {
+            // Clear any existing charts
+            Object.values(chartInstances).forEach(chart => {
+                if (chart && typeof chart.destroy === 'function') {
+                    chart.destroy();
                 }
-            }
-
-            // Re-apply MathJax if needed
-            if (window.MathJax) {
-                MathJax.typesetPromise().catch((e) => console.log('MathJax error:', e));
-            }
+            });
+            chartInstances = {};
+            currentQuestions = [];
+            currentLesson = null;
+            renderLessonSelector();
         }
 
-        // Step 6: Navigation functions
-        function nextQuestion() {
-    let questions = window.lastLoadedData;
-    if (!questions || questions.length === 0) return;
-    
-    // Hide current question
-    let currentDiv = document.querySelector(`[data-question-number="${currentIndex + 1}"]`);
-    if (currentDiv) {
-        currentDiv.style.display = 'none';
-        currentDiv.removeAttribute('data-current');
-    }
-    
-    // Update index
-    currentIndex = (currentIndex + 1) % questions.length;
-    localStorage.setItem('currentIndex', currentIndex.toString());
-    
-    // Show new current question
-    let newDiv = document.querySelector(`[data-question-number="${currentIndex + 1}"]`);
-    if (newDiv) {
-        newDiv.style.display = 'block';
-        newDiv.setAttribute('data-current', 'true');
-    }
-    
-    updateProgress();
-    updateContextFinder();
-    
-    // Load progress for the new question
-    loadProgress();
-}
-
-function prevQuestion() {
-    let questions = window.lastLoadedData;
-    if (!questions || questions.length === 0) return;
-    
-    // Hide current question
-    let currentDiv = document.querySelector(`[data-question-number="${currentIndex + 1}"]`);
-    if (currentDiv) {
-        currentDiv.style.display = 'none';
-        currentDiv.removeAttribute('data-current');
-    }
-    
-    // Update index (go backwards, wrap around if at beginning)
-    currentIndex = (currentIndex - 1 + questions.length) % questions.length;
-    localStorage.setItem('currentIndex', currentIndex.toString());
-    
-    // Show new current question
-    let newDiv = document.querySelector(`[data-question-number="${currentIndex + 1}"]`);
-    if (newDiv) {
-        newDiv.style.display = 'block';
-        newDiv.setAttribute('data-current', 'true');
-    }
-    
-    updateProgress();
-    updateContextFinder();
-    
-    // Load progress for the new question
-    loadProgress();
-}
-
-        function updateProgress() {
-            let questions = window.lastLoadedData;
-            if (!questions) return;
-            document.getElementById('progress').textContent = `Question ${currentIndex + 1}/${questions.length}`;
-            document.getElementById('nav-progress').value = currentIndex + 1;
-            document.getElementById('nav-progress').max = questions.length;
-        }
-
-        function setUsername() {
-            let input = document.getElementById('username');
-            if (input.value.trim()) {
-                currentUsername = input.value.trim();
-                localStorage.setItem('consensusUsername', currentUsername);
-                initClassData();
-                showUsernameWelcome();
-                input.disabled = true;
-                let btn = document.querySelector('.set-username-btn');
-                if (btn) btn.style.display = 'none';
-            } else {
-                alert('Enter a username');
-            }
-        }
-
-        // Step 4: Sync functionality functions
-        function mergeData(imported, target = classData) {
-            for (let impUser in imported.users) {
-                if (!target.users[impUser]) {
-                    target.users[impUser] = {answers: {}, reasons: {}, timestamps: {}, attempts: {}};
-                }
-                for (let fullQId in imported.users[impUser].answers) {
-                    let localTs = target.users[impUser].timestamps[fullQId] || 0;
-                    let impTs = imported.users[impUser].timestamps[fullQId] || 0;
-                    if (impTs > localTs || !target.users[impUser].answers[fullQId]) {
-                        target.users[impUser].answers[fullQId] = imported.users[impUser].answers[fullQId];
-                        target.users[impUser].reasons[fullQId] = imported.users[impUser].reasons[fullQId] || '';
-                        target.users[impUser].timestamps[fullQId] = impTs;
-                        target.users[impUser].attempts[fullQId] = imported.users[impUser].attempts[fullQId];
-                        console.log(`Merged ${fullQId} for ${impUser} (ts ${impTs})`);
-                    }
-                }
-            }
-            try {
-                localStorage.setItem('classData', JSON.stringify(target));
-            } catch(e) {
-                console.log("Storage quota exceeded—data not saved");
-                alert("Storage full—data not saved");
-            }
-            loadProgress();
-            return target;
-        }
-
-        function exportPersonal() {
-            let personal = {exportTime: Date.now(), users: { [currentUsername]: classData.users[currentUsername] }};
-            let blob = new Blob([JSON.stringify(personal, null, 2)], {type: 'application/json'});
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentUsername}_data.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            let status = document.getElementById('sync-status');
-            if (status) {
-                status.textContent = 'Exported personal data';
-                setTimeout(() => status.textContent = '', 5000);
-            }
-        }
-
-        function importClassData(event) {
-            let file = event.target.files[0];
-            if (!file) return;
-            let reader = new FileReader();
-            reader.onload = e => {
-                try {
-                    let imported = JSON.parse(e.target.result);
-                    mergeData(imported);
-                    let status = document.getElementById('sync-status');
-                    if (status) {
-                        status.textContent = `Imported ${Object.keys(imported.users).length} users`;
-                        setTimeout(() => status.textContent = '', 5000);
-                    }
-                } catch(err) {
-                    alert('Invalid JSON file');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        async function mergeImports(event) {
-            let files = event.target.files;
-            if (!files.length) return;
-            let master = {users: {}};
-            for (let file of Array.from(files)) {
-                let reader = new FileReader();
-                await new Promise(resolve => {
-                    reader.onload = e => {
-                        try {
-                            let imp = JSON.parse(e.target.result);
-                            mergeData(imp, master);
-                        } catch(err) {
-                            console.log('Invalid file:', file.name);
-                        }
-                        resolve();
-                    };
-                    reader.readAsText(file);
+        // Render quiz
+        function renderQuiz() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            
+            questionsContainer.innerHTML = `
+                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                <div class="app-controls">
+                    <div style="flex: 1;">
+                        <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+                    </div>
+                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                </div>
+                <div id="questions-list"></div>
+                <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
+            `;
+            
+            const questionsList = document.getElementById('questions-list');
+            
+            // Show loading message
+            document.getElementById('loading-msg').style.display = 'block';
+            
+            // Render all questions for the lesson with a small delay for animation
+            setTimeout(() => {
+                currentQuestions.forEach((question, index) => {
+                    const questionHtml = renderQuestion(question, index);
+                    questionsList.insertAdjacentHTML('beforeend', questionHtml);
                 });
-            }
-            classData = mergeData(master, classData);
-            let blob = new Blob([JSON.stringify({exportTime: Date.now(), users: classData.users}, null, 2)], {type: 'application/json'});
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = 'class_data.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            let status = document.getElementById('sync-status');
-            if (status) {
-                status.textContent = `Merged ${files.length} files, ${Object.keys(classData.users).length} users total`;
-                setTimeout(() => status.textContent = '', 5000);
-            }
+                
+                document.getElementById('loading-msg').style.display = 'none';
+                
+                // Load saved progress
+                loadProgress();
+                
+                // Render MathJax
+                if (window.MathJax) {
+                    MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
+                }
+                
+                // Render charts for visible questions
+                setTimeout(renderVisibleCharts, 100);
+            }, 100);
         }
 
-// Step 5: Aggregation and View Functions
-        
-        // Initialize votes structure if not exists
-        function initVotes() {
-            if (!classData.users[currentUsername].votes) {
-                classData.users[currentUsername].votes = {};
-            }
-        }
+        // Render question
+        function renderQuestion(question, index) {
+            const questionNumber = index + 1;
+            const isAnswered = isQuestionAnswered(question.id);
+            const attempts = getAttemptCount(question.id);
+            const canRetryQuestion = canRetry(question.id);
+            
+            let html = `
+                <div class="quiz-container" data-question-id="${question.id}" data-question-number="${questionNumber}">
+                    <div class="question-header">
+                        <span>Question ${questionNumber}</span>
+                        ${isAnswered ? '<span style="color: #a5d6a7;">✓ Answered</span>' : ''}
+                    </div>
+                    <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                    <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
+            `;
 
-        // Aggregate MCQ responses
-        function aggregateMCQ(questionId) {
-            const choiceCounts = {};
-            let totalCount = 0;
-            const contributors = [];
-
-            // Count choices across all users
-            for (let username in classData.users) {
-                const userAnswers = classData.users[username].answers;
-                if (userAnswers && userAnswers[questionId]) {
-                    const answer = userAnswers[questionId];
-                    const choice = answer.value || answer;
-                    const reason = classData.users[username].reasons?.[questionId] || '';
-                    const attempt = answer.attempt || 1;
-                    
-                    if (choice) {
-                        choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
-                        totalCount++;
-                        contributors.push({
-                            username: username,
-                            choice: choice,
-                            reason: reason,
-                            attempt: attempt
-                        });
-                    }
-                }
+            // Render attachments if present
+            if (question.attachments) {
+                html += renderAttachments(question.attachments, question.id);
             }
 
-            return {
-                choiceCounts: choiceCounts,
-                totalCount: totalCount,
-                contributors: contributors
-            };
-        }
-
-        // Aggregate FRQ responses
-        function aggregateFRQ(questionId) {
-            const responses = [];
-            
-            // Collect all responses
-            for (let username in classData.users) {
-                const userAnswers = classData.users[username].answers;
-                if (userAnswers && userAnswers[questionId]) {
-                    const answer = userAnswers[questionId];
-                    const response = answer.value || answer;
-                    const reason = classData.users[username].reasons?.[questionId] || '';
-                    const attempt = answer.attempt || 1;
-                    
-                    if (response) {
-                        // Calculate net votes for this response
-                        let approves = 0;
-                        let disapproves = 0;
-                        const voteRecords = [];
-                        
-                        // Count votes from all users
-                        for (let voter in classData.users) {
-                            const voterVotes = classData.users[voter].votes;
-                            if (voterVotes && voterVotes[questionId] && voterVotes[questionId][username]) {
-                                const vote = voterVotes[questionId][username];
-                                if (vote.vote === 'approve') {
-                                    approves++;
-                                } else if (vote.vote === 'disapprove') {
-                                    disapproves++;
-                                }
-                                if (vote.reason) {
-                                    voteRecords.push({
-                                        voter: voter,
-                                        vote: vote.vote,
-                                        reason: vote.reason
-                                    });
-                                }
-                            }
-                        }
-                        
-                        responses.push({
-                            username: username,
-                            response: response,
-                            reason: reason,
-                            attempt: attempt,
-                            approves: approves,
-                            disapproves: disapproves,
-                            netVotes: approves - disapproves,
-                            voteRecords: voteRecords
-                        });
-                    }
-                }
-            }
-            
-            // Sort by net votes (highest first)
-            responses.sort((a, b) => b.netVotes - a.netVotes);
-            
-            return responses;
-        }
-
-        // Check consensus
-        function checkConsensus(aggregateData, questionType) {
-            if (questionType === 'multiple-choice') {
-                const { choiceCounts, totalCount } = aggregateData;
-                if (totalCount === 0) return { hasConsensus: false, message: 'No responses yet' };
+            // Handle MCQ
+            if (question.type === 'multiple-choice') {
+                const choices = question.choices || question.attachments?.choices || [];
+                const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
+                const isDisabled = isAnswered && !canRetryQuestion;
                 
-                // Find mode (most common choice)
-                let mode = null;
-                let maxCount = 0;
-                for (let choice in choiceCounts) {
-                    if (choiceCounts[choice] > maxCount) {
-                        maxCount = choiceCounts[choice];
-                        mode = choice;
-                    }
-                }
-                
-                const percentage = maxCount / totalCount;
-                if (percentage >= 0.7) {
-                    return {
-                        hasConsensus: true,
-                        message: `Consensus on ${mode} (${Math.round(percentage * 100)}%)`,
-                        choice: mode,
-                        percentage: percentage
-                    };
-                } else {
-                    return {
-                        hasConsensus: false,
-                        message: `No consensus yet (highest: ${mode} at ${Math.round(percentage * 100)}%)`,
-                        choice: mode,
-                        percentage: percentage
-                    };
-                }
-            } else {
-                // FRQ consensus based on net votes
-                const responses = aggregateData;
-                if (responses.length === 0) return { hasConsensus: false, message: 'No responses yet' };
-                
-                let totalVotes = 0;
-                let maxNetVotes = 0;
-                for (let resp of responses) {
-                    totalVotes += resp.approves + resp.disapproves;
-                    if (resp.netVotes > maxNetVotes) {
-                        maxNetVotes = resp.netVotes;
-                    }
-                }
-                
-                if (totalVotes === 0) return { hasConsensus: false, message: 'No votes yet - vote with reasons' };
-                
-                const netPercentage = maxNetVotes / totalVotes;
-                if (netPercentage >= 0.7) {
-                    return {
-                        hasConsensus: true,
-                        message: `Emerging agreement (${Math.round(netPercentage * 100)}% net approval)`,
-                        percentage: netPercentage
-                    };
-                } else {
-                    return {
-                        hasConsensus: false,
-                        message: `Low agreement - vote with reasons`,
-                        percentage: netPercentage
-                    };
-                }
-            }
-        }
-
-        // Toggle view section
-        window.toggleView = function(questionId) {
-            const viewSection = document.getElementById(`view-section-${questionId}`);
-            if (viewSection) {
-                viewSection.classList.toggle('show');
-                if (viewSection.classList.contains('show')) {
-                    renderView(questionId);
-                }
-            }
-        }
-
-        // Render view for a question
-        function renderView(questionId) {
-            const viewSection = document.getElementById(`view-section-${questionId}`);
-            if (!viewSection) return;
-            
-            // Determine question type
-            const qDiv = document.querySelector(`[data-question-id="${questionId}"]`);
-            if (!qDiv) return;
-            
-            const questionType = qDiv.querySelector('input[type="radio"]') ? 'multiple-choice' : 'free-response';
-            
-            // Check for pre/post pairs
-            const isPrePost = questionId.includes('_pre') || questionId.includes('_post');
-            if (isPrePost) {
-                const baseId = questionId.replace(/_pre|_post/, '');
-                const preId = baseId + '_pre';
-                const postId = baseId + '_post';
-                
-                // Check if both exist
-                const preExists = classData.users[currentUsername]?.answers?.[preId];
-                const postExists = classData.users[currentUsername]?.answers?.[postId];
-                
-                if (preExists && postExists) {
-                    // Render side-by-side
-                    viewSection.innerHTML = `
-                        <div class="side-by-side">
-                            <div>
-                                <h4>Pre-Assessment</h4>
-                                ${renderSingleView(preId, questionType)}
-                            </div>
-                            <div>
-                                <h4>Post-Assessment</h4>
-                                ${renderSingleView(postId, questionType)}
-                            </div>
+                html += '<div class="choices">';
+                choices.forEach(choice => {
+                    const isSelected = savedAnswer?.value === choice.key || savedAnswer === choice.key;
+                    html += `
+                        <div class="choice ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}">
+                            <label>
+                                <input type="radio" 
+                                       name="choice-${question.id}" 
+                                       value="${choice.key}"
+                                       ${isSelected ? 'checked' : ''}
+                                       ${isDisabled ? 'disabled' : ''}>
+                                <span class="choice-key">${choice.key}.</span>
+                                <span>${choice.value}</span>
+                            </label>
                         </div>
                     `;
-                    return;
-                }
+                });
+                html += '</div>';
             }
-            
-            // Render single view
-            viewSection.innerHTML = renderSingleView(questionId, questionType);
+
+            // Handle FRQ
+            if (question.type === 'free-response') {
+                const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
+                const isDisabled = isAnswered && !canRetryQuestion;
+                html += `
+                    <textarea 
+                        id="frq-${question.id}"
+                        class="frq-textarea" 
+                        placeholder="Enter your response here..."
+                        ${isDisabled ? 'disabled' : ''}
+                    >${savedAnswer?.value || savedAnswer || ''}</textarea>
+                `;
+            }
+
+            // Add answer section
+            html += `
+                <div class="answer-section">
+                    <div class="reason-wrapper">
+                        <label class="reason-label">
+                            ${attempts > 0 && !canRetryQuestion ? 
+                                'Your explanation (required for retry):' : 
+                                'Explain your reasoning (optional but enables retry):'}
+                        </label>
+                        <textarea 
+                            id="reason-${question.id}"
+                            class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
+                            placeholder="${attempts > 0 && !canRetryQuestion ? 
+                                'Previous attempt did not include reasoning. Add reasoning to enable retry.' : 
+                                'Explain why you chose this answer...'}"
+                            ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
+                        >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
+                    </div>
+                    <div>
+                        <button 
+                            id="submit-${question.id}"
+                            class="submit-button" 
+                            onclick="submitAnswer('${question.id}', '${question.type}')"
+                            ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
+                        >
+                            ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Max Attempts Reached') : 'Submit Answer'}
+                        </button>
+                        <span id="error-${question.id}" class="error-msg"></span>
+                        <span id="success-${question.id}" class="success-msg"></span>
+                    </div>
+                </div>
+            `;
+
+            // Add dotplot section (always visible if answered)
+            if (isAnswered) {
+                html += `
+                    <div class="dotplot-section show" id="dotplot-section-${question.id}">
+                        <canvas id="dotplot-${question.id}" width="400" height="200"></canvas>
+                        <div id="consensus-${question.id}"></div>
+                        <div class="contributors-list" id="contributors-${question.id}"></div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="dotplot-section" id="dotplot-section-${question.id}"></div>`;
+            }
+
+            html += '</div>';
+            return html;
         }
 
-        // Render single view (for reuse in side-by-side)
-        function renderSingleView(questionId, questionType) {
+        // Render attachments (charts, tables, images)
+        function renderAttachments(attachments, questionId) {
             let html = '';
             
-            if (questionType === 'multiple-choice') {
-                const aggregateData = aggregateMCQ(questionId);
-                
-                // Check if self-only
-                if (aggregateData.totalCount <= 1) {
-                    html += '<div class="preview-note">Preview — sync peers for class view</div>';
-                }
-                
-                // Create dotplot
-                html += '<div class="dotplot-container">';
-                html += `<canvas id="dotplot-${questionId}" width="400" height="200"></canvas>`;
-                html += '</div>';
-                
-                // Check consensus
-                const consensus = checkConsensus(aggregateData, questionType);
-                if (consensus.hasConsensus) {
-                    html += `<div class="consensus">${consensus.message}</div>`;
-                } else {
-                    html += `<div class="low-consensus">${consensus.message}</div>`;
-                }
-                
-                // Contributors list
-                html += '<div class="contributors-list">';
-                html += '<h4>Contributors:</h4>';
-                for (let contributor of aggregateData.contributors) {
-                    html += `<div class="contributor-item">`;
-                    html += `<strong>${contributor.username}</strong> chose <strong>${contributor.choice}</strong> (Attempt ${contributor.attempt})`;
-                    if (contributor.reason) {
-                        html += `<br>Reason: <em>${contributor.reason}</em>`;
-                    }
-                    html += '</div>';
-                }
-                html += '</div>';
-                
-                // Schedule dotplot rendering
-                setTimeout(() => renderDotplot(questionId, aggregateData), 100);
-                
-            } else {
-                // FRQ view
-                const responses = aggregateFRQ(questionId);
-                
-                // Check if self-only
-                if (responses.length <= 1) {
-                    html += '<div class="preview-note">Preview — sync peers for class view</div>';
-                }
-                
-                // Check consensus
-                const consensus = checkConsensus(responses, questionType);
-                if (consensus.hasConsensus) {
-                    html += `<div class="consensus">${consensus.message}</div>`;
-                } else {
-                    html += `<div class="low-consensus">${consensus.message}</div>`;
-                }
-                
-                // Responses list
-                html += '<ul style="list-style: none; padding: 0;">';
-                for (let resp of responses) {
-                    const netClass = resp.netVotes > 0 ? 'positive' : (resp.netVotes < 0 ? 'negative' : 'neutral');
-                    html += `<li class="response-li">`;
-                    html += `<strong>${resp.username}</strong> (Attempt ${resp.attempt})`;
-                    html += `<span class="net-votes ${netClass}">Net: ${resp.netVotes} (↑${resp.approves} ↓${resp.disapproves})</span>`;
-                    html += `<div style="margin: 8px 0;">${resp.response}</div>`;
-                    if (resp.reason) {
-                        html += `<div style="font-style: italic; color: #666;">Reason: ${resp.reason}</div>`;
-                    }
-                    
-                    // Voting buttons
-                    html += `<div style="margin-top: 8px;">`;
-                    html += `<button class="vote-btn approve-btn" onclick="vote('${questionId}', '${resp.username}', 'approve')">Approve</button>`;
-                    html += `<button class="vote-btn disapprove-btn" onclick="vote('${questionId}', '${resp.username}', 'disapprove')">Disapprove</button>`;
-                    html += `<input type="text" class="vote-reason-input" id="vote-reason-${questionId}-${resp.username}" 
-                             placeholder="Optional: Why this vote?" onblur="saveVoteReason('${questionId}', '${resp.username}')">`;
-                    html += '</div>';
-                    
-                    // Display vote records
-                    if (resp.voteRecords.length > 0) {
-                        html += '<div style="margin-top: 8px;">';
-                        for (let record of resp.voteRecords) {
-                            const voteText = record.vote === 'approve' ? 'Approved' : 'Disapproved';
-                            html += `<div class="vote-record">${voteText} by ${record.voter}: "${record.reason}"</div>`;
-                        }
-                        html += '</div>';
-                    }
-                    
-                    html += '</li>';
-                }
-                html += '</ul>';
+            // Handle charts
+            if (attachments.chartType) {
+                html += renderChart(attachments, questionId);
+            }
+            
+            // Handle tables
+            if (attachments.table) {
+                html += renderTable(attachments.table);
+            }
+            
+            // Handle images
+            if (attachments.image) {
+                html += `
+                    <div class="image-container">
+                        <img src="${attachments.image}" alt="Question image" style="max-width: 100%; height: auto;">
+                    </div>
+                `;
             }
             
             return html;
         }
-
-        // Render dotplot using Chart.js
-        function renderDotplot(questionId, aggregateData) {
-            const canvas = document.getElementById(`dotplot-${questionId}`);
-            if (!canvas) return;
-            
-            const ctx = canvas.getContext('2d');
-            
-            // Prepare data for Chart.js horizontal bar chart (acting as dotplot)
-            const choices = Object.keys(aggregateData.choiceCounts).sort();
-            const counts = choices.map(c => aggregateData.choiceCounts[c]);
-            
-            // Step 6: Dark theme support for charts
-            let backgroundColor = '#36A2EB';
-            let borderColor = '#36A2EB';
-            let textColor = '#333333';
-            
-            if (document.body.classList.contains('dark-theme')) {
-                backgroundColor = 'rgba(255,255,255,0.2)';
-                borderColor = 'rgba(255,255,255,1)';
-                textColor = '#e0e0e0';
-            }
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: choices,
-                    datasets: [{
-                        label: 'Responses',
-                        data: counts,
-                        backgroundColor: backgroundColor,
-                        borderColor: borderColor,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1,
-                                color: textColor
-                            },
-                            title: {
-                                display: true,
-                                text: 'Count',
-                                color: textColor
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Choice',
-                                color: textColor
-                            },
-                            ticks: {
-                                color: textColor
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        datalabels: {
-                            display: true,
-                            color: textColor,
-                            anchor: 'end',
-                            align: 'right',
-                            formatter: (value) => value
-                        }
-                    }
-                }
-            });
-        }
-
-        // Vote function
-        window.vote = function(questionId, targetUser, voteType) {
-            if (!currentUsername) {
-                alert('Please enter your username first!');
-                return;
-            }
-            
-            initVotes();
-            
-            // Initialize vote structure
-            if (!classData.users[currentUsername].votes[questionId]) {
-                classData.users[currentUsername].votes[questionId] = {};
-            }
-            
-            // Show reason input
-            const reasonInput = document.getElementById(`vote-reason-${questionId}-${targetUser}`);
-            if (reasonInput) {
-                reasonInput.classList.add('show');
-            }
-            
-            // Save vote
-            classData.users[currentUsername].votes[questionId][targetUser] = {
-                vote: voteType,
-                reason: '',
-                timestamp: Date.now()
-            };
-            
-            // Save to localStorage
-            try {
-                localStorage.setItem('classData', JSON.stringify(classData));
-            } catch(e) {
-                console.log("Storage quota exceeded—data not saved");
-                alert("Storage full—data not saved");
-            }
-            
-            // Re-render view
-            renderView(questionId);
-        }
-
-        // Save vote reason
-        window.saveVoteReason = function(questionId, targetUser) {
-            const reasonInput = document.getElementById(`vote-reason-${questionId}-${targetUser}`);
-            if (!reasonInput) return;
-            
-            const reason = reasonInput.value.trim();
-            
-            if (classData.users[currentUsername].votes?.[questionId]?.[targetUser]) {
-                classData.users[currentUsername].votes[questionId][targetUser].reason = reason;
-                classData.users[currentUsername].votes[questionId][targetUser].timestamp = Date.now();
-                
-                // Save to localStorage
-                try {
-                    localStorage.setItem('classData', JSON.stringify(classData));
-                } catch(e) {
-                    console.log("Storage quota exceeded—data not saved");
-                    alert("Storage full—data not saved");
-                }
-                
-                // Re-render view
-                renderView(questionId);
-            }
-        }
-
-
-        // Theme management
-        function initTheme() {
-            const savedTheme = localStorage.getItem('quizTheme') || 'light';
-            currentTheme = savedTheme;
-            applyTheme(savedTheme);
-        }
-
-        function applyTheme(theme) {
-            const body = document.body;
-            const themeButton = document.querySelector('.theme-toggle');
-
-            if (theme === 'dark') {
-                body.classList.add('dark-theme');
-                themeButton.textContent = '☀️';
-            } else {
-                body.classList.remove('dark-theme');
-                themeButton.textContent = '🌙';
-            }
-
-            currentTheme = theme;
-            localStorage.setItem('quizTheme', theme);
-
-            // Re-render charts with appropriate theme
-            if (window.lastLoadedData) {
-                clearQuiz(true); // Silent clear
-                renderQuiz(window.lastLoadedData);
-            }
-        }
-
-        function toggleTheme() {
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            applyTheme(newTheme);
-            buttonTones.click();
-        }
-
-        function isDarkMode() {
-            return currentTheme === 'dark';
-        }
-
-        function generateChartColors(count) {
-            const lightColors = [
-                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
-                '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
-            ];
-
-            const darkColors = [
-                '#FF8FA3', '#5BC0EB', '#FFE066', '#6BE6E6',
-                '#B366FF', '#FFB366', '#FF8FA3', '#E9EBEF',
-                '#6BE6E6', '#FF8FA3', '#5BC0EB', '#FFE066'
-            ];
-
-            const colors = isDarkMode() ? darkColors : lightColors;
-            return colors.slice(0, count);
-        }
-
-        function getGridColor() {
-            return isDarkMode() ? '#555555' : '#e9ecef';
-        }
-
-        function getScatterPointColor() {
-            return isDarkMode() ? '#5BC0EB' : '#36A2EB';
-        }
-
-        function getTextColor() {
-            return isDarkMode() ? '#e0e0e0' : '#333333';
-        }
-
-        function showMessage(message, type = 'info') {
-            const messageArea = document.getElementById('messageArea');
-            const messageClass = type === 'error' ? 'error' : 'success';
-            messageArea.innerHTML = `<div class="${messageClass}">${message}</div>`;
-
-            // Play appropriate tone
-            if (type === 'error') {
-                buttonTones.error();
-            } else {
-                buttonTones.success();
-            }
-
-            // Clear message after 5 seconds
-            setTimeout(() => {
-                messageArea.innerHTML = '';
-            }, 5000);
-        }
-
-        function showStats(questions) {
-            const totalQuestions = questions.length;
-            const mcQuestions = questions.filter(q => q.type === 'multiple-choice').length;
-            const frQuestions = questions.filter(q => q.type === 'free-response').length;
-            const hasCharts = questions.filter(q => q.attachments && q.attachments.chartType).length;
-            const hasTables = questions.filter(q => q.attachments && q.attachments.table).length;
-
-            const barCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'bar').length;
-            const histograms = questions.filter(q => q.attachments && q.attachments.chartType === 'histogram').length;
-            const pieCharts = questions.filter(q => q.attachments && q.attachments.chartType === 'pie').length;
-            const scatterPlots = questions.filter(q => q.attachments && q.attachments.chartType === 'scatter').length;
-            const dotplots = questions.filter(q => q.attachments && q.attachments.chartType === 'dotplot').length;
-            const boxplots = questions.filter(q => q.attachments && q.attachments.chartType === 'boxplot').length;
-
-            let statsHtml = `
-                <div class="stats">
-                    <strong>📊 Quiz Statistics:</strong><br>
-                    Total Questions: ${totalQuestions} | 
-                    Multiple Choice: ${mcQuestions} | 
-                    Free Response: ${frQuestions}<br>
-                    Charts: ${hasCharts} | 
-                    Tables: ${hasTables}
-            `;
-
-            if (hasCharts > 0) {
-                statsHtml += `<br>Chart Types: `;
-                const chartTypes = [];
-                if (barCharts > 0) chartTypes.push(`Bar: ${barCharts}`);
-                if (histograms > 0) chartTypes.push(`Histogram: ${histograms}`);
-                if (pieCharts > 0) chartTypes.push(`Pie: ${pieCharts}`);
-                if (scatterPlots > 0) chartTypes.push(`Scatter: ${scatterPlots}`);
-                if (dotplots > 0) chartTypes.push(`Dotplot: ${dotplots}`);
-                if (boxplots > 0) chartTypes.push(`Boxplot: ${boxplots}`);
-                statsHtml += chartTypes.join(' | ');
-            }
-
-            statsHtml += `</div>`;
-            document.getElementById('statsArea').innerHTML = statsHtml;
-        }
-
-        function clearQuiz(silent = false) {
-            // Destroy all chart instances
-            chartInstances.forEach(chart => chart.destroy());
-            chartInstances = [];
-
-            // Clear containers
-            document.getElementById('questionsContainer').innerHTML = '';
-            document.getElementById('statsArea').innerHTML = '';
-            if (!silent) {
-                document.getElementById('messageArea').innerHTML = '';
-                document.getElementById('jsonInput').value = '';
-            }
-
-            // Hide and reset context finder
-            const contextDiv = document.getElementById('contextFinder');
-            if (contextDiv) {
-                contextDiv.style.display = 'none';
-                contextDiv.innerHTML = '';
-            }
-            if (contextObserver) {
-                contextObserver.disconnect();
-            }
-
-            if (!silent) {
-                showMessage('Quiz cleared successfully', 'success');
-                buttonTones.clear();
-            }
-        }
-
-        function loadFromFile() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                showMessage('Please select a file first', 'error');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const jsonText = e.target.result;
-                    const cleanedJson = cleanJsonText(jsonText);
-                    const data = JSON.parse(cleanedJson);
-                    renderQuiz(data);
-                    showMessage('Quiz loaded successfully from file!', 'success');
-                    buttonTones.load();
-                } catch (error) {
-                    showMessage('Error parsing JSON: ' + error.message, 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function loadFromTextarea() {
-            const jsonInput = document.getElementById('jsonInput').value.trim();
-
-            if (!jsonInput) {
-                showMessage('Please enter JSON data in the textarea', 'error');
-                return;
-            }
-
-            try {
-                const cleanedJson = cleanJsonText(jsonInput);
-                const data = JSON.parse(cleanedJson);
-                renderQuiz(data);
-                showMessage('Quiz loaded successfully from textarea!', 'success');
-                buttonTones.load();
-            } catch (error) {
-                showMessage('Error parsing JSON: ' + error.message, 'error');
-            }
-        }
-        // COMPLETE CHART RENDERING FROM ORIGINAL quiz_renderer.html
-                  // COMPLETE CHART RENDERING FROM ORIGINAL quiz_renderer.html
-                  function renderChart(chartData, questionId) {
+        
+        // Render chart placeholder (actual rendering happens later)
+        function renderChart(chartData, questionId) {
               const chartId = `chart-${questionId}`;
               const config = chartData.chartConfig || {};
 
@@ -2328,7 +1426,7 @@ function prevQuestion() {
                               }
                           }
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
 
                   } else if (chartData.chartType === 'pie') {
                       const seriesData = chartData.series[0].values;
@@ -2380,7 +1478,7 @@ function prevQuestion() {
                               }
                           }
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
 
                   } else if (chartData.chartType === 'scatter') {
                       const config = chartData.chartConfig || {};
@@ -2601,7 +1699,7 @@ function prevQuestion() {
                               }
                           }
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
 
                       // Add point label plugin AFTER chart creation to ensure meta is available
                       if (false && (hasPointLabels || config.showPointLabels)) {
@@ -2770,7 +1868,7 @@ function prevQuestion() {
                               }
                           }
                       });
-                       chartInstances.push(chart);
+                       chartInstances[chartId] = chart;
 
                       // Adjust chart height so stacked dots appear closer (rough heuristic)
                       const minHeight = 120;
@@ -3212,7 +2310,7 @@ function prevQuestion() {
                               }
                           }]
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
                   } else if (chartData.chartType === 'normal') {
                       // --------------------------------------------------
                       // Normal distribution curve with optional shaded region
@@ -3315,7 +2413,7 @@ function prevQuestion() {
                               plugins: { legend: { display: false }, datalabels: { display: false } }
                           }
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
                   } else if (chartData.chartType === 'chisquare') {
                       // --- New chi-square distribution rendering ---
                       const cfg = chartData.chartConfig || {};
@@ -3455,7 +2553,7 @@ function prevQuestion() {
                               }
                           }
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
                   } else if (chartData.chartType === 'numberline') {
                       // --------------------------------------------------
                       // Custom number line (baseline with ticks & labels)
@@ -3586,457 +2684,1084 @@ function prevQuestion() {
                           },
                           plugins: [numberLinePlugin]
                       });
-                      chartInstances.push(chart);
+                      chartInstances[chartId] = chart;
                   }
               }, 100);
 
               return chartHtml;
           }
+          // FIXED: Table rendering to handle both object and array formats
+          function renderTable(table) {
+              if (!table) return '';
+
+              let tableHtml = '<div class="table-container"><table>';
+
+              // Handle object format (with headers and rows properties)
+              if (table.headers && table.rows) {
+                  // Render headers
+                  tableHtml += '<thead><tr>';
+                  table.headers.forEach(header => {
+                      tableHtml += `<th>${header}</th>`;
+                  });
+                  tableHtml += '</tr></thead>';
+
+                  // Render rows
+                  if (table.rows && table.rows.length > 0) {
+                      tableHtml += '<tbody>';
+                      table.rows.forEach(row => {
+                          tableHtml += '<tr>';
+                          row.forEach(cell => {
+                              tableHtml += `<td>${cell}</td>`;
+                          });
+                          tableHtml += '</tr>';
+                      });
+                      tableHtml += '</tbody>';
+                  }
+              }
+              // Handle array format (legacy)
+              else if (Array.isArray(table) && table.length > 0) {
+                  const headers = table[0];
+                  const rows = table.slice(1);
+
+                  // Headers
+                  tableHtml += '<thead><tr>';
+                  headers.forEach(header => {
+                      tableHtml += `<th>${header}</th>`;
+                  });
+                  tableHtml += '</tr></thead>';
+
+                  // Rows
+                  if (rows.length > 0) {
+                      tableHtml += '<tbody>';
+                      rows.forEach(row => {
+                          tableHtml += '<tr>';
+                          row.forEach(cell => {
+                              tableHtml += `<td>${cell}</td>`;
+                          });
+                          tableHtml += '</tr>';
+                      });
+                      tableHtml += '</tbody>';
+                  }
+              }
+
+              tableHtml += '</table></div>';
+
+              return tableHtml;
+          }
+// Complete chart rendering function
+function renderChartNow(chartId) {
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+
+    // FIX: Check if chart already exists and destroy it
+    if (chartInstances[chartId]) {
+        chartInstances[chartId].destroy();
+        delete chartInstances[chartId];
+    }
+
+    const chartData = window.pendingCharts[chartId];
+    if (!chartData) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // FIX: Set canvas parent height to prevent infinite expansion
+    canvas.parentElement.style.height = '400px';
+    canvas.parentElement.style.position = 'relative';
+
+    const config = chartData.chartConfig || {};
+    
+    // Bar/Histogram charts
+    if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
+        const colorPalette = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+        const datasets = chartData.series.map((series, index) => ({
+            label: series.name,
+            data: series.values,
+            backgroundColor: colorPalette[index % colorPalette.length],
+            borderColor: colorPalette[index % colorPalette.length],
+            borderWidth: 1
+        }));
         
-        // FIXED: Table rendering to handle both object and array formats
-        function renderTable(table) {
-            if (!table) return '';
-
-            let tableHtml = '<div class="table-container"><table>';
-
-            // Handle object format (with headers and rows properties)
-            if (table.headers && table.rows) {
-                // Render headers
-                tableHtml += '<thead><tr>';
-                table.headers.forEach(header => {
-                    tableHtml += `<th>${header}</th>`;
-                });
-                tableHtml += '</tr></thead>';
-
-                // Render rows
-                if (table.rows && table.rows.length > 0) {
-                    tableHtml += '<tbody>';
-                    table.rows.forEach(row => {
-                        tableHtml += '<tr>';
-                        row.forEach(cell => {
-                            tableHtml += `<td>${cell}</td>`;
-                        });
-                        tableHtml += '</tr>';
-                    });
-                    tableHtml += '</tbody>';
+        const isHistogram = chartData.chartType === 'histogram';
+        
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.xLabels || [],
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: datasets.length > 1
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        min: config.yAxis?.min,
+                        max: config.yAxis?.max,
+                        title: {
+                            display: true,
+                            text: config.yAxis?.title || chartData.yLabel || 'Value'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: config.xAxis?.title || chartData.xLabel || 'Category'
+                        }
+                    }
                 }
             }
-            // Handle array format (legacy)
-            else if (Array.isArray(table) && table.length > 0) {
-                const headers = table[0];
-                const rows = table.slice(1);
-
-                // Headers
-                tableHtml += '<thead><tr>';
-                headers.forEach(header => {
-                    tableHtml += `<th>${header}</th>`;
-                });
-                tableHtml += '</tr></thead>';
-
-                // Rows
-                if (rows.length > 0) {
-                    tableHtml += '<tbody>';
-                    rows.forEach(row => {
-                        tableHtml += '<tr>';
-                        row.forEach(cell => {
-                            tableHtml += `<td>${cell}</td>`;
-                        });
-                        tableHtml += '</tr>';
-                    });
-                    tableHtml += '</tbody>';
+        });
+    }
+    
+    // Pie chart
+    else if (chartData.chartType === 'pie') {
+        const seriesData = chartData.series[0].values;
+        const labels = seriesData.map(item => item.name);
+        const values = seriesData.map(item => item.value);
+        
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
-
-            tableHtml += '</table></div>';
-
-            return tableHtml;
+        });
+    }
+    
+    // Scatter plot
+    else if (chartData.chartType === 'scatter') {
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Data Points',
+                    data: chartData.points,
+                    backgroundColor: '#36A2EB',
+                    borderColor: '#36A2EB',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        min: config.xAxis?.min,
+                        max: config.xAxis?.max,
+                        title: {
+                            display: true,
+                            text: config.xAxis?.title || chartData.xLabel || 'X Variable'
+                        }
+                    },
+                    y: {
+                        min: config.yAxis?.min,
+                        max: config.yAxis?.max,
+                        title: {
+                            display: true,
+                            text: config.yAxis?.title || chartData.yLabel || 'Y Variable'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Dotplot
+    else if (chartData.chartType === 'dotplot') {
+        const valueFrequency = {};
+        chartData.values.forEach(value => {
+            valueFrequency[value] = (valueFrequency[value] || 0) + 1;
+        });
+        
+        const dotplotData = [];
+        for (const [value, frequency] of Object.entries(valueFrequency)) {
+            for (let i = 1; i <= frequency; i++) {
+                dotplotData.push({
+                    x: parseFloat(value),
+                    y: i
+                });
+            }
         }
-
-        function renderChoices(choices, question) {
-            if (!choices || !Array.isArray(choices)) return '';
-
-            const questionId = question ? question.id : 'unknown';
-
-            // Step 3: Check attempts from classData instead
-            let attempts = 0;
-            if (currentUsername && classData && classData.users[currentUsername]) {
-                attempts = classData.users[currentUsername].attempts[questionId] || 0;
+        
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Data Points',
+                    data: dotplotData,
+                    backgroundColor: '#36A2EB',
+                    borderColor: '#36A2EB',
+                    pointRadius: 4,
+                    showLine: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: config.xAxis?.min,
+                        max: config.xAxis?.max,
+                        title: {
+                            display: true,
+                            text: config.xAxis?.title || 'Value'
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: Math.max(...Object.values(valueFrequency)) + 1,
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
             }
+        });
+    }
+    
+    // Boxplot
+    else if (chartData.chartType === 'boxplot') {
+        const boxplotData = config.boxplotData || {};
+        const { Q1, Q3, median, min, max } = boxplotData;
+        
+        // Create a simple representation using bar chart
+        chartInstances[chartId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Min', 'Q1', 'Median', 'Q3', 'Max'],
+                datasets: [{
+                    label: 'Five Number Summary',
+                    data: [min, Q1, median, Q3, max],
+                    backgroundColor: '#36A2EB'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: config.xAxis?.title || 'Value'
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
 
-            let choicesHtml = '<div class="choices">';
-            choices.forEach(choice => {
-                choicesHtml += `
-                    <div class="choice">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="choice-${questionId}" value="${choice.key}" 
-                                   ${attempts >= 3 ? 'disabled' : ''} />
-                            <span class="choice-key">${choice.key}.</span>
-                            <span class="choice-value">${choice.value}</span>
-                        </label>
-                    </div>
-                `;
+// Complete table rendering
+function renderTable(table) {
+    if (!table) return '';
+    
+    let html = '<div class="table-container"><table>';
+    
+    // Handle object format with headers and rows
+    if (table.headers && table.rows) {
+        html += '<thead><tr>';
+        table.headers.forEach(header => {
+            html += `<th>${header}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        table.rows.forEach(row => {
+            html += '<tr>';
+            row.forEach(cell => {
+                html += `<td>${cell}</td>`;
             });
-            choicesHtml += '</div>';
+            html += '</tr>';
+        });
+        html += '</tbody>';
+    }
+    // Handle array format (legacy)
+    else if (Array.isArray(table) && table.length > 0) {
+        const headers = table[0];
+        const rows = table.slice(1);
+        
+        html += '<thead><tr>';
+        headers.forEach(header => {
+            html += `<th>${header}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        if (rows.length > 0) {
+            html += '<tbody>';
+            rows.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody>';
+        }
+    }
+    
+    html += '</table></div>';
+    return html;
+}
 
-            return choicesHtml;
+// Updated renderAttachments to handle multiple charts
+function renderAttachments(attachments, questionId) {
+    let html = '';
+    
+    // Handle multiple charts
+    if (attachments.charts && Array.isArray(attachments.charts)) {
+        attachments.charts.forEach((chart, idx) => {
+            html += renderChart(chart, `${questionId}-chart-${idx}`);
+        });
+    }
+    // Handle single chart
+    else if (attachments.chartType) {
+        html += renderChart(attachments, `${questionId}-chart`);
+    }
+    
+    // Handle tables
+    if (attachments.table) {
+        html += renderTable(attachments.table);
+    }
+    
+    // Handle images
+    if (attachments.image) {
+        const imageAlt = attachments.imageAlt || 'Question image';
+        const imageCaption = attachments.imageCaption || '';
+        html += `
+            <div class="image-container">
+                <img src="${attachments.image}" alt="${imageAlt}" style="max-width: 100%; height: auto;">
+                ${imageCaption ? `<div style="text-align: center; font-style: italic; color: #666; margin-top: 5px;">${imageCaption}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    // Handle multiple images
+    if (attachments.images && Array.isArray(attachments.images)) {
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">';
+        attachments.images.forEach(img => {
+            html += `
+                <div style="flex: 1; min-width: 200px; max-width: 400px;">
+                    <img src="${img.url || img}" alt="${img.alt || 'Image'}" style="width: 100%; height: auto;">
+                    ${img.caption ? `<div style="text-align: center; font-style: italic; color: #666; margin-top: 5px;">${img.caption}</div>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    return html;
+}
+
+        // Render visible charts
+        function renderVisibleCharts() {
+            const chartContainers = document.querySelectorAll('[data-chart-id]');
+            chartContainers.forEach(container => {
+                const chartId = container.dataset.chartId;
+                if (window.pendingCharts && window.pendingCharts[chartId]) {
+                    renderChartNow(chartId);
+                    delete window.pendingCharts[chartId];
+                }
+            });
         }
 
-        function renderQuestion(question, index) {
-            const questionNumber = index + 1;
-            let questionHtml = `
-                <div class="quiz-container" data-question-number="${questionNumber}" data-question-id="${question.id || ''}">
-                    <div class="question-header">Question ${questionNumber}</div>
-                    <div class="question-id">ID: ${question.id || 'N/A'}</div>
-                    <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
-            `;
+        // Actually render a chart
+        function renderChartNow(chartId) {
+            const canvas = document.getElementById(chartId);
+            if (!canvas) return;
 
-            // Render attachments if present
-            if (question.attachments) {
-                // Render image if present
-                if (question.attachments.image) {
-                    const imageAlt = question.attachments.imageAlt || 'Question image';
-                    const imageCaption = question.attachments.imageCaption || '';
-                    questionHtml += `
-                        <div class="image-container">
-                            <img src="${question.attachments.image}" alt="${imageAlt}" class="question-image">
-                            ${imageCaption ? `<div class="image-caption">${imageCaption}</div>` : ''}
+            // FIX: Check if chart already exists and destroy it
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].destroy();
+                delete chartInstances[chartId];
+            }
+
+            const chartData = window.pendingCharts[chartId];
+            if (!chartData) return;
+
+            const ctx = canvas.getContext('2d');
+
+            // FIX: Set canvas parent height to prevent infinite expansion
+            canvas.parentElement.style.height = '400px';
+            canvas.parentElement.style.position = 'relative';
+
+            const config = chartData.chartConfig || {};
+            
+            // Simple bar/histogram chart
+            if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
+                const datasets = chartData.series.map(series => ({
+                    label: series.name,
+                    data: series.values,
+                    backgroundColor: '#36A2EB',
+                    borderColor: '#36A2EB',
+                    borderWidth: 1
+                }));
+                
+                chartInstances[chartId] = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.xLabels || [],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: config.yAxis?.title || 'Value'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: config.xAxis?.title || 'Category'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            // Add other chart types as needed
+        }
+
+        // Submit answer
+        window.submitAnswer = function(questionId, questionType) {
+            if (!currentUsername) {
+                showMessage('Please enter your username first!', 'error');
+                return;
+            }
+
+            const errorSpan = document.getElementById(`error-${questionId}`);
+            const successSpan = document.getElementById(`success-${questionId}`);
+            
+            // Clear previous messages
+            if (errorSpan) {
+                errorSpan.textContent = '';
+                errorSpan.classList.remove('show');
+            }
+            if (successSpan) {
+                successSpan.textContent = '';
+                successSpan.classList.remove('show');
+            }
+
+            // Get current attempt count
+            const attempts = getAttemptCount(questionId);
+            
+            // Check if can retry
+            if (attempts > 0 && !canRetry(questionId)) {
+                if (errorSpan) {
+                    errorSpan.textContent = attempts >= 3 ? 
+                        'Maximum attempts reached (3).' : 
+                        'Please provide reasoning with your previous answer to enable retry.';
+                    errorSpan.classList.add('show');
+                }
+                return;
+            }
+
+            // Get answer value
+            let value = '';
+            if (questionType === 'multiple-choice') {
+                const selectedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
+                if (!selectedRadio) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please select an answer.';
+                        errorSpan.classList.add('show');
+                    }
+                    return;
+                }
+                value = selectedRadio.value;
+            } else {
+                const textarea = document.getElementById(`frq-${questionId}`);
+                if (!textarea || !textarea.value.trim()) {
+                    if (errorSpan) {
+                        errorSpan.textContent = 'Please enter a response.';
+                        errorSpan.classList.add('show');
+                    }
+                    return;
+                }
+                value = textarea.value.trim();
+            }
+
+            // Get reason
+            const reasonTextarea = document.getElementById(`reason-${questionId}`);
+            const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+
+            // If this is a retry (attempts > 0), reason is required
+            if (attempts > 0 && !reason) {
+                if (errorSpan) {
+                    errorSpan.textContent = 'Reasoning is required for retry attempts.';
+                    errorSpan.classList.add('show');
+                }
+                reasonTextarea.classList.add('required');
+                reasonTextarea.focus();
+                return;
+            }
+
+            // Save answer
+            if (!classData.users[currentUsername]) {
+                classData.users[currentUsername] = {
+                    answers: {},
+                    reasons: {},
+                    timestamps: {},
+                    attempts: {}
+                };
+            }
+
+            classData.users[currentUsername].answers[questionId] = {
+                value: value,
+                timestamp: Date.now()
+            };
+            classData.users[currentUsername].reasons[questionId] = reason;
+            classData.users[currentUsername].timestamps[questionId] = Date.now();
+            classData.users[currentUsername].attempts[questionId] = attempts + 1;
+
+            saveClassData();
+
+            // Update UI
+            const submitBtn = document.getElementById(`submit-${questionId}`);
+            const qContainer = document.querySelector(`[data-question-id="${questionId}"]`);
+            
+            // Update button
+            if (submitBtn) {
+                if (!canRetry(questionId)) {
+                    submitBtn.textContent = 'Max Attempts Reached';
+                    submitBtn.disabled = true;
+                } else {
+                    submitBtn.textContent = 'Update Answer';
+                }
+            }
+
+            // Show success message
+            if (successSpan) {
+                successSpan.textContent = 'Answer submitted successfully!';
+                successSpan.classList.add('show');
+                setTimeout(() => {
+                    successSpan.classList.remove('show');
+                }, 3000);
+            }
+
+            // Update header to show answered
+            const header = qContainer.querySelector('.question-header');
+            if (header && !header.querySelector('span[style*="color"]')) {
+                header.innerHTML += '<span style="color: #a5d6a7;">✓ Answered</span>';
+            }
+
+            // Show/update dotplot
+            showDotplot(questionId, questionType);
+        }
+
+        // Show dotplot
+        function showDotplot(questionId, questionType) {
+            const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
+            if (!dotplotSection) return;
+
+            // Show the section with animation
+            if (!dotplotSection.classList.contains('show')) {
+                dotplotSection.classList.add('show');
+                dotplotSection.style.opacity = '0';
+                setTimeout(() => {
+                    dotplotSection.style.transition = 'opacity 0.3s ease';
+                    dotplotSection.style.opacity = '1';
+                }, 10);
+            }
+
+            if (questionType === 'multiple-choice') {
+                // Use bar chart for MCQ distribution
+                setTimeout(() => {
+                    renderMCQDistribution(questionId);
+                }, 100);
+            } else {
+                renderFRQResponses(questionId);
+            }
+        }
+
+        // Render MCQ distribution
+        function renderMCQDistribution(questionId) {
+            const canvas = document.getElementById(`dotplot-${questionId}`);
+            if (!canvas) return;
+
+            // Fix canvas dimensions to prevent infinite scroll
+            const container = canvas.parentElement;
+            container.style.height = '250px';
+            container.style.position = 'relative';
+            container.style.overflow = 'hidden';
+
+            // Aggregate responses
+            const choiceCounts = {};
+            let totalCount = 0;
+            const contributors = [];
+
+            // Get the question to know all possible choices
+            const question = currentQuestions.find(q => q.id === questionId);
+            const allChoices = question?.choices || question?.attachments?.choices || [];
+
+            // Initialize all choices with 0
+            allChoices.forEach(choice => {
+                choiceCounts[choice.key] = 0;
+            });
+
+            // Count actual responses
+            for (let username in classData.users) {
+                const userAnswer = classData.users[username].answers?.[questionId];
+                if (userAnswer) {
+                    const choice = userAnswer.value || userAnswer;
+                    const reason = classData.users[username].reasons?.[questionId] || '';
+
+                    choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
+                    totalCount++;
+                    contributors.push({
+                        username: username,
+                        choice: choice,
+                        reason: reason
+                    });
+                }
+            }
+
+            // Create bar chart (like your example JSON)
+            const ctx = canvas.getContext('2d');
+            const choices = Object.keys(choiceCounts).sort();
+            const counts = choices.map(c => choiceCounts[c] || 0);
+            const relativeFrequencies = counts.map(c => totalCount > 0 ? c / totalCount : 0);
+
+            // Destroy existing chart if any
+            if (chartInstances[`dotplot-${questionId}`]) {
+                chartInstances[`dotplot-${questionId}`].destroy();
+            }
+
+            // Create bar chart with relative frequencies
+            chartInstances[`dotplot-${questionId}`] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: choices,
+                    datasets: [{
+                        label: 'Relative Frequency',
+                        data: relativeFrequencies,
+                        backgroundColor: choices.map(c => {
+                            // Highlight user's choice in different color
+                            const userChoice = classData.users[currentUsername]?.answers?.[questionId];
+                            const userChoiceValue = userChoice?.value || userChoice;
+                            return c === userChoiceValue ? '#4CAF50' : '#36A2EB';
+                        }),
+                        borderColor: '#2196F3',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                stepSize: 0.1,
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Relative Frequency'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Answer Choice'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    const percentage = (value * 100).toFixed(1);
+                                    const count = counts[context.dataIndex];
+                                    return `${percentage}% (${count} of ${totalCount} responses)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Show consensus message
+            const consensusDiv = document.getElementById(`consensus-${questionId}`);
+            if (consensusDiv) {
+                if (totalCount > 1) {
+                    const maxFreq = Math.max(...relativeFrequencies);
+                    const modeIndex = relativeFrequencies.indexOf(maxFreq);
+                    const mode = choices[modeIndex];
+                    const percentage = (maxFreq * 100).toFixed(0);
+
+                    // Check for consensus (70% or more agreement)
+                    if (maxFreq >= 0.7) {
+                        consensusDiv.innerHTML = `
+                            <div class="consensus-msg consensus">
+                                ✓ Consensus reached on choice ${mode} (${percentage}% agreement)
+                            </div>
+                        `;
+                    } else {
+                        consensusDiv.innerHTML = `
+                            <div class="consensus-msg no-consensus">
+                                No consensus yet - highest agreement: ${mode} at ${percentage}%
+                            </div>
+                        `;
+                    }
+                } else {
+                    consensusDiv.innerHTML = `
+                        <div class="consensus-msg no-consensus">
+                            You're the first to answer! Import class data to see peer responses.
                         </div>
                     `;
                 }
-
-                // Handle multiple charts
-                if (question.attachments.charts && Array.isArray(question.attachments.charts)) {
-                    if (question.attachments.charts.length > 1) {
-                        questionHtml += '<div class="multiple-charts-container">';
-                        question.attachments.charts.forEach((chart, idx) => {
-                            questionHtml += renderChart(chart, `${question.id}-${idx}`);
-                        });
-                        questionHtml += '</div>';
-                    } else if (question.attachments.charts.length === 1) {
-                        questionHtml += renderChart(question.attachments.charts[0], question.id);
-                    }
-                } else if (question.attachments.chartType) {
-                    questionHtml += renderChart(question.attachments, question.id);
-                }
-
-                if (question.attachments.table) {
-                    questionHtml += renderTable(question.attachments.table);
-                }
-
-                // Render choices if present (in attachments)
-                if (question.attachments.choices) {
-                    questionHtml += renderChoices(question.attachments.choices, question);
-                }
             }
 
-            // Handle choices at top level (new format) for MCQ
-            if (question.type === 'multiple-choice' && question.choices) {
-                questionHtml += renderChoices(question.choices, question);
+            // Show contributors with their choices and reasons
+            const contributorsDiv = document.getElementById(`contributors-${questionId}`);
+            if (contributorsDiv && contributors.length > 0) {
+                let html = '<h4 style="margin-top: 10px;">Individual Responses:</h4>';
+                contributors.forEach(c => {
+                    const isCurrentUser = c.username === currentUsername;
+                    html += `
+                        <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
+                            <span class="contributor-choice">${c.username} → Choice ${c.choice}</span>
+                            ${c.reason ? `<div class="contributor-reason">"${c.reason}"</div>` : ''}
+                        </div>
+                    `;
+                });
+                contributorsDiv.innerHTML = html;
             }
+        }
 
-            // Add FRQ textarea for free-response questions
-            if (question.type === 'free-response') {
-                // Step 3: Check attempts from classData
-                let attempts = 0;
-                if (currentUsername && classData && classData.users[currentUsername]) {
-                    attempts = classData.users[currentUsername].attempts[question.id] || 0;
-                }
-                questionHtml += `
-                    <div class="frq-wrapper">
-                        <textarea 
-                            id="frq-textarea-${question.id}"
-                            class="frq-textarea" 
-                            placeholder="Enter your complete response here"
-                            ${attempts >= 3 ? 'disabled' : ''}
-                        ></textarea>
-                    </div>
-                `;
-            }
-
-            // Add reason textarea and submit button zone
-            // Step 3: Check attempts from classData
-            let attempts = 0;
-            if (currentUsername && classData && classData.users[currentUsername]) {
-                attempts = classData.users[currentUsername].attempts[question.id] || 0;
-            }
-            questionHtml += `
-                <div class="reason-wrapper">
-                    <label for="reason-textarea-${question.id}" style="display: block; margin-bottom: 5px; font-weight: bold;">
-                        Optional: Explain your reasoning (visible to peers)
-                    </label>
-                    <textarea 
-                        id="reason-textarea-${question.id}"
-                        class="reason-textarea" 
-                        placeholder="Why did you choose this answer?"
-                        ${attempts >= 3 ? 'disabled' : ''}
-                    ></textarea>
-                </div>
-
-                <!-- Submit button zone with error message -->
-                <div class="question-submit-zone">
-                    <span id="error-${question.id}" class="error-msg"></span>
-                    <button 
-                        id="submit-${question.id}"
-                        class="submit-button" 
-                        onclick="submitAnswer('${question.id}', '${question.type}')"
-                        ${attempts >= 3 ? 'disabled' : ''}
-                    >
-                        ${attempts >= 3 ? 'Maximum attempts reached (3/3)' : `Submit Answer (Attempt ${attempts + 1} of 3)`}
-                    </button>
-                    <button 
-                        id="view-${question.id}"
-                        class="view-button" 
-                        style="margin-left: 10px; display: none;"
-                        disabled
-                        onclick="toggleView('${question.id}')"
-                        title="See class consensus"
-                    >
-                        View Distribution
-                    </button>
-                    <div id="success-${question.id}" class="submission-success"></div>
-                    ${attempts >= 3 ? '<div class="max-attempts-message" style="color: #ff9800; font-weight: bold;">Maximum 3 attempts reached - no further changes allowed</div>' : ''}
-                </div>
-            `;
-
+        // Render FRQ responses
+        function renderFRQResponses(questionId) {
+            const canvas = document.getElementById(`dotplot-${questionId}`);
+            const consensusDiv = document.getElementById(`consensus-${questionId}`);
+            const contributorsDiv = document.getElementById(`contributors-${questionId}`);
             
-            // Add view section container
-            questionHtml += `<div id="view-section-${question.id}" class="view-section"></div>`;
-            questionHtml += '</div>';
-            return questionHtml;
-        }
-
-        function cleanJsonText(text) {
-            try {
-                // Step 1: Remove all comment lines and empty lines
-                const lines = text.split('\n');
-                const cleanedLines = lines.filter(line => {
-                    const trimmed = line.trim();
-                    return trimmed && !trimmed.startsWith('//');
+            if (canvas) canvas.style.display = 'none';
+            
+            const responses = [];
+            for (let username in classData.users) {
+                const userAnswer = classData.users[username].answers?.[questionId];
+                if (userAnswer) {
+                    const response = userAnswer.value || userAnswer;
+                    const reason = classData.users[username].reasons?.[questionId] || '';
+                    responses.push({
+                        username: username,
+                        response: response,
+                        reason: reason
+                    });
+                }
+            }
+            
+            if (consensusDiv) {
+                if (responses.length > 1) {
+                    consensusDiv.innerHTML = `
+                        <div class="consensus-msg no-consensus">
+                            ${responses.length} responses submitted. Review peer responses below.
+                        </div>
+                    `;
+                } else {
+                    consensusDiv.innerHTML = `
+                        <div class="consensus-msg no-consensus">
+                            Your response recorded. Import class data to see peer responses.
+                        </div>
+                    `;
+                }
+            }
+            
+            if (contributorsDiv) {
+                let html = '<h4>Responses:</h4>';
+                responses.forEach(r => {
+                    html += `
+                        <div class="contributor-item">
+                            <strong>${r.username}:</strong>
+                            <div style="margin-top: 5px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                                ${r.response}
+                            </div>
+                            ${r.reason ? `<div class="contributor-reason">${r.reason}</div>` : ''}
+                        </div>
+                    `;
                 });
-
-                // Step 2: Join and attempt to parse
-                let cleanedText = cleanedLines.join('\n');
-
-                // Step 3: Remove trailing commas before closing brackets/braces
-                cleanedText = cleanedText.replace(/,\s*}/g, '}');
-                cleanedText = cleanedText.replace(/,\s*]/g, ']');
-
-                return cleanedText;
-            } catch (e) {
-                // If cleaning fails, return original text
-                return text;
+                contributorsDiv.innerHTML = html;
             }
         }
 
-        function renderQuiz(data) {
-            try {
-                // Store data for dark mode re-rendering
-                window.lastLoadedData = data;
-
-                // Clear existing charts first
-                chartInstances.forEach(chart => chart.destroy());
-                chartInstances = [];
-
-                let questions = [];
-
-                // Handle different JSON structures
-                if (Array.isArray(data)) {
-                    questions = data;
-                } else if (data.questions && Array.isArray(data.questions)) {
-                    questions = data.questions;
-                } else if (typeof data === 'object') {
-                    // Check if it's a single question object
-                    if (data.id && data.prompt) {
-                        questions = [data];
-                    } else {
-                        // Try to extract questions from object properties
-                        questions = Object.values(data).filter(item =>
-                            typeof item === 'object' && item.id && item.prompt
-                        );
+        // Load progress
+        function loadProgress() {
+            if (!currentUsername || !classData) return;
+            
+            currentQuestions.forEach(question => {
+                const qId = question.id;
+                const qContainer = document.querySelector(`[data-question-id="${qId}"]`);
+                if (!qContainer) return;
+                
+                const isAnswered = isQuestionAnswered(qId);
+                if (isAnswered) {
+                    // Show dotplot if answered
+                    const questionType = question.type;
+                    showDotplot(qId, questionType);
+                    
+                    // Update button state
+                    const submitBtn = document.getElementById(`submit-${qId}`);
+                    if (submitBtn) {
+                        if (!canRetry(qId)) {
+                            submitBtn.textContent = 'Max Attempts Reached';
+                            submitBtn.disabled = true;
+                        } else {
+                            submitBtn.textContent = 'Update Answer';
+                        }
                     }
-                }
-
-                if (questions.length === 0) {
-                    showMessage('No valid questions found in the JSON data. Please check the format.');
-                    return;
-                }
-
-                showStats(questions);
-
-                const questionsContainer = document.getElementById('questionsContainer');
-
-                // Add app controls at the top
-                let questionsHtml = `
-                    <div class="app-controls">
-                        <div class="user-info">
-                            <input type="text" id="username" placeholder="Enter username" />
-                            <button class="set-username-btn" onclick="setUsername()">Set Username</button>
-                        </div>
-                        <div class="navigation-controls">
-                            <button class="nav-button" id="prev-btn" onclick="prevQuestion()">← Previous</button>
-                            <span id="progress" style="margin: 0 15px; font-weight: bold;">Question 1/${questions.length}</span>
-                            <button class="nav-button" id="next-btn" onclick="nextQuestion()">Next →</button>
-                            <br>
-                            <progress id="nav-progress" value="1" max="${questions.length}" style="width: 100%; margin-top: 10px;"></progress>
-                        </div>
-                        <button id="modeToggle" onclick="toggleMode()">Switch to View Mode</button>
-                        <button id="export-btn" class="load-button" onclick="exportPersonal()">Export My Data</button>
-                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                        <button class="load-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
-                        <input type="file" id="merge-input" multiple accept=".json" style="display:none;" onchange="mergeImports(event)">
-                        <button class="load-button" onclick="document.getElementById('merge-input').click()">Merge Imports</button>
-                        <div id="sync-status"></div>
-                    </div>
-                `;
-
-                questions.forEach((question, index) => {
-                    questionsHtml += renderQuestion(question, index);
-                });
-
-                questionsContainer.innerHTML = questionsHtml;
-
-                // Step 6: Show only current question
-                // This should already be in renderQuiz, around line 3700
-questions.forEach((q, i) => {
-    let div = document.querySelector(`[data-question-id="${q.id}"]`);
-    if (div) {
-        if (i === currentIndex) {
-            div.style.display = 'block';
-            div.setAttribute('data-current', 'true');
-        } else {
-            div.style.display = 'none';
-            div.removeAttribute('data-current');
-        }
-    }
-});
-                updateProgress();
-
-                // Trigger MathJax rendering for LaTeX content
-                if (window.MathJax) {
-                    MathJax.typesetPromise().catch((e) => console.log('MathJax error:', e));
-                }
-
-                // Initialize context finder after questions are rendered
-                initContextFinder();
-
-                // Step 3: Load progress after rendering
-                loadProgress();
-
-                showMessage(`Successfully loaded ${questions.length} question(s)!`, 'success');
-            } catch (error) {
-                showMessage('Error rendering quiz: ' + error.message, 'error');
-                console.error('Render error:', error);
-            }
-        }
-
-        function updateContextFinder() {
-            const contextDiv = document.getElementById('contextFinder');
-            if (!contextDiv) return;
-
-            const questionElements = document.querySelectorAll('.quiz-container[data-current="true"]');
-            if (questionElements.length > 0) {
-                const currentEl = questionElements[0];
-                const questionNumber = currentEl.getAttribute('data-question-number');
-                const questionId = currentEl.getAttribute('data-question-id');
-                contextDiv.innerHTML = `📍 Question ${questionNumber}<br><small>${questionId || 'No ID'}</small>`;
-            }
-        }
-
-        function initContextFinder() {
-            const contextDiv = document.getElementById('contextFinder');
-            if (!contextDiv) return;
-
-            // Disconnect previous observer if it exists (not used now but for cleanup)
-            if (contextObserver) {
-                contextObserver.disconnect();
-            }
-
-            // Attach scroll handler once
-            if (!contextScrollHandlerAttached) {
-                window.addEventListener('scroll', () => requestAnimationFrame(updateContextFinder));
-                window.addEventListener('resize', () => requestAnimationFrame(updateContextFinder));
-                contextScrollHandlerAttached = true;
-            }
-
-            // Initial content and display
-            const questionElements = document.querySelectorAll('.quiz-container[data-current="true"]');
-            if (questionElements.length > 0) {
-                const firstQuestion = questionElements[0];
-                const questionNumber = firstQuestion.getAttribute('data-question-number');
-                const questionId = firstQuestion.getAttribute('data-question-id');
-                contextDiv.innerHTML = `📍 Question ${questionNumber}<br><small>${questionId || 'No ID'}</small>`;
-            }
-
-            contextDiv.style.display = 'block';
-            updateContextFinder();
-        }
-
-        // Mode toggle functionality
-        function toggleMode() {
-            const currentMode = document.body.getAttribute('data-mode') || 'answer';
-            const newMode = currentMode === 'answer' ? 'view' : 'answer';
-            document.body.setAttribute('data-mode', newMode);
-
-            const button = document.getElementById('modeToggle');
-            if (button) {
-                button.textContent = newMode === 'answer' ? 'Switch to View Mode' : 'Switch to Answer Mode';
-            }
-
-            buttonTones.click();
-        }
-
-        // Initialize mode on load
-        document.addEventListener('DOMContentLoaded', () => {
-            document.body.setAttribute('data-mode', 'answer');
-
-            // Check for username in localStorage
-            const savedUsername = localStorage.getItem('consensusUsername');
-            if (savedUsername) {
-                const usernameInput = document.getElementById('username');
-                if (usernameInput) {
-                    usernameInput.value = savedUsername;
-                }
-            }
-
-            // Save username on change
-            document.addEventListener('input', (e) => {
-                if (e.target.id === 'username') {
-                    localStorage.setItem('consensusUsername', e.target.value);
                 }
             });
+        }
+
+        // Export personal data
+        window.exportPersonal = function() {
+            const personalData = {
+                exportTime: Date.now(),
+                username: currentUsername,
+                users: {
+                    [currentUsername]: classData.users[currentUsername]
+                }
+            };
             
-            // Step 6: Check localStorage support
-            if (!window.localStorage) {
-                alert("LocalStorage disabled—app may not save data");
+            const blob = new Blob([JSON.stringify(personalData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentUsername}_data.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('Personal data exported successfully!', 'success');
+        }
+
+        // Import class data
+        window.importClassData = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    mergeClassData(imported);
+                    showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
+                    
+                    // Re-render dotplots to show new data
+                    loadProgress();
+                } catch(err) {
+                    showMessage('Error importing file: Invalid JSON format', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Merge imported data with existing data
+        function mergeClassData(imported) {
+            if (!imported.users) return;
+            
+            for (let username in imported.users) {
+                if (!classData.users[username]) {
+                    classData.users[username] = {
+                        answers: {},
+                        reasons: {},
+                        timestamps: {},
+                        attempts: {}
+                    };
+                }
+                
+                const importedUser = imported.users[username];
+                const localUser = classData.users[username];
+                
+                // Merge answers based on timestamp
+                for (let qId in importedUser.answers) {
+                    const importedTs = importedUser.timestamps?.[qId] || 0;
+                    const localTs = localUser.timestamps?.[qId] || 0;
+                    
+                    if (importedTs > localTs) {
+                        localUser.answers[qId] = importedUser.answers[qId];
+                        localUser.reasons[qId] = importedUser.reasons?.[qId] || '';
+                        localUser.timestamps[qId] = importedTs;
+                        localUser.attempts[qId] = importedUser.attempts?.[qId] || 1;
+                    }
+                }
             }
             
-            // Step 6: Load current index
-            currentIndex = parseInt(localStorage.getItem('currentIndex')) || 0;
-        });
+            saveClassData();
+        }
 
-        // Load sample data on page load
+        // Show message
+        function showMessage(text, type) {
+            const messageArea = document.getElementById('messageArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            
+            messageArea.innerHTML = '';
+            messageArea.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.style.opacity = '0';
+                setTimeout(() => messageArea.innerHTML = '', 300);
+            }, 5000);
+        }
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('quizTheme') || 'light';
+            currentTheme = savedTheme;
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            const body = document.body;
+            const themeButton = document.querySelector('.theme-toggle');
+            
+            if (theme === 'dark') {
+                body.classList.add('dark-theme');
+                if (themeButton) themeButton.textContent = '☀️';
+            } else {
+                body.classList.remove('dark-theme');
+                if (themeButton) themeButton.textContent = '🌙';
+            }
+            
+            currentTheme = theme;
+            localStorage.setItem('quizTheme', theme);
+        }
+
+        window.toggleTheme = function() {
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            applyTheme(newTheme);
+        }
+
+        // Initialize on load
         window.onload = function() {
             initTheme();
-            promptUsername();
             
-            // Step 6: Check localStorage support
+            // Check localStorage support
             if (!window.localStorage) {
-                alert("LocalStorage disabled—app may not save data");
+                showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
             }
             
-            // Step 6: Load current index
-            currentIndex = parseInt(localStorage.getItem('currentIndex')) || 0;
+            promptUsername();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S to export data
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (currentUsername) {
+                    exportPersonal();
+                }
+            }
+        });
+
+        // Intersection Observer for lazy loading charts (optional enhancement)
+        if ('IntersectionObserver' in window) {
+            const chartObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const container = entry.target;
+                        const chartId = container.dataset.chartId;
+                        if (chartId && window.pendingCharts && window.pendingCharts[chartId]) {
+                            renderChartNow(chartId);
+                            delete window.pendingCharts[chartId];
+                            chartObserver.unobserve(container);
+                        }
+                    }
+                });
+            }, {
+                rootMargin: '100px'
+            });
             
-            showMessage('🚀 Consensus Quiz Renderer Ready! Load your curriculum.json to start.', 'success');
-        };
+            // Observe chart containers when they're created
+            window.observeChartContainers = function() {
+                document.querySelectorAll('[data-chart-id]').forEach(container => {
+                    chartObserver.observe(container);
+                });
+            }
+        }
 
-        // Generic click sound for ANY interactive element
-        document.addEventListener('click', function initAudioOnFirstClick() {
-    initAudioContext();
-    document.removeEventListener('click', initAudioOnFirstClick);
-}, { once: true });
+        // Auto-save reminder
+        let lastSaveTime = Date.now();
+        setInterval(() => {
+            if (Date.now() - lastSaveTime > 300000) { // 5 minutes
+                const reminder = document.createElement('div');
+                reminder.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    background: #ff9800;
+                    color: white;
+                    padding: 10px 15px;
+                    border-radius: 5px;
+                    z-index: 1000;
+                    cursor: pointer;
+                `;
+                reminder.textContent = 'Remember to export your data!';
+                reminder.onclick = () => {
+                    exportPersonal();
+                    reminder.remove();
+                };
+                document.body.appendChild(reminder);
+                setTimeout(() => reminder.remove(), 10000);
+            }
+        }, 60000); // Check every minute
 
-    
+        // Update last save time when data changes
+        window.updateLastSaveTime = function() {
+            lastSaveTime = Date.now();
+        }
+
+        // Override saveClassData to update save time
+        const originalSaveClassData = saveClassData;
+        window.saveClassData = function() {
+            originalSaveClassData();
+            updateLastSaveTime();
+        }
     </script>
 </body>
 </html>
