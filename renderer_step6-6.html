@@ -646,6 +646,59 @@
             }
         }
 
+        // Student Performance Badges
+        function calculateBadges(username) {
+            const userAnswers = classData.users[username]?.answers || {};
+            const userReasons = classData.users[username]?.reasons || {};
+            const userAttempts = classData.users[username]?.attempts || {};
+
+            const totalAnswers = Object.keys(userAnswers).length;
+            if (totalAnswers === 0) return [];
+
+            const badges = [];
+
+            // Calculate outlier/conformist
+            let modeMatches = 0;
+            let outlierCount = 0;
+
+            Object.keys(userAnswers).forEach(qId => {
+                const allAnswers = Object.values(classData.users)
+                    .map(u => u.answers?.[qId]?.value || u.answers?.[qId])
+                    .filter(a => a);
+
+                if (allAnswers.length > 1) {
+                    const mode = getMostFrequent(allAnswers);
+                    const userAnswer = userAnswers[qId]?.value || userAnswers[qId];
+                    if (userAnswer === mode) modeMatches++;
+                    else outlierCount++;
+                }
+            });
+
+            if (outlierCount > totalAnswers * 0.5) badges.push('🎯 Outlier');
+            if (modeMatches > totalAnswers * 0.8) badges.push('👥 Conformist');
+
+            // Explorer badge
+            const multiAttempts = Object.values(userAttempts).filter(a => a >= 2).length;
+            if (multiAttempts > totalAnswers * 0.3) badges.push('🔄 Explorer');
+
+            // Silent type vs Debater
+            const reasonCount = Object.values(userReasons).filter(r => r && r.trim()).length;
+            if (reasonCount < totalAnswers * 0.2) badges.push('🤐 Silent Type');
+            else if (reasonCount > totalAnswers * 0.8) badges.push('💬 Debater');
+
+            // Completionist
+            const totalQuestions = currentQuestions.length;
+            if (totalAnswers === totalQuestions && totalQuestions > 0) badges.push('✅ Completionist');
+
+            return badges;
+        }
+
+        function getMostFrequent(arr) {
+            const counts = {};
+            arr.forEach(x => counts[x] = (counts[x] || 0) + 1);
+            return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        }
+
         // Check if question has been answered
         function isQuestionAnswered(questionId) {
             return classData.users[currentUsername]?.answers?.[questionId] !== undefined;
@@ -3485,9 +3538,11 @@ function renderAttachments(attachments, questionId) {
                 let html = '<h4 style="margin-top: 10px;">Individual Responses:</h4>';
                 contributors.forEach(c => {
                     const isCurrentUser = c.username === currentUsername;
+                    const badges = calculateBadges(c.username);
+                    const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
                     html += `
                         <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
-                            <span class="contributor-choice">${c.username} → Choice ${c.choice}</span>
+                            <span class="contributor-choice">${c.username}${badgeText} → Choice ${c.choice}</span>
                             ${c.reason ? `<div class="contributor-reason">"${c.reason}"</div>` : ''}
                         </div>
                     `;
