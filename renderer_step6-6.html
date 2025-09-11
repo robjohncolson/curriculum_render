@@ -7,6 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -817,6 +818,8 @@
                 </div>
                 <div class="app-controls">
                     <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
+                    <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
                     <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
                     <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                 </div>
@@ -1008,6 +1011,8 @@
                 </div>
                 <div class="app-controls">
                     <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
+                    <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
                     <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
                     <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                 </div>
@@ -3656,6 +3661,58 @@ function renderAttachments(attachments, questionId) {
             URL.revokeObjectURL(url);
             
             showMessage('Personal data exported successfully!', 'success');
+        }
+
+        // QR Code Sync functions
+        window.showQRSync = function() {
+            const personalData = {
+                exportTime: Date.now(),
+                username: currentUsername,
+                users: {
+                    [currentUsername]: classData.users[currentUsername]
+                }
+            };
+
+            const dataStr = JSON.stringify(personalData);
+            const compressed = btoa(dataStr); // Basic compression
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;">
+                    <h2>Share Your Data via QR</h2>
+                    <div id="qrcode" style="margin: 20px auto;"></div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="submit-button">Close</button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            new QRCode(document.getElementById("qrcode"), {
+                text: compressed,
+                width: 256,
+                height: 256
+            });
+        }
+
+        window.scanQR = function() {
+            // Simple text input fallback since camera access requires HTTPS
+            const input = prompt("Paste QR code data:");
+            if (input) {
+                try {
+                    const decoded = atob(input);
+                    const imported = JSON.parse(decoded);
+                    mergeClassData(imported);
+                    showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
+                    loadProgress();
+                } catch(e) {
+                    showMessage('Invalid QR data', 'error');
+                }
+            }
         }
 
         // Import class data
