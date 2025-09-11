@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -3746,8 +3747,16 @@ function renderAttachments(attachments, questionId) {
                 }
             };
 
+            // Compress more aggressively for large datasets
             const dataStr = JSON.stringify(personalData);
-            const compressed = btoa(dataStr); // Basic compression
+            const compressed = btoa(encodeURIComponent(dataStr).replace(/%([0-9A-F]{2})/g,
+                (match, p1) => String.fromCharCode('0x' + p1)));
+
+            // Check if data is too large for QR code (practical limit ~2950 chars)
+            if (compressed.length > 2950) {
+                showMessage('Data too large for QR code. Use file export instead.', 'error');
+                return;
+            }
 
             const modal = document.createElement('div');
             modal.style.cssText = `
@@ -3760,6 +3769,7 @@ function renderAttachments(attachments, questionId) {
                 <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;">
                     <h2>Share Your Data via QR</h2>
                     <div id="qrcode" style="margin: 20px auto;"></div>
+                    <p style="color: #666;">Data size: ${compressed.length} chars</p>
                     <button onclick="this.parentElement.parentElement.remove()" class="submit-button">Close</button>
                 </div>
             `;
@@ -3768,24 +3778,124 @@ function renderAttachments(attachments, questionId) {
             new QRCode(document.getElementById("qrcode"), {
                 text: compressed,
                 width: 256,
-                height: 256
+                height: 256,
+                correctLevel: QRCode.CorrectLevel.L // Lower error correction for more data capacity
             });
         }
 
         window.scanQR = function() {
-            // Simple text input fallback since camera access requires HTTPS
-            const input = prompt("Paste QR code data:");
-            if (input) {
-                try {
-                    const decoded = atob(input);
-                    const imported = JSON.parse(decoded);
-                    mergeClassData(imported);
-                    showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
-                    loadProgress();
-                } catch(e) {
-                    showMessage('Invalid QR data', 'error');
-                }
-            }
+            // Create modal for scanner
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.9); z-index: 2000;
+                display: flex; align-items: center; justify-content: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%;">
+                    <h2 style="margin-bottom: 20px;">Scan QR Code</h2>
+                    <div id="qr-reader" style="width: 100%;"></div>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button id="stop-scan-btn" class="submit-button" style="background: #f44336;">Stop Scanning</button>
+                        <button id="paste-btn" class="submit-button" style="background: #ff9800; margin-left: 10px;">Paste Instead</button>
+                    </div>
+                    <div id="scan-result" style="margin-top: 15px; padding: 10px; display: none;"></div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Initialize QR scanner
+            const html5QrCode = new Html5Qrcode("qr-reader");
+
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                // Stop scanning
+                html5QrCode.stop().then(() => {
+                    // Process the QR data
+                    try {
+                        const decoded = atob(decodedText);
+                        const imported = JSON.parse(decoded);
+                        mergeClassData(imported);
+                        showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
+                        loadProgress();
+                        modal.remove();
+                    } catch(e) {
+                        const resultDiv = document.getElementById('scan-result');
+                        resultDiv.style.display = 'block';
+                        resultDiv.style.color = 'red';
+                        resultDiv.textContent = 'Invalid QR code data. Try another code.';
+                        // Restart scanning after error
+                        setTimeout(() => {
+                            resultDiv.style.display = 'none';
+                            startScanning();
+                        }, 2000);
+                    }
+                }).catch(err => {
+                    console.error("Failed to stop scanning", err);
+                });
+            };
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
+
+            const startScanning = () => {
+                // Try rear camera first, fall back to front camera
+                html5QrCode.start(
+                    { facingMode: "environment" }, // Rear camera
+                    config,
+                    qrCodeSuccessCallback
+                ).catch(err => {
+                    // Try front camera if rear fails
+                    html5QrCode.start(
+                        { facingMode: "user" }, // Front camera
+                        config,
+                        qrCodeSuccessCallback
+                    ).catch(err => {
+                        // No camera available, show error
+                        const resultDiv = document.getElementById('scan-result');
+                        resultDiv.style.display = 'block';
+                        resultDiv.style.color = 'orange';
+                        resultDiv.textContent = 'Camera not available. Use "Paste Instead" button.';
+                    });
+                });
+            };
+
+            startScanning();
+
+            // Stop button handler
+            document.getElementById('stop-scan-btn').onclick = () => {
+                html5QrCode.stop().then(() => {
+                    modal.remove();
+                }).catch(err => {
+                    console.error("Failed to stop", err);
+                    modal.remove();
+                });
+            };
+
+            // Paste button handler (fallback)
+            document.getElementById('paste-btn').onclick = () => {
+                html5QrCode.stop().then(() => {
+                    const input = prompt("Paste QR code data:");
+                    if (input) {
+                        try {
+                            const decoded = atob(input);
+                            const imported = JSON.parse(decoded);
+                            mergeClassData(imported);
+                            showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
+                            loadProgress();
+                        } catch(e) {
+                            showMessage('Invalid QR data', 'error');
+                        }
+                    }
+                    modal.remove();
+                }).catch(err => {
+                    modal.remove();
+                });
+            };
         }
 
         // Import class data
