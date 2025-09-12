@@ -4554,15 +4554,32 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             const data = JSON.parse(e.target.result);
                             const questions = Array.isArray(data) ? data : (data.questions || []);
 
-                            // Detect unit from question IDs
-                            const unitInfo = detectUnitAndLessons(questions);
-                            if (unitInfo) {
-                                allCurriculumData[unitInfo.unitNumber] = {
-                                    questions: questions,
-                                    unitInfo: unitInfo,
-                                    fileName: file.name
-                                };
-                                loadedCount++;
+                            // Detect unit from the first question's ID
+                            if (questions.length > 0) {
+                                const firstId = questions[0].id;
+                                const unitMatch = firstId.match(/U(\d+)/i);
+
+                                if (unitMatch) {
+                                    const unitNum = parseInt(unitMatch[1]);
+
+                                    // Only add questions that belong to this unit
+                                    const unitQuestions = questions.filter(q => {
+                                        const match = q.id.match(/U(\d+)/i);
+                                        return match && parseInt(match[1]) === unitNum;
+                                    });
+
+                                    const unitInfo = detectUnitAndLessons(unitQuestions);
+
+                                    if (unitInfo) {
+                                        allCurriculumData[unitNum] = {
+                                            questions: unitQuestions,
+                                            unitInfo: unitInfo,
+                                            fileName: file.name
+                                        };
+                                        loadedCount++;
+                                        console.log(`Loaded Unit ${unitNum} with ${unitQuestions.length} questions from ${file.name}`);
+                                    }
+                                }
                             }
                         } catch (error) {
                             console.error(`Error parsing ${file.name}:`, error);
@@ -4577,6 +4594,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             if (loadedCount > 0) {
                 showMessage(`Loaded ${loadedCount} units successfully!`, 'success');
+                console.log('All curriculum data:', allCurriculumData); // Debug log
                 renderUnitMenu();
             } else {
                 showMessage('No valid unit files found', 'error');
@@ -4590,6 +4608,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Sort units numerically
             const sortedUnits = Object.keys(allCurriculumData).sort((a, b) => parseInt(a) - parseInt(b));
 
+            console.log('Rendering units:', sortedUnits); // Debug log
+
             let unitsHtml = '';
             sortedUnits.forEach(unitNum => {
                 const unitData = allCurriculumData[unitNum];
@@ -4597,12 +4617,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const lessonCount = unitData.unitInfo.lessonNumbers.length;
                 const questionCount = unitData.questions.length;
 
+                console.log(`Unit ${unitNum}: ${questionCount} questions, ${lessonCount} lessons`); // Debug log
+
                 // Calculate completion percentage for this unit
                 let completedQuestions = 0;
                 unitData.questions.forEach(q => {
                     if (isQuestionAnswered(q.id)) completedQuestions++;
                 });
-                const completionPercent = Math.round((completedQuestions / questionCount) * 100);
+                const completionPercent = questionCount > 0 ? Math.round((completedQuestions / questionCount) * 100) : 0;
 
                 unitsHtml += `
                     <div class="unit-card" onclick="selectUnit(${unitNum})">
@@ -4626,6 +4648,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             questionsContainer.innerHTML = `
                 <div class="curriculum-overview">
                     <h2>📚 AP Statistics Curriculum</h2>
+                    <p style="text-align: center; color: #666;">Loaded ${sortedUnits.length} units</p>
                     <div class="units-grid">
                         ${unitsHtml}
                     </div>
