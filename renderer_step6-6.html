@@ -657,6 +657,10 @@
         let chartInstances = {};
         let currentTheme = 'light';
 
+        // First, make sure QRSyncManager is defined BEFORE you try to use it
+        // Add this right after your other global variables at the top
+        let qrSync = null;
+
         // Unit structure - defines lessons per unit
         const unitStructure = {
             1: { name: 'Exploring One-Variable Data', lessons: 5 },
@@ -1040,9 +1044,7 @@ function renderLessonSelector(unitInfo) {
             </div>
             <div class="app-controls">
                 <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                <button onclick="startHandshakeSync()" class="sync-button">🤝 Device Sync</button>
-                <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
-                <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
+                <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
                 <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
                 <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
             </div>
@@ -1091,9 +1093,7 @@ function renderLessonSelector(unitInfo) {
         </div>
         <div class="app-controls">
             <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-            <button onclick="startHandshakeSync()" class="sync-button">🤝 Device Sync</button>
-            <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
-            <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
+            <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
             <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
             <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
         </div>
@@ -1185,7 +1185,7 @@ function renderLessonSelector(unitInfo) {
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
                     <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <button onclick="startHandshakeSync()" class="sync-button">🤝 Device Sync</button>
+                    <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
                 <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
                 <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                 </div>
@@ -3867,166 +3867,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             showMessage('Personal data exported successfully!', 'success');
         }
 
-        // QR Code Sync functions
-        window.showQRSync = function() {
-            const personalData = {
-                exportTime: Date.now(),
-                username: currentUsername,
-                users: {
-                    [currentUsername]: classData.users[currentUsername]
-                }
-            };
-
-            // Compress more aggressively for large datasets
-            const dataStr = JSON.stringify(personalData);
-            const compressed = btoa(encodeURIComponent(dataStr).replace(/%([0-9A-F]{2})/g,
-                (match, p1) => String.fromCharCode('0x' + p1)));
-
-            // Check if data is too large for QR code (practical limit ~2950 chars)
-            if (compressed.length > 2950) {
-                showMessage('Data too large for QR code. Use file export instead.', 'error');
-                return;
-            }
-
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); z-index: 2000;
-                display: flex; align-items: center; justify-content: center;
-            `;
-
-            modal.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;">
-                    <h2>Share Your Data via QR</h2>
-                    <div id="qrcode" style="margin: 20px auto;"></div>
-                    <p style="color: #666;">Data size: ${compressed.length} chars</p>
-                    <button onclick="this.parentElement.parentElement.remove()" class="submit-button">Close</button>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
-            new QRCode(document.getElementById("qrcode"), {
-                text: compressed,
-                width: 256,
-                height: 256,
-                correctLevel: QRCode.CorrectLevel.L // Lower error correction for more data capacity
-            });
-        }
-
-        window.scanQR = function() {
-            // Create modal for scanner
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.9); z-index: 2000;
-                display: flex; align-items: center; justify-content: center;
-            `;
-
-            modal.innerHTML = `
-                <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%;">
-                    <h2 style="margin-bottom: 20px;">Scan QR Code</h2>
-                    <div id="qr-reader" style="width: 100%;"></div>
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button id="stop-scan-btn" class="submit-button" style="background: #f44336;">Stop Scanning</button>
-                        <button id="paste-btn" class="submit-button" style="background: #ff9800; margin-left: 10px;">Paste Instead</button>
-                    </div>
-                    <div id="scan-result" style="margin-top: 15px; padding: 10px; display: none;"></div>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
-
-            // Initialize QR scanner
-            const html5QrCode = new Html5Qrcode("qr-reader");
-
-            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-                // Stop scanning
-                html5QrCode.stop().then(() => {
-                    // Process the QR data
-                    try {
-                        const decoded = atob(decodedText);
-                        const imported = JSON.parse(decoded);
-                        mergeClassData(imported);
-                        showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
-                        loadProgress();
-                        modal.remove();
-                    } catch(e) {
-                        const resultDiv = document.getElementById('scan-result');
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.color = 'red';
-                        resultDiv.textContent = 'Invalid QR code data. Try another code.';
-                        // Restart scanning after error
-                        setTimeout(() => {
-                            resultDiv.style.display = 'none';
-                            startScanning();
-                        }, 2000);
-                    }
-                }).catch(err => {
-                    console.error("Failed to stop scanning", err);
-                });
-            };
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            };
-
-            const startScanning = () => {
-                // Try rear camera first, fall back to front camera
-                html5QrCode.start(
-                    { facingMode: "environment" }, // Rear camera
-                    config,
-                    qrCodeSuccessCallback
-                ).catch(err => {
-                    // Try front camera if rear fails
-                    html5QrCode.start(
-                        { facingMode: "user" }, // Front camera
-                        config,
-                        qrCodeSuccessCallback
-                    ).catch(err => {
-                        // No camera available, show error
-                        const resultDiv = document.getElementById('scan-result');
-                        resultDiv.style.display = 'block';
-                        resultDiv.style.color = 'orange';
-                        resultDiv.textContent = 'Camera not available. Use "Paste Instead" button.';
-                    });
-                });
-            };
-
-            startScanning();
-
-            // Stop button handler
-            document.getElementById('stop-scan-btn').onclick = () => {
-                html5QrCode.stop().then(() => {
-                    modal.remove();
-                }).catch(err => {
-                    console.error("Failed to stop", err);
-                    modal.remove();
-                });
-            };
-
-            // Paste button handler (fallback)
-            document.getElementById('paste-btn').onclick = () => {
-                html5QrCode.stop().then(() => {
-                    const input = prompt("Paste QR code data:");
-                    if (input) {
-                        try {
-                            const decoded = atob(input);
-                            const imported = JSON.parse(decoded);
-                            mergeClassData(imported);
-                            showMessage(`Imported data from ${Object.keys(imported.users).length} users`, 'success');
-                            loadProgress();
-                        } catch(e) {
-                            showMessage('Invalid QR data', 'error');
-                        }
-                    }
-                    modal.remove();
-                }).catch(err => {
-                    modal.remove();
-                });
-            };
-        }
 
         // Import class data
         window.importClassData = function(event) {
@@ -4401,32 +4241,36 @@ if (chartInstances[`dotplot-${questionId}`]) {
         window.addEventListener('load', () => {
             addColorPicker();
         });
+
+        // Initialize it after the page loads
+        window.addEventListener('load', function() {
+            // Initialize QR sync manager
+            qrSync = new QRSyncManager();
+        });
     </script>
 
     <!-- Enhanced QR Sync System with Handshake Protocol -->
     <script>
         // Enhanced QR Sync System with Handshake Protocol
+        // Here's the complete QRSyncManager class (fixed version):
         class QRSyncManager {
             constructor() {
-                this.syncState = 'idle'; // idle, initiating, scanning, confirming, complete
+                this.syncState = 'idle';
                 this.syncSessionId = null;
                 this.pendingData = null;
                 this.receivedData = null;
             }
 
-            // Start sync session - both devices do this
             initiateSyncSession() {
                 this.syncSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 this.syncState = 'initiating';
-
-                // Create split-screen UI for simultaneous scan/display
                 this.createSyncUI();
 
-                // Start broadcasting our data via QR
-                this.broadcastData();
-
-                // Start scanning for other device's QR
-                this.startScanning();
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.broadcastData();
+                    this.startScanning();
+                }, 100);
             }
 
             createSyncUI() {
@@ -4446,15 +4290,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <!-- Left side: Our QR code -->
                             <div style="flex: 1; text-align: center;">
                                 <h3>Step 1: Show this to other device</h3>
-                                <div id="our-qr-code" style="margin: 20px auto;"></div>
-                                <div id="our-status" style="color: #666;">Broadcasting data...</div>
+                                <div id="our-qr-code" style="margin: 20px auto; width: 256px; height: 256px;"></div>
+                                <div id="our-status" style="color: #666;">Generating QR code...</div>
                             </div>
 
                             <!-- Right side: Scanner -->
                             <div style="flex: 1; text-align: center;">
                                 <h3>Step 2: Scan their code</h3>
-                                <div id="qr-scanner" style="width: 100%; height: 250px; border: 2px dashed #ccc;"></div>
-                                <div id="scan-status" style="color: #666;">Ready to scan...</div>
+                                <div id="qr-scanner" style="width: 100%; height: 256px; border: 2px dashed #ccc;"></div>
+                                <div id="scan-status" style="color: #666;">Initializing camera...</div>
                             </div>
                         </div>
 
@@ -4479,33 +4323,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
 
             broadcastData() {
-                // Package our data with metadata for handshake
-                const ourPacket = {
-                    sessionId: this.syncSessionId,
-                    deviceId: this.getDeviceId(),
-                    username: currentUsername,
-                    timestamp: Date.now(),
-                    dataHash: this.hashData(classData.users[currentUsername]), // For verification
-                    data: classData.users[currentUsername]
-                };
+                try {
+                    const ourPacket = {
+                        sessionId: this.syncSessionId,
+                        username: currentUsername,
+                        timestamp: Date.now(),
+                        data: classData.users[currentUsername]
+                    };
 
-                // Compress and create QR
-                const compressed = btoa(encodeURIComponent(JSON.stringify(ourPacket)));
+                    const compressed = btoa(JSON.stringify(ourPacket));
 
-                // Check size and create QR
-                if (compressed.length > 2950) {
-                    // If too large, create a multi-part protocol
-                    this.createMultiPartQR(compressed);
-                } else {
+                    // Create QR code
                     new QRCode(document.getElementById("our-qr-code"), {
                         text: compressed,
                         width: 256,
                         height: 256,
                         correctLevel: QRCode.CorrectLevel.L
                     });
-                }
 
-                this.pendingData = ourPacket;
+                    document.getElementById('our-status').innerHTML = '✅ QR Code ready!';
+                    this.pendingData = ourPacket;
+                } catch(e) {
+                    console.error('Error creating QR:', e);
+                    document.getElementById('our-status').innerHTML = '❌ Error creating QR code';
+                }
             }
 
             startScanning() {
@@ -4516,48 +4357,50 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     qrbox: { width: 200, height: 200 }
                 };
 
+                const onScanSuccess = (decodedText) => {
+                    this.handleScannedData(decodedText, html5QrCode);
+                };
+
+                // Try to start camera
                 html5QrCode.start(
                     { facingMode: "environment" },
                     config,
-                    (decodedText) => {
-                        this.handleScannedData(decodedText, html5QrCode);
-                    }
-                ).catch(err => {
+                    onScanSuccess
+                ).then(() => {
+                    document.getElementById('scan-status').innerHTML = '📷 Camera ready - point at QR code';
+                }).catch(err => {
                     // Try front camera if rear fails
                     html5QrCode.start(
                         { facingMode: "user" },
                         config,
-                        (decodedText) => {
-                            this.handleScannedData(decodedText, html5QrCode);
-                        }
-                    );
+                        onScanSuccess
+                    ).then(() => {
+                        document.getElementById('scan-status').innerHTML = '📷 Camera ready - point at QR code';
+                    }).catch(err => {
+                        document.getElementById('scan-status').innerHTML = '❌ Camera not available';
+                        console.error('Camera error:', err);
+                    });
                 });
             }
 
             handleScannedData(decodedText, scanner) {
                 try {
-                    const decoded = JSON.parse(decodeURIComponent(atob(decodedText)));
+                    const decoded = JSON.parse(atob(decodedText));
 
-                    // Verify packet structure
-                    if (decoded.sessionId && decoded.deviceId && decoded.data) {
+                    if (decoded.sessionId && decoded.data) {
                         this.receivedData = decoded;
 
-                        // Update UI
                         document.getElementById('scan-status').innerHTML =
                             `✅ Received data from ${decoded.username || 'Unknown User'}`;
                         document.getElementById('status-text').innerHTML =
                             `🤝 Handshake established! Ready to sync.`;
 
-                        // Enable confirm button
                         document.getElementById('confirm-btn').disabled = false;
 
-                        // Stop scanner
                         scanner.stop();
 
-                        // Auto-confirm if both sides have data
-                        if (this.pendingData && this.receivedData) {
-                            setTimeout(() => this.confirmSync(), 1000);
-                        }
+                        // Auto-confirm after a moment
+                        setTimeout(() => this.confirmSync(), 1500);
                     }
                 } catch(e) {
                     console.error('Invalid QR data:', e);
@@ -4570,7 +4413,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     return;
                 }
 
-                // Merge the received data
                 const imported = {
                     users: {
                         [this.receivedData.username]: this.receivedData.data
@@ -4579,7 +4421,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 mergeClassData(imported);
 
-                // Update status
                 document.getElementById('handshake-status').innerHTML = `
                     <div style="color: #4CAF50; font-size: 20px;">
                         ✅ Sync Complete!<br>
@@ -4587,14 +4428,20 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     </div>
                 `;
 
-                // Refresh current view
                 loadProgress();
 
-                // Close modal after delay
                 setTimeout(() => this.cancelSync(), 2000);
             }
 
             cancelSync() {
+                // Stop any running camera
+                try {
+                    const scanner = Html5Qrcode.getCameras();
+                    if (scanner) {
+                        Html5Qrcode.stop();
+                    }
+                } catch(e) {}
+
                 const modal = document.getElementById('sync-modal');
                 if (modal) modal.remove();
                 this.syncState = 'idle';
@@ -4602,70 +4449,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 this.pendingData = null;
             }
 
-            // Helper functions
-            getDeviceId() {
-                let deviceId = localStorage.getItem('deviceId');
-                if (!deviceId) {
-                    deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
-                    localStorage.setItem('deviceId', deviceId);
-                }
-                return deviceId;
-            }
-
-            hashData(data) {
-                // Simple hash for verification
-                const str = JSON.stringify(data);
-                let hash = 0;
-                for (let i = 0; i < str.length; i++) {
-                    const char = str.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
-                }
-                return hash.toString(36);
-            }
-
-            createMultiPartQR(data) {
-                // For large data, implement chunking
-                const chunkSize = 2000;
-                const chunks = [];
-                for (let i = 0; i < data.length; i += chunkSize) {
-                    chunks.push(data.substr(i, chunkSize));
-                }
-
-                let currentChunk = 0;
-                const qrContainer = document.getElementById("our-qr-code");
-
-                const showNextChunk = () => {
-                    qrContainer.innerHTML = '';
-                    const packet = {
-                        type: 'multipart',
-                        part: currentChunk + 1,
-                        total: chunks.length,
-                        data: chunks[currentChunk]
-                    };
-
-                    new QRCode(qrContainer, {
-                        text: JSON.stringify(packet),
-                        width: 256,
-                        height: 256
-                    });
-
-                    document.getElementById('our-status').innerHTML =
-                        `Part ${currentChunk + 1} of ${chunks.length}`;
-
-                    currentChunk = (currentChunk + 1) % chunks.length;
-                };
-
-                showNextChunk();
-                setInterval(showNextChunk, 3000); // Rotate chunks every 3 seconds
-            }
         }
 
-        // Initialize the sync manager
-        const qrSync = new QRSyncManager();
-
-        // Replace the existing sync buttons with the new handshake version
+        // Replace your existing sync button functions with this:
         window.startHandshakeSync = function() {
+            if (!qrSync) {
+                qrSync = new QRSyncManager();
+            }
             qrSync.initiateSyncSession();
         }
     </script>
