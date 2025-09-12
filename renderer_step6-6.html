@@ -3421,9 +3421,13 @@ function renderAttachments(attachments, questionId) {
 
             // Fix canvas dimensions to prevent infinite scroll
             const container = canvas.parentElement;
-            container.style.height = '300px';
+            container.style.height = '350px';
             container.style.position = 'relative';
             container.style.overflow = 'hidden';
+
+            // Ensure the canvas itself has room
+            canvas.style.height = '300px';
+            canvas.style.width = '100%';
 
             // Aggregate responses
             const choiceCounts = {};
