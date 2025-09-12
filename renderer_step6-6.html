@@ -746,30 +746,40 @@
         function detectUnitAndLessons(questions) {
             if (!questions || questions.length === 0) return null;
 
-            // Get unit number from first question's ID (e.g., "U1-L1-Q01" → 1)
             const firstId = questions[0].id;
             const unitMatch = firstId.match(/U(\d+)/i);
             if (!unitMatch) return null;
 
             const unitNum = parseInt(unitMatch[1]);
 
-            // Group questions by lesson
+            // Group questions by lesson - MORE PRECISE REGEX
             const lessonGroups = {};
             questions.forEach(q => {
-                const lessonMatch = q.id.match(/L(\d+)/i);
+                // Match L followed by digits, but ensure it's the lesson part
+                const lessonMatch = q.id.match(/U\d+-L(\d+)-/i);
                 if (lessonMatch) {
                     const lessonNum = parseInt(lessonMatch[1]);
                     if (!lessonGroups[lessonNum]) {
                         lessonGroups[lessonNum] = [];
                     }
                     lessonGroups[lessonNum].push(q);
+                } else if (q.id.includes('PC')) {
+                    // Handle Progress Check questions
+                    if (!lessonGroups['PC']) {
+                        lessonGroups['PC'] = [];
+                    }
+                    lessonGroups['PC'].push(q);
                 }
             });
 
             return {
                 unitNumber: unitNum,
                 lessons: lessonGroups,
-                lessonNumbers: Object.keys(lessonGroups).map(n => parseInt(n)).sort((a,b) => a-b)
+                lessonNumbers: Object.keys(lessonGroups)
+                    .filter(n => n !== 'PC')
+                    .map(n => parseInt(n))
+                    .sort((a,b) => a-b)
+                    .concat(lessonGroups['PC'] ? ['PC'] : [])
             };
         }
 
