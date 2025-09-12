@@ -829,11 +829,14 @@
             unitInfo.lessonNumbers.forEach(lessonNum => {
                 const questions = unitInfo.lessons[lessonNum];
                 const isCompleted = questions.every(q => isQuestionAnswered(q.id));
+                const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
+                const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
+
                 lessonButtonsHtml += `
-                    <button onclick="loadLesson(${lessonNum})"
+                    <button onclick="loadLesson('${lessonNum}')"
                             class="lesson-btn ${isCompleted ? 'completed' : ''}"
-                            id="lesson-btn-${lessonNum}">
-                        Lesson ${lessonNum}<br>
+                            id="${buttonId}">
+                        ${displayName}<br>
                         <small>${questions.length} questions</small>
                     </button>
                 `;
