@@ -1209,12 +1209,15 @@
                 const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
                 const isDisabled = isAnswered && !canRetryQuestion;
                 html += `
-                    <textarea 
-                        id="frq-${question.id}"
-                        class="frq-textarea" 
-                        placeholder="Enter your response here..."
-                        ${isDisabled ? 'disabled' : ''}
-                    >${savedAnswer?.value || savedAnswer || ''}</textarea>
+                    <div class="answer-section">
+                        <textarea
+                            id="frq-${question.id}"
+                            class="frq-textarea"
+                            placeholder="Enter your complete response here..."
+                            ${isDisabled ? 'disabled' : ''}
+                            style="width: 100%; min-height: 200px; padding: 10px; border: 2px solid #ddd;"
+                        >${savedAnswer?.value || savedAnswer || ''}</textarea>
+                    </div>
                 `;
             }
 
