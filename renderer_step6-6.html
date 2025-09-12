@@ -742,7 +742,7 @@
             const previousReason = classData.users[currentUsername]?.reasons?.[questionId];
             return previousReason && previousReason.trim().length > 0;
         }
-        // Detect unit and lesson from question IDs
+        // Replace the entire detectUnitAndLessons function:
         function detectUnitAndLessons(questions) {
             if (!questions || questions.length === 0) return null;
 
@@ -752,34 +752,45 @@
 
             const unitNum = parseInt(unitMatch[1]);
 
-            // Group questions by lesson - MORE PRECISE REGEX
+            // Group questions by lesson
             const lessonGroups = {};
             questions.forEach(q => {
-                // Match L followed by digits, but ensure it's the lesson part
-                const lessonMatch = q.id.match(/U\d+-L(\d+)-/i);
-                if (lessonMatch) {
-                    const lessonNum = parseInt(lessonMatch[1]);
-                    if (!lessonGroups[lessonNum]) {
-                        lessonGroups[lessonNum] = [];
+                let lessonIdentifier;
+
+                // Check for Progress Check questions first
+                if (q.id.includes('-PC-')) {
+                    lessonIdentifier = 'PC';
+                } else {
+                    // Match standard lesson format: U#-L#-
+                    const lessonMatch = q.id.match(/U\d+-L(\d+)-/);
+                    if (lessonMatch) {
+                        lessonIdentifier = parseInt(lessonMatch[1]);
                     }
-                    lessonGroups[lessonNum].push(q);
-                } else if (q.id.includes('PC')) {
-                    // Handle Progress Check questions
-                    if (!lessonGroups['PC']) {
-                        lessonGroups['PC'] = [];
+                }
+
+                if (lessonIdentifier !== undefined) {
+                    if (!lessonGroups[lessonIdentifier]) {
+                        lessonGroups[lessonIdentifier] = [];
                     }
-                    lessonGroups['PC'].push(q);
+                    lessonGroups[lessonIdentifier].push(q);
                 }
             });
+
+            // Sort lesson numbers properly, with PC at the end
+            const numericLessons = Object.keys(lessonGroups)
+                .filter(key => typeof key === 'number' || !isNaN(key))
+                .map(n => parseInt(n))
+                .sort((a, b) => a - b);
+
+            const allLessons = numericLessons.concat(lessonGroups['PC'] ? ['PC'] : []);
+
+            console.log('Detected lessons:', allLessons); // Debug log
+            console.log('Lesson groups:', Object.keys(lessonGroups)); // Debug log
 
             return {
                 unitNumber: unitNum,
                 lessons: lessonGroups,
-                lessonNumbers: Object.keys(lessonGroups)
-                    .filter(n => n !== 'PC')
-                    .map(n => parseInt(n))
-                    .sort((a,b) => a-b)
-                    .concat(lessonGroups['PC'] ? ['PC'] : [])
+                lessonNumbers: allLessons
             };
         }
 
@@ -1069,16 +1080,25 @@
         // Load lesson
         window.loadLesson = function(lessonNumber) {
             currentLesson = lessonNumber;
-            currentQuestions = allUnitQuestions.filter(q => {
-                const match = q.id.match(/L(\d+)/);
-                return match && parseInt(match[1]) === lessonNumber;
-            });
-            
+
+            // Handle both numeric lessons and 'PC'
+            if (lessonNumber === 'PC') {
+                currentQuestions = allUnitQuestions.filter(q => q.id.includes('-PC-'));
+            } else {
+                const lessonNum = parseInt(lessonNumber);
+                currentQuestions = allUnitQuestions.filter(q => {
+                    if (q.id.includes('-PC-')) return false; // Exclude PC questions
+                    const match = q.id.match(/U\d+-L(\d+)-/);
+                    return match && parseInt(match[1]) === lessonNum;
+                });
+            }
+
             if (currentQuestions.length === 0) {
                 showMessage(`No questions found for Lesson ${lessonNumber}`, 'error');
                 return;
             }
-            
+
+            console.log(`Loading lesson ${lessonNumber} with ${currentQuestions.length} questions`); // Debug
             renderQuiz();
         }
 
