@@ -832,45 +832,7 @@
             reader.readAsText(file);
         }
 
-        // Modified renderLessonSelector to use detected lessons
-        function renderLessonSelector(unitInfo) {
-            const questionsContainer = document.getElementById('questionsContainer');
-            let lessonButtonsHtml = '';
-
-            unitInfo.lessonNumbers.forEach(lessonNum => {
-                const questions = unitInfo.lessons[lessonNum];
-                const isCompleted = questions.every(q => isQuestionAnswered(q.id));
-                const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
-                const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
-
-                lessonButtonsHtml += `
-                    <button onclick="loadLesson('${lessonNum}')"
-                            class="lesson-btn ${isCompleted ? 'completed' : ''}"
-                            id="${buttonId}">
-                        ${displayName}<br>
-                        <small>${questions.length} questions</small>
-                    </button>
-                `;
-            });
-
-            questionsContainer.innerHTML = `
-                <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
-                <div class="lesson-selector">
-                    <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
-                    <p>Select a lesson to begin:</p>
-                    <div class="lesson-buttons">
-                        ${lessonButtonsHtml}
-                    </div>
-                </div>
-                <div class="app-controls">
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
-                    <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
-                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
-                </div>
-            `;
-        }
+       
 
         // Add simple file upload UI at start
         function renderFileUpload() {
@@ -1017,53 +979,97 @@
         }
 
         // Render lesson selector
-        function renderLessonSelector() {
-            const questionsContainer = document.getElementById('questionsContainer');
-            const unit = unitStructure[currentUnit];
-            let lessonButtonsHtml = '';
-            
-            // Group questions by lesson
-            const lessonGroups = {};
-            allUnitQuestions.forEach(q => {
-                const match = q.id.match(/L(\d+)/);
-                if (match) {
-                    const lessonNum = parseInt(match[1]);
-                    if (!lessonGroups[lessonNum]) {
-                        lessonGroups[lessonNum] = [];
-                    }
-                    lessonGroups[lessonNum].push(q);
-                }
-            });
-            
-            for (let i = 1; i <= unit.lessons; i++) {
-                const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
-                const isCompleted = checkLessonCompleted(currentUnit, i);
-                lessonButtonsHtml += `
-                    <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
-                        Lesson ${i}<br>
-                        <small>${questionCount} questions</small>
-                    </button>
-                `;
-            }
-            
-            questionsContainer.innerHTML = `
-                <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
-                <div class="lesson-selector">
-                    <h3>Unit ${currentUnit}: ${unit.name}</h3>
-                    <p>Select a lesson to begin:</p>
-                    <div class="lesson-buttons">
-                        ${lessonButtonsHtml}
-                    </div>
-                </div>
-                <div class="app-controls">
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
-                    <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
-                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
-                </div>
+function renderLessonSelector(unitInfo) {
+    const questionsContainer = document.getElementById('questionsContainer');
+    
+    // If unitInfo provided (from file load), use it
+    if (unitInfo && unitInfo.lessonNumbers) {
+        let lessonButtonsHtml = '';
+        
+        unitInfo.lessonNumbers.forEach(lessonNum => {
+            const questions = unitInfo.lessons[lessonNum];
+            const isCompleted = questions.every(q => isQuestionAnswered(q.id));
+            const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
+            const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
+
+            lessonButtonsHtml += `
+                <button onclick="loadLesson('${lessonNum}')"
+                        class="lesson-btn ${isCompleted ? 'completed' : ''}"
+                        id="${buttonId}">
+                    ${displayName}<br>
+                    <small>${questions.length} questions</small>
+                </button>
             `;
+        });
+        
+        questionsContainer.innerHTML = `
+            <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
+            <div class="lesson-selector">
+                <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
+                <p>Select a lesson to begin:</p>
+                <div class="lesson-buttons">
+                    ${lessonButtonsHtml}
+                </div>
+            </div>
+            <div class="app-controls">
+                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
+                <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
+                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Old fallback code for when called without unitInfo
+    const unit = unitStructure[currentUnit];
+    if (!unit) return;
+    
+    let lessonButtonsHtml = '';
+    
+    // Group questions by lesson
+    const lessonGroups = {};
+    allUnitQuestions.forEach(q => {
+        const match = q.id.match(/L(\d+)/);
+        if (match) {
+            const lessonNum = parseInt(match[1]);
+            if (!lessonGroups[lessonNum]) {
+                lessonGroups[lessonNum] = [];
+            }
+            lessonGroups[lessonNum].push(q);
         }
+    });
+    
+    for (let i = 1; i <= unit.lessons; i++) {
+        const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
+        const isCompleted = checkLessonCompleted(currentUnit, i);
+        lessonButtonsHtml += `
+            <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
+                Lesson ${i}<br>
+                <small>${questionCount} questions</small>
+            </button>
+        `;
+    }
+    
+    questionsContainer.innerHTML = `
+        <button onclick="backToFileUpload()" class="back-button">← Load Different Unit</button>
+        <div class="lesson-selector">
+            <h3>Unit ${currentUnit}: ${unit.name}</h3>
+            <p>Select a lesson to begin:</p>
+            <div class="lesson-buttons">
+                ${lessonButtonsHtml}
+            </div>
+        </div>
+        <div class="app-controls">
+            <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+            <button onclick="showQRSync()" class="sync-button">📤 Show QR</button>
+            <button onclick="scanQR()" class="sync-button">📷 Scan QR</button>
+            <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+            <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+        </div>
+    `;
+}
 
         // Check if lesson is completed
         function checkLessonCompleted(unitNum, lessonNum) {
@@ -1131,7 +1137,12 @@
             chartInstances = {};
             currentQuestions = [];
             currentLesson = null;
-            renderLessonSelector();
+
+            // Re-detect the unit structure from allUnitQuestions
+            const unitInfo = detectUnitAndLessons(allUnitQuestions);
+
+            // Call renderLessonSelector with the unitInfo
+            renderLessonSelector(unitInfo);
         }
 
         // Render quiz
@@ -3408,16 +3419,10 @@ function renderAttachments(attachments, questionId) {
                 header.innerHTML += '<span style="color: #a5d6a7;">✓ Answered</span>';
             }
 
-            // Show/update dotplot
-            showDotplot(questionId, questionType);
-        }
-
-        // Show dotplot
-        function showDotplot(questionId, questionType) {
+            // Show/update dotplot immediately after submission
             const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
-            if (!dotplotSection) return;
 
-            // Show the section with animation
+            // Ensure the section is visible
             if (!dotplotSection.classList.contains('show')) {
                 dotplotSection.classList.add('show');
                 dotplotSection.style.opacity = '0';
@@ -3427,29 +3432,78 @@ function renderAttachments(attachments, questionId) {
                 }, 10);
             }
 
-            if (questionType === 'multiple-choice') {
-                // Use bar chart for MCQ distribution
-                setTimeout(() => {
-                    renderMCQDistribution(questionId);
-                }, 100);
-            } else {
-                renderFRQResponses(questionId);
+            // Always destroy existing chart to force complete refresh
+            const chartId = `dotplot-${questionId}`;
+            if (chartInstances[chartId]) {
+                try {
+                    chartInstances[chartId].destroy();
+                } catch(e) {
+                    console.log('Error destroying chart:', e);
+                }
+                delete chartInstances[chartId];
             }
+
+            // Clear the canvas to ensure clean slate
+            const canvas = document.getElementById(chartId);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Render the appropriate visualization with a small delay to ensure DOM is ready
+            setTimeout(() => {
+                if (questionType === 'multiple-choice') {
+                    renderMCQDistribution(questionId);
+                } else {
+                    renderFRQResponses(questionId);
+                }
+            }, 50);
         }
+
+        // Show dotplot
+        function showDotplot(questionId, questionType) {
+    const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
+    if (!dotplotSection) return;
+
+    // Always destroy existing chart first to force refresh
+    if (chartInstances[`dotplot-${questionId}`]) {
+        chartInstances[`dotplot-${questionId}`].destroy();
+        delete chartInstances[`dotplot-${questionId}`];
+    }
+
+    // Show the section with animation
+    if (!dotplotSection.classList.contains('show')) {
+        dotplotSection.classList.add('show');
+        dotplotSection.style.opacity = '0';
+        setTimeout(() => {
+            dotplotSection.style.transition = 'opacity 0.3s ease';
+            dotplotSection.style.opacity = '1';
+        }, 10);
+    }
+
+    if (questionType === 'multiple-choice') {
+        // Use setTimeout to ensure DOM is ready and force re-render
+        setTimeout(() => {
+            renderMCQDistribution(questionId);
+        }, 50);
+    } else {
+        renderFRQResponses(questionId);
+    }
+}
 
         // Render MCQ distribution
         function renderMCQDistribution(questionId) {
             const canvas = document.getElementById(`dotplot-${questionId}`);
             if (!canvas) return;
 
-            // Fix canvas dimensions to prevent infinite scroll
+            // Fix canvas dimensions to prevent cropping
             const container = canvas.parentElement;
-            container.style.height = '350px';
+            container.style.height = '500px';  // Increased from 350px
             container.style.position = 'relative';
-            container.style.overflow = 'hidden';
+            container.style.overflow = 'visible';  // Changed from 'hidden' to 'visible'
 
             // Ensure the canvas itself has room
-            canvas.style.height = '300px';
+            canvas.style.height = '600px';  // Increased from 300px
             canvas.style.width = '100%';
 
             // Aggregate responses
@@ -3490,10 +3544,11 @@ function renderAttachments(attachments, questionId) {
             const relativeFrequencies = counts.map(c => totalCount > 0 ? c / totalCount : 0);
 
             // Destroy existing chart if any
-            if (chartInstances[`dotplot-${questionId}`]) {
-                chartInstances[`dotplot-${questionId}`].destroy();
-            }
-
+            // Destroy existing chart if any
+if (chartInstances[`dotplot-${questionId}`]) {
+    chartInstances[`dotplot-${questionId}`].destroy();
+    delete chartInstances[`dotplot-${questionId}`];  // Add just this line
+}
             // Create bar chart with relative frequencies
             chartInstances[`dotplot-${questionId}`] = new Chart(ctx, {
                 type: 'bar',
@@ -3515,6 +3570,11 @@ function renderAttachments(attachments, questionId) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            bottom: 20
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
