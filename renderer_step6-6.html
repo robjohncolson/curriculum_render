@@ -569,6 +569,33 @@
     border-color: #2196F3;
     color: #1976D2;
 }
+
+/* Pig Sprite Styles */
+.pig-sprite {
+    position: fixed;
+    width: 32px;
+    height: 32px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    background-image: url('pigsprite.png');
+    background-size: 352px 64px; /* 11 frames x 32px, 2 rows */
+    z-index: 9999;
+    transition: left 0.1s, bottom 0.1s;
+}
+
+.pig-sprite.facing-left {
+    transform: scaleX(-1);
+}
+
+.pig-sprite.jumping {
+    animation: jump 0.5s ease-out;
+}
+
+@keyframes jump {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-50px); }
+}
     </style>
 </head>
 <body>
@@ -4183,6 +4210,194 @@ if (chartInstances[`dotplot-${questionId}`]) {
             originalSaveClassData();
             updateLastSaveTime();
         }
+
+        // Pig Sprite Controller
+        class PigSprite {
+            constructor(color = 'pink') {
+                this.x = window.innerWidth / 2;
+                this.y = 100;
+                this.frame = 0;
+                this.animationRow = 0; // 0 for top row, 1 for bottom row
+                this.facingRight = true;
+                this.isJumping = false;
+                this.velocity = { x: 0, y: 0 };
+                this.color = color;
+
+                this.createElement();
+                this.bindControls();
+                this.startAnimation();
+            }
+
+            createElement() {
+                this.element = document.createElement('div');
+                this.element.className = 'pig-sprite';
+                this.element.style.left = this.x + 'px';
+                this.element.style.bottom = this.y + 'px';
+
+                // Apply color filter if needed
+                if (this.color !== 'pink') {
+                    this.element.style.filter = this.getColorFilter(this.color);
+                }
+
+                document.body.appendChild(this.element);
+            }
+
+            getColorFilter(color) {
+                // CSS filters to change pig color
+                const filters = {
+                    'blue': 'hue-rotate(200deg)',
+                    'green': 'hue-rotate(90deg)',
+                    'purple': 'hue-rotate(270deg)',
+                    'yellow': 'hue-rotate(45deg) saturate(1.5)',
+                    'red': 'hue-rotate(-10deg) saturate(1.5)',
+                    'gray': 'grayscale(100%)'
+                };
+                return filters[color] || '';
+            }
+
+            bindControls() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            this.moveLeft();
+                            e.preventDefault();
+                            break;
+                        case 'ArrowRight':
+                            this.moveRight();
+                            e.preventDefault();
+                            break;
+                        case 'ArrowUp':
+                        case ' ':
+                            this.jump();
+                            e.preventDefault();
+                            break;
+                        case 'ArrowDown':
+                            this.animationRow = this.animationRow === 0 ? 1 : 0;
+                            e.preventDefault();
+                            break;
+                    }
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        this.velocity.x = 0;
+                    }
+                });
+            }
+
+            moveLeft() {
+                this.velocity.x = -5;
+                this.facingRight = false;
+                this.element.classList.add('facing-left');
+            }
+
+            moveRight() {
+                this.velocity.x = 5;
+                this.facingRight = true;
+                this.element.classList.remove('facing-left');
+            }
+
+            jump() {
+                if (!this.isJumping) {
+                    this.isJumping = true;
+                    this.velocity.y = 15;
+
+                    setTimeout(() => {
+                        this.isJumping = false;
+                    }, 500);
+                }
+            }
+
+            updatePosition() {
+                // Update horizontal position
+                if (this.velocity.x !== 0) {
+                    this.x += this.velocity.x;
+                    this.x = Math.max(0, Math.min(window.innerWidth - 32, this.x));
+                    this.element.style.left = this.x + 'px';
+                }
+
+                // Update vertical position (gravity simulation)
+                if (this.velocity.y > 0 || this.y > 100) {
+                    this.y += this.velocity.y;
+                    this.velocity.y -= 0.8; // gravity
+
+                    if (this.y <= 100) {
+                        this.y = 100;
+                        this.velocity.y = 0;
+                    }
+
+                    this.element.style.bottom = this.y + 'px';
+                }
+            }
+
+            animate() {
+                // Cycle through frames when moving
+                if (this.velocity.x !== 0 || this.isJumping) {
+                    this.frame = (this.frame + 1) % 11;
+                } else {
+                    this.frame = 0; // idle frame
+                }
+
+                // Update sprite background position
+                const xOffset = -this.frame * 32;
+                const yOffset = -this.animationRow * 32;
+                this.element.style.backgroundPosition = `${xOffset}px ${yOffset}px`;
+            }
+
+            startAnimation() {
+                setInterval(() => {
+                    this.updatePosition();
+                    this.animate();
+                }, 50);
+            }
+
+            setColor(newColor) {
+                this.color = newColor;
+                this.element.style.filter = this.getColorFilter(newColor);
+
+                // Save to localStorage with username
+                if (currentUsername) {
+                    localStorage.setItem(`pigColor_${currentUsername}`, newColor);
+                }
+            }
+        }
+
+        // Initialize the sprite when the page loads
+        window.addEventListener('load', () => {
+            // Wait for username to be set
+            setTimeout(() => {
+                if (currentUsername) {
+                    // Load saved color for this user
+                    const savedColor = localStorage.getItem(`pigColor_${currentUsername}`) || 'pink';
+                    window.pigSprite = new PigSprite(savedColor);
+                }
+            }, 1000);
+        });
+
+        // Add color picker to the UI
+        function addColorPicker() {
+            const colorPicker = document.createElement('div');
+            colorPicker.innerHTML = `
+                <div style="position: fixed; bottom: 20px; left: 20px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000;">
+                    <label>Pig Color: </label>
+                    <select id="pigColorSelect" onchange="if(window.pigSprite) window.pigSprite.setColor(this.value)">
+                        <option value="pink">Pink</option>
+                        <option value="blue">Blue</option>
+                        <option value="green">Green</option>
+                        <option value="purple">Purple</option>
+                        <option value="yellow">Yellow</option>
+                        <option value="red">Red</option>
+                        <option value="gray">Gray</option>
+                    </select>
+                </div>
+            `;
+            document.body.appendChild(colorPicker);
+        }
+
+        // Add this to your window.onload
+        window.addEventListener('load', () => {
+            addColorPicker();
+        });
     </script>
 </body>
 </html>
