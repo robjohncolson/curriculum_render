@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AP Stats Consensus Quiz</title>
+    <!-- Load curriculum data -->
+<script src="embeddedCurriculum.js"></script>
+<script src="allUnitsData.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
@@ -733,8 +736,89 @@
 
     <script>
         // Curriculum data will be loaded from external files
-let EMBEDDED_CURRICULUM = [];
-let ALL_UNITS_DATA = [];
+    //let EMBEDDED_CURRICULUM = [];
+    //let ALL_UNITS_DATA = [];
+
+        // Enhanced dynamic loading function with comprehensive error handling
+        function loadCurriculumResources() {
+            return new Promise((resolve, reject) => {
+                let loadedCount = 0;
+                const totalResources = 2;
+                let hasErrors = false;
+
+                // Check if resources are already loaded
+                if (window.EMBEDDED_CURRICULUM && window.EMBEDDED_CURRICULUM.length > 0 &&
+                    window.ALL_UNITS_DATA && window.ALL_UNITS_DATA.length > 0) {
+                    console.log('Curriculum resources already loaded');
+                    resolve();
+                    return;
+                }
+
+                // Function to check if all resources are loaded
+                const checkLoaded = () => {
+                    loadedCount++;
+                    console.log(`Resource ${loadedCount}/${totalResources} loaded`);
+
+                    if (loadedCount === totalResources) {
+                        if (!hasErrors && window.EMBEDDED_CURRICULUM && window.ALL_UNITS_DATA) {
+                            console.log('All curriculum resources loaded successfully');
+                            resolve();
+                        } else {
+                            reject(new Error('Failed to load all curriculum resources'));
+                        }
+                    }
+                };
+
+                const handleError = (resourceName, error) => {
+                    console.error(`Failed to load ${resourceName}:`, error);
+                    hasErrors = true;
+                    checkLoaded(); // Still count as loaded to continue with partial functionality
+                };
+
+                // Load embeddedCurriculum.js
+                const script1 = document.createElement('script');
+                script1.src = 'embeddedCurriculum.js';
+                script1.onload = () => {
+                    if (typeof EMBEDDED_CURRICULUM !== 'undefined' && EMBEDDED_CURRICULUM.length > 0) {
+                        console.log('EMBEDDED_CURRICULUM loaded from embeddedCurriculum.js');
+                        checkLoaded();
+                    } else {
+                        handleError('EMBEDDED_CURRICULUM', new Error('EMBEDDED_CURRICULUM is not properly defined'));
+                    }
+                };
+                script1.onerror = () => handleError('embeddedCurriculum.js', new Error('Script failed to load'));
+
+                // Load allUnitsData.js
+                const script2 = document.createElement('script');
+                script2.src = 'allUnitsData.js';
+                script2.onload = () => {
+                    if (typeof ALL_UNITS_DATA !== 'undefined' && ALL_UNITS_DATA.length > 0) {
+                        console.log('ALL_UNITS_DATA loaded from allUnitsData.js');
+                        checkLoaded();
+                    } else {
+                        handleError('ALL_UNITS_DATA', new Error('ALL_UNITS_DATA is not properly defined'));
+                    }
+                };
+                script2.onerror = () => handleError('allUnitsData.js', new Error('Script failed to load'));
+
+                // Append scripts to document head
+                document.head.appendChild(script1);
+                document.head.appendChild(script2);
+
+                // Set a timeout as fallback
+                setTimeout(() => {
+                    if (loadedCount < totalResources) {
+                        console.warn('Timeout reached while loading curriculum resources');
+                        if (window.EMBEDDED_CURRICULUM || window.ALL_UNITS_DATA) {
+                            console.log('Partial resources loaded, proceeding with available data');
+                            resolve();
+                        } else {
+                            reject(new Error('Timeout: No curriculum resources loaded'));
+                        }
+                    }
+                }, 10000); // 10 second timeout
+            });
+        }
         // Helper functions for charts
         function generateChartColors(count) {
             const colors = [
@@ -4354,14 +4438,34 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Initialize on load
         window.onload = function() {
-            initTheme();
-            
-            // Check localStorage support
-            if (!window.localStorage) {
-                showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
-            }
-            
-            promptUsername();
+            // Load curriculum resources first, then initialize the app
+            loadCurriculumResources()
+                .then(() => {
+                    console.log('Curriculum resources loaded successfully, initializing app...');
+                    initTheme();
+
+                    // Check localStorage support
+                    if (!window.localStorage) {
+                        showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
+                    }
+
+                    promptUsername();
+                })
+                .catch(error => {
+                    console.error('Failed to load curriculum resources:', error);
+                    // Show user-friendly error message and continue with basic functionality
+                    showMessage('Some curriculum resources failed to load. The app will work with limited functionality.', 'warning');
+
+                    // Still initialize the app with available resources
+                    initTheme();
+
+                    // Check localStorage support
+                    if (!window.localStorage) {
+                        showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
+                    }
+
+                    promptUsername();
+                });
         }
 
         // Keyboard shortcuts
@@ -4401,43 +4505,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Auto-save reminder
-        let lastSaveTime = Date.now();
-        setInterval(() => {
-            if (Date.now() - lastSaveTime > 300000) { // 5 minutes
-                const reminder = document.createElement('div');
-                reminder.style.cssText = `
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    background: #ff9800;
-                    color: white;
-                    padding: 10px 15px;
-                    border-radius: 5px;
-                    z-index: 1000;
-                    cursor: pointer;
-                `;
-                reminder.textContent = 'Remember to export your data!';
-                reminder.onclick = () => {
-                    exportPersonal();
-                    reminder.remove();
-                };
-                document.body.appendChild(reminder);
-                setTimeout(() => reminder.remove(), 10000);
-            }
-        }, 60000); // Check every minute
-
-        // Update last save time when data changes
-        window.updateLastSaveTime = function() {
-            lastSaveTime = Date.now();
-        }
-
-        // Override saveClassData to update save time
-        const originalSaveClassData = saveClassData;
-        window.saveClassData = function() {
-            originalSaveClassData();
-            updateLastSaveTime();
-        }
 
         // Pig Sprite Controller
         class PigSprite {
@@ -5078,35 +5145,21 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         ${renderSyncButtons()}
                     </div>
 
-                    <!-- QR should be HERE, after app-controls -->
-                    <div style="margin: 30px auto; padding: 20px; background: #f0f7ff; border: 2px solid #3498db; border-radius: 10px; max-width: 400px; text-align: center;">
-                        <h3 style="margin-top: 0;">📱 Open on Another Device</h3>
-                        <div id="site-qr" style="margin: 15px auto;"></div>
-                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                            Scan to open this site on mobile device
-                        </p>
+                    <!-- QR Code Section (Initially Hidden) -->
+                    <div style="margin: 20px auto; text-align: center;">
+                        <button onclick="toggleSiteQR()" class="sync-button" style="background: #607D8B;">
+                            📱 Show Site QR Code
+                        </button>
+                        <div id="site-qr-container" style="display: none; margin: 20px auto; padding: 20px; background: #f0f7ff; border: 2px solid #3498db; border-radius: 10px; max-width: 400px;">
+                            <div id="site-qr" style="margin: 15px auto;"></div>
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+                                Scan to open this site on mobile device
+                            </p>
+                        </div>
                     </div>
                 </div>
             `;
 
-            setTimeout(() => {
-                const qrElement = document.getElementById('site-qr');
-                if (qrElement) {
-                    try {
-                        new QRCode(qrElement, {
-                            text: 'https://robjohncolson.github.io/curriculum_render',
-                            width: 200,
-                            height: 200,
-                            correctLevel: QRCode.CorrectLevel.L
-                        });
-                        console.log('QR code generated successfully');
-                    } catch (error) {
-                        console.error('Failed to generate QR code:', error);
-                    }
-                } else {
-                    console.error('site-qr element not found');
-                }
-            }, 500);  // Increased from 100 to 500ms
         }
 
         // Function to select a unit
@@ -5157,13 +5210,34 @@ if (chartInstances[`dotplot-${questionId}`]) {
             `;
         }
 
-        // Add this function to load resources from allUnitsData.js if it exists
+        // Enhanced function to load resources from allUnitsData.js if it exists
         async function loadUnitResources() {
             try {
-                // Check if ALL_UNITS_DATA exists (from allUnitsData.js)
-                if (typeof ALL_UNITS_DATA !== 'undefined') {
+                // Check if ALL_UNITS_DATA exists (from allUnitsData.js or dynamic loading)
+                if (typeof ALL_UNITS_DATA !== 'undefined' && ALL_UNITS_DATA.length > 0) {
                     console.log('Found ALL_UNITS_DATA, integrating resources...');
                     return ALL_UNITS_DATA;
+                }
+
+                // Check if resources are currently being loaded by loadCurriculumResources
+                if (document.querySelector('script[src="allUnitsData.js"]')) {
+                    console.log('ALL_UNITS_DATA is being loaded dynamically, waiting...');
+                    // Wait for the script to load
+                    return new Promise((resolve) => {
+                        const checkInterval = setInterval(() => {
+                            if (typeof ALL_UNITS_DATA !== 'undefined') {
+                                clearInterval(checkInterval);
+                                console.log('ALL_UNITS_DATA loaded from dynamic loading');
+                                resolve(ALL_UNITS_DATA);
+                            }
+                        }, 100);
+                        // Timeout after 5 seconds
+                        setTimeout(() => {
+                            clearInterval(checkInterval);
+                            console.log('Timeout waiting for ALL_UNITS_DATA');
+                            resolve(null);
+                        }, 5000);
+                    });
                 }
 
                 // Try to dynamically load the file if not already loaded
@@ -5532,6 +5606,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 window.currentScanner.stop();
             }
             document.querySelector('[style*="position: fixed"]').remove();
+        }
+
+        window.toggleSiteQR = function() {
+            const container = document.getElementById('site-qr-container');
+            const button = event.target;
+
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                button.textContent = '📱 Hide Site QR Code';
+
+                // Generate QR if not already done
+                const qrElement = document.getElementById('site-qr');
+                if (qrElement && !qrElement.hasChildNodes()) {
+                    new QRCode(qrElement, {
+                        text: 'https://robjohncolson.github.io/curriculum_render',
+                        width: 200,
+                        height: 200,
+                        correctLevel: QRCode.CorrectLevel.L
+                    });
+                }
+            } else {
+                container.style.display = 'none';
+                button.textContent = '📱 Show Site QR Code';
+            }
         }
     </script>
 </body>
