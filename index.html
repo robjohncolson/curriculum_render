@@ -363,6 +363,53 @@
         .sync-button:hover {
             background: #1976D2;
         }
+        .master-sync-container {
+            margin-top: 10px;
+            width: 100%;
+        }
+        .master-sync-container .sync-button {
+            background: #9C27B0;
+            width: 100%;
+        }
+        .master-sync-container .sync-button:hover {
+            background: #7B1FA2;
+        }
+        .sync-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .sync-modal > div {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .sync-stats {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .sync-stats div {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        body.dark-theme .sync-modal > div {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        body.dark-theme .sync-stats {
+            background: #1e1e1e;
+        }
         .lesson-selector {
             margin: 20px 0;
             padding: 15px;
@@ -724,6 +771,69 @@
             return `${fruit}_${animal}`;
         }
 
+        function getDeviceId() {
+            // Check if deviceId is already stored in localStorage
+            let deviceId = localStorage.getItem('deviceId');
+            if (!deviceId) {
+                // Generate a unique device ID based on browser fingerprint and timestamp
+                const fingerprint = [
+                    navigator.userAgent,
+                    navigator.language,
+                    screen.width + 'x' + screen.height,
+                    new Date().getTimezoneOffset(),
+                    Date.now().toString()
+                ].join('|');
+
+                // Create a simple hash of the fingerprint
+                let hash = 0;
+                for (let i = 0; i < fingerprint.length; i++) {
+                    const char = fingerprint.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+
+                deviceId = 'device_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
+                localStorage.setItem('deviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        function exportForQR() {
+            const cutoffTime = classData.lastSyncTime || 0;
+            const packet = {
+                deviceId: getDeviceId(),
+                username: currentUsername,
+                since: cutoffTime,
+                exported: Date.now(),
+                changes: {}
+            };
+
+            // Only export answers newer than last sync
+            const user = classData.users[currentUsername];
+            if (user && user.answers) {
+                Object.keys(user.answers).forEach(qId => {
+                    // Check if timestamp exists and is newer than cutoff
+                    if (user.timestamps && user.timestamps[qId] && user.timestamps[qId] > cutoffTime) {
+                        packet.changes[qId] = {
+                            answer: user.answers[qId],
+                            reason: user.reasons ? user.reasons[qId] : '',
+                            timestamp: user.timestamps[qId],
+                            attempts: user.attempts ? user.attempts[qId] : 0
+                        };
+                    }
+                });
+            }
+
+            // Compress if needed
+            const json = JSON.stringify(packet);
+            if (json.length > 2000) {
+                // Show warning: "Too many changes since last sync. Use file export."
+                return null;
+            }
+
+            return btoa(json);
+        }
+
         // Global variables
         let currentUsername = null;
         let classData = null;
@@ -754,11 +864,17 @@
             9: { name: 'Inference for Slopes', lessons: 2 }
         };
 
-        // Initialize class data
+        // When loading classData, add new fields only if missing:
         function initClassData() {
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
 
+            // Add new fields without disrupting old data
+            classData.lastSyncTime = classData.lastSyncTime || 0;
+            classData.syncHistory = classData.syncHistory || [];
+            classData.deviceId = classData.deviceId || generateDeviceId();
+
+            // Ensure user structure is complete
             if (!classData.users[currentUsername]) {
                 classData.users[currentUsername] = {
                     answers: {},
@@ -769,6 +885,10 @@
             }
 
             saveClassData();
+        }
+
+        function generateDeviceId() {
+            return 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
         function saveClassData() {
@@ -1123,10 +1243,7 @@ function renderLessonSelector(unitInfo) {
                 </div>
             </div>
             <div class="app-controls">
-                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                ${renderSyncButtons()}
             </div>
         `;
         return;
@@ -1172,10 +1289,7 @@ function renderLessonSelector(unitInfo) {
             </div>
         </div>
         <div class="app-controls">
-            <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-            <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-            <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-            <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+            ${renderSyncButtons()}
         </div>
     `;
 }
@@ -1264,10 +1378,7 @@ function renderLessonSelector(unitInfo) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                    ${renderSyncButtons()}
                 </div>
                 <div id="questions-list"></div>
                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
@@ -3490,9 +3601,15 @@ function renderAttachments(attachments, questionId) {
                 };
             }
 
+            // Get existing answer or create new one
+            const existingAnswer = classData.users[currentUsername].answers[questionId];
+            const version = existingAnswer ? (existingAnswer.version || 1) + 1 : 1;
+
             classData.users[currentUsername].answers[questionId] = {
                 value: value,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                deviceId: getDeviceId(),
+                version: version
             };
             classData.users[currentUsername].reasons[questionId] = reason;
             classData.users[currentUsername].timestamps[questionId] = Date.now();
@@ -3947,6 +4064,64 @@ if (chartInstances[`dotplot-${questionId}`]) {
             showMessage('Personal data exported successfully!', 'success');
         }
 
+        // Add button to export section
+        function addExportQRButton() {
+            return `
+                <button onclick="showExportQR()" class="sync-button">
+                    📊 Show QR (Recent Changes)
+                </button>
+            `;
+        }
+
+        window.showMyQR = function() {
+            // Prepare data packet with only recent changes
+            const cutoff = classData.lastSyncTime || 0;
+            const myData = {
+                username: currentUsername,
+                timestamp: Date.now(),
+                changes: {}
+            };
+
+            const user = classData.users[currentUsername];
+            let changeCount = 0;
+
+            Object.keys(user.answers || {}).forEach(qId => {
+                if ((user.timestamps?.[qId] || 0) > cutoff) {
+                    myData.changes[qId] = {
+                        answer: user.answers[qId],
+                        reason: user.reasons?.[qId],
+                        timestamp: user.timestamps?.[qId]
+                    };
+                    changeCount++;
+                }
+            });
+
+            const json = JSON.stringify(myData);
+            if (json.length > 2500) {
+                alert('Too much data for QR. Please export to file instead.');
+                return;
+            }
+
+            // Show QR modal
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;';
+            modal.onclick = function() { this.remove(); };
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;" onclick="event.stopPropagation()">
+                    <h2>${currentUsername}</h2>
+                    <p>${changeCount} answers to sync</p>
+                    <div id="my-qr"></div>
+                    <button onclick="this.closest('[style*=fixed]').remove()" class="submit-button" style="margin-top: 20px;">Close</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            new QRCode(document.getElementById('my-qr'), {
+                text: btoa(json),
+                width: 300,
+                height: 300
+            });
+        }
 
         // Import class data
         window.importClassData = function(event) {
@@ -3967,6 +4142,38 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             };
             reader.readAsText(file);
+        }
+
+        // Render sync buttons based on device type
+        function renderSyncButtons() {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            let buttons = `
+                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+            `;
+
+            if (isMobile) {
+                // On mobile, show Master Sync option
+                buttons += `
+                    <button onclick="startMasterSync()" class="sync-button" style="background: #9C27B0;">
+                        👑 Master Sync
+                    </button>
+                `;
+            } else {
+                // On desktop, show QR display option
+                buttons += `
+                    <button onclick="showMyQR()" class="sync-button">
+                        📱 Show My QR
+                    </button>
+                `;
+            }
+
+            buttons += `
+                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+            `;
+
+            return buttons;
         }
 
         // Merge imported data with existing data
@@ -3999,8 +4206,64 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                 }
             }
-            
+
+            // When importing data:
+            classData.lastImportTime = Date.now();
+
             saveClassData();
+        }
+
+        function mergeIncomingData(incoming) {
+            const mergeReport = {
+                newUsers: 0,
+                updatedAnswers: 0,
+                conflicts: []
+            };
+
+            Object.keys(incoming.users).forEach(username => {
+                if (!classData.users[username]) {
+                    classData.users[username] = incoming.users[username];
+                    mergeReport.newUsers++;
+                } else {
+                    // Merge by most recent timestamp per question
+                    const localUser = classData.users[username];
+                    const remoteUser = incoming.users[username];
+
+                    Object.keys(remoteUser.answers).forEach(qId => {
+                        const localTime = localUser.timestamps?.[qId] || 0;
+                        const remoteTime = remoteUser.timestamps?.[qId] || 0;
+
+                        if (remoteTime > localTime) {
+                            // Remote is newer - take it
+                            localUser.answers[qId] = remoteUser.answers[qId];
+                            localUser.timestamps[qId] = remoteTime;
+                            localUser.reasons[qId] = remoteUser.reasons[qId];
+                            localUser.attempts[qId] = remoteUser.attempts[qId];
+                            mergeReport.updatedAnswers++;
+                        } else if (remoteTime === localTime &&
+                                  JSON.stringify(localUser.answers[qId]) !==
+                                  JSON.stringify(remoteUser.answers[qId])) {
+                            // Same timestamp, different answer = conflict
+                            mergeReport.conflicts.push({
+                                user: username,
+                                question: qId,
+                                local: localUser.answers[qId],
+                                remote: remoteUser.answers[qId]
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Update sync tracking
+            classData.lastSyncTime = Date.now();
+            classData.syncHistory.push({
+                time: Date.now(),
+                source: incoming.deviceId || 'unknown',
+                stats: mergeReport
+            });
+
+            return mergeReport;
         }
 
         // Show message
@@ -4180,6 +4443,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             bindControls() {
                 document.addEventListener('keydown', (e) => {
+                    // Check if currently typing
+                    const activeElement = document.activeElement;
+                    const isTyping = activeElement && (
+                        activeElement.tagName === 'TEXTAREA' ||
+                        activeElement.tagName === 'INPUT' ||
+                        activeElement.contentEditable === 'true'
+                    );
+
+                    if (isTyping) return; // Don't capture keys when typing
+
                     switch(e.key) {
                         case 'ArrowLeft':
                             this.moveLeft();
@@ -4202,6 +4475,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 document.addEventListener('keyup', (e) => {
+                    // Check if currently typing
+                    const activeElement = document.activeElement;
+                    const isTyping = activeElement && (
+                        activeElement.tagName === 'TEXTAREA' ||
+                        activeElement.tagName === 'INPUT' ||
+                        activeElement.contentEditable === 'true'
+                    );
+
+                    if (isTyping) return;
+
                     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                         this.velocity.x = 0;
                     }
@@ -4327,6 +4610,49 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Initialize QR sync manager
             qrSync = new QRSyncManager();
         });
+
+        // Add site QR code for mobile access
+        function addSiteQR() {
+            const siteUrl = 'https://robjohncolson.github.io/curriculum_render';
+
+            // Create a small QR in corner of main screen
+            const qrContainer = document.createElement('div');
+            qrContainer.id = 'site-qr-container';
+            qrContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 10px;
+                background: white;
+                border: 2px solid #3498db;
+                border-radius: 8px;
+                text-align: center;
+                z-index: 100;
+            `;
+
+            qrContainer.innerHTML = `
+                <div style="font-size: 12px; margin-bottom: 5px;">📱 Scan to open on phone</div>
+                <div id="site-qr"></div>
+            `;
+
+            document.body.appendChild(qrContainer);
+
+            // Generate QR
+            new QRCode(document.getElementById("site-qr"), {
+                text: siteUrl,
+                width: 128,
+                height: 128,
+                correctLevel: QRCode.CorrectLevel.L
+            });
+        }
+
+        // Call this when page loads
+        window.addEventListener('load', () => {
+            // Only show on desktop/tablets, not phones
+            if (window.innerWidth > 768) {
+                addSiteQR();
+            }
+        });
     </script>
 
     <!-- Enhanced QR Sync System with Handshake Protocol -->
@@ -4404,14 +4730,18 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             broadcastData() {
                 try {
-                    const ourPacket = {
-                        sessionId: this.syncSessionId,
-                        username: currentUsername,
-                        timestamp: Date.now(),
-                        data: classData.users[currentUsername]
-                    };
+                    // Use the efficient exportForQR function instead of sending all data
+                    const compressed = exportForQR();
 
-                    const compressed = btoa(JSON.stringify(ourPacket));
+                    if (!compressed) {
+                        // Too many changes - show warning
+                        document.getElementById('our-status').innerHTML = '⚠️ Too many changes since last sync. Use file export instead.';
+                        return;
+                    }
+
+                    // Decode to get the packet for internal use
+                    const ourPacket = JSON.parse(atob(compressed));
+                    ourPacket.sessionId = this.syncSessionId; // Add session ID for handshake
 
                     // Create QR code
                     new QRCode(document.getElementById("our-qr-code"), {
@@ -4493,13 +4823,46 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     return;
                 }
 
-                const imported = {
-                    users: {
-                        [this.receivedData.username]: this.receivedData.data
-                    }
-                };
+                // Handle both old format (full data) and new format (changes only)
+                let imported;
+                if (this.receivedData.changes) {
+                    // New format: apply changes to existing user data
+                    imported = {
+                        users: {
+                            [this.receivedData.username]: {
+                                answers: {},
+                                reasons: {},
+                                timestamps: {},
+                                attempts: {}
+                            }
+                        }
+                    };
+
+                    // Apply each change
+                    Object.keys(this.receivedData.changes).forEach(qId => {
+                        const change = this.receivedData.changes[qId];
+                        imported.users[this.receivedData.username].answers[qId] = change.answer;
+                        imported.users[this.receivedData.username].reasons[qId] = change.reason;
+                        imported.users[this.receivedData.username].timestamps[qId] = change.timestamp;
+                        imported.users[this.receivedData.username].attempts[qId] = change.attempts;
+                    });
+                } else if (this.receivedData.data) {
+                    // Old format: full user data
+                    imported = {
+                        users: {
+                            [this.receivedData.username]: this.receivedData.data
+                        }
+                    };
+                } else {
+                    alert('Invalid data format received!');
+                    return;
+                }
 
                 mergeClassData(imported);
+
+                // Update sync time to current time
+                classData.lastSyncTime = Date.now();
+                localStorage.setItem('classData', JSON.stringify(classData));
 
                 document.getElementById('handshake-status').innerHTML = `
                     <div style="color: #4CAF50; font-size: 20px;">
@@ -4709,10 +5072,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         ${unitsHtml}
                     </div>
                     <div class="app-controls" style="margin-top: 20px;">
-                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                        ${renderSyncButtons()}
                     </div>
                 </div>
             `;
@@ -4846,10 +5206,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         </div>
                     </div>
                     <div class="app-controls">
-                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                        ${renderSyncButtons()}
                     </div>
                 `;
             }
@@ -4925,9 +5282,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                    ${renderSyncButtons()}
                 </div>
                 ${videoSection}
                 <div id="questions-list"></div>
@@ -5042,6 +5397,110 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 qrSync = new QRSyncManager();
             }
             qrSync.initiateSyncSession();
+        }
+
+        // Add this button when on mobile or in master mode
+        function renderMasterSync() {
+            return `
+                <div class="master-sync-container">
+                    <button onclick="startMasterSync()" class="sync-button" style="background: #9C27B0;">
+                        👑 Master Sync Mode
+                    </button>
+                    <div id="sync-status"></div>
+                </div>
+            `;
+        }
+
+        window.startMasterSync = function() {
+            let scannedStudents = [];
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; inset: 0; background: white; z-index: 3000; padding: 20px; overflow-y: auto;';
+            modal.innerHTML = `
+                <div style="max-width: 600px; margin: 0 auto;">
+                    <h2>👑 Master Sync Mode</h2>
+                    <p>Scan each student's QR code. The camera will stay active.</p>
+
+                    <div id="qr-reader" style="width: 100%;"></div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 8px;">
+                        <h3>Scanned Students (<span id="scan-count">0</span>)</h3>
+                        <div id="scanned-list"></div>
+                    </div>
+
+                    <button onclick="finishMasterSync()" class="submit-button" style="background: #4CAF50;">
+                        Finish & Export Merged Data
+                    </button>
+                    <button onclick="cancelMasterSync()" class="submit-button" style="background: #f44336; margin-left: 10px;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Start scanner
+            const html5QrCode = new Html5Qrcode("qr-reader");
+            window.currentScanner = html5QrCode;
+            window.scannedStudents = scannedStudents;
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText) => {
+                    try {
+                        const data = JSON.parse(atob(decodedText));
+                        if (data.username && !scannedStudents.find(s => s.username === data.username)) {
+                            scannedStudents.push(data);
+
+                            // Update UI
+                            document.getElementById('scan-count').textContent = scannedStudents.length;
+                            document.getElementById('scanned-list').innerHTML +=
+                                `<div>✓ ${data.username} - ${Object.keys(data.changes || {}).length} answers</div>`;
+
+                            // Brief success sound/vibration if available
+                            if (navigator.vibrate) navigator.vibrate(200);
+                        }
+                    } catch(e) {
+                        console.error('Invalid QR:', e);
+                    }
+                }
+            ).catch(err => {
+                alert('Camera error: ' + err);
+            });
+        }
+
+        window.finishMasterSync = function() {
+            if (window.currentScanner) {
+                window.currentScanner.stop();
+            }
+
+            // Merge all scanned data
+            window.scannedStudents.forEach(studentData => {
+                const imported = {
+                    users: {
+                        [studentData.username]: studentData.changes || studentData.data
+                    }
+                };
+                mergeClassData(imported);
+            });
+
+            // Export merged database
+            const blob = new Blob([JSON.stringify(classData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `merged_class_data_${Date.now()}.json`;
+            a.click();
+
+            document.querySelector('[style*="position: fixed"]').remove();
+            showMessage(`Merged ${window.scannedStudents.length} students' data!`, 'success');
+        }
+
+        window.cancelMasterSync = function() {
+            if (window.currentScanner) {
+                window.currentScanner.stop();
+            }
+            document.querySelector('[style*="position: fixed"]').remove();
         }
     </script>
 </body>
