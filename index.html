@@ -4611,48 +4611,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             qrSync = new QRSyncManager();
         });
 
-        // Add site QR code for mobile access
-        function addSiteQR() {
-            const siteUrl = 'https://robjohncolson.github.io/curriculum_render';
 
-            // Create a small QR in corner of main screen
-            const qrContainer = document.createElement('div');
-            qrContainer.id = 'site-qr-container';
-            qrContainer.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 10px;
-                background: white;
-                border: 2px solid #3498db;
-                border-radius: 8px;
-                text-align: center;
-                z-index: 100;
-            `;
-
-            qrContainer.innerHTML = `
-                <div style="font-size: 12px; margin-bottom: 5px;">📱 Scan to open on phone</div>
-                <div id="site-qr"></div>
-            `;
-
-            document.body.appendChild(qrContainer);
-
-            // Generate QR
-            new QRCode(document.getElementById("site-qr"), {
-                text: siteUrl,
-                width: 128,
-                height: 128,
-                correctLevel: QRCode.CorrectLevel.L
-            });
-        }
-
-        // Call this when page loads
-        window.addEventListener('load', () => {
-            // Only show on desktop/tablets, not phones
-            if (window.innerWidth > 768) {
-                addSiteQR();
-            }
-        });
     </script>
 
     <!-- Enhanced QR Sync System with Handshake Protocol -->
@@ -5071,11 +5030,33 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div class="units-grid">
                         ${unitsHtml}
                     </div>
+
                     <div class="app-controls" style="margin-top: 20px;">
                         ${renderSyncButtons()}
                     </div>
+
+                    <!-- QR code AFTER buttons -->
+                    <div style="margin: 30px auto; padding: 20px; background: #f0f7ff; border: 2px solid #3498db; border-radius: 10px; max-width: 400px; text-align: center;">
+                        <h3 style="margin-top: 0;">📱 Open on Another Device</h3>
+                        <div id="site-qr" style="margin: 15px auto;"></div>
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
+                            Scan to open this site on your phone for Master Sync
+                        </p>
+                    </div>
                 </div>
             `;
+
+            // Generate the QR code after the HTML is added
+            setTimeout(() => {
+                if (document.getElementById('site-qr')) {
+                    new QRCode(document.getElementById('site-qr'), {
+                        text: 'https://robjohncolson.github.io/curriculum_render',
+                        width: 200,
+                        height: 200,
+                        correctLevel: QRCode.CorrectLevel.L
+                    });
+                }
+            }, 100);
         }
 
         // Function to select a unit
