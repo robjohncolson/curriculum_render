@@ -1,4 +1,5 @@
-// Export the ALL_UNITS_DATA
+// allUnitsData.js
+
 const ALL_UNITS_DATA = [
   {
     unitId: 'unit1',
@@ -2552,9 +2553,40 @@ const ALL_UNITS_DATA = [
     ]
   },
   
+]; // End of ALL_UNITS_DATA array
 
+// Optional helper function to calculate totals (can be included in the same file)
+// This function is used by displayRemainingItemCounts and displayFlexibleQuota
+function getTotalItemCounts(allUnitsDataArray = ALL_UNITS_DATA) {
+    let totalVideos = 0;
+    let totalQuizzes = 0;
 
-];
+    if (!allUnitsDataArray || !Array.isArray(allUnitsDataArray)) {
+        console.error("Invalid data provided to getTotalItemCounts in allUnitsData.js");
+        return { totalVideos: 0, totalQuizzes: 0 };
+    }
 
-// Make it available globally if needed
-window.ALL_UNITS_DATA = ALL_UNITS_DATA;
+    allUnitsDataArray.forEach(unit => {
+        if (unit.topics && Array.isArray(unit.topics)) {
+            unit.topics.forEach(topic => {
+                // Count videos
+                if (topic.videos && Array.isArray(topic.videos)) {
+                    // Ensure we count each unique video URL only once if necessary,
+                    // or simply count the number of video objects if each represents a task.
+                    // Current implementation counts each video object:
+                    totalVideos += topic.videos.length;
+                }
+                // Count quizzes
+                if (topic.quizzes && Array.isArray(topic.quizzes)) {
+                    // Counts each quiz object as one item. Adjust if structure is different (e.g., multiple PDFs per quiz object).
+                    totalQuizzes += topic.quizzes.length;
+                }
+            });
+        }
+    });
+    console.log(`getTotalItemCounts calculated: ${totalVideos} videos, ${totalQuizzes} quizzes`); // Added log
+    return { totalVideos, totalQuizzes };
+}
+
+// Example of how other scripts might use this (don't include this line if using getTotalItemCounts):
+// const globalCounts = getTotalItemCounts();
