@@ -363,53 +363,6 @@
         .sync-button:hover {
             background: #1976D2;
         }
-        .master-sync-container {
-            margin-top: 10px;
-            width: 100%;
-        }
-        .master-sync-container .sync-button {
-            background: #9C27B0;
-            width: 100%;
-        }
-        .master-sync-container .sync-button:hover {
-            background: #7B1FA2;
-        }
-        .sync-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .sync-modal > div {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 500px;
-            width: 90%;
-        }
-        .sync-stats {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        .sync-stats div {
-            margin: 5px 0;
-            font-size: 16px;
-        }
-        body.dark-theme .sync-modal > div {
-            background: #2d2d2d;
-            color: #e0e0e0;
-        }
-        body.dark-theme .sync-stats {
-            background: #1e1e1e;
-        }
         .lesson-selector {
             margin: 20px 0;
             padding: 15px;
@@ -625,7 +578,7 @@
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5gAAADECAYAAAD6bI6sAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAADmKADAAQAAAABAAAAxAAAAAD+OvF/AAAYa0lEQVR4Ae3d0XHcuLIA0PEtR6NctEHIIeyGsQ7BDsLORen4vVt1y1XTY7EHZIMEwbNfC4FsNA5aI6FIWJ9+vL39unX876/v3z91DJ+G3nt+e4+XAhRfMPv8irmGCzf7+s0+v+EKqjih2ddv9vkVl8Nw4WZfv9nnN1xBFSc0+/rtPb+9xysuhzRc7/n9J83ABQQIECBAgAABAgQIECBA4AkBG8wnkFxCgAABAgQIECBAgAABArmADWZu5AoCBAgQIECAAAECBAgQeELgc7zm9eUlfqmp/fP9ven6vS/ee357jzebZ+93xK92RjjWh/qMIvft7PNMfd57tbay7z/1uSyqPo/9NyTUp/pcEjj654P6XFqd2y37/Ix384wi9+3o6QnmvY8WAQIECBAgQIAAAQIECKwUsMFcCec2AgQIECBAgAABAgQIELgXsMG899AiQIAAAQIECBAgQIAAgZUCD2cwV8b58Lbe76B/OPCkHVf39A78cmHHd+CXr67vVZ/OsC9Vlfpc0unf5/Nz2Vh9Lvv07lWfy8Lqc9nnbL2z/77kCebZKlK+BAgQIECAAAECBAgQGFTABnPQhZEWAQIECBAgQIAAAQIEziZgg3m2FZMvAQIECBAgQIAAAQIEBhUoP4O59R36QZ0OS4tnX/rZ34Hvq3e7qc++wupzm6/63OaX3a0+M6HlfvW57LO1V31uE1Sf2/zi3Vfz9AQzVoA2AQIECBAgQIAAAQIECKwSsMFcxeYmAgQIECBAgAABAgQIEIgCNphRRJsAAQIECBAgQIAAAQIEVgmUn8FclYWbCOwkcLV34HdiNUyRgPosghSmi4D67MIqaJGA+iyCFIZAgYAnmAWIQhAgQIAAAQIECBAgQIDA7WaDqQoIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQ+FxN8OmffzaF/PXvv5vuz27emt+Pt7dsiE39Mb/okfVvGvwPN2fjZf1/COlLEwnE9W+dWqzv1vuz67fm1/v7Pctf/zaBreuvPrf5u3tZQH0u++g9VkB9Hut/9tE9wTz7CsqfAAECBAgQIECAAAECgwjYYA6yENIgQIAAAQIECBAgQIDA2QVsMM++gvInQIAAAQIECBAgQIDAIALlZzAHmddp04hnfuI78LG/90TjeEfns3W+Mf/WeNGj9f7s+q35OTOYCY/dv3X91efY63v27NTn2Vdw7vzV59zra3bnEvAE81zrJVsCBAgQIECAAAECBAgMK2CDOezSSIwAAQIECBAgQIAAAQLnErDBPNd6yZYAAQIECBAgQIAAAQLDCjiDOdjSxDME8UxV1l89nWy8rL86H/EIECBAgAABAgQInEkg/r7cmnvcD7Ten12/Nb/4b4B4gpmJ6ydAgAABAgQIECBAgACBpwRsMJ9ichEBAgQIECBAgAABAgQIZAI2mJmQfgIECBAgQIAAAQIECBB4SsAZzKeY9rsoe8c666/ONBsv66/ORzwCBAgQIECAAAECBMYV8ARz3LWRGQECBAgQIECAAAECBE4lYIN5quWSLAECBAgQIECAAAECBMYVsMEcd21kRoAAAQIECBAgQIAAgVMJlJ/BHP1M3tb8fr6/n2qBJUugp8DW76eeuf039tb8fL/3XqG+8beuf9/s1Gdv39Hjq8/RV+ja+anP2vW/mqcnmLX1IxoBAgQIECBAgAABAgQuK2CDedmlN3ECBAgQIECAAAECBAjUCthg1nqKRoAAAQIECBAgQIAAgcsKlJ/BvKykiZ9C4GrvwJ9iUST5W0B9/qbwPwMKqM8BF0VKvwXU528K/0PgcAFPMA9fAgkQIECAAAECBAgQIEBgDgEbzDnW0SwIECBAgAABAgQIECBwuIAN5uFLIAECBAgQIECAAAECBAjMIfBwBrP33317fXnZVa73fLLJ9B7/ap6Zt/42gbPXZ+/82zRdXS3Qe333/vy8/f33ItHPL18W+3WOJdC7PuNsd6/XmEBsJ/V8U89RbNe2+lz+vG2tz96ee39/956PJ5i7frsbjAABAgQIECBAgAABAvMK2GDOu7ZmRoAAAQIECBAgQIAAgV0FbDB35TYYAQIECBAgQIAAAQIE5hX4/Nf37596Tu/H29uvnvFbY/eeb+/4V/OM69v7nfHe78D3zj96xfbs9dl7ftEztnuvr/qM4m3t0T4/s+yr67l3fcb59K7XOF7a3nhmsHo9snzPVq/ZfLJ+9bntzKD6zCqsrb+352jf39Xz9QSzrd5cTYAAAQIECBAgQIAAAQIfCNhgfgDjywQIECBAgAABAgQIECDQJmCD2eblagIECBAgQIAAAQIECBD4QODh72B+cJ0vEzhEoPqd8DiJ2d+Bj/PVrhVQn7WeW6ON9v38cKZs578L2Ls+43qN5h/z014WeKjX5ctvrX9HMIZTn1FEe0lg7/pcykVfLuAJZm7kCgIECBAgQIAAAQIECBB4QsAG8wkklxAgQIAAAQIECBAgQIBALmCDmRu5ggABAgQIECBAgAABAgSeENj/DGb2d6i+fn0i7YVLYvydz7wsZPZUV/MZljjfOEqrZxYveGb57n3GIk5/tPbrt293Kf0MnnedGgR6C4Tv99cw3tnrM36/hendbq2fjw8Bar/g87LN05msNq/Wq9Vjq9j99erz3mPv1unqN/w8fvDa+vMqxu/8+6cnmA8r6AsECBAgQIAAAQIECBAgsEbABnONmnsIECBAgAABAgQIECBA4EHABvOBxBcIECBAgAABAgQIECBAYI3A/mcw12R54XteX16Gmn2WT/OZg6Fm9//JxHfUY35b34GP8a7e5n31Cph6/tN/Xg62eqc7czWYn3T6CqjPbb4+T7f57X23J5h7ixuPAAECBAgQIECAAAECkwrYYE66sKZFgAABAgQIECBAgACBvQVsMPcWNx4BAgQIECBAgAABAgQmFdj/DGbnM2xn/7ttzXVW7Vkdr3lCfW/I/m5n39Fvt8vVZ29Q8bcJhO/305+hDhrZ91t2pieE0wwCR3+ehnQ0CQwtEL9fRj+TGfMdGneG5MLP4+opZT8Pq8fzBLNaVDwCBAgQIECAAAECBAhcVMAG86ILb9oECBAgQIAAAQIECBCoFrDBrBYVjwABAgQIECBAgAABAhcV2P8MZgKdnQFqPTMz+jvuCcct88ju178s8FBP4R34Vv+HeMvD385en8n00vp9Dd4xXqt/vP9q7VavWK+x3RpvNO84n5jf2ecX53N0u9o7i3f0fPceP6vXzCu7f+/5jD5eq1f0j+3WeKP5xPnE/M4+vzif0dqZb7Y+cT69f//0BDOKaxMgQIAAAQIECBAgQIDAKgEbzFVsbiJAgAABAgQIECBAgACBKGCDGUW0CRAgQIAAAQIECBAgQGCVwHBnMFfNYqKber8TPRHVIVOJ6+PvRN0vQ/S5773dtnpl8eN4V29Hr63+s3tGr9nne/T8orf6vF+R6HPf6/M0evRux/VQr8vi0Wv5ar2zCXiCOduKmg8BAgQIECBAgAABAgQOErDBPAjesAQIECBAgAABAgQIEJhNwAZzthU1HwIECBAgQIAAAQIECBwksPsZzOzvuGQOW+/P4uu/lkB1PVXHm301eLWtcLVXdby22fS/evb59RdsG6Hauzpe22zOdzWvtjWr9qqO1zab/lfPPr/+gssjbPXdev9ydu29nmC2m7mDAAECBAgQIECAAAECBP4gYIP5BxRfIkCAAAECBAgQIECAAIF2ARvMdjN3ECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgACBpwQ+/Xh7+/XUlSsv+uv7908rby25be/57T1eCVJDkNnn10BxyktnX7/Z53fKomtIevb1m31+DUt9yktnX7/Z53fKomtIevb123t+e4/XsNQll/aen39FtmSZBCFAgAABAgQIECBAgAABG0w1QIAAAQIECBAgQIAAAQIlAjaYJYyCECBAgAABAgQIECBAgMDnSPD68hK/1NT++f7edP3eF+89v73Hm82z9zviVzsjHOtDfUaR+3b2eaY+771aW9n3n/pcFlWfx/4bEupTfS4JHP3zQX0urc7tln1+xrt5RpH7dvT0BPPeR4sAAQIECBAgQIAAAQIEVgrYYK6EcxsBAgQIECBAgAABAgQI3AvYYN57aBEgQIAAAQIECBAgQIDASoGHM5gr43x4W+930D8ceNKOq3t6B365sOM78MtX1/eqT2fYl6pKfS7p9O/z+blsrD6XfXr3qs9lYfW57HO23tl/X/IE82wVKV8CBAgQIECAAAECBAgMKmCDOejCSIsAAQIECBAgQIAAAQJnE7DBPNuKyZcAAQIECBAgQIAAAQKDCpSfwdz6Dv2gToelxbMv/ezvwPfVu93UZ19h9bnNV31u88vuVp+Z0HK/+lz22dqrPrcJqs9tfvHuq3l6ghkrQJsAAQIECBAgQIAAAQIEVgnYYK5icxMBAgQIECBAgAABAgQIRAEbzCiiTYAAAQIECBAgQIAAAQKrBMrPYK7Kwk0EdhK42jvwO7EapkhAfRZBCtNFQH12YRW0SEB9FkEKQ6BAwBPMAkQhCBAgQIAAAQIECBAgQOB2s8FUBQQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAh8jgSf/vknfqmp/evff5uub7149Pxa5xOvj/OLnll/jLe1nY2X9W8d3/19BeL6tY4W67P1/uz60fPL8te/TWD09R89v2367s4ERl//0fPLfPVvExh9/UfPb5u+uz3BVAMECBAgQIAAAQIECBAgUCJgg1nCKAgBAgQIECBAgAABAgQI2GCqAQIECBAgQIAAAQIECBAoEXg4g1kSVZDVAvFMW3xHPfavHujJG+N4R+cTx39yGr8vi/P53VH0P6PnVzRNYT4QGH39R8/vA1ZfLhIYff1Hz69oGYT5QGD09R89vw9YfZnAIQKeYB7CblAC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');
+    background-image: url('pigsprite.png');
     background-size: 352px 64px; /* 11 frames x 32px, 2 rows */
     z-index: 9999;
     transition: left 0.1s, bottom 0.1s;
@@ -732,7 +685,7 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
 
     <script>
-         const EMBEDDED_CURRICULUM = [
+        const EMBEDDED_CURRICULUM = [
   {
     "id": "U1-L2-Q01",
     "type": "multiple-choice",
@@ -41176,69 +41129,6 @@ const ALL_UNITS_DATA = [
             return `${fruit}_${animal}`;
         }
 
-        function getDeviceId() {
-            // Check if deviceId is already stored in localStorage
-            let deviceId = localStorage.getItem('deviceId');
-            if (!deviceId) {
-                // Generate a unique device ID based on browser fingerprint and timestamp
-                const fingerprint = [
-                    navigator.userAgent,
-                    navigator.language,
-                    screen.width + 'x' + screen.height,
-                    new Date().getTimezoneOffset(),
-                    Date.now().toString()
-                ].join('|');
-
-                // Create a simple hash of the fingerprint
-                let hash = 0;
-                for (let i = 0; i < fingerprint.length; i++) {
-                    const char = fingerprint.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash; // Convert to 32-bit integer
-                }
-
-                deviceId = 'device_' + Math.abs(hash).toString(36) + '_' + Date.now().toString(36);
-                localStorage.setItem('deviceId', deviceId);
-            }
-            return deviceId;
-        }
-
-        function exportForQR() {
-            const cutoffTime = classData.lastSyncTime || 0;
-            const packet = {
-                deviceId: getDeviceId(),
-                username: currentUsername,
-                since: cutoffTime,
-                exported: Date.now(),
-                changes: {}
-            };
-
-            // Only export answers newer than last sync
-            const user = classData.users[currentUsername];
-            if (user && user.answers) {
-                Object.keys(user.answers).forEach(qId => {
-                    // Check if timestamp exists and is newer than cutoff
-                    if (user.timestamps && user.timestamps[qId] && user.timestamps[qId] > cutoffTime) {
-                        packet.changes[qId] = {
-                            answer: user.answers[qId],
-                            reason: user.reasons ? user.reasons[qId] : '',
-                            timestamp: user.timestamps[qId],
-                            attempts: user.attempts ? user.attempts[qId] : 0
-                        };
-                    }
-                });
-            }
-
-            // Compress if needed
-            const json = JSON.stringify(packet);
-            if (json.length > 2000) {
-                // Show warning: "Too many changes since last sync. Use file export."
-                return null;
-            }
-
-            return btoa(json);
-        }
-
         // Global variables
         let currentUsername = null;
         let classData = null;
@@ -41269,17 +41159,11 @@ const ALL_UNITS_DATA = [
             9: { name: 'Inference for Slopes', lessons: 2 }
         };
 
-        // When loading classData, add new fields only if missing:
+        // Initialize class data
         function initClassData() {
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
 
-            // Add new fields without disrupting old data
-            classData.lastSyncTime = classData.lastSyncTime || 0;
-            classData.syncHistory = classData.syncHistory || [];
-            classData.deviceId = classData.deviceId || generateDeviceId();
-
-            // Ensure user structure is complete
             if (!classData.users[currentUsername]) {
                 classData.users[currentUsername] = {
                     answers: {},
@@ -41290,10 +41174,6 @@ const ALL_UNITS_DATA = [
             }
 
             saveClassData();
-        }
-
-        function generateDeviceId() {
-            return 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
         function saveClassData() {
@@ -41430,85 +41310,10 @@ const ALL_UNITS_DATA = [
             };
         }
 
-        // Modified loadFromFile function
-        function loadFromFile() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                showMessage('Please select a unit JSON file', 'error');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    const questions = Array.isArray(data) ? data : (data.questions || []);
-
-                    const unitInfo = detectUnitAndLessons(questions);
-                    if (!unitInfo) {
-                        showMessage('Could not detect unit from question IDs', 'error');
-                        return;
-                    }
-
-                    currentUnit = unitInfo.unitNumber;
-                    allUnitQuestions = questions;
-
-                    // Show unit name if available
-                    const unitName = unitStructure[currentUnit]?.name || `Unit ${currentUnit}`;
-                    showMessage(`Loaded ${unitName} with ${unitInfo.lessonNumbers.length} lessons`, 'success');
-
-                    // Go directly to lesson selector
-                    renderLessonSelector(unitInfo);
-                } catch (error) {
-                    showMessage('Error parsing JSON: ' + error.message, 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
 
        
 
-        // Add simple file upload UI at start
-        function renderFileUpload() {
-            const questionsContainer = document.getElementById('questionsContainer');
-            questionsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h2>Load a Unit File</h2>
-                    <p style="margin-bottom: 20px;">Select a unit JSON file (unit1.json, unit2.json, etc.)</p>
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <input type="file" id="fileInput" accept=".json"
-                               style="padding: 10px; font-size: 16px;">
-                    </div>
-                    <button onclick="loadFromFile()" class="submit-button" style="padding: 12px 30px;">
-                        Load Unit File
-                    </button>
-                    <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
-                        <strong>Note:</strong> The app will automatically detect which unit you've loaded based on question IDs (U1, U2, etc.)
-                    </div>
-                </div>
-            `;
-        }
 
-        // New function to go back to file upload
-        window.backToFileUpload = function() {
-            // Clear current data
-            currentUnit = null;
-            currentLesson = null;
-            currentQuestions = [];
-            allUnitQuestions = [];
-
-            // Clear charts
-            Object.values(chartInstances).forEach(chart => {
-                if (chart && typeof chart.destroy === 'function') {
-                    chart.destroy();
-                }
-            });
-            chartInstances = {};
-
-            renderFileUpload();
-        }
 
         // Username management
         function promptUsername() {
@@ -41517,9 +41322,7 @@ const ALL_UNITS_DATA = [
                 currentUsername = savedUsername;
                 initClassData();
                 showUsernameWelcome();
-
-                // AUTO-LOAD EMBEDDED DATA instead of showing file upload
-                loadEmbeddedCurriculum();  // Add this new function
+                initializeFromEmbeddedData(); // Initialize from embedded data
             } else {
                 showUsernamePrompt();
             }
@@ -41548,12 +41351,22 @@ const ALL_UNITS_DATA = [
             localStorage.setItem('consensusUsername', currentUsername);
             initClassData();
             showUsernameWelcome();
-
-            // AUTO-LOAD instead of file upload
-            loadEmbeddedCurriculum();
+            initializeFromEmbeddedData();
         }
 
-        function loadEmbeddedCurriculum() {
+        function showUsernameWelcome() {
+            const container = document.querySelector('.container');
+            if (!container) return;
+            const existingWelcome = document.querySelector('.username-welcome');
+            if (existingWelcome) existingWelcome.remove();
+
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.className = 'username-welcome';
+            welcomeDiv.textContent = `Welcome ${currentUsername}!`;
+            container.insertBefore(welcomeDiv, container.firstChild.nextSibling);
+        }
+
+        function initializeFromEmbeddedData() {
             // Parse embedded curriculum
             allCurriculumData = {};
             const allQuestions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM;
@@ -41586,18 +41399,6 @@ const ALL_UNITS_DATA = [
 
             // Go straight to unit menu
             renderUnitMenu();
-        }
-
-        function showUsernameWelcome() {
-            const container = document.querySelector('.container');
-            if (!container) return;
-            const existingWelcome = document.querySelector('.username-welcome');
-            if (existingWelcome) existingWelcome.remove();
-
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'username-welcome';
-            welcomeDiv.textContent = `Welcome ${currentUsername}!`;
-            container.insertBefore(welcomeDiv, container.firstChild.nextSibling);
         }
 
         // Unit selector - REMOVED: No longer needed due to CORS issues
@@ -41687,7 +41488,10 @@ function renderLessonSelector(unitInfo) {
                 </div>
             </div>
             <div class="app-controls">
-                ${renderSyncButtons()}
+                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
+                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
             </div>
         `;
         return;
@@ -41733,7 +41537,10 @@ function renderLessonSelector(unitInfo) {
             </div>
         </div>
         <div class="app-controls">
-            ${renderSyncButtons()}
+            <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+            <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
+            <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+            <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
         </div>
     `;
 }
@@ -41789,8 +41596,8 @@ function renderLessonSelector(unitInfo) {
             currentUnit = null;
             currentLesson = null;
 
-            // Go to file upload instead of unit selector
-            renderFileUpload();
+            // Go to unit menu
+            renderUnitMenu();
         }
 
         // Back to lessons
@@ -41822,7 +41629,10 @@ function renderLessonSelector(unitInfo) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    ${renderSyncButtons()}
+                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
+                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                 </div>
                 <div id="questions-list"></div>
                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
@@ -44045,15 +43855,9 @@ function renderAttachments(attachments, questionId) {
                 };
             }
 
-            // Get existing answer or create new one
-            const existingAnswer = classData.users[currentUsername].answers[questionId];
-            const version = existingAnswer ? (existingAnswer.version || 1) + 1 : 1;
-
             classData.users[currentUsername].answers[questionId] = {
                 value: value,
-                timestamp: Date.now(),
-                deviceId: getDeviceId(),
-                version: version
+                timestamp: Date.now()
             };
             classData.users[currentUsername].reasons[questionId] = reason;
             classData.users[currentUsername].timestamps[questionId] = Date.now();
@@ -44508,64 +44312,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             showMessage('Personal data exported successfully!', 'success');
         }
 
-        // Add button to export section
-        function addExportQRButton() {
-            return `
-                <button onclick="showExportQR()" class="sync-button">
-                    📊 Show QR (Recent Changes)
-                </button>
-            `;
-        }
-
-        window.showMyQR = function() {
-            // Prepare data packet with only recent changes
-            const cutoff = classData.lastSyncTime || 0;
-            const myData = {
-                username: currentUsername,
-                timestamp: Date.now(),
-                changes: {}
-            };
-
-            const user = classData.users[currentUsername];
-            let changeCount = 0;
-
-            Object.keys(user.answers || {}).forEach(qId => {
-                if ((user.timestamps?.[qId] || 0) > cutoff) {
-                    myData.changes[qId] = {
-                        answer: user.answers[qId],
-                        reason: user.reasons?.[qId],
-                        timestamp: user.timestamps?.[qId]
-                    };
-                    changeCount++;
-                }
-            });
-
-            const json = JSON.stringify(myData);
-            if (json.length > 2500) {
-                alert('Too much data for QR. Please export to file instead.');
-                return;
-            }
-
-            // Show QR modal
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center;';
-            modal.onclick = function() { this.remove(); };
-            modal.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center;" onclick="event.stopPropagation()">
-                    <h2>${currentUsername}</h2>
-                    <p>${changeCount} answers to sync</p>
-                    <div id="my-qr"></div>
-                    <button onclick="this.closest('[style*=fixed]').remove()" class="submit-button" style="margin-top: 20px;">Close</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            new QRCode(document.getElementById('my-qr'), {
-                text: btoa(json),
-                width: 300,
-                height: 300
-            });
-        }
 
         // Import class data
         window.importClassData = function(event) {
@@ -44586,38 +44332,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             };
             reader.readAsText(file);
-        }
-
-        // Render sync buttons based on device type
-        function renderSyncButtons() {
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-            let buttons = `
-                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-            `;
-
-            if (isMobile) {
-                // On mobile, show Master Sync option
-                buttons += `
-                    <button onclick="startMasterSync()" class="sync-button" style="background: #9C27B0;">
-                        👑 Master Sync
-                    </button>
-                `;
-            } else {
-                // On desktop, show QR display option
-                buttons += `
-                    <button onclick="showMyQR()" class="sync-button">
-                        📱 Show My QR
-                    </button>
-                `;
-            }
-
-            buttons += `
-                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
-            `;
-
-            return buttons;
         }
 
         // Merge imported data with existing data
@@ -44650,64 +44364,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                 }
             }
-
-            // When importing data:
-            classData.lastImportTime = Date.now();
-
+            
             saveClassData();
-        }
-
-        function mergeIncomingData(incoming) {
-            const mergeReport = {
-                newUsers: 0,
-                updatedAnswers: 0,
-                conflicts: []
-            };
-
-            Object.keys(incoming.users).forEach(username => {
-                if (!classData.users[username]) {
-                    classData.users[username] = incoming.users[username];
-                    mergeReport.newUsers++;
-                } else {
-                    // Merge by most recent timestamp per question
-                    const localUser = classData.users[username];
-                    const remoteUser = incoming.users[username];
-
-                    Object.keys(remoteUser.answers).forEach(qId => {
-                        const localTime = localUser.timestamps?.[qId] || 0;
-                        const remoteTime = remoteUser.timestamps?.[qId] || 0;
-
-                        if (remoteTime > localTime) {
-                            // Remote is newer - take it
-                            localUser.answers[qId] = remoteUser.answers[qId];
-                            localUser.timestamps[qId] = remoteTime;
-                            localUser.reasons[qId] = remoteUser.reasons[qId];
-                            localUser.attempts[qId] = remoteUser.attempts[qId];
-                            mergeReport.updatedAnswers++;
-                        } else if (remoteTime === localTime &&
-                                  JSON.stringify(localUser.answers[qId]) !==
-                                  JSON.stringify(remoteUser.answers[qId])) {
-                            // Same timestamp, different answer = conflict
-                            mergeReport.conflicts.push({
-                                user: username,
-                                question: qId,
-                                local: localUser.answers[qId],
-                                remote: remoteUser.answers[qId]
-                            });
-                        }
-                    });
-                }
-            });
-
-            // Update sync tracking
-            classData.lastSyncTime = Date.now();
-            classData.syncHistory.push({
-                time: Date.now(),
-                source: incoming.deviceId || 'unknown',
-                stats: mergeReport
-            });
-
-            return mergeReport;
         }
 
         // Show message
@@ -44887,16 +44545,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             bindControls() {
                 document.addEventListener('keydown', (e) => {
-                    // Check if currently typing
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (
-                        activeElement.tagName === 'TEXTAREA' ||
-                        activeElement.tagName === 'INPUT' ||
-                        activeElement.contentEditable === 'true'
-                    );
-
-                    if (isTyping) return; // Don't capture keys when typing
-
                     switch(e.key) {
                         case 'ArrowLeft':
                             this.moveLeft();
@@ -44919,16 +44567,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 document.addEventListener('keyup', (e) => {
-                    // Check if currently typing
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (
-                        activeElement.tagName === 'TEXTAREA' ||
-                        activeElement.tagName === 'INPUT' ||
-                        activeElement.contentEditable === 'true'
-                    );
-
-                    if (isTyping) return;
-
                     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                         this.velocity.x = 0;
                     }
@@ -45054,8 +44692,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Initialize QR sync manager
             qrSync = new QRSyncManager();
         });
-
-
     </script>
 
     <!-- Enhanced QR Sync System with Handshake Protocol -->
@@ -45133,18 +44769,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             broadcastData() {
                 try {
-                    // Use the efficient exportForQR function instead of sending all data
-                    const compressed = exportForQR();
+                    const ourPacket = {
+                        sessionId: this.syncSessionId,
+                        username: currentUsername,
+                        timestamp: Date.now(),
+                        data: classData.users[currentUsername]
+                    };
 
-                    if (!compressed) {
-                        // Too many changes - show warning
-                        document.getElementById('our-status').innerHTML = '⚠️ Too many changes since last sync. Use file export instead.';
-                        return;
-                    }
-
-                    // Decode to get the packet for internal use
-                    const ourPacket = JSON.parse(atob(compressed));
-                    ourPacket.sessionId = this.syncSessionId; // Add session ID for handshake
+                    const compressed = btoa(JSON.stringify(ourPacket));
 
                     // Create QR code
                     new QRCode(document.getElementById("our-qr-code"), {
@@ -45226,46 +44858,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     return;
                 }
 
-                // Handle both old format (full data) and new format (changes only)
-                let imported;
-                if (this.receivedData.changes) {
-                    // New format: apply changes to existing user data
-                    imported = {
-                        users: {
-                            [this.receivedData.username]: {
-                                answers: {},
-                                reasons: {},
-                                timestamps: {},
-                                attempts: {}
-                            }
-                        }
-                    };
-
-                    // Apply each change
-                    Object.keys(this.receivedData.changes).forEach(qId => {
-                        const change = this.receivedData.changes[qId];
-                        imported.users[this.receivedData.username].answers[qId] = change.answer;
-                        imported.users[this.receivedData.username].reasons[qId] = change.reason;
-                        imported.users[this.receivedData.username].timestamps[qId] = change.timestamp;
-                        imported.users[this.receivedData.username].attempts[qId] = change.attempts;
-                    });
-                } else if (this.receivedData.data) {
-                    // Old format: full user data
-                    imported = {
-                        users: {
-                            [this.receivedData.username]: this.receivedData.data
-                        }
-                    };
-                } else {
-                    alert('Invalid data format received!');
-                    return;
-                }
+                const imported = {
+                    users: {
+                        [this.receivedData.username]: this.receivedData.data
+                    }
+                };
 
                 mergeClassData(imported);
-
-                // Update sync time to current time
-                classData.lastSyncTime = Date.now();
-                localStorage.setItem('classData', JSON.stringify(classData));
 
                 document.getElementById('handshake-status').innerHTML = `
                     <div style="color: #4CAF50; font-size: 20px;">
@@ -45297,131 +44896,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         }
 
-        // Add this diagnostic function to see what's happening:
-        window.debugLoadCurriculum = async function() {
-            const fileInput = document.getElementById('fileInput');
-            const files = fileInput.files;
 
-            if (!files || files.length === 0) {
-                console.log('No files selected');
-                return;
-            }
-
-            console.log(`Loading ${files.length} file(s)...`);
-
-            for (let file of files) {
-                console.log(`\nProcessing file: ${file.name}`);
-                const reader = new FileReader();
-
-                await new Promise((resolve) => {
-                    reader.onload = function(e) {
-                        try {
-                            const data = JSON.parse(e.target.result);
-                            const questions = Array.isArray(data) ? data : (data.questions || []);
-
-                            console.log(`Total questions in file: ${questions.length}`);
-
-                            // Count questions by unit
-                            const unitCounts = {};
-                            questions.forEach(q => {
-                                const match = q.id.match(/U(\d+)/i);
-                                if (match) {
-                                    const unit = match[1];
-                                    unitCounts[unit] = (unitCounts[unit] || 0) + 1;
-                                }
-                            });
-
-                            console.log('Questions by unit:', unitCounts);
-
-                            // Show first few question IDs from each unit
-                            Object.keys(unitCounts).forEach(unit => {
-                                const unitQuestions = questions.filter(q => q.id.match(new RegExp(`U${unit}`, 'i')));
-                                console.log(`Unit ${unit} first 3 IDs:`, unitQuestions.slice(0, 3).map(q => q.id));
-                            });
-
-                        } catch (error) {
-                            console.error(`Error parsing ${file.name}:`, error);
-                        }
-                        resolve();
-                    };
-                    reader.readAsText(file);
-                });
-            }
-        }
-
-        // Fixed loadEntireCurriculum that handles mixed units in a single file:
-        window.loadEntireCurriculum = async function() {
-            const fileInput = document.getElementById('fileInput');
-            const files = fileInput.files;
-
-            if (!files || files.length === 0) {
-                showMessage('Please select curriculum JSON files', 'error');
-                return;
-            }
-
-            allCurriculumData = {};
-            let allQuestions = [];
-
-            // First, load all questions from all files
-            for (let file of files) {
-                const reader = new FileReader();
-
-                await new Promise((resolve, reject) => {
-                    reader.onload = function(e) {
-                        try {
-                            const data = JSON.parse(e.target.result);
-                            const questions = Array.isArray(data) ? data : (data.questions || []);
-                            allQuestions = allQuestions.concat(questions);
-                        } catch (error) {
-                            console.error(`Error parsing ${file.name}:`, error);
-                        }
-                        resolve();
-                    };
-                    reader.onerror = reject;
-                    reader.readAsText(file);
-                });
-            }
-
-            console.log(`Loaded ${allQuestions.length} total questions`);
-
-            // Now group questions by unit
-            const unitGroups = {};
-            allQuestions.forEach(question => {
-                const unitMatch = question.id.match(/U(\d+)/i);
-                if (unitMatch) {
-                    const unitNum = parseInt(unitMatch[1]);
-                    if (!unitGroups[unitNum]) {
-                        unitGroups[unitNum] = [];
-                    }
-                    unitGroups[unitNum].push(question);
-                }
-            });
-
-            console.log('Found units:', Object.keys(unitGroups));
-
-            // Process each unit group
-            Object.keys(unitGroups).forEach(unitNum => {
-                const unitQuestions = unitGroups[unitNum];
-                const unitInfo = detectUnitAndLessons(unitQuestions);
-
-                if (unitInfo) {
-                    allCurriculumData[unitNum] = {
-                        questions: unitQuestions,
-                        unitInfo: unitInfo,
-                        fileName: `Unit ${unitNum}`
-                    };
-                    console.log(`Unit ${unitNum}: ${unitQuestions.length} questions, ${unitInfo.lessonNumbers.length} lessons`);
-                }
-            });
-
-            const loadedCount = Object.keys(allCurriculumData).length;
-            if (loadedCount > 0) {
-                showMessage(`Loaded ${loadedCount} units with ${allQuestions.length} total questions!`, 'success');
-                renderUnitMenu();
-            } else {
-                showMessage('No valid units found in files', 'error');
-            }
-        }
 
         // New function to render unit selection menu
         function renderUnitMenu() {
@@ -45471,44 +44946,17 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 <div class="curriculum-overview">
                     <h2>📚 AP Statistics Curriculum</h2>
                     <p style="text-align: center; color: #666;">Loaded ${sortedUnits.length} units</p>
-
                     <div class="units-grid">
                         ${unitsHtml}
                     </div>
-
                     <div class="app-controls" style="margin-top: 20px;">
-                        ${renderSyncButtons()}
-                    </div>
-
-                    <!-- QR should be HERE, after app-controls -->
-                    <div style="margin: 30px auto; padding: 20px; background: #f0f7ff; border: 2px solid #3498db; border-radius: 10px; max-width: 400px; text-align: center;">
-                        <h3 style="margin-top: 0;">📱 Open on Another Device</h3>
-                        <div id="site-qr" style="margin: 15px auto;"></div>
-                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">
-                            Scan to open this site on mobile device
-                        </p>
+                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
+                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                     </div>
                 </div>
             `;
-
-            setTimeout(() => {
-                const qrElement = document.getElementById('site-qr');
-                if (qrElement) {
-                    try {
-                        new QRCode(qrElement, {
-                            text: 'https://robjohncolson.github.io/curriculum_render',
-                            width: 200,
-                            height: 200,
-                            correctLevel: QRCode.CorrectLevel.L
-                        });
-                        console.log('QR code generated successfully');
-                    } catch (error) {
-                        console.error('Failed to generate QR code:', error);
-                    }
-                } else {
-                    console.error('site-qr element not found');
-                }
-            }, 500);  // Increased from 100 to 500ms
         }
 
         // Function to select a unit
@@ -45538,26 +44986,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             renderUnitMenu();
         }
 
-        // Update the file upload interface to accept multiple files
-        function renderFileUpload() {
-            const questionsContainer = document.getElementById('questionsContainer');
-            questionsContainer.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h2>Load Curriculum Files</h2>
-                    <p style="margin-bottom: 20px;">Select all unit JSON files (you can select multiple)</p>
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <input type="file" id="fileInput" accept=".json" multiple
-                               style="padding: 10px; font-size: 16px;">
-                    </div>
-                    <button onclick="loadEntireCurriculum()" class="submit-button" style="padding: 12px 30px;">
-                        Load Entire Curriculum
-                    </button>
-                    <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
-                        <strong>Tip:</strong> Hold Ctrl (or Cmd on Mac) while clicking to select multiple unit files at once.
-                    </div>
-                </div>
-            `;
-        }
 
         // Add this function to load resources from allUnitsData.js if it exists
         async function loadUnitResources() {
@@ -45639,7 +45067,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         </div>
                     </div>
                     <div class="app-controls">
-                        ${renderSyncButtons()}
+                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
+                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                     </div>
                 `;
             }
@@ -45715,7 +45146,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    ${renderSyncButtons()}
+                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
+                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
+                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
                 </div>
                 ${videoSection}
                 <div id="questions-list"></div>
@@ -45830,110 +45263,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 qrSync = new QRSyncManager();
             }
             qrSync.initiateSyncSession();
-        }
-
-        // Add this button when on mobile or in master mode
-        function renderMasterSync() {
-            return `
-                <div class="master-sync-container">
-                    <button onclick="startMasterSync()" class="sync-button" style="background: #9C27B0;">
-                        👑 Master Sync Mode
-                    </button>
-                    <div id="sync-status"></div>
-                </div>
-            `;
-        }
-
-        window.startMasterSync = function() {
-            let scannedStudents = [];
-
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position: fixed; inset: 0; background: white; z-index: 3000; padding: 20px; overflow-y: auto;';
-            modal.innerHTML = `
-                <div style="max-width: 600px; margin: 0 auto;">
-                    <h2>👑 Master Sync Mode</h2>
-                    <p>Scan each student's QR code. The camera will stay active.</p>
-
-                    <div id="qr-reader" style="width: 100%;"></div>
-
-                    <div style="margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 8px;">
-                        <h3>Scanned Students (<span id="scan-count">0</span>)</h3>
-                        <div id="scanned-list"></div>
-                    </div>
-
-                    <button onclick="finishMasterSync()" class="submit-button" style="background: #4CAF50;">
-                        Finish & Export Merged Data
-                    </button>
-                    <button onclick="cancelMasterSync()" class="submit-button" style="background: #f44336; margin-left: 10px;">
-                        Cancel
-                    </button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Start scanner
-            const html5QrCode = new Html5Qrcode("qr-reader");
-            window.currentScanner = html5QrCode;
-            window.scannedStudents = scannedStudents;
-
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText) => {
-                    try {
-                        const data = JSON.parse(atob(decodedText));
-                        if (data.username && !scannedStudents.find(s => s.username === data.username)) {
-                            scannedStudents.push(data);
-
-                            // Update UI
-                            document.getElementById('scan-count').textContent = scannedStudents.length;
-                            document.getElementById('scanned-list').innerHTML +=
-                                `<div>✓ ${data.username} - ${Object.keys(data.changes || {}).length} answers</div>`;
-
-                            // Brief success sound/vibration if available
-                            if (navigator.vibrate) navigator.vibrate(200);
-                        }
-                    } catch(e) {
-                        console.error('Invalid QR:', e);
-                    }
-                }
-            ).catch(err => {
-                alert('Camera error: ' + err);
-            });
-        }
-
-        window.finishMasterSync = function() {
-            if (window.currentScanner) {
-                window.currentScanner.stop();
-            }
-
-            // Merge all scanned data
-            window.scannedStudents.forEach(studentData => {
-                const imported = {
-                    users: {
-                        [studentData.username]: studentData.changes || studentData.data
-                    }
-                };
-                mergeClassData(imported);
-            });
-
-            // Export merged database
-            const blob = new Blob([JSON.stringify(classData, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `merged_class_data_${Date.now()}.json`;
-            a.click();
-
-            document.querySelector('[style*="position: fixed"]').remove();
-            showMessage(`Merged ${window.scannedStudents.length} students' data!`, 'success');
-        }
-
-        window.cancelMasterSync = function() {
-            if (window.currentScanner) {
-                window.currentScanner.stop();
-            }
-            document.querySelector('[style*="position: fixed"]').remove();
         }
     </script>
 </body>
