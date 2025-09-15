@@ -1174,6 +1174,374 @@ body.dark-mode button:disabled {
     background: #4a4a4a !important;
     color: #888888 !important;
 }
+
+/* Enhanced Sync Modal Styles */
+.enhanced-sync-modal {
+    max-width: 600px;
+    width: 90%;
+    padding: 0;
+    overflow: hidden;
+}
+
+.enhanced-sync-modal h2 {
+    padding: 20px;
+    margin: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-modal {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+/* Tab Navigation */
+.sync-tabs {
+    display: flex;
+    background: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.sync-tab {
+    flex: 1;
+    padding: 15px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.sync-tab:hover {
+    background: #ebebeb;
+}
+
+.sync-tab.active {
+    background: white;
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+    margin-bottom: -2px;
+}
+
+/* Tab Content */
+.sync-tab-content {
+    display: none;
+    padding: 25px;
+    animation: fadeIn 0.3s ease;
+}
+
+.sync-tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section Headers */
+.sync-section-header {
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.sync-section-header h3 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 20px;
+}
+
+.sync-section-header p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Enhanced Button Styles */
+.sync-buttons {
+    display: grid;
+    gap: 12px;
+}
+
+.modal-btn {
+    padding: 15px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.modal-btn:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+    transform: translateX(5px);
+}
+
+.modal-btn i {
+    font-size: 24px;
+    color: #667eea;
+    min-width: 30px;
+}
+
+.modal-btn span {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.modal-btn strong {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.modal-btn small {
+    font-size: 12px;
+    color: #666;
+    font-weight: normal;
+}
+
+/* Cloud Sync Specific Styles */
+.cloud-sync-status {
+    background: #f8f9ff;
+    border: 1px solid #e0e6ff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.sync-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.status-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.status-value {
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #4CAF50;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+/* Cloud Buttons */
+.cloud-buttons .modal-btn {
+    border-color: #e0e6ff;
+}
+
+.cloud-buttons .modal-btn:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+}
+
+.modal-btn.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.modal-btn.primary strong,
+.modal-btn.primary small {
+    color: white;
+}
+
+.modal-btn.primary i {
+    color: white;
+}
+
+.modal-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* Cloud Sync Stats */
+.cloud-sync-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-item i {
+    font-size: 24px;
+    color: #667eea;
+}
+
+.stat-item strong {
+    font-size: 24px;
+    color: #333;
+    display: block;
+}
+
+.stat-item small {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+}
+
+/* Dark Mode Support */
+body.dark-mode .enhanced-sync-modal {
+    background: #2a2a2a;
+}
+
+body.dark-mode .enhanced-sync-modal h2 {
+    background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+}
+
+body.dark-mode .sync-tabs {
+    background: #333;
+    border-bottom-color: #444;
+}
+
+body.dark-mode .sync-tab {
+    color: #aaa;
+}
+
+body.dark-mode .sync-tab.active {
+    background: #2a2a2a;
+    color: #ff69b4;
+    border-bottom-color: #ff69b4;
+}
+
+body.dark-mode .sync-section-header h3 {
+    color: #ff69b4;
+}
+
+body.dark-mode .sync-section-header p {
+    color: #aaa;
+}
+
+body.dark-mode .modal-btn {
+    background: #333;
+    border-color: #444;
+}
+
+body.dark-mode .modal-btn:hover {
+    background: #3a3a3a;
+    border-color: #ff69b4;
+}
+
+body.dark-mode .modal-btn strong {
+    color: #ff69b4;
+}
+
+body.dark-mode .modal-btn small {
+    color: #aaa;
+}
+
+body.dark-mode .modal-btn i {
+    color: #ff1493;
+}
+
+body.dark-mode .cloud-sync-status {
+    background: #333;
+    border-color: #444;
+}
+
+body.dark-mode .status-label,
+body.dark-mode .status-value {
+    color: #ff69b4;
+}
+
+body.dark-mode .stat-item {
+    background: #333;
+}
+
+body.dark-mode .stat-item strong {
+    color: #ff69b4;
+}
+
+body.dark-mode .stat-item small {
+    color: #aaa;
+}
+
+/* Remove the standalone cloud sync section */
+.cloud-sync-container {
+    display: none !important;
+}
     </style>
 </head>
 <body>
@@ -42064,24 +42432,128 @@ function renderLessonSelector(unitInfo) {
             <input type="file" id="importFile" accept=".json" style="display: none;">
         </div>
 
-        <!-- Sync Modal -->
+        <!-- Enhanced Sync Modal with Cloud Integration -->
         <div id="syncModal" class="modal" style="display: none;">
-            <div class="modal-content">
+            <div class="modal-content enhanced-sync-modal">
                 <span class="close-modal">&times;</span>
-                <h2>Sync Options</h2>
-                <div class="sync-buttons">
-                    <button id="exportBtn" class="modal-btn">
-                        <i class="fas fa-download"></i>
-                        Export
+                <h2><i class="fas fa-sync"></i> Sync & Backup Options</h2>
+
+                <!-- Tab Navigation -->
+                <div class="sync-tabs">
+                    <button class="sync-tab active" data-tab="local">
+                        <i class="fas fa-hdd"></i> Local Sync
                     </button>
-                    <button id="importBtn" class="modal-btn">
-                        <i class="fas fa-upload"></i>
-                        Import
+                    <button class="sync-tab" data-tab="cloud">
+                        <i class="fas fa-cloud"></i> Cloud Sync
                     </button>
-                    <button id="totalExportBtn" class="modal-btn">
-                        <i class="fas fa-database"></i>
-                        Total Export
-                    </button>
+                </div>
+
+                <!-- Local Sync Tab -->
+                <div class="sync-tab-content active" id="localSyncTab">
+                    <div class="sync-section-header">
+                        <h3>Local File Operations</h3>
+                        <p>Export and import quiz data using JSON files</p>
+                    </div>
+
+                    <div class="sync-buttons">
+                        <button id="exportBtn" class="modal-btn">
+                            <i class="fas fa-download"></i>
+                            <span>
+                                <strong>Export My Data</strong>
+                                <small>Save your personal quiz data</small>
+                            </span>
+                        </button>
+                        <button id="importBtn" class="modal-btn">
+                            <i class="fas fa-upload"></i>
+                            <span>
+                                <strong>Import Data</strong>
+                                <small>Load quiz data from file</small>
+                            </span>
+                        </button>
+                        <button id="totalExportBtn" class="modal-btn">
+                            <i class="fas fa-database"></i>
+                            <span>
+                                <strong>Total Export</strong>
+                                <small>Export all users' data (master)</small>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cloud Sync Tab -->
+                <div class="sync-tab-content" id="cloudSyncTab">
+                    <div class="sync-section-header">
+                        <h3>Cloud Synchronization</h3>
+                        <p>Sync your data across devices instantly</p>
+                    </div>
+
+                    <!-- Cloud Sync Status -->
+                    <div class="cloud-sync-status">
+                        <div class="sync-status-row">
+                            <span class="status-label">Last Sync:</span>
+                            <span class="status-value" id="lastSyncTime">Never</span>
+                        </div>
+                        <div class="sync-status-row">
+                            <span class="status-label">Auto-Sync:</span>
+                            <span class="status-value">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="autoSyncToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span id="autoSyncStatus">OFF</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Cloud Sync Actions -->
+                    <div class="sync-buttons cloud-buttons">
+                        <button id="pushToCloudBtn" class="modal-btn cloud-btn">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>
+                                <strong>Push to Cloud</strong>
+                                <small>Upload local changes</small>
+                            </span>
+                        </button>
+                        <button id="pullFromCloudBtn" class="modal-btn cloud-btn">
+                            <i class="fas fa-cloud-download-alt"></i>
+                            <span>
+                                <strong>Pull from Cloud</strong>
+                                <small>Download latest data</small>
+                            </span>
+                        </button>
+                        <button id="syncBothWaysBtn" class="modal-btn cloud-btn primary">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>
+                                <strong>Two-Way Sync</strong>
+                                <small>Merge local and cloud data</small>
+                            </span>
+                        </button>
+                    </div>
+
+                    <!-- Cloud Sync Stats -->
+                    <div class="cloud-sync-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-desktop"></i>
+                            <div>
+                                <strong id="localRecordCount">0</strong>
+                                <small>Local Records</small>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-cloud"></i>
+                            <div>
+                                <strong id="cloudRecordCount">0</strong>
+                                <small>Cloud Records</small>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-users"></i>
+                            <div>
+                                <strong id="totalUserCount">0</strong>
+                                <small>Total Users</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -45551,46 +46023,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         </div>
                     </div>
 
-                    <!-- Simplified Cloud Sync Section -->
-                    <div class="cloud-sync-container">
-                        <div class="sync-header">
-                            <h3><i class="fas fa-cloud"></i> Cloud Sync</h3>
-                            <span class="sync-status">Last sync: <span id="lastSyncTime">Never</span></span>
-                        </div>
-
-                        <div class="sync-controls">
-                            <button id="pushToCloudBtn" class="control-btn">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                Push to Cloud
-                            </button>
-                            <button id="pullFromCloudBtn" class="control-btn">
-                                <i class="fas fa-cloud-download-alt"></i>
-                                Pull from Cloud
-                            </button>
-                            <button id="autoSyncToggle" class="control-btn">
-                                <i class="fas fa-sync"></i>
-                                Auto-Sync: <span id="autoSyncStatus">OFF</span>
-                            </button>
-                        </div>
-
-                        <div class="sync-stats">
-                            <span>Local: <strong id="localRecordCount">0</strong></span>
-                            <span>Cloud: <strong id="cloudRecordCount">0</strong></span>
-                            <span>Users: <strong id="totalUserCount">0</strong></span>
-                        </div>
-                    </div>
-
-                    <!-- Sync Progress Modal -->
-                    <div id="syncProgressModal" class="modal" style="display: none;">
-                        <div class="modal-content">
-                            <h3>Syncing...</h3>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="syncProgress"></div>
-                            </div>
-                            <p id="syncMessage">Preparing to sync...</p>
-                            <button id="cancelSyncBtn" class="control-btn">Cancel</button>
-                        </div>
-                    </div>
                 </div>
             `;
         }
@@ -45988,12 +46420,80 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         });
 
+        // Tab switching functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle tab clicks
+            const tabs = document.querySelectorAll('.sync-tab');
+            const tabContents = document.querySelectorAll('.sync-tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(tc => tc.classList.remove('active'));
+
+                    // Add active class to clicked tab
+                    tab.classList.add('active');
+
+                    // Show corresponding content
+                    const tabName = tab.getAttribute('data-tab');
+                    if (tabName === 'local') {
+                        document.getElementById('localSyncTab').classList.add('active');
+                    } else if (tabName === 'cloud') {
+                        document.getElementById('cloudSyncTab').classList.add('active');
+                        // Update cloud sync stats when tab is opened
+                        if (window.cloudSync) {
+                            cloudSync.updateSyncStats();
+                        }
+                    }
+                });
+            });
+
+            // Handle auto-sync toggle
+            const autoSyncToggle = document.getElementById('autoSyncToggle');
+            if (autoSyncToggle) {
+                autoSyncToggle.addEventListener('change', function() {
+                    if (window.cloudSync) {
+                        cloudSync.toggleAutoSync();
+                    }
+                    document.getElementById('autoSyncStatus').textContent =
+                        this.checked ? 'ON' : 'OFF';
+                });
+            }
+
+            // Two-way sync button
+            document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function() {
+                if (window.cloudSync) {
+                    this.disabled = true;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+
+                    try {
+                        await cloudSync.pushToCloud();
+                        setTimeout(async () => {
+                            await cloudSync.pullFromCloud();
+                            this.innerHTML = '<i class="fas fa-sync-alt"></i><span><strong>Two-Way Sync</strong><small>Merge local and cloud data</small></span>';
+                            this.disabled = false;
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Two-way sync failed:', error);
+                        this.innerHTML = '<i class="fas fa-sync-alt"></i><span><strong>Two-Way Sync</strong><small>Merge local and cloud data</small></span>';
+                        this.disabled = false;
+                    }
+                }
+            });
+        });
+
         // Sync button functionality
         document.addEventListener('DOMContentLoaded', function() {
             // Handle sync button clicks
             document.addEventListener('click', function(event) {
                 if (event.target.id === 'syncBtn' || event.target.closest('#syncBtn')) {
-                    openSyncModal();
+                    const modal = document.getElementById('syncModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                        // Always start with local sync tab
+                        document.querySelector('.sync-tab[data-tab="local"]')?.click();
+                    }
                 }
             });
 
@@ -46083,7 +46583,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 this.syncInProgress = false;
                 this.deviceId = this.getOrCreateDeviceId();
 
-                this.initializeUI();
+                // Remove or comment out the standalone UI initialization
+                // this.initializeUI();  // REMOVE THIS LINE
+
+                // Instead, just set up the event listeners for the modal buttons
+                this.initializeModalButtons();
                 this.updateSyncStats();
             }
 
@@ -46121,6 +46625,38 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Check if auto-sync was enabled
                 if (localStorage.getItem('autoSync') === 'true') {
                     this.toggleAutoSync();
+                }
+            }
+
+            initializeModalButtons() {
+                // Update last sync time display
+                if (this.lastSyncTime) {
+                    const lastSyncElement = document.getElementById('lastSyncTime');
+                    if (lastSyncElement) {
+                        lastSyncElement.textContent = new Date(this.lastSyncTime).toLocaleString();
+                    }
+                }
+
+                // Push to cloud button
+                document.getElementById('pushToCloudBtn')?.addEventListener('click', () => {
+                    this.pushToCloud();
+                });
+
+                // Pull from cloud button
+                document.getElementById('pullFromCloudBtn')?.addEventListener('click', () => {
+                    this.pullFromCloud();
+                });
+
+                // Check auto-sync status
+                const autoSyncEnabled = localStorage.getItem('autoSync') === 'true';
+                const autoSyncToggle = document.getElementById('autoSyncToggle');
+                if (autoSyncToggle) {
+                    autoSyncToggle.checked = autoSyncEnabled;
+                    document.getElementById('autoSyncStatus').textContent = autoSyncEnabled ? 'ON' : 'OFF';
+
+                    if (autoSyncEnabled) {
+                        this.startAutoSync();
+                    }
                 }
             }
 
