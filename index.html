@@ -1542,6 +1542,326 @@ body.dark-mode .stat-item small {
 .cloud-sync-container {
     display: none !important;
 }
+
+/* Username Recovery Styles */
+.username-prompt-enhanced {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.welcome-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+}
+
+.welcome-header h1 {
+    margin: 0;
+    font-size: 36px;
+}
+
+.subtitle {
+    margin: 10px 0 0 0;
+    opacity: 0.9;
+    font-size: 18px;
+}
+
+.user-section {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.user-section h2 {
+    color: #333;
+    margin-top: 0;
+}
+
+.recovery-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.recovery-option {
+    text-align: center;
+    padding: 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.recovery-option:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102,126,234,0.2);
+}
+
+.option-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.recovery-option h3 {
+    margin: 10px 0;
+    color: #333;
+}
+
+.option-description {
+    font-size: 12px;
+    color: #666;
+    margin: 5px 0;
+}
+
+.username-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+.username-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.action-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 5px;
+}
+
+.action-button.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.action-button.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102,126,234,0.3);
+}
+
+.action-button.secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.action-button.secondary:hover {
+    background: #e0e0e0;
+}
+
+.action-button.large {
+    padding: 15px 30px;
+    font-size: 18px;
+}
+
+.name-generator {
+    background: #f8f9ff;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.generated-name-display {
+    margin: 20px 0;
+}
+
+.name-label {
+    font-size: 14px;
+    color: #666;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.generated-name {
+    font-size: 32px;
+    font-weight: bold;
+    color: #667eea;
+    display: block;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    border: 2px solid #667eea;
+}
+
+.generator-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.button-icon {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.name-explanation {
+    margin-top: 20px;
+    color: #666;
+}
+
+.recent-username-btn {
+    display: inline-block;
+    margin: 5px;
+    padding: 8px 16px;
+    background: #e3f2fd;
+    border: 2px solid #2196F3;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.recent-username-btn:hover {
+    background: #2196F3;
+    color: white;
+}
+
+.username-option {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+}
+
+.username-option:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.close-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-modal:hover {
+    color: black;
+}
+
+.username-options {
+    margin-top: 15px;
+}
+
+.qr-display {
+    text-align: center;
+    padding: 20px;
+}
+
+.qr-placeholder {
+    background: #f8f9ff;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border: 2px solid #667eea;
+}
+
+.qr-code-text {
+    font-family: monospace;
+    background: #333;
+    color: #00ff00;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+/* Dark mode support */
+body.dark-mode .user-section {
+    background: #2a2a2a;
+    color: #ff69b4;
+}
+
+body.dark-mode .recovery-option {
+    border-color: #444;
+    background: #333;
+}
+
+body.dark-mode .recovery-option:hover {
+    border-color: #ff69b4;
+}
+
+body.dark-mode .username-input {
+    background: #333;
+    border-color: #444;
+    color: #ff69b4;
+}
+
+body.dark-mode .generated-name {
+    color: #ff69b4;
+    border-color: #ff1493;
+    background: #333;
+}
+
+body.dark-mode .name-generator {
+    background: #333;
+}
+
+body.dark-mode .recent-username-btn {
+    background: #3a2a3a;
+    border-color: #ff69b4;
+    color: #ff69b4;
+}
+
+body.dark-mode .recent-username-btn:hover {
+    background: #ff69b4;
+    color: #333;
+}
+
+body.dark-mode .modal-content {
+    background: #2a2a2a;
+    color: #ff69b4;
+}
+
+body.dark-mode .qr-placeholder {
+    background: #333;
+    border-color: #ff69b4;
+}
+
     </style>
 </head>
 <body>
@@ -42198,18 +42518,130 @@ const ALL_UNITS_DATA = [
             const suggestedName = generateRandomUsername();
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
-                <div class="username-prompt">
-                    <h2>Welcome to AP Statistics Consensus Quiz</h2>
-                    <p>Your generated username:</p>
-                    <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
-                    <button onclick="acceptUsername('${suggestedName}')" class="start-button">Accept This Name</button>
-                    <button onclick="rerollUsername()" class="start-button" style="background: #7f8c8d;">Generate New Name</button>
+                <div class="username-prompt-enhanced">
+                    <div class="welcome-header">
+                        <h1>📊 AP Statistics Consensus Quiz</h1>
+                        <p class="subtitle">Collaborative Learning Platform</p>
+                    </div>
+
+                    <!-- Returning User Section -->
+                    <div class="user-section returning-user">
+                        <h2>🔄 Returning Student?</h2>
+                        <p>Recover your existing username using one of these methods:</p>
+
+                        <div class="recovery-options">
+                            <!-- Manual Entry -->
+                            <div class="recovery-option">
+                                <div class="option-icon">✏️</div>
+                                <h3>Enter Username</h3>
+                                <input type="text"
+                                       id="manualUsername"
+                                       placeholder="e.g., Apple_Bear"
+                                       class="username-input"
+                                       onkeypress="if(event.key==='Enter') recoverUsername()">
+                                <button onclick="recoverUsername()" class="action-button primary">
+                                    Use This Username
+                                </button>
+                            </div>
+
+                            <!-- File Import -->
+                            <div class="recovery-option">
+                                <div class="option-icon">📁</div>
+                                <h3>Import from Backup</h3>
+                                <p class="option-description">Load your username from a previous export</p>
+                                <input type="file"
+                                       id="usernameImportFile"
+                                       accept=".json"
+                                       style="display: none;"
+                                       onchange="importUsernameFromFile(event)">
+                                <button onclick="document.getElementById('usernameImportFile').click()"
+                                        class="action-button secondary">
+                                    Choose File
+                                </button>
+                            </div>
+
+                            <!-- QR Code -->
+                            <div class="recovery-option">
+                                <div class="option-icon">📱</div>
+                                <h3>Scan QR Code</h3>
+                                <p class="option-description">Scan your username QR code</p>
+                                <button onclick="showQRScanner()" class="action-button secondary">
+                                    Open Scanner
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Recently Used Usernames (if any in localStorage) -->
+                        <div id="recentUsernames" style="display: none;">
+                            <h3>📝 Recently Used on This Device:</h3>
+                            <div id="recentUsernamesList"></div>
+                        </div>
+                    </div>
+
+                    <!-- New User Section -->
+                    <div class="user-section new-user">
+                        <h2>🆕 New Student?</h2>
+                        <p>Generate a unique username to get started:</p>
+
+                        <div class="name-generator">
+                            <div class="generated-name-display">
+                                <span class="name-label">Your Username:</span>
+                                <span class="generated-name" id="generatedName">${suggestedName}</span>
+                            </div>
+
+                            <div class="generator-buttons">
+                                <button onclick="acceptUsername('${suggestedName}')" class="action-button primary large">
+                                    <span class="button-icon">✅</span>
+                                    Accept & Start
+                                </button>
+                                <button onclick="rerollUsername()" class="action-button secondary">
+                                    <span class="button-icon">🎲</span>
+                                    Generate New
+                                </button>
+                            </div>
+
+                            <div class="name-explanation">
+                                <small>💡 Tip: Write down your username or export it for future use!</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Scanner Modal (hidden by default) -->
+                    <div id="qrScannerModal" class="modal" style="display: none;">
+                        <div class="modal-content qr-scanner">
+                            <span class="close-modal" onclick="closeQRScanner()">&times;</span>
+                            <h3>Scan Username QR Code</h3>
+                            <div id="qrReader"></div>
+                            <input type="text"
+                                   id="qrManualInput"
+                                   placeholder="Or enter code manually"
+                                   class="username-input">
+                            <button onclick="processQRCode()" class="action-button primary">
+                                Submit Code
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            // Check for recently used usernames
+            loadRecentUsernames();
         }
 
         window.rerollUsername = function() {
-            showUsernamePrompt();
+            const newName = generateRandomUsername();
+            const generatedNameElement = document.getElementById('generatedName');
+            if (generatedNameElement) {
+                generatedNameElement.textContent = newName;
+                // Update the accept button to use the new name
+                const acceptButton = generatedNameElement.closest('.name-generator').querySelector('.action-button.primary.large');
+                if (acceptButton) {
+                    acceptButton.onclick = () => acceptUsername(newName);
+                }
+            } else {
+                // Fallback to full refresh if element not found
+                showUsernamePrompt();
+            }
         }
 
         window.acceptUsername = function(name) {
@@ -42218,6 +42650,275 @@ const ALL_UNITS_DATA = [
             initClassData();
             showUsernameWelcome();
             initializeFromEmbeddedData();
+        }
+
+        // Function to recover username from manual input
+        window.recoverUsername = function() {
+            const input = document.getElementById('manualUsername');
+            const username = input.value.trim();
+
+            if (!username) {
+                showMessage('Please enter a username', 'error');
+                return;
+            }
+
+            // Validate username format (optional)
+            if (!username.match(/^[A-Za-z]+_[A-Za-z]+$/)) {
+                if (!confirm('This username doesn\'t match the standard format (Fruit_Animal). Use it anyway?')) {
+                    return;
+                }
+            }
+
+            // Check if this username has existing data
+            checkExistingData(username);
+        }
+
+        // Function to check for existing data
+        function checkExistingData(username) {
+            const existingData = localStorage.getItem(`answers_${username}`);
+            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+            const hasData = existingData || (classData.users && classData.users[username]);
+
+            if (hasData) {
+                if (confirm(`Found existing data for ${username}. Would you like to continue with this username and restore your progress?`)) {
+                    acceptUsername(username);
+                    showMessage('Welcome back! Your progress has been restored.', 'success');
+                }
+            } else {
+                if (confirm(`No existing data found for ${username}. Would you like to start fresh with this username?`)) {
+                    acceptUsername(username);
+                    showMessage('Username set! Starting fresh.', 'info');
+                }
+            }
+        }
+
+        // Function to import username from file
+        window.importUsernameFromFile = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // Try to find username in various formats
+                    let username = null;
+
+                    // Check for direct username field
+                    if (data.username) {
+                        username = data.username;
+                    }
+                    // Check for export format
+                    else if (data.exportTime && data.users) {
+                        const usernames = Object.keys(data.users);
+                        if (usernames.length === 1) {
+                            username = usernames[0];
+                        } else if (usernames.length > 1) {
+                            // Show selection dialog
+                            showUsernameSelection(usernames);
+                            return;
+                        }
+                    }
+                    // Check for class data format
+                    else if (data.users) {
+                        const usernames = Object.keys(data.users);
+                        if (usernames.length > 0) {
+                            showUsernameSelection(usernames);
+                            return;
+                        }
+                    }
+
+                    if (username) {
+                        checkExistingData(username);
+                    } else {
+                        showMessage('No username found in this file', 'error');
+                    }
+
+                } catch (error) {
+                    showMessage('Invalid file format', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Function to show username selection dialog
+        function showUsernameSelection(usernames) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+
+            let optionsHTML = usernames.map(u =>
+                `<button onclick="selectUsername('${u}')" class="username-option">
+                    ${u}
+                </button>`
+            ).join('');
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close-modal" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                    <h3>Select Your Username</h3>
+                    <p>Multiple usernames found. Please select yours:</p>
+                    <div class="username-options">
+                        ${optionsHTML}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        window.selectUsername = function(username) {
+            document.querySelector('.modal').remove();
+            checkExistingData(username);
+        }
+
+        // Function to load recently used usernames
+        function loadRecentUsernames() {
+            const recentUsers = [];
+
+            // Check localStorage for any stored usernames
+            for (let key in localStorage) {
+                if (key.startsWith('answers_')) {
+                    const username = key.replace('answers_', '');
+                    if (username && username !== 'undefined') {
+                        recentUsers.push(username);
+                    }
+                }
+            }
+
+            // Also check class data
+            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+            if (classData.users) {
+                Object.keys(classData.users).forEach(u => {
+                    if (!recentUsers.includes(u)) {
+                        recentUsers.push(u);
+                    }
+                });
+            }
+
+            // Display recent usernames if any found
+            if (recentUsers.length > 0) {
+                const container = document.getElementById('recentUsernames');
+                const list = document.getElementById('recentUsernamesList');
+
+                container.style.display = 'block';
+                list.innerHTML = recentUsers.map(u => `
+                    <button onclick="checkExistingData('${u}')" class="recent-username-btn">
+                        ${u}
+                    </button>
+                `).join('');
+            }
+        }
+
+        // QR Code Functions
+        window.showQRScanner = function() {
+            document.getElementById('qrScannerModal').style.display = 'block';
+            // Note: Actual QR scanning would require a library like qr-scanner.js
+            showMessage('QR Scanner opened. You can also enter the code manually.', 'info');
+        }
+
+        window.closeQRScanner = function() {
+            document.getElementById('qrScannerModal').style.display = 'none';
+        }
+
+        window.processQRCode = function() {
+            const input = document.getElementById('qrManualInput');
+            const code = input.value.trim();
+
+            if (code) {
+                // Process QR code (could be username or encoded data)
+                if (code.startsWith('APStats:')) {
+                    const username = code.replace('APStats:', '');
+                    checkExistingData(username);
+                    closeQRScanner();
+                } else {
+                    checkExistingData(code);
+                    closeQRScanner();
+                }
+            }
+        }
+
+        // Add function to generate QR code for current user
+        window.generateUsernameQR = function() {
+            if (!currentUsername) return;
+
+            // Create a simple text representation
+            const qrData = `APStats:${currentUsername}`;
+
+            // In real implementation, use QR code library
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close-modal" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                    <h3>Your Username QR Code</h3>
+                    <div class="qr-display">
+                        <div class="qr-placeholder">
+                            <p>QR Code for:</p>
+                            <h2>${currentUsername}</h2>
+                            <p class="qr-code-text">Code: APStats:${currentUsername}</p>
+                        </div>
+                        <button onclick="copyUsernameCode('APStats:${currentUsername}')" class="action-button primary">
+                            Copy Code
+                        </button>
+                        <p><small>Save this code or QR image to recover your username later</small></p>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        window.copyUsernameCode = function(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                showMessage('Code copied to clipboard!', 'success');
+            });
+        }
+
+        // Enhanced acceptUsername to save to recent list
+        const originalAcceptUsername = window.acceptUsername;
+        window.acceptUsername = function(name) {
+            // Save to recent usernames list
+            let recentUsernames = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
+            if (!recentUsernames.includes(name)) {
+                recentUsernames.unshift(name);
+                // Keep only last 5 usernames
+                recentUsernames = recentUsernames.slice(0, 5);
+                localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
+            }
+
+            // Call original function
+            originalAcceptUsername(name);
+        }
+
+        // Function to export username with a simple format
+        window.exportUsername = function() {
+            if (!currentUsername) {
+                showMessage('No username to export', 'error');
+                return;
+            }
+
+            const exportData = {
+                username: currentUsername,
+                exportDate: new Date().toISOString(),
+                version: '1.0',
+                qrCode: `APStats:${currentUsername}`
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentUsername}_identity.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('Username exported successfully!', 'success');
         }
 
         function showUsernameWelcome() {
