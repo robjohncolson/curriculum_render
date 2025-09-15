@@ -44461,44 +44461,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Auto-save reminder
-        let lastSaveTime = Date.now();
-        setInterval(() => {
-            if (Date.now() - lastSaveTime > 300000) { // 5 minutes
-                const reminder = document.createElement('div');
-                reminder.style.cssText = `
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    background: #ff9800;
-                    color: white;
-                    padding: 10px 15px;
-                    border-radius: 5px;
-                    z-index: 1000;
-                    cursor: pointer;
-                `;
-                reminder.textContent = 'Remember to export your data!';
-                reminder.onclick = () => {
-                    exportPersonal();
-                    reminder.remove();
-                };
-                document.body.appendChild(reminder);
-                setTimeout(() => reminder.remove(), 10000);
-            }
-        }, 60000); // Check every minute
-
-        // Update last save time when data changes
-        window.updateLastSaveTime = function() {
-            lastSaveTime = Date.now();
-        }
-
-        // Override saveClassData to update save time
-        const originalSaveClassData = saveClassData;
-        window.saveClassData = function() {
-            originalSaveClassData();
-            updateLastSaveTime();
-        }
-
         // Pig Sprite Controller
         class PigSprite {
             constructor(color = 'pink') {
@@ -44545,6 +44507,21 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             bindControls() {
                 document.addEventListener('keydown', (e) => {
+                    // Add this check before the switch statement
+                    const activeElement = document.activeElement;
+                    const isTyping = activeElement && (
+                        activeElement.tagName === 'TEXTAREA' ||
+                        activeElement.tagName === 'INPUT' ||
+                        activeElement.contentEditable === 'true' ||
+                        activeElement.classList.contains('frq-textarea') ||
+                        activeElement.classList.contains('reason-textarea')
+                    );
+
+                    // Don't capture keys if user is typing
+                    if (isTyping) {
+                        return;
+                    }
+
                     switch(e.key) {
                         case 'ArrowLeft':
                             this.moveLeft();
@@ -44567,6 +44544,20 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 document.addEventListener('keyup', (e) => {
+                    // Add the same check here too
+                    const activeElement = document.activeElement;
+                    const isTyping = activeElement && (
+                        activeElement.tagName === 'TEXTAREA' ||
+                        activeElement.tagName === 'INPUT' ||
+                        activeElement.contentEditable === 'true' ||
+                        activeElement.classList.contains('frq-textarea') ||
+                        activeElement.classList.contains('reason-textarea')
+                    );
+
+                    if (isTyping) {
+                        return;
+                    }
+
                     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                         this.velocity.x = 0;
                     }
