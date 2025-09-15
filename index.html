@@ -7,8 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -41142,9 +41140,6 @@ const ALL_UNITS_DATA = [
         // Add this to your global variables
         let allCurriculumData = {}; // Store all units' data
 
-        // First, make sure QRSyncManager is defined BEFORE you try to use it
-        // Add this right after your other global variables at the top
-        let qrSync = null;
 
         // Unit structure - defines lessons per unit
         const unitStructure = {
@@ -41487,12 +41482,34 @@ function renderLessonSelector(unitInfo) {
                     ${lessonButtonsHtml}
                 </div>
             </div>
-            <div class="app-controls">
-                <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+        <div class="app-controls">
+            <button id="syncBtn" class="control-btn">
+                <i class="fas fa-sync"></i>
+                Sync
+            </button>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+        <!-- Sync Modal -->
+        <div id="syncModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Sync Options</h2>
+                <div class="sync-buttons">
+                    <button id="exportBtn" class="modal-btn">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                    <button id="importBtn" class="modal-btn">
+                        <i class="fas fa-upload"></i>
+                        Import
+                    </button>
+                    <button id="totalExportBtn" class="modal-btn">
+                        <i class="fas fa-database"></i>
+                        Total Export
+                    </button>
+                </div>
             </div>
+        </div>
         `;
         return;
     }
@@ -41537,10 +41554,33 @@ function renderLessonSelector(unitInfo) {
             </div>
         </div>
         <div class="app-controls">
-            <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-            <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-            <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-            <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+            <button id="syncBtn" class="control-btn">
+                <i class="fas fa-sync"></i>
+                Sync
+            </button>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+        </div>
+
+        <!-- Sync Modal -->
+        <div id="syncModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2>Sync Options</h2>
+                <div class="sync-buttons">
+                    <button id="exportBtn" class="modal-btn">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                    <button id="importBtn" class="modal-btn">
+                        <i class="fas fa-upload"></i>
+                        Import
+                    </button>
+                    <button id="totalExportBtn" class="modal-btn">
+                        <i class="fas fa-database"></i>
+                        Total Export
+                    </button>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -41629,10 +41669,33 @@ function renderLessonSelector(unitInfo) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                    <button id="syncBtn" class="control-btn">
+                        <i class="fas fa-sync"></i>
+                        Sync
+                    </button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+
+                <!-- Sync Modal -->
+                <div id="syncModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Sync Options</h2>
+                        <div class="sync-buttons">
+                            <button id="exportBtn" class="modal-btn">
+                                <i class="fas fa-download"></i>
+                                Export
+                            </button>
+                            <button id="importBtn" class="modal-btn">
+                                <i class="fas fa-upload"></i>
+                                Import
+                            </button>
+                            <button id="totalExportBtn" class="modal-btn">
+                                <i class="fas fa-database"></i>
+                                Total Export
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div id="questions-list"></div>
                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
@@ -44839,217 +44902,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
             addColorPicker();
         });
 
-        // Initialize it after the page loads
-        window.addEventListener('load', function() {
-            // Initialize QR sync manager
-            qrSync = new QRSyncManager();
-        });
     </script>
 
-    <!-- Enhanced QR Sync System with Handshake Protocol -->
+
+
+
     <script>
-        // Enhanced QR Sync System with Handshake Protocol
-        // Here's the complete QRSyncManager class (fixed version):
-        class QRSyncManager {
-            constructor() {
-                this.syncState = 'idle';
-                this.syncSessionId = null;
-                this.pendingData = null;
-                this.receivedData = null;
-            }
-
-            initiateSyncSession() {
-                this.syncSessionId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                this.syncState = 'initiating';
-                this.createSyncUI();
-
-                // Small delay to ensure DOM is ready
-                setTimeout(() => {
-                    this.broadcastData();
-                    this.startScanning();
-                }, 100);
-            }
-
-            createSyncUI() {
-                const modal = document.createElement('div');
-                modal.id = 'sync-modal';
-                modal.style.cssText = `
-                    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(0,0,0,0.9); z-index: 3000;
-                    display: flex; align-items: center; justify-content: center;
-                `;
-
-                modal.innerHTML = `
-                    <div style="background: white; padding: 20px; border-radius: 10px; max-width: 800px; width: 90%;">
-                        <h2 style="text-align: center; margin-bottom: 20px;">📱 Device Sync - Handshake Mode</h2>
-
-                        <div style="display: flex; gap: 20px;">
-                            <!-- Left side: Our QR code -->
-                            <div style="flex: 1; text-align: center;">
-                                <h3>Step 1: Show this to other device</h3>
-                                <div id="our-qr-code" style="margin: 20px auto; width: 256px; height: 256px;"></div>
-                                <div id="our-status" style="color: #666;">Generating QR code...</div>
-                            </div>
-
-                            <!-- Right side: Scanner -->
-                            <div style="flex: 1; text-align: center;">
-                                <h3>Step 2: Scan their code</h3>
-                                <div id="qr-scanner" style="width: 100%; height: 256px; border: 2px dashed #ccc;"></div>
-                                <div id="scan-status" style="color: #666;">Initializing camera...</div>
-                            </div>
-                        </div>
-
-                        <!-- Handshake status -->
-                        <div id="handshake-status" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; text-align: center;">
-                            <strong>Handshake Status:</strong> <span id="status-text">Waiting for connection...</span>
-                        </div>
-
-                        <!-- Action buttons -->
-                        <div style="margin-top: 20px; text-align: center;">
-                            <button onclick="qrSync.confirmSync()" id="confirm-btn" class="submit-button" disabled>
-                                Confirm Sync
-                            </button>
-                            <button onclick="qrSync.cancelSync()" class="submit-button" style="background: #f44336; margin-left: 10px;">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                document.body.appendChild(modal);
-            }
-
-            broadcastData() {
-                try {
-                    const ourPacket = {
-                        sessionId: this.syncSessionId,
-                        username: currentUsername,
-                        timestamp: new Date().toISOString(),
-                        data: classData.users[currentUsername]
-                    };
-
-                    const compressed = btoa(JSON.stringify(ourPacket));
-
-                    // Create QR code
-                    new QRCode(document.getElementById("our-qr-code"), {
-                        text: compressed,
-                        width: 256,
-                        height: 256,
-                        correctLevel: QRCode.CorrectLevel.L
-                    });
-
-                    document.getElementById('our-status').innerHTML = '✅ QR Code ready!';
-                    this.pendingData = ourPacket;
-                } catch(e) {
-                    console.error('Error creating QR:', e);
-                    document.getElementById('our-status').innerHTML = '❌ Error creating QR code';
-                }
-            }
-
-            startScanning() {
-                const html5QrCode = new Html5Qrcode("qr-scanner");
-
-                const config = {
-                    fps: 10,
-                    qrbox: { width: 200, height: 200 }
-                };
-
-                const onScanSuccess = (decodedText) => {
-                    this.handleScannedData(decodedText, html5QrCode);
-                };
-
-                // Try to start camera
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess
-                ).then(() => {
-                    document.getElementById('scan-status').innerHTML = '📷 Camera ready - point at QR code';
-                }).catch(err => {
-                    // Try front camera if rear fails
-                    html5QrCode.start(
-                        { facingMode: "user" },
-                        config,
-                        onScanSuccess
-                    ).then(() => {
-                        document.getElementById('scan-status').innerHTML = '📷 Camera ready - point at QR code';
-                    }).catch(err => {
-                        document.getElementById('scan-status').innerHTML = '❌ Camera not available';
-                        console.error('Camera error:', err);
-                    });
-                });
-            }
-
-            handleScannedData(decodedText, scanner) {
-                try {
-                    const decoded = JSON.parse(atob(decodedText));
-
-                    if (decoded.sessionId && decoded.data) {
-                        this.receivedData = decoded;
-
-                        document.getElementById('scan-status').innerHTML =
-                            `✅ Received data from ${decoded.username || 'Unknown User'}`;
-                        document.getElementById('status-text').innerHTML =
-                            `🤝 Handshake established! Ready to sync.`;
-
-                        document.getElementById('confirm-btn').disabled = false;
-
-                        scanner.stop();
-
-                        // Auto-confirm after a moment
-                        setTimeout(() => this.confirmSync(), 1500);
-                    }
-                } catch(e) {
-                    console.error('Invalid QR data:', e);
-                }
-            }
-
-            confirmSync() {
-                if (!this.receivedData) {
-                    alert('No data received from other device yet!');
-                    return;
-                }
-
-                const imported = {
-                    users: {
-                        [this.receivedData.username]: this.receivedData.data
-                    }
-                };
-
-                mergeClassData(imported);
-
-                document.getElementById('handshake-status').innerHTML = `
-                    <div style="color: #4CAF50; font-size: 20px;">
-                        ✅ Sync Complete!<br>
-                        <small>Exchanged data with ${this.receivedData.username}</small>
-                    </div>
-                `;
-
-                loadProgress();
-
-                setTimeout(() => this.cancelSync(), 2000);
-            }
-
-            cancelSync() {
-                // Stop any running camera
-                try {
-                    const scanner = Html5Qrcode.getCameras();
-                    if (scanner) {
-                        Html5Qrcode.stop();
-                    }
-                } catch(e) {}
-
-                const modal = document.getElementById('sync-modal');
-                if (modal) modal.remove();
-                this.syncState = 'idle';
-                this.receivedData = null;
-                this.pendingData = null;
-            }
-
-        }
-
-
-
         // New function to render unit selection menu
         function renderUnitMenu() {
             const questionsContainer = document.getElementById('questionsContainer');
@@ -45102,11 +44960,33 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         ${unitsHtml}
                     </div>
                     <div class="app-controls" style="margin-top: 20px;">
-                        <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
-                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                        <button id="syncBtn" class="control-btn">
+                            <i class="fas fa-sync"></i>
+                            Sync
+                        </button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+
+                    <!-- Sync Modal -->
+                    <div id="syncModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h2>Sync Options</h2>
+                            <div class="sync-buttons">
+                                <button id="exportBtn" class="modal-btn">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                                <button id="importBtn" class="modal-btn">
+                                    <i class="fas fa-upload"></i>
+                                    Import
+                                </button>
+                                <button id="totalExportBtn" class="modal-btn">
+                                    <i class="fas fa-database"></i>
+                                    Total Export
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -45219,12 +45099,34 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             ${lessonButtonsHtml}
                         </div>
                     </div>
-                    <div class="app-controls">
-                        <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
-                        <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                        <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
-                        <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                        <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                    <div class="export-section">
+                        <button id="syncBtn" class="control-btn">
+                            <i class="fas fa-sync"></i>
+                            Sync
+                        </button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+
+                    <!-- Sync Modal -->
+                    <div id="syncModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <span class="close-modal">&times;</span>
+                            <h2>Sync Options</h2>
+                            <div class="sync-buttons">
+                                <button id="exportBtn" class="modal-btn">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                                <button id="importBtn" class="modal-btn">
+                                    <i class="fas fa-upload"></i>
+                                    Import
+                                </button>
+                                <button id="totalExportBtn" class="modal-btn">
+                                    <i class="fas fa-database"></i>
+                                    Total Export
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -45300,10 +45202,33 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
-                    <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
-                    <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
-                    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
-                    <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
+                    <button id="syncBtn" class="control-btn">
+                        <i class="fas fa-sync"></i>
+                        Sync
+                    </button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+
+                <!-- Sync Modal -->
+                <div id="syncModal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Sync Options</h2>
+                        <div class="sync-buttons">
+                            <button id="exportBtn" class="modal-btn">
+                                <i class="fas fa-download"></i>
+                                Export
+                            </button>
+                            <button id="importBtn" class="modal-btn">
+                                <i class="fas fa-upload"></i>
+                                Import
+                            </button>
+                            <button id="totalExportBtn" class="modal-btn">
+                                <i class="fas fa-database"></i>
+                                Total Export
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 ${videoSection}
                 <div id="questions-list"></div>
@@ -45403,6 +45328,31 @@ if (chartInstances[`dotplot-${questionId}`]) {
             background: #2d2d2d;
             border-color: #444;
         }
+
+        /* Modal button styles */
+        .sync-buttons .modal-btn {
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .sync-buttons .modal-btn:hover {
+            background: #1976D2;
+        }
+
+        .sync-buttons .modal-btn i {
+            font-size: 16px;
+        }
         `;
 
         // Add the styles
@@ -45412,13 +45362,112 @@ if (chartInstances[`dotplot-${questionId}`]) {
         window.renderLessonSelector = renderLessonSelectorWithResources;
         window.loadLesson = loadLessonWithResources;
 
-        // Replace your existing sync button functions with this:
-        window.startHandshakeSync = function() {
-            if (!qrSync) {
-                qrSync = new QRSyncManager();
+        // Sync modal handlers
+        window.openSyncModal = function() {
+            const modal = document.getElementById('syncModal');
+            if (modal) {
+                modal.style.display = 'block';
             }
-            qrSync.initiateSyncSession();
         }
+
+        window.closeSyncModal = function() {
+            const modal = document.getElementById('syncModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Close modal when clicking outside or on close button
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('syncModal');
+            if (event.target === modal || event.target.classList.contains('close-modal')) {
+                closeSyncModal();
+            }
+        });
+
+        // Sync button functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle sync button clicks
+            document.addEventListener('click', function(event) {
+                if (event.target.id === 'syncBtn' || event.target.closest('#syncBtn')) {
+                    openSyncModal();
+                }
+            });
+
+            // Handle export button click
+            document.addEventListener('click', function(event) {
+                if (event.target.id === 'exportBtn' || event.target.closest('#exportBtn')) {
+                    exportPersonal();
+                    closeSyncModal();
+                }
+            });
+
+            // Handle import button click
+            document.addEventListener('click', function(event) {
+                if (event.target.id === 'importBtn' || event.target.closest('#importBtn')) {
+                    document.getElementById('importFile').click();
+                    closeSyncModal();
+                }
+            });
+
+            // Handle total export button click
+            document.addEventListener('click', function(event) {
+                if (event.target.id === 'totalExportBtn' || event.target.closest('#totalExportBtn')) {
+                    exportMasterData();
+                    closeSyncModal();
+                }
+            });
+        });
+
+        // Update references from masterExportBtn to totalExportBtn
+        window.exportMasterData = window.exportMasterData || function() {
+            // Get ALL data from localStorage, not filtered by user
+            const masterData = {
+                exportTime: new Date().toISOString(),
+                exportType: 'master_database',
+                allUsers: Object.keys(localStorage)
+                    .filter(key => key.includes('_username') || key.includes('answers_'))
+                    .map(key => key.split('_')[1])
+                    .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
+
+                // Get all class data without filtering
+                classData: JSON.parse(localStorage.getItem('classData') || '{}'),
+
+                // Get all answers from all users
+                allAnswers: {},
+                allProgress: {},
+
+                // Include raw localStorage for complete backup
+                rawLocalStorage: {}
+            };
+
+            // Collect all answers for all users
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('answers_')) {
+                    const username = key.replace('answers_', '');
+                    masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                }
+                if (key.startsWith('progress_')) {
+                    const username = key.replace('progress_', '');
+                    masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                }
+                masterData.rawLocalStorage[key] = localStorage.getItem(key);
+            });
+
+            // Create and download the file
+            const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `master_database_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('Master database exported successfully!', 'success');
+        }
+
     </script>
 </body>
 </html>
