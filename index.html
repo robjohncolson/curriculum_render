@@ -44312,6 +44312,62 @@ if (chartInstances[`dotplot-${questionId}`]) {
             showMessage('Personal data exported successfully!', 'success');
         }
 
+        // Export master database with all data
+        window.exportMasterData = function() {
+            // Get ALL data from localStorage, not filtered by user
+            const masterData = {
+                timestamp: new Date().toISOString(),
+                exportType: 'master_database',
+                allUsers: Object.keys(localStorage)
+                    .filter(key => key.includes('_username') || key.includes('answers_'))
+                    .map(key => key.split('_')[1])
+                    .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
+
+                // Get all class data without filtering
+                classData: JSON.parse(localStorage.getItem('classData') || '{}'),
+
+                // Get all answers from all users
+                allAnswers: {},
+
+                // Get all progress from all users
+                allProgress: {},
+
+                // Get any other data structures you have
+                consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}'),
+
+                // Include raw localStorage for complete backup
+                rawLocalStorage: {}
+            };
+
+            // Collect all answers for all users
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('answers_')) {
+                    const username = key.replace('answers_', '');
+                    masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                }
+                if (key.startsWith('progress_')) {
+                    const username = key.replace('progress_', '');
+                    masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                }
+
+                // Store everything in raw format too
+                masterData.rawLocalStorage[key] = localStorage.getItem(key);
+            });
+
+            // Create and download the file
+            const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `master_database_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('Master database exported successfully!', 'success');
+        }
+
 
         // Import class data
         window.importClassData = function(event) {
@@ -44941,6 +44997,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         ${unitsHtml}
                     </div>
                     <div class="app-controls" style="margin-top: 20px;">
+                        <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
                         <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
                         <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
                         <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
@@ -45058,6 +45115,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         </div>
                     </div>
                     <div class="app-controls">
+                        <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
                         <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
                         <button onclick="startHandshakeSync()" class="sync-button">🤝 Sync Devices</button>
                         <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
@@ -45137,6 +45195,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
                     </div>
+                    <button onclick="exportMasterData()" class="sync-button" style="background: #dc3545;">📊 Export Master Database (Teacher)</button>
                     <button onclick="exportPersonal()" class="sync-button">Export My Data</button>
                     <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importClassData(event)">
                     <button class="sync-button" onclick="document.getElementById('import-input').click()">Import Class Data</button>
