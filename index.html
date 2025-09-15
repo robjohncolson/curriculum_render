@@ -313,29 +313,54 @@
             color: #f57c00;
         }
         .contributors-list {
-            margin-top: 15px;
-            padding: 15px;
-            background: white;
-            border-radius: 5px;
-            max-height: 300px;
+            max-height: 600px;
             overflow-y: auto;
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+
+        body.dark-mode .contributors-list {
+            background: #2a2a2a;
+            box-shadow: 0 2px 4px rgba(255,105,180,0.1);
+        }
+
         .contributor-item {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 6px;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
         }
-        .contributor-item:last-child {
-            border-bottom: none;
+
+        body.dark-mode .contributor-item {
+            background: #333;
+            border-color: #555;
         }
+
         .contributor-choice {
             font-weight: bold;
             color: #3498db;
         }
+
         .contributor-reason {
+            margin-top: 5px;
+            padding: 8px 12px;
+            background: #f0f7ff;
+            border-left: 3px solid #2196F3;
             font-style: italic;
-            color: #666;
-            margin-top: 4px;
-            font-size: 0.9em;
+            color: #333;
+            border-radius: 0 4px 4px 0;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        body.dark-mode .contributor-reason {
+            background: #2a3a4a;
+            color: #ff69b4;
+            border-left-color: #ff1493;
         }
         .app-controls {
             margin-bottom: 20px;
@@ -44481,6 +44506,15 @@ function renderAttachments(attachments, questionId) {
     const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
     if (!dotplotSection) return;
 
+    // Ensure the section has all required containers
+    if (!document.getElementById(`dotplot-${questionId}`)) {
+        dotplotSection.innerHTML = `
+            <canvas id="dotplot-${questionId}" width="400" height="200"></canvas>
+            <div id="consensus-${questionId}"></div>
+            <div class="contributors-list" id="contributors-${questionId}"></div>
+        `;
+    }
+
     // Always destroy existing chart first to force refresh
     if (chartInstances[`dotplot-${questionId}`]) {
         chartInstances[`dotplot-${questionId}`].destroy();
@@ -44497,14 +44531,14 @@ function renderAttachments(attachments, questionId) {
         }, 10);
     }
 
-    if (questionType === 'multiple-choice') {
-        // Use setTimeout to ensure DOM is ready and force re-render
-        setTimeout(() => {
+    // Render with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        if (questionType === 'multiple-choice') {
             renderMCQDistribution(questionId);
-        }, 50);
-    } else {
-        renderFRQResponses(questionId);
-    }
+        } else {
+            renderFRQResponses(questionId);
+        }
+    }, 50);
 }
 
         // Render MCQ distribution
@@ -44683,10 +44717,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     const isCurrentUser = c.username === currentUsername;
                     const badges = calculateBadges(c.username);
                     const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
+
+                    // CRITICAL: Always show the reason if it exists
                     html += `
                         <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
                             <span class="contributor-choice">${c.username}${badgeText} → Choice ${c.choice}</span>
-                            ${c.reason ? `<div class="contributor-reason">"${c.reason}"</div>` : ''}
+                            ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; padding: 8px; background: #f9f9f9; border-left: 3px solid #2196F3; font-style: italic;">"${c.reason}"</div>` : '<div style="color: #999; font-style: italic; margin-top: 5px;">No explanation provided</div>'}
                         </div>
                     `;
                 });
@@ -44804,18 +44840,45 @@ if (chartInstances[`dotplot-${questionId}`]) {
         // Load progress
         function loadProgress() {
             if (!currentUsername || !classData) return;
-            
-            currentQuestions.forEach(question => {
+
+            // Add a counter for staggered rendering
+            let renderDelay = 0;
+
+            currentQuestions.forEach((question, index) => {
                 const qId = question.id;
                 const qContainer = document.querySelector(`[data-question-id="${qId}"]`);
                 if (!qContainer) return;
-                
+
                 const isAnswered = isQuestionAnswered(qId);
                 if (isAnswered) {
-                    // Show dotplot if answered
+                    // Show dotplot with staggered delay to ensure proper rendering
                     const questionType = question.type;
-                    showDotplot(qId, questionType);
-                    
+
+                    // Use setTimeout with increasing delay for each question
+                    setTimeout(() => {
+                        // First ensure the dotplot section is visible
+                        const dotplotSection = document.getElementById(`dotplot-section-${qId}`);
+                        if (dotplotSection) {
+                            dotplotSection.innerHTML = `
+                                <canvas id="dotplot-${qId}" width="400" height="200"></canvas>
+                                <div id="consensus-${qId}"></div>
+                                <div class="contributors-list" id="contributors-${qId}"></div>
+                            `;
+                            dotplotSection.classList.add('show');
+                            dotplotSection.style.opacity = '1';
+                        }
+
+                        // Now render the visualization
+                        if (questionType === 'multiple-choice') {
+                            renderMCQDistribution(qId);
+                        } else {
+                            renderFRQResponses(qId);
+                        }
+                    }, renderDelay);
+
+                    // Increase delay for next question (100ms between each)
+                    renderDelay += 100;
+
                     // Update button state
                     const submitBtn = document.getElementById(`submit-${qId}`);
                     if (submitBtn) {
@@ -44828,6 +44891,28 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                 }
             });
+        }
+
+        // ALTERNATE SOLUTION: If the above doesn't work, add this function to force refresh all visualizations:
+        function refreshAllVisualizations() {
+            // Call this after data import or when viewing past quizzes
+            setTimeout(() => {
+                currentQuestions.forEach((question, index) => {
+                    const qId = question.id;
+                    const isAnswered = isQuestionAnswered(qId);
+
+                    if (isAnswered) {
+                        setTimeout(() => {
+                            const questionType = question.type;
+                            if (questionType === 'multiple-choice') {
+                                renderMCQDistribution(qId);
+                            } else {
+                                renderFRQResponses(qId);
+                            }
+                        }, index * 100); // Stagger by 100ms per question
+                    }
+                });
+            }, 500); // Initial delay to ensure DOM is ready
         }
 
         // Export personal data
