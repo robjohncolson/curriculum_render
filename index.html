@@ -671,6 +671,362 @@
     background: linear-gradient(90deg, #4CAF50, #8BC34A);
     transition: width 0.3s ease;
 }
+
+.cloud-sync-container {
+    background: #2a2a2a;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.cloud-setup input {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 4px;
+}
+
+.sync-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #1a1a1a;
+    border-radius: 4px;
+}
+
+.sync-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.sync-stats {
+    display: flex;
+    justify-content: space-around;
+    color: #888;
+    font-size: 12px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #45a049);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.sync-success {
+    background: #4CAF50 !important;
+}
+
+.sync-error {
+    background: #f44336 !important;
+}
+
+/* Dark Mode Color Fixes */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0; /* Lighter text for better contrast */
+}
+
+.dark-mode .modal-content {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+
+.dark-mode input[type="text"],
+.dark-mode input[type="number"],
+.dark-mode select,
+.dark-mode textarea {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+
+.dark-mode input::placeholder {
+    color: #999;
+}
+
+.dark-mode .student-item {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+
+.dark-mode .student-item:hover {
+    background-color: #333;
+}
+
+.dark-mode .control-btn {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+
+.dark-mode .control-btn:hover {
+    background-color: #444;
+    border-color: #666;
+}
+
+.dark-mode .stats-card {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+
+.dark-mode .sync-header {
+    color: #e0e0e0;
+}
+
+.dark-mode .sync-stats {
+    color: #b0b0b0;
+}
+
+/* Ensure sufficient contrast for important text */
+.dark-mode h1, .dark-mode h2, .dark-mode h3 {
+    color: #f0f0f0;
+}
+
+.dark-mode .badge {
+    background-color: #444;
+    color: #f0f0f0;
+}
+
+/* Cloud sync specific dark mode */
+.dark-mode .cloud-sync-container {
+    background: #252525;
+    border: 1px solid #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .sync-controls button {
+    background: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+}
+
+.dark-mode .sync-controls button:hover {
+    background: #444;
+    border-color: #666;
+}
+
+/* Notification animations */
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+.sync-notification {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    font-weight: 500;
+}
+
+/* Active state for auto-sync button */
+.control-btn.active {
+    background-color: #4CAF50 !important;
+    color: white !important;
+}
+
+.dark-mode .control-btn.active {
+    background-color: #45a049 !important;
+}
+
+/* Fix dark blue text in lesson materials */
+.dark-mode .lesson-content,
+.dark-mode .lesson-material,
+.dark-mode .content-section,
+.dark-mode p,
+.dark-mode li,
+.dark-mode span {
+    color: #e0e0e0 !important; /* Light grey for good contrast */
+}
+
+/* Fix links in dark mode - make them light blue instead of dark blue */
+.dark-mode a {
+    color: #64b5f6 !important; /* Light blue */
+}
+
+.dark-mode a:hover {
+    color: #90caf9 !important; /* Even lighter blue on hover */
+}
+
+/* Fix tables in dark mode */
+.dark-mode table {
+    background-color: #2a2a2a !important; /* Dark background */
+    color: #e0e0e0 !important; /* Light text */
+    border-color: #444 !important;
+}
+
+.dark-mode th {
+    background-color: #333 !important; /* Slightly lighter header */
+    color: #f0f0f0 !important; /* Bright text for headers */
+    border-color: #555 !important;
+}
+
+.dark-mode td {
+    background-color: #2a2a2a !important; /* Dark cells */
+    color: #e0e0e0 !important; /* Light text */
+    border-color: #444 !important;
+}
+
+.dark-mode tr:hover {
+    background-color: #333 !important; /* Highlight on hover */
+}
+
+.dark-mode tbody tr:nth-child(even) {
+    background-color: #252525 !important; /* Alternating rows */
+}
+
+/* Fix any inline styles or code blocks */
+.dark-mode code {
+    background-color: #333 !important;
+    color: #f8f8f2 !important;
+    border-color: #555 !important;
+}
+
+.dark-mode pre {
+    background-color: #1e1e1e !important;
+    color: #f8f8f2 !important;
+    border-color: #444 !important;
+}
+
+/* Fix any headers that might be dark */
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+    color: #f0f0f0 !important; /* Bright white for headers */
+}
+
+/* Fix any divs or sections with specific colors */
+.dark-mode .card,
+.dark-mode .panel,
+.dark-mode .box,
+.dark-mode .section {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+/* Override any specific blue text that might be hardcoded */
+.dark-mode [style*="color: blue"],
+.dark-mode [style*="color:#0000ff"],
+.dark-mode [style*="color: #00f"],
+.dark-mode [style*="color:blue"] {
+    color: #64b5f6 !important; /* Force light blue */
+}
+
+/* Override any specific dark blue text */
+.dark-mode [style*="color: darkblue"],
+.dark-mode [style*="color: navy"],
+.dark-mode [style*="color:#000080"],
+.dark-mode [style*="color:#00008b"] {
+    color: #64b5f6 !important; /* Force light blue */
+}
+
+/* Fix selection highlighting in dark mode */
+.dark-mode ::selection {
+    background-color: #4a4a4a;
+    color: #ffffff;
+}
+
+/* Fix input fields and form elements */
+.dark-mode input,
+.dark-mode textarea,
+.dark-mode select {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+
+.dark-mode input:focus,
+.dark-mode textarea:focus,
+.dark-mode select:focus {
+    border-color: #64b5f6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2) !important;
+}
+
+/* Fix any buttons that might have weird colors */
+.dark-mode button {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+
+.dark-mode button:hover {
+    background-color: #444 !important;
+    border-color: #666 !important;
+}
+
+/* Ensure lesson content specific fixes */
+.dark-mode .lesson-text,
+.dark-mode .lesson-body,
+.dark-mode .lesson-description {
+    color: #e0e0e0 !important;
+}
+
+/* Fix any blockquotes or special text blocks */
+.dark-mode blockquote {
+    background-color: #333 !important;
+    border-left-color: #64b5f6 !important;
+    color: #e0e0e0 !important;
+}
+
+/* Fix list items */
+.dark-mode ul li,
+.dark-mode ol li {
+    color: #e0e0e0 !important;
+}
+
+/* Fix any alerts or notification boxes */
+.dark-mode .alert,
+.dark-mode .notice,
+.dark-mode .warning,
+.dark-mode .info {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #555 !important;
+}
+
+/* Nuclear option - force all text to be readable in dark mode */
+.dark-mode * {
+    color: #e0e0e0 !important;
+}
+
+/* Then re-specify colors for elements that should be different */
+.dark-mode h1, .dark-mode h2, .dark-mode h3 {
+    color: #f0f0f0 !important;
+}
+
+.dark-mode a {
+    color: #64b5f6 !important;
+}
+
+.dark-mode .success { color: #4CAF50 !important; }
+.dark-mode .error { color: #f44336 !important; }
+.dark-mode .warning { color: #ff9800 !important; }
     </style>
 </head>
 <body>
@@ -44904,8 +45260,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
     </script>
 
-
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         // New function to render unit selection menu
@@ -44986,6 +45341,47 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                     Total Export
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Simplified Cloud Sync Section -->
+                    <div class="cloud-sync-container">
+                        <div class="sync-header">
+                            <h3><i class="fas fa-cloud"></i> Cloud Sync</h3>
+                            <span class="sync-status">Last sync: <span id="lastSyncTime">Never</span></span>
+                        </div>
+
+                        <div class="sync-controls">
+                            <button id="pushToCloudBtn" class="control-btn">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                Push to Cloud
+                            </button>
+                            <button id="pullFromCloudBtn" class="control-btn">
+                                <i class="fas fa-cloud-download-alt"></i>
+                                Pull from Cloud
+                            </button>
+                            <button id="autoSyncToggle" class="control-btn">
+                                <i class="fas fa-sync"></i>
+                                Auto-Sync: <span id="autoSyncStatus">OFF</span>
+                            </button>
+                        </div>
+
+                        <div class="sync-stats">
+                            <span>Local: <strong id="localRecordCount">0</strong></span>
+                            <span>Cloud: <strong id="cloudRecordCount">0</strong></span>
+                            <span>Users: <strong id="totalUserCount">0</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Sync Progress Modal -->
+                    <div id="syncProgressModal" class="modal" style="display: none;">
+                        <div class="modal-content">
+                            <h3>Syncing...</h3>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="syncProgress"></div>
+                            </div>
+                            <p id="syncMessage">Preparing to sync...</p>
+                            <button id="cancelSyncBtn" class="control-btn">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -45467,6 +45863,320 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             showMessage('Master database exported successfully!', 'success');
         }
+
+        class CloudSyncManager {
+            constructor() {
+                // Initialize Supabase
+                this.supabaseUrl = 'https://zhsxokanfnospvujkegn.supabase.co';
+                this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpoc3hva2FuZm5vc3B2dWprZWduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NTIwMDIsImV4cCI6MjA3MzUyODAwMn0.LMfB-MUMn7Tev2LQjjCZYdBJyGUODQ3RZJkKHmOBsQE';
+                this.supabase = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+
+                this.lastSyncTime = localStorage.getItem('lastSyncTime') || null;
+                this.autoSyncInterval = null;
+                this.syncInProgress = false;
+                this.deviceId = this.getOrCreateDeviceId();
+
+                this.initializeUI();
+                this.updateSyncStats();
+            }
+
+            getOrCreateDeviceId() {
+                let deviceId = localStorage.getItem('deviceId');
+                if (!deviceId) {
+                    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('deviceId', deviceId);
+                }
+                return deviceId;
+            }
+
+            initializeUI() {
+                // Update last sync time display
+                if (this.lastSyncTime) {
+                    document.getElementById('lastSyncTime').textContent =
+                        new Date(this.lastSyncTime).toLocaleString();
+                }
+
+                // Push to cloud
+                document.getElementById('pushToCloudBtn').addEventListener('click', () => {
+                    this.pushToCloud();
+                });
+
+                // Pull from cloud
+                document.getElementById('pullFromCloudBtn').addEventListener('click', () => {
+                    this.pullFromCloud();
+                });
+
+                // Auto-sync toggle
+                document.getElementById('autoSyncToggle').addEventListener('click', () => {
+                    this.toggleAutoSync();
+                });
+
+                // Check if auto-sync was enabled
+                if (localStorage.getItem('autoSync') === 'true') {
+                    this.toggleAutoSync();
+                }
+            }
+
+            async pushToCloud() {
+                if (this.syncInProgress) return;
+                this.syncInProgress = true;
+
+                const pushBtn = document.getElementById('pushToCloudBtn');
+                pushBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pushing...';
+                pushBtn.disabled = true;
+
+                try {
+                    const localRecords = this.getLocalRecords();
+                    const recordsToInsert = [];
+
+                    // Convert all local records to cloud format
+                    for (const [username, userRecords] of Object.entries(localRecords)) {
+                        for (const record of userRecords) {
+                            // Check if already exists
+                            const exists = await this.checkRecordExists(username, record.timestamp);
+
+                            if (!exists) {
+                                recordsToInsert.push({
+                                    username: username,
+                                    student_name: record.name,
+                                    timestamp: record.timestamp,
+                                    type: record.type,
+                                    device_id: this.deviceId
+                                });
+                            }
+                        }
+                    }
+
+                    if (recordsToInsert.length > 0) {
+                        const { error } = await this.supabase
+                            .from('attendance_sync')
+                            .insert(recordsToInsert);
+
+                        if (error) throw error;
+
+                        this.showNotification(`✅ Pushed ${recordsToInsert.length} new records!`, 'success');
+                    } else {
+                        this.showNotification('✅ All records already synced!', 'info');
+                    }
+
+                    this.updateLastSyncTime();
+                    await this.updateSyncStats();
+
+                } catch (error) {
+                    console.error('Push error:', error);
+                    this.showNotification('❌ Push failed: ' + error.message, 'error');
+                } finally {
+                    pushBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Push to Cloud';
+                    pushBtn.disabled = false;
+                    this.syncInProgress = false;
+                }
+            }
+
+            async pullFromCloud() {
+                if (this.syncInProgress) return;
+                this.syncInProgress = true;
+
+                const pullBtn = document.getElementById('pullFromCloudBtn');
+                pullBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pulling...';
+                pullBtn.disabled = true;
+
+                try {
+                    // Get ALL records from cloud (no class filtering!)
+                    const { data, error } = await this.supabase
+                        .from('attendance_sync')
+                        .select('*')
+                        .order('timestamp', { ascending: true });
+
+                    if (error) throw error;
+
+                    let mergedCount = 0;
+                    if (data && data.length > 0) {
+                        for (const record of data) {
+                            if (this.mergeRecord(record)) {
+                                mergedCount++;
+                            }
+                        }
+
+                        if (mergedCount > 0) {
+                            this.showNotification(`✅ Merged ${mergedCount} new records!`, 'success');
+                            updateDisplay(); // Update the main display
+                            updateStats();   // Update statistics
+                        } else {
+                            this.showNotification('✅ All cloud records already in local!', 'info');
+                        }
+                    } else {
+                        this.showNotification('☁️ No records in cloud yet', 'info');
+                    }
+
+                    this.updateLastSyncTime();
+                    await this.updateSyncStats();
+
+                } catch (error) {
+                    console.error('Pull error:', error);
+                    this.showNotification('❌ Pull failed: ' + error.message, 'error');
+                } finally {
+                    pullBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Pull from Cloud';
+                    pullBtn.disabled = false;
+                    this.syncInProgress = false;
+                }
+            }
+
+            mergeRecord(cloudRecord) {
+                let records = JSON.parse(localStorage.getItem('attendanceRecords')) || {};
+
+                const username = cloudRecord.username;
+                if (!records[username]) {
+                    records[username] = [];
+                }
+
+                // Check if record already exists
+                const exists = records[username].some(r =>
+                    r.timestamp === cloudRecord.timestamp &&
+                    r.type === cloudRecord.type
+                );
+
+                if (!exists) {
+                    records[username].push({
+                        name: cloudRecord.student_name,
+                        timestamp: cloudRecord.timestamp,
+                        type: cloudRecord.type
+                    });
+
+                    // Sort by timestamp
+                    records[username].sort((a, b) =>
+                        new Date(a.timestamp) - new Date(b.timestamp)
+                    );
+
+                    localStorage.setItem('attendanceRecords', JSON.stringify(records));
+
+                    // Update global variable
+                    if (typeof window.records !== 'undefined') {
+                        window.records = records;
+                    }
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            async checkRecordExists(username, timestamp) {
+                const { data } = await this.supabase
+                    .from('attendance_sync')
+                    .select('id')
+                    .eq('username', username)
+                    .eq('timestamp', timestamp)
+                    .limit(1);
+
+                return data && data.length > 0;
+            }
+
+            getLocalRecords() {
+                return JSON.parse(localStorage.getItem('attendanceRecords')) || {};
+            }
+
+            async updateSyncStats() {
+                try {
+                    // Count local records
+                    const localRecords = this.getLocalRecords();
+                    let localCount = 0;
+                    for (const userRecords of Object.values(localRecords)) {
+                        localCount += userRecords.length;
+                    }
+                    document.getElementById('localRecordCount').textContent = localCount;
+
+                    // Count ALL cloud records
+                    const { count: cloudCount } = await this.supabase
+                        .from('attendance_sync')
+                        .select('*', { count: 'exact', head: true });
+
+                    document.getElementById('cloudRecordCount').textContent = cloudCount || 0;
+
+                    // Count unique users
+                    const { data: users } = await this.supabase
+                        .from('attendance_sync')
+                        .select('username');
+
+                    const uniqueUsers = new Set(users?.map(u => u.username) || []);
+                    document.getElementById('totalUserCount').textContent = uniqueUsers.size;
+
+                } catch (error) {
+                    console.error('Error updating stats:', error);
+                }
+            }
+
+            toggleAutoSync() {
+                if (this.autoSyncInterval) {
+                    // Turn OFF auto-sync
+                    clearInterval(this.autoSyncInterval);
+                    this.autoSyncInterval = null;
+                    document.getElementById('autoSyncStatus').textContent = 'OFF';
+                    document.getElementById('autoSyncToggle').classList.remove('active');
+                    localStorage.setItem('autoSync', 'false');
+                    this.showNotification('Auto-sync disabled', 'info');
+                } else {
+                    // Turn ON auto-sync - sync every 30 seconds
+                    this.autoSyncInterval = setInterval(() => {
+                        this.performAutoSync();
+                    }, 30000);
+
+                    document.getElementById('autoSyncStatus').textContent = 'ON';
+                    document.getElementById('autoSyncToggle').classList.add('active');
+                    localStorage.setItem('autoSync', 'true');
+                    this.showNotification('Auto-sync enabled (every 30s)', 'success');
+
+                    // Do immediate sync
+                    this.performAutoSync();
+                }
+            }
+
+            async performAutoSync() {
+                // Push first, then pull
+                await this.pushToCloud();
+                setTimeout(() => this.pullFromCloud(), 2000);
+            }
+
+            updateLastSyncTime() {
+                this.lastSyncTime = new Date().toISOString();
+                localStorage.setItem('lastSyncTime', this.lastSyncTime);
+                document.getElementById('lastSyncTime').textContent =
+                    new Date(this.lastSyncTime).toLocaleString();
+            }
+
+            showNotification(message, type = 'info') {
+                // Create a simple notification
+                const notification = document.createElement('div');
+                notification.className = `sync-notification ${type}`;
+                notification.textContent = message;
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 20px;
+                    border-radius: 4px;
+                    z-index: 10000;
+                    animation: slideIn 0.3s ease;
+                    background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+                    color: white;
+                `;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        // Initialize cloud sync when page loads
+        let cloudSync;
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize after a short delay to ensure other components are ready
+            setTimeout(() => {
+                cloudSync = new CloudSyncManager();
+            }, 1000);
+        });
 
     </script>
 </body>
