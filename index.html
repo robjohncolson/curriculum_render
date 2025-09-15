@@ -442,6 +442,50 @@
         .start-button:hover {
             background: #f57c00;
         }
+
+/* Input fields in dark mode */
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode textarea,
+body.dark-mode select {
+    background: #333333;
+    color: #ff69b4;
+    border: 1px solid #ff69b4;
+}
+
+/* Feedback sections in dark mode */
+body.dark-mode .feedback {
+    background: #333333;
+    border-left: 4px solid #ff1493;
+    color: #ff69b4;
+}
+
+body.dark-mode .feedback.correct {
+    background: #2a3a2a;
+    border-left-color: #50fa7b;
+    color: #50fa7b;
+}
+
+body.dark-mode .feedback.incorrect {
+    background: #3a2a2a;
+    border-left-color: #ff5555;
+    color: #ff5555;
+}
+
+body.dark-mode input[type="text"]:focus,
+body.dark-mode input[type="number"]:focus,
+body.dark-mode textarea:focus,
+body.dark-mode select:focus {
+    border-color: #ff1493;
+    outline: none;
+    box-shadow: 0 0 5px rgba(255,105,180,0.3);
+}
+
+/* Placeholder text */
+body.dark-mode ::placeholder {
+    color: #ffb3d9;
+    opacity: 0.7;
+}
         .message {
             padding: 15px;
             border-radius: 6px;
@@ -738,8 +782,20 @@
 
 /* Dark Mode Color Fixes */
 body.dark-mode {
-    background-color: #1a1a1a;
-    color: #e0e0e0; /* Lighter text for better contrast */
+    background-color: #0f0f0f;
+    color: #ff69b4; /* Hot pink for main text */
+}
+
+body.dark-mode .container {
+    background: #2a2a2a; /* Slightly lighter dark grey for better contrast */
+    color: #ff69b4; /* Pink text */
+    box-shadow: 0 2px 10px rgba(255,105,180,0.1); /* Subtle pink glow */
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+    color: #ff1493; /* Deep pink for headings */
 }
 
 .dark-mode .modal-content {
@@ -869,31 +925,20 @@ body.dark-mode {
     color: #90caf9 !important; /* Even lighter blue on hover */
 }
 
-/* Fix tables in dark mode */
-.dark-mode table {
-    background-color: #2a2a2a !important; /* Dark background */
-    color: #e0e0e0 !important; /* Light text */
-    border-color: #444 !important;
+body.dark-mode table {
+    background: #2a2a2a;
 }
-
-.dark-mode th {
-    background-color: #333 !important; /* Slightly lighter header */
-    color: #f0f0f0 !important; /* Bright text for headers */
-    border-color: #555 !important;
+body.dark-mode th {
+    background-color: #3a3a3a;
+    color: #ff1493; /* Deep pink for headers */
+    border-color: #ff69b4;
 }
-
-.dark-mode td {
-    background-color: #2a2a2a !important; /* Dark cells */
-    color: #e0e0e0 !important; /* Light text */
-    border-color: #444 !important;
+body.dark-mode td {
+    color: #ff69b4; /* Pink for table data */
+    border-color: #444444;
 }
-
-.dark-mode tr:hover {
-    background-color: #333 !important; /* Highlight on hover */
-}
-
-.dark-mode tbody tr:nth-child(even) {
-    background-color: #252525 !important; /* Alternating rows */
+body.dark-mode tr:nth-child(even) {
+    background-color: #252525;
 }
 
 /* Fix any inline styles or code blocks */
@@ -968,16 +1013,32 @@ body.dark-mode {
     box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2) !important;
 }
 
-/* Fix any buttons that might have weird colors */
-.dark-mode button {
-    background-color: #333 !important;
-    color: #e0e0e0 !important;
-    border-color: #555 !important;
+body.dark-mode .submit-button,
+body.dark-mode .nav-button {
+    background: #ff1493;
+    color: #ffffff;
 }
 
-.dark-mode button:hover {
-    background-color: #444 !important;
-    border-color: #666 !important;
+body.dark-mode .submit-button:hover,
+body.dark-mode .nav-button:hover {
+    background: #ff69b4;
+}
+
+body.dark-mode .submit-button:disabled,
+body.dark-mode .nav-button:disabled {
+    background: #4a4a4a;
+    color: #888888;
+}
+
+body.dark-mode .unit-btn {
+    background: #ff1493;
+    color: #ffffff;
+}
+
+body.dark-mode .unit-btn:hover {
+    background: #ff69b4;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255,105,180,0.3);
 }
 
 /* Ensure lesson content specific fixes */
@@ -1027,6 +1088,67 @@ body.dark-mode {
 .dark-mode .success { color: #4CAF50 !important; }
 .dark-mode .error { color: #f44336 !important; }
 .dark-mode .warning { color: #ff9800 !important; }
+
+/* DARK MODE FIXES - Complete Override */
+body.dark-mode,
+body.dark-mode * {
+    color: #ff69b4 !important; /* Pink base text */
+}
+
+body.dark-mode {
+    background-color: #0f0f0f !important;
+}
+
+body.dark-mode .container,
+body.dark-mode .quiz-container,
+body.dark-mode .chart-container {
+    background: #2a2a2a !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode .question-prompt,
+body.dark-mode th {
+    color: #ff1493 !important; /* Deep pink for headers */
+}
+
+body.dark-mode .question-id,
+body.dark-mode .choice-key,
+body.dark-mode ::placeholder {
+    color: #ffb3d9 !important; /* Light pink for secondary text */
+}
+
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .choice {
+    background: #333333 !important;
+    border-color: #ff69b4 !important;
+}
+
+body.dark-mode .choice:hover:not(.disabled) {
+    background: #3a2a3a !important;
+}
+
+body.dark-mode .choice.selected {
+    background: #4a2a4a !important;
+    border-color: #ff1493 !important;
+}
+
+body.dark-mode button {
+    background: #ff1493 !important;
+    color: #ffffff !important;
+}
+
+body.dark-mode button:hover:not(:disabled) {
+    background: #ff69b4 !important;
+}
+
+body.dark-mode button:disabled {
+    background: #4a4a4a !important;
+    color: #888888 !important;
+}
     </style>
 </head>
 <body>
