@@ -29,10 +29,49 @@
     <button class="theme-toggle" title="Toggle theme">🌙</button>
 
     <script>
-    // ===============================================
-    // AP STATISTICS QUIZ APPLICATION
-    // ===============================================
-    // Wrapped in IIFE to avoid global namespace pollution
+    /**
+     * ===============================================
+     * AP STATISTICS QUIZ APPLICATION
+     * ===============================================
+     * 
+     * A comprehensive quiz application for AP Statistics education
+     * Features consensus-based learning and real-time class analytics
+     * 
+     * @version 3.0.0 - Week 3 Refactored
+     * @author AP Stats Team
+     * 
+     * ARCHITECTURE:
+     * - Single HTML file (monolithic) for easy deployment
+     * - IIFE pattern for namespace management
+     * - DataService for centralized data access
+     * - Event delegation for dynamic content
+     * - Performance optimizations (debouncing, lazy loading)
+     * 
+     * SECTIONS:
+     * 1. Configuration Constants
+     * 2. Data Service Layer
+     * 3. Performance Utilities
+     * 4. Error Handling & Debugging
+     * 5. Optimized Rendering
+     * 6. Helper Functions
+     * 7. Core Application Logic
+     * 8. UI Components
+     * 9. Chart Rendering
+     * 10. Event Handlers
+     * 
+     * USAGE:
+     * - Open index.html in any modern browser
+     * - No build process required
+     * - DevTools available in localhost
+     * 
+     * PERFORMANCE:
+     * - Debounced saving (500ms)
+     * - Throttled scrolling (16ms)
+     * - Lazy loading for quiz data
+     * - Virtual scrolling for long lists
+     * 
+     * ===============================================
+     */
     
     const APStatsQuiz = (function() {
         'use strict';
@@ -393,6 +432,262 @@
         // Create singleton instance
         const dataService = new DataService();
         
+        // ===============================================
+        // PERFORMANCE UTILITIES
+        // ===============================================
+        
+        /**
+         * Debounce function - delays execution until after wait milliseconds
+         * @param {Function} func - Function to debounce
+         * @param {number} wait - Milliseconds to wait
+         * @returns {Function} Debounced function
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func.apply(this, args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        /**
+         * Throttle function - limits execution to once per interval
+         * @param {Function} func - Function to throttle
+         * @param {number} limit - Milliseconds between executions
+         * @returns {Function} Throttled function
+         */
+        function throttle(func, limit) {
+            let inThrottle;
+            return function(...args) {
+                if (!inThrottle) {
+                    func.apply(this, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            };
+        }
+        
+        /**
+         * Lazy loader for quiz data - loads data only when needed
+         * @param {string} lessonId - Lesson to load data for
+         * @returns {Promise<Array>} Promise resolving to quiz questions
+         */
+        async function lazyLoadQuizData(lessonId) {
+            // Check cache first
+            const cacheKey = `quiz_${lessonId}`;
+            if (dataService.cache.has(cacheKey)) {
+                return dataService.cache.get(cacheKey);
+            }
+            
+            // Simulate async loading (in real app, this would be a fetch)
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const questions = dataService.getLessonQuestions(lessonId);
+                    dataService.cache.set(cacheKey, questions);
+                    resolve(questions);
+                }, 10);
+            });
+        }
+        
+        /**
+         * Request Animation Frame wrapper for smooth animations
+         * @param {Function} callback - Function to execute
+         */
+        function smoothUpdate(callback) {
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(callback);
+            } else {
+                setTimeout(callback, 16); // Fallback to ~60fps
+            }
+        }
+        
+        // ===============================================
+        // ERROR HANDLING & DEBUGGING
+        // ===============================================
+        
+        /**
+         * Global error boundary for catching and logging errors
+         * @param {Function} fn - Function to wrap
+         * @param {string} context - Context for error logging
+         * @returns {Function} Wrapped function with error handling
+         */
+        function errorBoundary(fn, context = 'Unknown') {
+            return function(...args) {
+                try {
+                    return fn.apply(this, args);
+                } catch (error) {
+                    console.error(`Error in ${context}:`, error);
+                    showMessage(`An error occurred in ${context}. Please refresh the page.`, 'error');
+                    
+                    // Log to error tracking service in production
+                    if (window.errorTracker) {
+                        window.errorTracker.log(error, { context, args });
+                    }
+                    
+                    return null;
+                }
+            };
+        }
+        
+        /**
+         * Development mode utilities
+         */
+        const DevTools = {
+            // Performance monitoring
+            measurePerformance(label, fn) {
+                if (!window.performance) return fn();
+                
+                const start = performance.now();
+                const result = fn();
+                const end = performance.now();
+                
+                console.log(`⏱️ ${label}: ${(end - start).toFixed(2)}ms`);
+                return result;
+            },
+            
+            // Memory usage tracking
+            getMemoryUsage() {
+                if (performance.memory) {
+                    return {
+                        used: (performance.memory.usedJSHeapSize / 1048576).toFixed(2) + ' MB',
+                        total: (performance.memory.totalJSHeapSize / 1048576).toFixed(2) + ' MB',
+                        limit: (performance.memory.jsHeapSizeLimit / 1048576).toFixed(2) + ' MB'
+                    };
+                }
+                return 'Memory API not available';
+            },
+            
+            // Debug logging with levels
+            log: {
+                info: (...args) => console.log('ℹ️', ...args),
+                warn: (...args) => console.warn('⚠️', ...args),
+                error: (...args) => console.error('❌', ...args),
+                success: (...args) => console.log('✅', ...args),
+                debug: (...args) => {
+                    if (localStorage.getItem('debug') === 'true') {
+                        console.log('🐛', ...args);
+                    }
+                }
+            },
+            
+            // Data inspection
+            inspectData() {
+                return {
+                    currentUser: dataService.getCurrentUsername(),
+                    storageStats: dataService.getStorageStats(),
+                    classData: dataService.getClassData(),
+                    memoryUsage: this.getMemoryUsage()
+                };
+            },
+            
+            // Enable debug mode
+            enableDebugMode() {
+                localStorage.setItem('debug', 'true');
+                console.log('Debug mode enabled');
+            },
+            
+            // Disable debug mode
+            disableDebugMode() {
+                localStorage.removeItem('debug');
+                console.log('Debug mode disabled');
+            }
+        };
+        
+        // Expose DevTools in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.DevTools = DevTools;
+            DevTools.log.info('Development tools available. Use window.DevTools');
+        }
+        
+        // ===============================================
+        // OPTIMIZED RENDERING
+        // ===============================================
+        
+        /**
+         * Batch DOM updates for better performance
+         * @param {Array<Function>} updates - Array of DOM update functions
+         */
+        function batchDOMUpdates(updates) {
+            smoothUpdate(() => {
+                updates.forEach(update => update());
+            });
+        }
+        
+        /**
+         * Virtual scroll implementation for long lists
+         * @param {HTMLElement} container - Container element
+         * @param {Array} items - Items to render
+         * @param {number} itemHeight - Height of each item
+         * @param {Function} renderItem - Function to render each item
+         */
+        function virtualScroll(container, items, itemHeight, renderItem) {
+            const visibleCount = Math.ceil(container.clientHeight / itemHeight);
+            const totalHeight = items.length * itemHeight;
+            
+            // Create scrollable space
+            const spacer = document.createElement('div');
+            spacer.style.height = totalHeight + 'px';
+            
+            // Track scroll position
+            let scrollTop = 0;
+            container.addEventListener('scroll', throttle(() => {
+                scrollTop = container.scrollTop;
+                renderVisibleItems();
+            }, 16));
+            
+            function renderVisibleItems() {
+                const start = Math.floor(scrollTop / itemHeight);
+                const end = Math.min(start + visibleCount + 1, items.length);
+                
+                // Clear and render only visible items
+                container.innerHTML = '';
+                container.appendChild(spacer);
+                
+                for (let i = start; i < end; i++) {
+                    const itemEl = renderItem(items[i], i);
+                    itemEl.style.position = 'absolute';
+                    itemEl.style.top = (i * itemHeight) + 'px';
+                    container.appendChild(itemEl);
+                }
+            }
+            
+            renderVisibleItems();
+        }
+        
+        /**
+         * Intersection Observer for lazy loading elements
+         * @param {string} selector - CSS selector for elements to observe
+         * @param {Function} callback - Function to call when element is visible
+         */
+        function lazyLoadElements(selector, callback) {
+            if (!window.IntersectionObserver) {
+                // Fallback: load all immediately
+                document.querySelectorAll(selector).forEach(callback);
+                return;
+            }
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        callback(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                rootMargin: '50px'
+            });
+            
+            document.querySelectorAll(selector).forEach(el => observer.observe(el));
+        }
+        
+        // ===============================================
+        // HELPER FUNCTIONS
+        // ===============================================
+        
         // Helper functions for charts
         
         /**
@@ -501,18 +796,25 @@
         }
 
         /**
-         * Saves class data to localStorage with error handling
+         * Saves class data to localStorage with error handling (immediate)
          * @returns {void}
          * @throws {Error} When localStorage quota is exceeded
          */
-        function saveClassData() {
+        function saveClassDataImmediate() {
             try {
                 dataService.saveClassData(classData);
+                DevTools.log.debug('Class data saved immediately');
             } catch(e) {
                 console.log("Storage quota exceeded");
                 showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
             }
         }
+        
+        /**
+         * Debounced version of saveClassData - waits 500ms after last call
+         * Prevents excessive localStorage writes during rapid updates
+         */
+        const saveClassData = debounce(saveClassDataImmediate, 500);
 
         // Student Performance Badges
         function calculateBadges(username) {

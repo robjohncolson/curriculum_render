@@ -1,0 +1,46 @@
+{
+  "name": "ap-stats-quiz",
+  "version": "1.0.0",
+  "description": "AP Statistics Consensus Quiz Application",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "webpack serve --mode development --open",
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "watch": "webpack --watch --mode development",
+    "analyze": "webpack-bundle-analyzer dist/stats.json",
+    "clean": "rm -rf dist",
+    "lint": "eslint src/**/*.js",
+    "test": "echo \"No tests configured yet\""
+  },
+  "keywords": [
+    "education",
+    "quiz",
+    "statistics",
+    "ap-stats"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "css-loader": "^6.8.1",
+    "css-minimizer-webpack-plugin": "^5.0.1",
+    "eslint": "^8.50.0",
+    "html-webpack-plugin": "^5.5.3",
+    "mini-css-extract-plugin": "^2.7.6",
+    "style-loader": "^3.3.3",
+    "terser-webpack-plugin": "^5.3.9",
+    "webpack": "^5.88.2",
+    "webpack-bundle-analyzer": "^4.9.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "dependencies": {
+    "chart.js": "^3.9.1",
+    "chartjs-plugin-datalabels": "^2.2.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
