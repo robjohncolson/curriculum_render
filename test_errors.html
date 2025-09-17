@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Error Handling Test - Week 4 Step 3</title>
+    <style>
+        body { 
+            font-family: 'Consolas', 'Monaco', monospace; 
+            background: #0c0c0c; 
+            color: #00ff00; 
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #00ffff; text-shadow: 0 0 10px #00ffff; }
+        h2 { color: #ffff00; margin-top: 30px; }
+        .test-section {
+            background: #1a1a1a;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,255,0,0.1);
+        }
+        button {
+            background: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        .log-entry {
+            padding: 8px;
+            margin: 4px 0;
+            background: #0a0a0a;
+            border-left: 3px solid #00ff00;
+            font-size: 12px;
+        }
+        .DEBUG { border-left-color: #888; color: #888; }
+        .INFO { border-left-color: #00ffff; color: #00ffff; }
+        .WARN { border-left-color: #ffff00; color: #ffff00; }
+        .ERROR { border-left-color: #ff0000; color: #ff0000; }
+        .CRITICAL { 
+            border-left-color: #ff00ff; 
+            color: #ff00ff;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        pre { 
+            background: #0a0a0a; 
+            padding: 10px; 
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            color: #00ffff;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Error Handling & Logging System</h1>
+    
+    <div class="test-section">
+        <h2>Test Error Scenarios</h2>
+        <button onclick="testDebug()">Debug Log</button>
+        <button onclick="testInfo()">Info Log</button>
+        <button onclick="testWarning()">Warning</button>
+        <button onclick="testError()">Trigger Error</button>
+        <button onclick="testCritical()">Critical Error</button>
+        <button onclick="testBoundary()">Test Boundary</button>
+        <button onclick="testRetry()">Test Retry Logic</button>
+        <button onclick="testUncaught()">Uncaught Error</button>
+        <button onclick="testPromiseRejection()">Promise Rejection</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Error Statistics</h2>
+        <div id="stats" class="stats"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Log Management</h2>
+        <button onclick="exportLogs()">📥 Export Logs</button>
+        <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        <button onclick="setLogLevel('DEBUG')">Set DEBUG</button>
+        <button onclick="setLogLevel('INFO')">Set INFO</button>
+        <button onclick="setLogLevel('WARN')">Set WARN</button>
+        <button onclick="setLogLevel('ERROR')">Set ERROR</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Recent Logs</h2>
+        <div id="logs"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Features Implemented</h2>
+        <ul style="color: #00ff00;">
+            <li>✅ Multi-level logging (DEBUG, INFO, WARN, ERROR, CRITICAL)</li>
+            <li>✅ Error boundaries with retry logic</li>
+            <li>✅ Automatic error recovery mechanisms</li>
+            <li>✅ Global error handlers for uncaught exceptions</li>
+            <li>✅ Promise rejection handling</li>
+            <li>✅ Error statistics and analytics</li>
+            <li>✅ Log persistence to localStorage</li>
+            <li>✅ Log export functionality</li>
+            <li>✅ Configurable log levels</li>
+            <li>✅ Error reporting preparation (server endpoint ready)</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>API Examples</h2>
+        <pre>
+// Logging
+APStatsQuiz.Logger.debug('Debug message', { data: 123 });
+APStatsQuiz.Logger.info('Info message');
+APStatsQuiz.Logger.warn('Warning message');
+APStatsQuiz.Logger.error('Error message', { error: err });
+APStatsQuiz.Logger.critical('Critical error!');
+
+// Error Boundaries
+const safeFn = APStatsQuiz.Logger.boundary(
+    riskyFunction,
+    'ContextName',
+    { 
+        fallbackValue: null,
+        retry: true,
+        maxRetries: 3
+    }
+);
+
+// Statistics
+const stats = APStatsQuiz.Logger.getStats();
+
+// Export/Clear
+APStatsQuiz.Logger.exportLogs();
+APStatsQuiz.Logger.clearLogs();
+        </pre>
+    </div>
+    
+    <!-- Load dependencies -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+    
+    <script>
+        let Logger;
+        
+        // Test functions
+        function testDebug() {
+            Logger.debug('This is a debug message', { timestamp: Date.now() });
+            updateDisplay();
+        }
+        
+        function testInfo() {
+            Logger.info('Application initialized successfully');
+            updateDisplay();
+        }
+        
+        function testWarning() {
+            Logger.warn('Low memory warning', { available: '10MB' });
+            updateDisplay();
+        }
+        
+        function testError() {
+            Logger.error('Failed to load resource', { 
+                resource: 'data.json',
+                status: 404
+            });
+            updateDisplay();
+        }
+        
+        function testCritical() {
+            Logger.critical('Database connection lost!', {
+                attempts: 5,
+                lastError: 'Connection timeout'
+            });
+            updateDisplay();
+        }
+        
+        function testBoundary() {
+            const riskyFn = () => {
+                throw new Error('Intentional error for testing');
+            };
+            
+            const safeFn = Logger.boundary(riskyFn, 'TestFunction', {
+                fallbackValue: 'Recovered!',
+                silent: false
+            });
+            
+            const result = safeFn();
+            Logger.info('Boundary test result', { result });
+            updateDisplay();
+        }
+        
+        function testRetry() {
+            let attempts = 0;
+            const flakyFn = () => {
+                attempts++;
+                if (attempts < 3) {
+                    throw new Error(`Attempt ${attempts} failed`);
+                }
+                return 'Success on attempt ' + attempts;
+            };
+            
+            const retryFn = Logger.boundary(flakyFn, 'RetryTest', {
+                retry: true,
+                maxRetries: 3
+            });
+            
+            const result = retryFn();
+            Logger.info('Retry test completed', { result, attempts });
+            updateDisplay();
+        }
+        
+        function testUncaught() {
+            // This will be caught by global error handler
+            setTimeout(() => {
+                nonExistentFunction();
+            }, 100);
+            
+            setTimeout(updateDisplay, 200);
+        }
+        
+        function testPromiseRejection() {
+            // This will be caught by unhandledrejection handler
+            Promise.reject('Test rejection');
+            setTimeout(updateDisplay, 100);
+        }
+        
+        function exportLogs() {
+            Logger.exportLogs();
+            Logger.info('Logs exported');
+            updateDisplay();
+        }
+        
+        function clearLogs() {
+            Logger.clearLogs();
+            updateDisplay();
+        }
+        
+        function setLogLevel(level) {
+            Logger.setLogLevel(level);
+            updateDisplay();
+        }
+        
+        function updateDisplay() {
+            // Update stats
+            const stats = Logger.getStats();
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalLogs}</div>
+                    <div class="stat-label">Total Logs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.errorCount}</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.warningCount}</div>
+                    <div class="stat-label">Warnings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${((stats.errorCount / (stats.totalLogs || 1)) * 100).toFixed(1)}%</div>
+                    <div class="stat-label">Error Rate</div>
+                </div>
+            `;
+            
+            // Update recent logs
+            const recentLogs = Logger.getRecentLogs ? Logger.getRecentLogs(20) : [];
+            const logsHtml = recentLogs.reverse().map(log => `
+                <div class="log-entry ${log.levelName}">
+                    [${new Date(log.timestamp).toLocaleTimeString()}] 
+                    <strong>${log.levelName}</strong>: 
+                    ${log.message}
+                    ${log.data && Object.keys(log.data).length > 0 ? 
+                        `<br><small>${JSON.stringify(log.data)}</small>` : ''}
+                </div>
+            `).join('');
+            
+            document.getElementById('logs').innerHTML = logsHtml || '<div style="color: #666;">No logs yet</div>';
+        }
+        
+        // Load the main application
+        fetch('index.html')
+            .then(r => r.text())
+            .then(html => {
+                const match = html.match(/<script>([\s\S]*?)<\/script>/);
+                if (match && match[1]) {
+                    try {
+                        eval(match[1]);
+                        
+                        // Get Logger reference
+                        Logger = APStatsQuiz.Logger;
+                        
+                        // Initial log
+                        Logger.info('Error handling test page loaded');
+                        
+                        // Set up auto-refresh
+                        setInterval(updateDisplay, 1000);
+                        
+                        // Initial display
+                        updateDisplay();
+                        
+                    } catch(e) {
+                        document.getElementById('logs').innerHTML = 
+                            `<div class="ERROR">Failed to load: ${e.toString()}</div>`;
+                    }
+                }
+            });
+    </script>
+</body>
+</html>

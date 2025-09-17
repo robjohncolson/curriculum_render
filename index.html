@@ -724,6 +724,257 @@
         })();
         
         // ===============================================
+        // ERROR HANDLING & LOGGING MODULE
+        // ===============================================
+        const ErrorLogger = (function() {
+            // Configuration
+            const config = {
+                maxLogSize: 1000, // Maximum number of log entries to keep
+                logToConsole: true,
+                logToLocalStorage: true,
+                reportToServer: false, // Set to true in production
+                serverEndpoint: '/api/errors',
+                logLevels: {
+                    DEBUG: 0,
+                    INFO: 1,
+                    WARN: 2,
+                    ERROR: 3,
+                    CRITICAL: 4
+                }
+            };
+            
+            // Private state
+            let logEntries = [];
+            let errorCount = 0;
+            let currentLogLevel = config.logLevels.INFO;
+            
+            // Error types
+            const ErrorTypes = {
+                NETWORK: 'Network Error',
+                VALIDATION: 'Validation Error',
+                STATE: 'State Error',
+                STORAGE: 'Storage Error',
+                RENDER: 'Render Error',
+                DATA: 'Data Error',
+                USER: 'User Error',
+                SYSTEM: 'System Error',
+                UNKNOWN: 'Unknown Error'
+            };
+            
+            // Private methods
+            function formatError(error) {
+                if (error instanceof Error) {
+                    return {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name
+                    };
+                } else if (typeof error === 'object') {
+                    return JSON.stringify(error);
+                } else {
+                    return String(error);
+                }
+            }
+            
+            function createLogEntry(level, message, data = {}) {
+                return {
+                    id: Date.now() + '_' + Math.random(),
+                    timestamp: new Date().toISOString(),
+                    level: level,
+                    levelName: Object.keys(config.logLevels).find(key => config.logLevels[key] === level),
+                    message: message,
+                    data: data,
+                    url: window.location.href,
+                    userAgent: navigator.userAgent,
+                    username: StateManager ? StateManager.getState('currentUsername') : null
+                };
+            }
+            
+            function saveToLocalStorage() {
+                if (!config.logToLocalStorage) return;
+                
+                try {
+                    const recentLogs = logEntries.slice(-100); // Keep last 100 entries
+                    StorageModule.setLocalData('errorLogs', recentLogs);
+                } catch (e) {
+                    console.error('Failed to save logs to localStorage:', e);
+                }
+            }
+            
+            function sendToServer(entry) {
+                if (!config.reportToServer) return;
+                
+                // In production, this would send to your error tracking service
+                fetch(config.serverEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entry)
+                }).catch(err => {
+                    console.error('Failed to report error to server:', err);
+                });
+            }
+            
+            // Public API
+            return {
+                // Logging methods
+                debug: function(message, data) {
+                    if (currentLogLevel > config.logLevels.DEBUG) return;
+                    this.log(config.logLevels.DEBUG, message, data);
+                },
+                
+                info: function(message, data) {
+                    if (currentLogLevel > config.logLevels.INFO) return;
+                    this.log(config.logLevels.INFO, message, data);
+                },
+                
+                warn: function(message, data) {
+                    if (currentLogLevel > config.logLevels.WARN) return;
+                    this.log(config.logLevels.WARN, message, data);
+                },
+                
+                error: function(message, data) {
+                    errorCount++;
+                    this.log(config.logLevels.ERROR, message, data);
+                },
+                
+                critical: function(message, data) {
+                    errorCount++;
+                    this.log(config.logLevels.CRITICAL, message, data);
+                    
+                    // Critical errors should notify user
+                    if (typeof showMessage === 'function') {
+                        showMessage('A critical error occurred. Please refresh the page.', 'error');
+                    }
+                },
+                
+                log: function(level, message, data = {}) {
+                    const entry = createLogEntry(level, message, data);
+                    
+                    // Add to log entries
+                    logEntries.push(entry);
+                    if (logEntries.length > config.maxLogSize) {
+                        logEntries = logEntries.slice(-config.maxLogSize);
+                    }
+                    
+                    // Console logging
+                    if (config.logToConsole) {
+                        const consoleMethod = level >= config.logLevels.ERROR ? 'error' : 
+                                            level >= config.logLevels.WARN ? 'warn' : 
+                                            level === config.logLevels.INFO ? 'info' : 'log';
+                        console[consoleMethod](`[${entry.levelName}] ${message}`, data);
+                    }
+                    
+                    // Save to localStorage
+                    saveToLocalStorage();
+                    
+                    // Send critical errors to server
+                    if (level >= config.logLevels.ERROR) {
+                        sendToServer(entry);
+                    }
+                },
+                
+                // Error boundary wrapper
+                boundary: function(fn, context = 'Unknown', options = {}) {
+                    const {
+                        fallbackValue = null,
+                        silent = false,
+                        retry = false,
+                        maxRetries = 3
+                    } = options;
+                    
+                    let retryCount = 0;
+                    
+                    const wrapped = (...args) => {
+                        try {
+                            return fn.apply(this, args);
+                        } catch (error) {
+                            retryCount++;
+                            
+                            // Log the error
+                            this.error(`Error in ${context}`, {
+                                error: formatError(error),
+                                args: args,
+                                retryCount: retryCount
+                            });
+                            
+                            // Try to recover
+                            if (retry && retryCount < maxRetries) {
+                                console.warn(`Retrying ${context} (attempt ${retryCount + 1}/${maxRetries})`);
+                                return wrapped(...args);
+                            }
+                            
+                            // Show user message if not silent
+                            if (!silent && typeof showMessage === 'function') {
+                                showMessage(`Error in ${context}. Please try again.`, 'error');
+                            }
+                            
+                            // Return fallback value
+                            return fallbackValue;
+                        }
+                    };
+                    
+                    return wrapped;
+                },
+                
+                // Get stats
+                getStats: function() {
+                    const errorLogs = logEntries.filter(e => e.level >= config.logLevels.ERROR);
+                    const warningLogs = logEntries.filter(e => e.level === config.logLevels.WARN);
+                    
+                    return {
+                        totalLogs: logEntries.length,
+                        errorCount: errorCount,
+                        warningCount: warningLogs.length,
+                        recentErrors: errorLogs.slice(-10)
+                    };
+                },
+                
+                // Clear logs
+                clearLogs: function() {
+                    logEntries = [];
+                    errorCount = 0;
+                    StorageModule.removeLocalData('errorLogs');
+                },
+                
+                // Export logs
+                exportLogs: function() {
+                    const data = {
+                        logs: logEntries,
+                        stats: this.getStats(),
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `error-logs-${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                },
+                
+                // Error types
+                Types: ErrorTypes
+            };
+        })();
+        
+        // Set up global error handlers
+        window.addEventListener('error', function(event) {
+            ErrorLogger.error('Uncaught error', {
+                message: event.message,
+                filename: event.filename,
+                line: event.lineno,
+                column: event.colno
+            });
+        });
+        
+        window.addEventListener('unhandledrejection', function(event) {
+            ErrorLogger.error('Unhandled promise rejection', {
+                reason: event.reason
+            });
+        });
+        
+        // ===============================================
         // SAVE FUNCTIONS - Defined before UtilitiesModule
         // ===============================================
         
@@ -3722,7 +3973,8 @@ function renderAttachments(attachments, questionId) {
         // renderChartNow removed - using the more complete version defined earlier
 
         // Submit answer
-        function submitAnswer(questionId, questionType) {
+        // Original submitAnswer wrapped with error boundary
+        const submitAnswerOriginal = function(questionId, questionType) {
             if (!currentUsername) {
                 showMessage('Please enter your username first!', 'error');
                 return;
@@ -3914,6 +4166,18 @@ function renderAttachments(attachments, questionId) {
         renderFRQResponses(questionId);
     }
 }
+
+        // Wrap submitAnswer with error boundary
+        const submitAnswer = ErrorLogger.boundary(
+            submitAnswerOriginal,
+            'submitAnswer',
+            {
+                fallbackValue: false,
+                silent: false,
+                retry: true,
+                maxRetries: 2
+            }
+        );
 
         // Render MCQ distribution
         function renderMCQDistribution(questionId) {
@@ -5512,6 +5776,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             Utils: Utils,
             Storage: StorageModule,
             State: StateManager,
+            Logger: ErrorLogger,
             
             // Legacy direct access (for backward compatibility)
             toggleTheme: toggleTheme,
