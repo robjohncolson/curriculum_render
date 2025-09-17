@@ -26,7 +26,7 @@
         <div id="questionsContainer"></div>
     </div>
 
-    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <button class="theme-toggle" title="Toggle theme">🌙</button>
 
     <script>
     // ===============================================
@@ -374,8 +374,8 @@
                     <h2>Welcome to AP Statistics Consensus Quiz</h2>
                     <p>Your generated username:</p>
                     <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
-                    <button onclick="acceptUsername('${suggestedName}')" class="start-button">Accept This Name</button>
-                    <button onclick="rerollUsername()" class="start-button" style="background: #7f8c8d;">Generate New Name</button>
+                    <button data-action="accept-username" data-param="${suggestedName}" class="start-button">Accept This Name</button>
+                    <button data-action="reroll-username" class="start-button" style="background: #7f8c8d;">Generate New Name</button>
                 </div>
             `;
         }
@@ -507,7 +507,7 @@ function renderLessonSelector(unitInfo) {
             const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
 
             lessonButtonsHtml += `
-                <button onclick="loadLesson('${lessonNum}')"
+                <button data-action="load-lesson" data-param="${lessonNum}"
                         class="lesson-btn ${isCompleted ? 'completed' : ''}"
                         id="${buttonId}">
                     ${displayName}<br>
@@ -517,7 +517,7 @@ function renderLessonSelector(unitInfo) {
         });
         
         questionsContainer.innerHTML = `
-            <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+            <button data-action="back-to-units" class="back-button">← Back to Units</button>
             <div class="lesson-selector">
                 <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
                 <p>Select a lesson to begin:</p>
@@ -580,7 +580,7 @@ function renderLessonSelector(unitInfo) {
         const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
         const isCompleted = checkLessonCompleted(currentUnit, i);
         lessonButtonsHtml += `
-            <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
+            <button data-action="load-lesson" data-param="${i}" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
                 Lesson ${i}<br>
                 <small>${questionCount} questions</small>
             </button>
@@ -588,7 +588,7 @@ function renderLessonSelector(unitInfo) {
     }
     
     questionsContainer.innerHTML = `
-        <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+        <button data-action="back-to-units" class="back-button">← Back to Units</button>
         <div class="lesson-selector">
             <h3>Unit ${currentUnit}: ${unit.name}</h3>
             <p>Select a lesson to begin:</p>
@@ -711,7 +711,7 @@ function renderLessonSelector(unitInfo) {
             const questionsContainer = document.getElementById('questionsContainer');
             
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                <button data-action="back-to-lessons" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
@@ -862,7 +862,7 @@ function renderLessonSelector(unitInfo) {
                         <button 
                             id="submit-${question.id}"
                             class="submit-button" 
-                            onclick="submitAnswer('${question.id}', '${question.type}')"
+                            data-action="submit-answer" data-param="${question.id}" data-question-type="${question.type}"
                             ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
                         >
                             ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Max Attempts Reached') : 'Submit Answer'}
@@ -3174,15 +3174,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             </div>
                             ${r.reason ? `<div class="contributor-reason">${r.reason}</div>` : ''}
                             <div style="margin-top: 10px;">
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'helpful')"
+                                <button data-action="vote-frq" data-param="${questionId}" data-username="${r.username}" data-vote-type="helpful"
                                         class="vote-btn ${userVotes.type === 'helpful' ? 'active' : ''}">
                                     💡 Helpful (${getVoteCount(questionId, r.username, 'helpful')})
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'unclear')"
+                                <button data-action="vote-frq" data-param="${questionId}" data-username="${r.username}" data-vote-type="unclear"
                                         class="vote-btn ${userVotes.type === 'unclear' ? 'active' : ''}">
                                     🤔 Unclear (${getVoteCount(questionId, r.username, 'unclear')})
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'contradicts')"
+                                <button data-action="vote-frq" data-param="${questionId}" data-username="${r.username}" data-vote-type="contradicts"
                                         class="vote-btn ${userVotes.type === 'contradicts' ? 'active' : ''}">
                                     ⚔️ Contradicts (${getVoteCount(questionId, r.username, 'contradicts')})
                                 </button>
@@ -3207,7 +3207,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Vote FRQ function
-        window.voteFRQ = function(questionId, targetUser, voteType) {
+        function voteFRQ(questionId, targetUser, voteType) {
             if (!classData.users[currentUsername].votes) {
                 classData.users[currentUsername].votes = {};
             }
@@ -3836,7 +3836,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const completionPercent = questionCount > 0 ? Math.round((completedQuestions / questionCount) * 100) : 0;
 
                 unitsHtml += `
-                    <div class="unit-card" onclick="selectUnit(${unitNum})">
+                    <div class="unit-card" data-unit="${unitNum}">
                         <div class="unit-header">
                             <h3>Unit ${unitNum}</h3>
                             <span class="completion-badge">${completionPercent}%</span>
@@ -3895,7 +3895,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Function to select a unit
-        window.selectUnit = function(unitNumber) {
+        function selectUnit(unitNumber) {
             currentUnit = unitNumber;
             const unitData = allCurriculumData[unitNumber];
             allUnitQuestions = unitData.questions;
@@ -3968,7 +3968,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
 
                     lessonButtonsHtml += `
-                        <button onclick="loadLesson('${lessonNum}')"
+                        <button data-action="load-lesson" data-param="${lessonNum}"
                                 class="lesson-btn ${isCompleted ? 'completed' : ''}"
                                 id="${buttonId}">
                             ${displayName}<br>
@@ -3979,7 +3979,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 questionsContainer.innerHTML = `
-                    <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                    <button data-action="back-to-units" class="back-button">← Back to Units</button>
                     <div class="lesson-selector">
                         <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
                         <p>Select a lesson to begin:</p>
@@ -4085,7 +4085,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Render quiz with resources
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                <button data-action="back-to-lessons" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
@@ -4357,6 +4357,88 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
         
         // ===============================================
+        // EVENT DELEGATION SYSTEM
+        // ===============================================
+        function initEventDelegation() {
+            // Main container event delegation
+            document.addEventListener('click', function(e) {
+                const target = e.target;
+                
+                // Theme toggle button
+                if (target.classList.contains('theme-toggle')) {
+                    e.preventDefault();
+                    toggleTheme();
+                    return;
+                }
+                
+                // Username acceptance
+                if (target.hasAttribute('data-action')) {
+                    const action = target.getAttribute('data-action');
+                    const param = target.getAttribute('data-param');
+                    
+                    switch(action) {
+                        case 'accept-username':
+                            acceptUsername(param);
+                            break;
+                        case 'reroll-username':
+                            rerollUsername();
+                            break;
+                        case 'load-unit':
+                            loadUnit(parseInt(param));
+                            break;
+                        case 'load-lesson':
+                            loadLesson(param);
+                            break;
+                        case 'back-to-units':
+                            backToUnits();
+                            break;
+                        case 'back-to-lessons':
+                            backToLessons();
+                            break;
+                        case 'submit-answer':
+                            const questionType = target.getAttribute('data-question-type');
+                            submitAnswer(param, questionType);
+                            break;
+                        case 'vote-frq':
+                            const username = target.getAttribute('data-username');
+                            const voteType = target.getAttribute('data-vote-type');
+                            voteFRQ(param, username, voteType);
+                            break;
+                        case 'select-unit':
+                            selectUnit(parseInt(param));
+                            break;
+                    }
+                }
+                
+                // Handle unit cards (which might not have buttons but clickable divs)
+                if (target.closest('.unit-card')) {
+                    const unitCard = target.closest('.unit-card');
+                    const unitNum = unitCard.getAttribute('data-unit');
+                    if (unitNum && !target.tagName.match(/BUTTON|A/)) {
+                        selectUnit(parseInt(unitNum));
+                    }
+                }
+            });
+            
+            // Handle Enter key for text areas
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.ctrlKey && e.target.tagName === 'TEXTAREA') {
+                    const submitBtn = e.target.closest('.question-card')?.querySelector('[data-action="submit-answer"]');
+                    if (submitBtn) {
+                        submitBtn.click();
+                    }
+                }
+            });
+        }
+        
+        // Initialize event delegation when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initEventDelegation);
+        } else {
+            initEventDelegation();
+        }
+        
+        // ===============================================
         // PUBLIC API - Expose necessary functions
         // ===============================================
         return {
@@ -4369,6 +4451,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             backToUnits: backToUnits,
             backToLessons: backToLessons,
             submitAnswer: submitAnswer,
+            voteFRQ: voteFRQ,
+            selectUnit: selectUnit,
             
             // Utility functions that may be needed
             renderQuiz: renderQuiz,
@@ -4376,23 +4460,22 @@ if (chartInstances[`dotplot-${questionId}`]) {
             showMessage: showMessage,
             
             // Configuration access (read-only)
-            getConfig: function() { return CONFIG; }
+            getConfig: function() { return CONFIG; },
+            
+            // Initialize the app
+            init: initEventDelegation
         };
         
     })(); // End of IIFE
     
     // ===============================================
-    // GLOBAL BINDINGS FOR ONCLICK HANDLERS
+    // INITIALIZATION
     // ===============================================
-    // Map the public API to global scope for onclick handlers
-    window.toggleTheme = APStatsQuiz.toggleTheme;
-    window.rerollUsername = APStatsQuiz.rerollUsername;
-    window.acceptUsername = APStatsQuiz.acceptUsername;
-    window.loadUnit = APStatsQuiz.loadUnit;
-    window.loadLesson = APStatsQuiz.loadLesson;
-    window.backToUnits = APStatsQuiz.backToUnits;
-    window.backToLessons = APStatsQuiz.backToLessons;
-    window.submitAnswer = APStatsQuiz.submitAnswer;
+    // Initialize the application when DOM is ready
+    // Event delegation is automatically initialized inside the IIFE
+    
+    // Note: Global bindings are no longer needed as we're using
+    // event delegation with data attributes instead of onclick handlers
 
     </script>
 </body>

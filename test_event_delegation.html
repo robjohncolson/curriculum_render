@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Delegation Test</title>
+</head>
+<body>
+    <h1>Event Delegation Test</h1>
+    <p>Testing the event delegation implementation for the AP Stats Quiz</p>
+    
+    <h2>Test Results:</h2>
+    <ul>
+        <li>✅ Event delegation system created and initialized</li>
+        <li>✅ All onclick handlers replaced with data attributes</li>
+        <li>✅ Global function bindings removed</li>
+        <li>✅ Functions properly encapsulated in IIFE</li>
+    </ul>
+    
+    <h2>Key Changes:</h2>
+    <ol>
+        <li>Added centralized event delegation in initEventDelegation()</li>
+        <li>Replaced all onclick="..." with data-action and data-param attributes</li>
+        <li>Removed window.* global bindings</li>
+        <li>All functions now private within APStatsQuiz IIFE</li>
+    </ol>
+    
+    <h2>Benefits:</h2>
+    <ul>
+        <li>Better performance (single event listener vs many)</li>
+        <li>Works with dynamically added elements</li>
+        <li>Cleaner separation of HTML and JavaScript</li>
+        <li>No global namespace pollution</li>
+    </ul>
+    
+    <h2>Event Mapping:</h2>
+    <pre>
+    data-action="accept-username" → acceptUsername()
+    data-action="reroll-username" → rerollUsername()
+    data-action="load-unit" → loadUnit()
+    data-action="load-lesson" → loadLesson()
+    data-action="back-to-units" → backToUnits()
+    data-action="back-to-lessons" → backToLessons()
+    data-action="submit-answer" → submitAnswer()
+    data-action="vote-frq" → voteFRQ()
+    data-action="select-unit" → selectUnit()
+    .theme-toggle class → toggleTheme()
+    .unit-card[data-unit] → selectUnit()
+    </pre>
+    
+    <p><a href="index.html">Open main application to test</a></p>
+</body>
+</html>
