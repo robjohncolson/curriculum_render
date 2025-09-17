@@ -1445,30 +1445,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Render attachments (charts, tables, images)
-        function renderAttachments(attachments, questionId) {
-            let html = '';
-            
-            // Handle charts
-            if (attachments.chartType) {
-                html += renderChart(attachments, questionId);
-            }
-            
-            // Handle tables
-            if (attachments.table) {
-                html += renderTable(attachments.table);
-            }
-            
-            // Handle images
-            if (attachments.image) {
-                html += `
-                    <div class="image-container">
-                        <img src="${attachments.image}" alt="Question image" style="max-width: 100%; height: auto;">
-                    </div>
-                `;
-            }
-            
-            return html;
-        }
+        // renderAttachments removed - using the more complete version defined later
         
         // Render chart placeholder (actual rendering happens later)
         function renderChart(chartData, questionId) {
@@ -2971,63 +2948,7 @@ function renderLessonSelector(unitInfo) {
               return chartHtml;
           }
           // FIXED: Table rendering to handle both object and array formats
-          function renderTable(table) {
-              if (!table) return '';
-
-              let tableHtml = '<div class="table-container"><table>';
-
-              // Handle object format (with headers and rows properties)
-              if (table.headers && table.rows) {
-                  // Render headers
-                  tableHtml += '<thead><tr>';
-                  table.headers.forEach(header => {
-                      tableHtml += `<th>${header}</th>`;
-                  });
-                  tableHtml += '</tr></thead>';
-
-                  // Render rows
-                  if (table.rows && table.rows.length > 0) {
-                      tableHtml += '<tbody>';
-                      table.rows.forEach(row => {
-                          tableHtml += '<tr>';
-                          row.forEach(cell => {
-                              tableHtml += `<td>${cell}</td>`;
-                          });
-                          tableHtml += '</tr>';
-                      });
-                      tableHtml += '</tbody>';
-                  }
-              }
-              // Handle array format (legacy)
-              else if (Array.isArray(table) && table.length > 0) {
-                  const headers = table[0];
-                  const rows = table.slice(1);
-
-                  // Headers
-                  tableHtml += '<thead><tr>';
-                  headers.forEach(header => {
-                      tableHtml += `<th>${header}</th>`;
-                  });
-                  tableHtml += '</tr></thead>';
-
-                  // Rows
-                  if (rows.length > 0) {
-                      tableHtml += '<tbody>';
-                      rows.forEach(row => {
-                          tableHtml += '<tr>';
-                          row.forEach(cell => {
-                              tableHtml += `<td>${cell}</td>`;
-                          });
-                          tableHtml += '</tr>';
-                      });
-                      tableHtml += '</tbody>';
-                  }
-              }
-
-              tableHtml += '</table></div>';
-
-              return tableHtml;
-          }
+          // renderTable function removed - using the global one defined later
 // Complete chart rendering function
 function renderChartNow(chartId) {
     const canvas = document.getElementById(chartId);
@@ -3374,67 +3295,7 @@ function renderAttachments(attachments, questionId) {
             });
         }
 
-        // Actually render a chart
-        function renderChartNow(chartId) {
-            const canvas = document.getElementById(chartId);
-            if (!canvas) return;
-
-            // FIX: Check if chart already exists and destroy it
-            if (chartInstances[chartId]) {
-                chartInstances[chartId].destroy();
-                delete chartInstances[chartId];
-            }
-
-            const chartData = window.pendingCharts[chartId];
-            if (!chartData) return;
-
-            const ctx = canvas.getContext('2d');
-
-            // FIX: Set canvas parent height to prevent infinite expansion
-            canvas.parentElement.style.height = '400px';
-            canvas.parentElement.style.position = 'relative';
-
-            const config = chartData.chartConfig || {};
-            
-            // Simple bar/histogram chart
-            if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
-                const datasets = chartData.series.map(series => ({
-                    label: series.name,
-                    data: series.values,
-                    backgroundColor: '#36A2EB',
-                    borderColor: '#36A2EB',
-                    borderWidth: 1
-                }));
-                
-                chartInstances[chartId] = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.xLabels || [],
-                        datasets: datasets
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: config.yAxis?.title || 'Value'
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: config.xAxis?.title || 'Category'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-            // Add other chart types as needed
-        }
+        // renderChartNow removed - using the more complete version defined earlier
 
         // Submit answer
         window.submitAnswer = function(questionId, questionType) {
@@ -4604,21 +4465,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Modify backToUnits function to go back to unit menu instead
-        window.backToUnits = function() {
-            // Clear any existing charts
-            Object.values(chartInstances).forEach(chart => {
-                if (chart && typeof chart.destroy === 'function') {
-                    chart.destroy();
-                }
-            });
-            chartInstances = {};
-            currentQuestions = [];
-            currentUnit = null;
-            currentLesson = null;
-
-            // Show unit menu instead of file upload
-            renderUnitMenu();
-        }
+        // window.backToUnits removed - duplicate function already defined earlier
 
 
         // Add this function to load resources from allUnitsData.js if it exists
