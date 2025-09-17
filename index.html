@@ -29,7 +29,14 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
 
     <script>
-          
+    // ===============================================
+    // AP STATISTICS QUIZ APPLICATION
+    // ===============================================
+    // Wrapped in IIFE to avoid global namespace pollution
+    
+    const APStatsQuiz = (function() {
+        'use strict';
+        
         // ===============================================
         // CONFIGURATION CONSTANTS
         // ===============================================
@@ -373,11 +380,11 @@
             `;
         }
 
-        window.rerollUsername = function() {
+        function rerollUsername() {
             showUsernamePrompt();
         }
 
-        window.acceptUsername = function(name) {
+        function acceptUsername(name) {
             currentUsername = name;
             localStorage.setItem('consensusUsername', currentUsername);
             initClassData();
@@ -458,7 +465,7 @@
         // }
 
         // Load unit
-        window.loadUnit = async function(unitNumber) {
+        async function loadUnit(unitNumber) {
             const btn = document.getElementById(`unit-btn-${unitNumber}`);
             if (btn) {
                 btn.classList.add('loading');
@@ -634,7 +641,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Load lesson
-        window.loadLesson = function(lessonNumber) {
+        function loadLesson(lessonNumber) {
             currentLesson = lessonNumber;
 
             // Handle both numeric lessons and 'PC'
@@ -659,7 +666,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Back to units
-        window.backToUnits = function() {
+        function backToUnits() {
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -677,7 +684,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Back to lessons
-        window.backToLessons = function() {
+        function backToLessons() {
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -2737,7 +2744,7 @@ function renderAttachments(attachments, questionId) {
         // renderChartNow removed - using the more complete version defined earlier
 
         // Submit answer
-        window.submitAnswer = function(questionId, questionType) {
+        function submitAnswer(questionId, questionType) {
             if (!currentUsername) {
                 showMessage('Please enter your username first!', 'error');
                 return;
@@ -3532,7 +3539,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             localStorage.setItem('quizTheme', theme);
         }
 
-        window.toggleTheme = function() {
+        function toggleTheme() {
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             applyTheme(newTheme);
         }
@@ -3803,12 +3810,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             addColorPicker();
         });
 
-    </script>
-
-
-
-
-    <script>
         // New function to render unit selection menu
         function renderUnitMenu() {
             const questionsContainer = document.getElementById('questionsContainer');
@@ -4354,6 +4355,44 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             showMessage('Master database exported successfully!', 'success');
         }
+        
+        // ===============================================
+        // PUBLIC API - Expose necessary functions
+        // ===============================================
+        return {
+            // Core functions
+            toggleTheme: toggleTheme,
+            rerollUsername: rerollUsername,
+            acceptUsername: acceptUsername,
+            loadUnit: loadUnit,
+            loadLesson: loadLesson,
+            backToUnits: backToUnits,
+            backToLessons: backToLessons,
+            submitAnswer: submitAnswer,
+            
+            // Utility functions that may be needed
+            renderQuiz: renderQuiz,
+            saveClassData: saveClassData,
+            showMessage: showMessage,
+            
+            // Configuration access (read-only)
+            getConfig: function() { return CONFIG; }
+        };
+        
+    })(); // End of IIFE
+    
+    // ===============================================
+    // GLOBAL BINDINGS FOR ONCLICK HANDLERS
+    // ===============================================
+    // Map the public API to global scope for onclick handlers
+    window.toggleTheme = APStatsQuiz.toggleTheme;
+    window.rerollUsername = APStatsQuiz.rerollUsername;
+    window.acceptUsername = APStatsQuiz.acceptUsername;
+    window.loadUnit = APStatsQuiz.loadUnit;
+    window.loadLesson = APStatsQuiz.loadLesson;
+    window.backToUnits = APStatsQuiz.backToUnits;
+    window.backToLessons = APStatsQuiz.backToLessons;
+    window.submitAnswer = APStatsQuiz.submitAnswer;
 
     </script>
 </body>
