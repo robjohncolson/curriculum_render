@@ -91,6 +91,308 @@
             ]
         };
         
+        // ===============================================
+        // DATA SERVICE - Centralized Data Access Layer
+        // ===============================================
+        class DataService {
+            constructor() {
+                this.cache = new Map();
+                this.storagePrefix = 'apstats_';
+            }
+            
+            // ========== Unit and Lesson Data ==========
+            
+            /**
+             * Load unit data from external source
+             * @param {number} unitId - Unit identifier
+             * @returns {Promise<Object>} Unit data
+             */
+            async loadUnit(unitId) {
+                const cacheKey = `unit_${unitId}`;
+                if (this.cache.has(cacheKey)) {
+                    return this.cache.get(cacheKey);
+                }
+                
+                try {
+                    // Check if data is available in global scope
+                    if (typeof allUnitsData !== 'undefined' && allUnitsData[unitId]) {
+                        const data = allUnitsData[unitId];
+                        this.cache.set(cacheKey, data);
+                        return data;
+                    }
+                    
+                    // Future: Load from API
+                    throw new Error(`Unit ${unitId} not found`);
+                } catch (error) {
+                    console.error('Error loading unit:', error);
+                    return null;
+                }
+            }
+            
+            /**
+             * Load all quiz questions
+             * @returns {Array} Array of quiz questions
+             */
+            loadQuestions() {
+                if (this.cache.has('all_questions')) {
+                    return this.cache.get('all_questions');
+                }
+                
+                const questions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM || [];
+                this.cache.set('all_questions', questions);
+                return questions;
+            }
+            
+            /**
+             * Get questions for a specific lesson
+             * @param {string} lessonId - Lesson identifier
+             * @returns {Array} Filtered questions for the lesson
+             */
+            getLessonQuestions(lessonId) {
+                const allQuestions = this.loadQuestions();
+                return allQuestions.filter(q => q.id && q.id.startsWith(lessonId));
+            }
+            
+            // ========== User Data Management ==========
+            
+            /**
+             * Get current username
+             * @returns {string|null} Current username
+             */
+            getCurrentUsername() {
+                return this.getLocalData('consensusUsername');
+            }
+            
+            /**
+             * Set current username
+             * @param {string} username - Username to set
+             */
+            setCurrentUsername(username) {
+                this.setLocalData('consensusUsername', username);
+            }
+            
+            /**
+             * Get user answers
+             * @param {string} username - Username (optional, defaults to current)
+             * @returns {Object} User's answers
+             */
+            getUserAnswers(username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return {};
+                return this.getLocalData(`answers_${user}`, {});
+            }
+            
+            /**
+             * Save user answer
+             * @param {string} questionId - Question ID
+             * @param {*} answer - User's answer
+             * @param {string} username - Username (optional)
+             */
+            saveUserAnswer(questionId, answer, username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return;
+                
+                const answers = this.getUserAnswers(user);
+                answers[questionId] = answer;
+                this.setLocalData(`answers_${user}`, answers);
+            }
+            
+            /**
+             * Get user progress
+             * @param {string} username - Username (optional)
+             * @returns {Object} User's progress data
+             */
+            getUserProgress(username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return {};
+                return this.getLocalData(`progress_${user}`, {});
+            }
+            
+            /**
+             * Update user progress
+             * @param {string} lessonId - Lesson ID
+             * @param {Object} progressData - Progress information
+             * @param {string} username - Username (optional)
+             */
+            updateUserProgress(lessonId, progressData, username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return;
+                
+                const progress = this.getUserProgress(user);
+                progress[lessonId] = { ...progress[lessonId], ...progressData };
+                this.setLocalData(`progress_${user}`, progress);
+            }
+            
+            // ========== Class Data Management ==========
+            
+            /**
+             * Get class-wide data
+             * @returns {Object} Class data including all users' responses
+             */
+            getClassData() {
+                return this.getLocalData('classData', {});
+            }
+            
+            /**
+             * Save class data
+             * @param {Object} data - Class data to save
+             */
+            saveClassData(data) {
+                this.setLocalData('classData', data);
+            }
+            
+            /**
+             * Get consensus responses
+             * @returns {Object} All consensus voting data
+             */
+            getConsensusData() {
+                return this.getLocalData('consensusResponses', {});
+            }
+            
+            /**
+             * Save consensus response
+             * @param {string} questionId - Question ID
+             * @param {Object} voteData - Voting data
+             */
+            saveConsensusVote(questionId, voteData) {
+                const consensus = this.getConsensusData();
+                consensus[questionId] = voteData;
+                this.setLocalData('consensusResponses', consensus);
+            }
+            
+            // ========== Storage Helpers ==========
+            
+            /**
+             * Get data from localStorage with fallback
+             * @private
+             * @param {string} key - Storage key
+             * @param {*} defaultValue - Default value if not found
+             * @returns {*} Stored value or default
+             */
+            getLocalData(key, defaultValue = null) {
+                try {
+                    const item = localStorage.getItem(key);
+                    if (item === null) return defaultValue;
+                    
+                    // Try to parse as JSON, fallback to raw value
+                    try {
+                        return JSON.parse(item);
+                    } catch {
+                        return item;
+                    }
+                } catch (error) {
+                    console.error('Error reading from localStorage:', error);
+                    return defaultValue;
+                }
+            }
+            
+            /**
+             * Set data in localStorage
+             * @private
+             * @param {string} key - Storage key
+             * @param {*} value - Value to store
+             */
+            setLocalData(key, value) {
+                try {
+                    const item = typeof value === 'string' ? value : JSON.stringify(value);
+                    localStorage.setItem(key, item);
+                } catch (error) {
+                    console.error('Error writing to localStorage:', error);
+                    // Could implement quota exceeded handling here
+                }
+            }
+            
+            /**
+             * Remove data from localStorage
+             * @param {string} key - Storage key
+             */
+            removeLocalData(key) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (error) {
+                    console.error('Error removing from localStorage:', error);
+                }
+            }
+            
+            // ========== Export/Import ==========
+            
+            /**
+             * Export all data for a user
+             * @param {string} username - Username to export
+             * @returns {Object} Exportable data object
+             */
+            exportUserData(username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return null;
+                
+                return {
+                    username: user,
+                    answers: this.getUserAnswers(user),
+                    progress: this.getUserProgress(user),
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            /**
+             * Import user data
+             * @param {Object} data - Data to import
+             * @param {boolean} overwrite - Whether to overwrite existing data
+             */
+            importUserData(data, overwrite = false) {
+                if (!data || !data.username) return false;
+                
+                const existingAnswers = this.getUserAnswers(data.username);
+                const existingProgress = this.getUserProgress(data.username);
+                
+                if (overwrite || Object.keys(existingAnswers).length === 0) {
+                    this.setLocalData(`answers_${data.username}`, data.answers || {});
+                }
+                
+                if (overwrite || Object.keys(existingProgress).length === 0) {
+                    this.setLocalData(`progress_${data.username}`, data.progress || {});
+                }
+                
+                return true;
+            }
+            
+            /**
+             * Clear all data for a user
+             * @param {string} username - Username to clear
+             */
+            clearUserData(username = null) {
+                const user = username || this.getCurrentUsername();
+                if (!user) return;
+                
+                this.removeLocalData(`answers_${user}`);
+                this.removeLocalData(`progress_${user}`);
+            }
+            
+            /**
+             * Get storage usage statistics
+             * @returns {Object} Storage usage info
+             */
+            getStorageStats() {
+                let totalSize = 0;
+                let itemCount = 0;
+                
+                for (let key in localStorage) {
+                    if (localStorage.hasOwnProperty(key)) {
+                        totalSize += localStorage[key].length + key.length;
+                        itemCount++;
+                    }
+                }
+                
+                return {
+                    totalSize: totalSize,
+                    itemCount: itemCount,
+                    estimatedMB: (totalSize / 1024 / 1024).toFixed(2)
+                };
+            }
+        }
+        
+        // Create singleton instance
+        const dataService = new DataService();
+        
         // Helper functions for charts
         
         /**
@@ -181,8 +483,10 @@
          * @returns {void}
          */
         function initClassData() {
-            let classDataStr = localStorage.getItem('classData');
-            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+            classData = dataService.getClassData();
+            if (!classData.users) {
+                classData = {users: {}};
+            }
 
             if (!classData.users[currentUsername]) {
                 classData.users[currentUsername] = {
@@ -203,7 +507,7 @@
          */
         function saveClassData() {
             try {
-                localStorage.setItem('classData', JSON.stringify(classData));
+                dataService.saveClassData(classData);
             } catch(e) {
                 console.log("Storage quota exceeded");
                 showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
@@ -355,7 +659,7 @@
 
         // Username management
         function promptUsername() {
-            const savedUsername = localStorage.getItem('consensusUsername');
+            const savedUsername = dataService.getCurrentUsername();
             if (savedUsername) {
                 currentUsername = savedUsername;
                 initClassData();
@@ -386,7 +690,7 @@
 
         function acceptUsername(name) {
             currentUsername = name;
-            localStorage.setItem('consensusUsername', currentUsername);
+            dataService.setCurrentUsername(currentUsername);
             initClassData();
             showUsernameWelcome();
             initializeFromEmbeddedData();
@@ -407,7 +711,7 @@
         function initializeFromEmbeddedData() {
             // Parse embedded curriculum
             allCurriculumData = {};
-            const allQuestions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM;
+            const allQuestions = dataService.loadQuestions();
 
             // Group by units
             const unitGroups = {};
@@ -3295,7 +3599,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
 
                 // Get all class data without filtering
-                classData: JSON.parse(localStorage.getItem('classData') || '{}'),
+                classData: dataService.getClassData(),
 
                 // Get all answers from all users
                 allAnswers: {},
@@ -3304,7 +3608,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 allProgress: {},
 
                 // Get any other data structures you have
-                consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}'),
+                consensusData: dataService.getConsensusData(),
 
                 // Include raw localStorage for complete backup
                 rawLocalStorage: {}
@@ -3314,11 +3618,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('answers_')) {
                     const username = key.replace('answers_', '');
-                    masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                    masterData.allAnswers[username] = dataService.getUserAnswers(username);
                 }
                 if (key.startsWith('progress_')) {
                     const username = key.replace('progress_', '');
-                    masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
+                    masterData.allProgress[username] = dataService.getUserProgress(username);
                 }
 
                 // Store everything in raw format too
@@ -3370,15 +3674,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
             let preservedCount = 0;
 
             // Get current user's existing data
-            const currentUserAnswers = JSON.parse(localStorage.getItem(`answers_${currentUsername}`) || '{}');
-            const currentUserProgress = JSON.parse(localStorage.getItem(`progress_${currentUsername}`) || '{}');
+            const currentUserAnswers = dataService.getUserAnswers(currentUsername);
+            const currentUserProgress = dataService.getUserProgress(currentUsername);
 
             // Merge class-wide data (consensus, etc.) - always take the master version for these
             if (masterData.classData) {
-                localStorage.setItem('classData', JSON.stringify(masterData.classData));
+                dataService.saveClassData(masterData.classData);
             }
             if (masterData.consensusData) {
-                localStorage.setItem('consensusResponses', JSON.stringify(masterData.consensusData));
+                dataService.setLocalData('consensusResponses', masterData.consensusData);
             }
 
             // Import OTHER users' data completely (not the current user)
@@ -3386,7 +3690,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 Object.keys(masterData.allAnswers).forEach(username => {
                     if (username !== currentUsername) {
                         // Import other users' data completely
-                        localStorage.setItem(`answers_${username}`, JSON.stringify(masterData.allAnswers[username]));
+                        dataService.setLocalData(`answers_${username}`, masterData.allAnswers[username]);
                         updatedCount++;
                     }
                 });
@@ -3395,7 +3699,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (masterData.allProgress) {
                 Object.keys(masterData.allProgress).forEach(username => {
                     if (username !== currentUsername) {
-                        localStorage.setItem(`progress_${username}`, JSON.stringify(masterData.allProgress[username]));
+                        dataService.setLocalData(`progress_${username}`, masterData.allProgress[username]);
                     }
                 });
             }
@@ -3447,7 +3751,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 // Save the merged answers
-                localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(currentUserAnswers));
+                dataService.setLocalData(`answers_${currentUsername}`, currentUserAnswers);
             }
 
             // Merge progress similarly
@@ -3461,7 +3765,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                 });
 
-                localStorage.setItem(`progress_${currentUsername}`, JSON.stringify(currentUserProgress));
+                dataService.setLocalData(`progress_${currentUsername}`, currentUserProgress);
             }
 
             // Import any other non-user-specific data from rawLocalStorage
@@ -4458,6 +4762,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             renderQuiz: renderQuiz,
             saveClassData: saveClassData,
             showMessage: showMessage,
+            
+            // Data service for centralized data access
+            dataService: dataService,
             
             // Configuration access (read-only)
             getConfig: function() { return CONFIG; },

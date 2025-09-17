@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataService Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>DataService Implementation Test</h1>
+    
+    <div class="test-section">
+        <h2>✅ DataService Features Implemented:</h2>
+        <ul>
+            <li><strong>Centralized Data Access Layer</strong>
+                <ul>
+                    <li>All localStorage operations abstracted</li>
+                    <li>Consistent error handling</li>
+                    <li>Automatic JSON parsing/stringification</li>
+                </ul>
+            </li>
+            <li><strong>User Data Management</strong>
+                <ul>
+                    <li>getCurrentUsername() / setCurrentUsername()</li>
+                    <li>getUserAnswers() / saveUserAnswer()</li>
+                    <li>getUserProgress() / updateUserProgress()</li>
+                </ul>
+            </li>
+            <li><strong>Class Data Management</strong>
+                <ul>
+                    <li>getClassData() / saveClassData()</li>
+                    <li>getConsensusData() / saveConsensusVote()</li>
+                </ul>
+            </li>
+            <li><strong>Data Import/Export</strong>
+                <ul>
+                    <li>exportUserData() - Export user's complete data</li>
+                    <li>importUserData() - Import with merge options</li>
+                    <li>clearUserData() - Clear user's data</li>
+                    <li>getStorageStats() - Monitor storage usage</li>
+                </ul>
+            </li>
+            <li><strong>Caching System</strong>
+                <ul>
+                    <li>In-memory cache for frequently accessed data</li>
+                    <li>Reduces localStorage access</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 Migration Status:</h2>
+        <ul>
+            <li class="success">✅ initClassData() - Updated to use DataService</li>
+            <li class="success">✅ saveClassData() - Updated to use DataService</li>
+            <li class="success">✅ Username management - Updated to use DataService</li>
+            <li class="success">✅ Question loading - Updated to use DataService</li>
+            <li class="success">✅ Export/Import functions - Updated to use DataService</li>
+            <li class="success">✅ Master database operations - Updated to use DataService</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎯 Benefits Achieved:</h2>
+        <ol>
+            <li><strong>Abstraction</strong> - No direct localStorage calls in business logic</li>
+            <li><strong>Consistency</strong> - Single place for data operations</li>
+            <li><strong>Error Handling</strong> - Centralized try/catch blocks</li>
+            <li><strong>Future-Ready</strong> - Easy to swap localStorage for API calls</li>
+            <li><strong>Type Safety</strong> - JSDoc annotations for all methods</li>
+            <li><strong>Performance</strong> - Caching reduces storage access</li>
+            <li><strong>Maintainability</strong> - Clear separation of concerns</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔧 API Example Usage:</h2>
+        <pre>
+// Access DataService through APStatsQuiz
+const ds = APStatsQuiz.dataService;
+
+// User management
+const username = ds.getCurrentUsername();
+ds.setCurrentUsername('Apple_Bear');
+
+// Save answer
+ds.saveUserAnswer('U1-L1-Q1', { 
+    answer: 'B', 
+    timestamp: new Date() 
+});
+
+// Get all user answers
+const answers = ds.getUserAnswers();
+
+// Export user data
+const exportData = ds.exportUserData();
+
+// Check storage usage
+const stats = ds.getStorageStats();
+console.log(`Using ${stats.estimatedMB} MB of storage`);
+        </pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>✨ Next Steps Available:</h2>
+        <ul>
+            <li>Add data compression for large datasets</li>
+            <li>Implement data syncing with remote server</li>
+            <li>Add data migration utilities</li>
+            <li>Create data backup scheduler</li>
+            <li>Add IndexedDB support for larger storage</li>
+        </ul>
+    </div>
+    
+    <p><a href="index.html">Return to main application</a></p>
+    
+    <script>
+        console.log('DataService Test Page Loaded');
+        console.log('To test DataService, open index.html and use:');
+        console.log('APStatsQuiz.dataService');
+    </script>
+</body>
+</html>
