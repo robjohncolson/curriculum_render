@@ -30,15 +30,65 @@
 
     <script>
           
-        // Helper functions for charts
-        function generateChartColors(count) {
-            const colors = [
+        // ===============================================
+        // CONFIGURATION CONSTANTS
+        // ===============================================
+        const CONFIG = {
+            // Quiz Settings
+            MAX_ATTEMPTS: 3,
+            MIN_ATTEMPTS_FOR_BADGES: 5,
+            
+            // Badge Thresholds
+            BADGES: {
+                ACTIVE_LEARNER_MIN: 5,
+                KNOWLEDGE_SEEKER_MIN: 10,
+                QUIZ_MASTER_MIN: 20,
+                PROBLEM_SOLVER_MIN: 5,
+                STATISTICS_PRO_MIN: 10,
+                ACCURACY_EXPERT_PERCENT: 80,
+                PERFECT_SCORE_MIN: 3,
+                OUTLIER_THRESHOLD: 0.5,
+                EXPLORER_THRESHOLD: 0.3
+            },
+            
+            // UI Settings
+            CHART: {
+                DEFAULT_HEIGHT: 400,
+                DOTPLOT_WIDTH: 400,
+                DOTPLOT_HEIGHT: 200,
+                MAX_TICKS_LIMIT: 10,
+                LEGEND_PADDING: 20,
+                ANIMATION_DURATION: 300
+            },
+            
+            // Timing
+            DELAYS: {
+                CHART_RENDER: 100,
+                MESSAGE_DISPLAY: 3000,
+                SCROLL_DELAY: 100
+            },
+            
+            // Text Area Settings
+            TEXTAREA: {
+                MIN_HEIGHT: 200,
+                DEFAULT_PADDING: 10
+            },
+            
+            // Random Username Generation
+            RANDOM_NUMBER_MAX: 1000,
+            
+            // Chart Colors
+            CHART_COLORS: [
                 '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
                 '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
-            ];
+            ]
+        };
+        
+        // Helper functions for charts
+        function generateChartColors(count) {
             const result = [];
             for (let i = 0; i < count; i++) {
-                result.push(colors[i % colors.length]);
+                result.push(CONFIG.CHART_COLORS[i % CONFIG.CHART_COLORS.length]);
             }
             return result;
         }
@@ -185,10 +235,10 @@
             return classData.users[currentUsername]?.attempts?.[questionId] || 0;
         }
 
-        // Check if can retry (has reason in previous attempt and < 3 attempts)
+        // Check if can retry (has reason in previous attempt and < CONFIG.MAX_ATTEMPTS attempts)
         function canRetry(questionId) {
             const attempts = getAttemptCount(questionId);
-            if (attempts >= 3) return false;
+            if (attempts >= CONFIG.MAX_ATTEMPTS) return false;
             if (attempts === 0) return true;
             
             // Check if previous attempt had a reason
@@ -666,7 +716,7 @@ function renderLessonSelector(unitInfo) {
                 }
                 
                 // Render charts for visible questions
-                setTimeout(renderVisibleCharts, 100);
+                setTimeout(renderVisibleCharts, CONFIG.DELAYS.CHART_RENDER);
             }, 100);
         }
 
@@ -729,7 +779,7 @@ function renderLessonSelector(unitInfo) {
                             class="frq-textarea"
                             placeholder="Enter your complete response here..."
                             ${isDisabled ? 'disabled' : ''}
-                            style="width: 100%; min-height: 200px; padding: 10px; border: 2px solid #ddd;"
+                            style="width: 100%; min-height: ${CONFIG.TEXTAREA.MIN_HEIGHT}px; padding: ${CONFIG.TEXTAREA.DEFAULT_PADDING}px; border: 2px solid #ddd;"
                         >${savedAnswer?.value || savedAnswer || ''}</textarea>
                     </div>
                 `;
@@ -750,7 +800,7 @@ function renderLessonSelector(unitInfo) {
                             placeholder="${attempts > 0 && !canRetryQuestion ? 
                                 'Previous attempt did not include reasoning. Add reasoning to enable retry.' : 
                                 'Explain why you chose this answer...'}"
-                            ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
+                            ${!canRetryQuestion && attempts >= CONFIG.MAX_ATTEMPTS ? 'disabled' : ''}
                         >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
                     </div>
                     <div>
@@ -772,7 +822,7 @@ function renderLessonSelector(unitInfo) {
             if (isAnswered) {
                 html += `
                     <div class="dotplot-section show" id="dotplot-section-${question.id}">
-                        <canvas id="dotplot-${question.id}" width="400" height="200"></canvas>
+                        <canvas id="dotplot-${question.id}" width="${CONFIG.CHART.DOTPLOT_WIDTH}" height="${CONFIG.CHART.DOTPLOT_HEIGHT}"></canvas>
                         <div id="consensus-${question.id}"></div>
                         <div class="contributors-list" id="contributors-${question.id}"></div>
                     </div>
@@ -4040,7 +4090,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
                 }
 
-                setTimeout(renderVisibleCharts, 100);
+                setTimeout(renderVisibleCharts, CONFIG.DELAYS.CHART_RENDER);
             }, 100);
         }
 
