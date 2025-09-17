@@ -477,6 +477,253 @@
         })();
         
         // ===============================================
+        // STATE MANAGEMENT MODULE
+        // ===============================================
+        const StateManager = (function() {
+            // Private state object
+            let state = {
+                // User state
+                currentUsername: null,
+                isAuthenticated: false,
+                
+                // Navigation state
+                currentUnit: null,
+                currentLesson: null,
+                currentView: 'welcome', // 'welcome', 'units', 'lessons', 'quiz'
+                
+                // Quiz state
+                currentQuestions: [],
+                allUnitQuestions: [],
+                userAnswers: {},
+                
+                // UI state
+                theme: 'light',
+                isLoading: false,
+                messageQueue: [],
+                
+                // Data state
+                classData: null,
+                chartInstances: {},
+                allCurriculumData: {}
+            };
+            
+            // Subscribers for state changes
+            const subscribers = {
+                '*': [], // Global subscribers (listen to all changes)
+                'currentUsername': [],
+                'currentUnit': [],
+                'currentLesson': [],
+                'currentView': [],
+                'theme': [],
+                'classData': [],
+                'userAnswers': []
+            };
+            
+            // Private methods
+            function notifySubscribers(key, newValue, oldValue) {
+                // Notify specific subscribers
+                if (subscribers[key]) {
+                    subscribers[key].forEach(callback => {
+                        try {
+                            callback(newValue, oldValue, key);
+                        } catch (error) {
+                            console.error(`Error in subscriber for ${key}:`, error);
+                        }
+                    });
+                }
+                
+                // Notify global subscribers
+                subscribers['*'].forEach(callback => {
+                    try {
+                        callback(state, key, newValue, oldValue);
+                    } catch (error) {
+                        console.error('Error in global subscriber:', error);
+                    }
+                });
+            }
+            
+            function deepClone(obj) {
+                if (obj === null || typeof obj !== 'object') return obj;
+                if (obj instanceof Date) return new Date(obj);
+                if (obj instanceof Array) return obj.map(item => deepClone(item));
+                if (obj instanceof Object) {
+                    const cloned = {};
+                    for (let key in obj) {
+                        if (obj.hasOwnProperty(key)) {
+                            cloned[key] = deepClone(obj[key]);
+                        }
+                    }
+                    return cloned;
+                }
+            }
+            
+            // Public API
+            return {
+                // Get current state (returns a deep clone to prevent direct mutation)
+                getState: function(key) {
+                    if (key) {
+                        return deepClone(state[key]);
+                    }
+                    return deepClone(state);
+                },
+                
+                // Update state with validation
+                setState: function(updates, options = {}) {
+                    const { silent = false, persist = true } = options;
+                    const changes = {};
+                    
+                    for (let key in updates) {
+                        if (state.hasOwnProperty(key)) {
+                            const oldValue = state[key];
+                            const newValue = updates[key];
+                            
+                            // Only update if value actually changed
+                            if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+                                state[key] = deepClone(newValue);
+                                changes[key] = { old: oldValue, new: newValue };
+                                
+                                if (!silent) {
+                                    notifySubscribers(key, newValue, oldValue);
+                                }
+                            }
+                        } else {
+                            console.warn(`Attempted to set unknown state key: ${key}`);
+                        }
+                    }
+                    
+                    // Persist critical state to localStorage
+                    if (persist && Object.keys(changes).length > 0) {
+                        this.persistState();
+                    }
+                    
+                    return changes;
+                },
+                
+                // Subscribe to state changes
+                subscribe: function(key, callback) {
+                    if (typeof callback !== 'function') {
+                        throw new Error('Callback must be a function');
+                    }
+                    
+                    if (!subscribers[key]) {
+                        subscribers[key] = [];
+                    }
+                    
+                    subscribers[key].push(callback);
+                    
+                    // Return unsubscribe function
+                    return function() {
+                        const index = subscribers[key].indexOf(callback);
+                        if (index > -1) {
+                            subscribers[key].splice(index, 1);
+                        }
+                    };
+                },
+                
+                // Actions - predefined state mutations
+                actions: {
+                    // User actions
+                    setUser: function(username) {
+                        return StateManager.setState({
+                            currentUsername: username,
+                            isAuthenticated: !!username
+                        });
+                    },
+                    
+                    logout: function() {
+                        return StateManager.setState({
+                            currentUsername: null,
+                            isAuthenticated: false,
+                            currentUnit: null,
+                            currentLesson: null,
+                            currentView: 'welcome'
+                        });
+                    },
+                    
+                    // Navigation actions
+                    navigateTo: function(view, params = {}) {
+                        const updates = { currentView: view };
+                        
+                        if (view === 'lessons' && params.unit) {
+                            updates.currentUnit = params.unit;
+                        } else if (view === 'quiz' && params.lesson) {
+                            updates.currentLesson = params.lesson;
+                        }
+                        
+                        return StateManager.setState(updates);
+                    },
+                    
+                    // Quiz actions
+                    loadQuestions: function(questions) {
+                        return StateManager.setState({
+                            currentQuestions: questions
+                        });
+                    },
+                    
+                    saveAnswer: function(questionId, answer) {
+                        const userAnswers = StateManager.getState('userAnswers');
+                        userAnswers[questionId] = answer;
+                        return StateManager.setState({ userAnswers });
+                    },
+                    
+                    // Theme actions
+                    toggleTheme: function() {
+                        const currentTheme = StateManager.getState('theme');
+                        return StateManager.setState({
+                            theme: currentTheme === 'light' ? 'dark' : 'light'
+                        });
+                    },
+                    
+                    // Loading state
+                    setLoading: function(isLoading) {
+                        return StateManager.setState({ isLoading });
+                    }
+                },
+                
+                // Persist state to localStorage
+                persistState: function() {
+                    const stateToPersist = {
+                        currentUsername: state.currentUsername,
+                        theme: state.theme,
+                        currentUnit: state.currentUnit,
+                        currentLesson: state.currentLesson
+                    };
+                    
+                    try {
+                        StorageModule.setLocalData('appState', stateToPersist);
+                    } catch (error) {
+                        console.error('Failed to persist state:', error);
+                    }
+                },
+                
+                // Restore state from localStorage
+                restoreState: function() {
+                    try {
+                        const savedState = StorageModule.getLocalData('appState', {});
+                        if (savedState && Object.keys(savedState).length > 0) {
+                            this.setState(savedState, { silent: false, persist: false });
+                        }
+                    } catch (error) {
+                        console.error('Failed to restore state:', error);
+                    }
+                },
+                
+                // Debug helper
+                debugState: function() {
+                    console.group('Current State');
+                    console.table(state);
+                    console.groupEnd();
+                    
+                    console.group('Subscribers');
+                    for (let key in subscribers) {
+                        console.log(`${key}: ${subscribers[key].length} subscribers`);
+                    }
+                    console.groupEnd();
+                }
+            };
+        })();
+        
+        // ===============================================
         // SAVE FUNCTIONS - Defined before UtilitiesModule
         // ===============================================
         
@@ -839,7 +1086,9 @@
             return `${fruit}_${animal}`;
         }
 
-        // Global variables
+        // Global variables - Now using getters/setters with StateManager
+        // These provide backward compatibility while using centralized state
+        
         let currentUsername = null;
         let classData = null;
         let currentUnit = null;
@@ -848,9 +1097,55 @@
         let allUnitQuestions = [];
         let chartInstances = {};
         let currentTheme = 'light';
-
-        // Add this to your global variables
-        let allCurriculumData = {}; // Store all units' data
+        let allCurriculumData = {};
+        
+        // Initialize state from StateManager
+        function syncGlobalVariables() {
+            const state = StateManager.getState();
+            currentUsername = state.currentUsername;
+            classData = state.classData;
+            currentUnit = state.currentUnit;
+            currentLesson = state.currentLesson;
+            currentQuestions = state.currentQuestions;
+            allUnitQuestions = state.allUnitQuestions;
+            chartInstances = state.chartInstances;
+            currentTheme = state.theme;
+            allCurriculumData = state.allCurriculumData;
+        }
+        
+        // Subscribe to state changes to keep globals in sync
+        StateManager.subscribe('*', function(state, key) {
+            // Update the corresponding global variable when state changes
+            switch(key) {
+                case 'currentUsername':
+                    currentUsername = state.currentUsername;
+                    break;
+                case 'classData':
+                    classData = state.classData;
+                    break;
+                case 'currentUnit':
+                    currentUnit = state.currentUnit;
+                    break;
+                case 'currentLesson':
+                    currentLesson = state.currentLesson;
+                    break;
+                case 'currentQuestions':
+                    currentQuestions = state.currentQuestions;
+                    break;
+                case 'allUnitQuestions':
+                    allUnitQuestions = state.allUnitQuestions;
+                    break;
+                case 'chartInstances':
+                    chartInstances = state.chartInstances;
+                    break;
+                case 'theme':
+                    currentTheme = state.theme;
+                    break;
+                case 'allCurriculumData':
+                    allCurriculumData = state.allCurriculumData;
+                    break;
+            }
+        });
 
 
         // Unit structure - defines lessons per unit
@@ -1064,8 +1359,12 @@
         }
 
         function acceptUsername(name) {
-            currentUsername = name;
-            StorageModule.setCurrentUsername(currentUsername);
+            // Update state using StateManager
+            StateManager.actions.setUser(name);
+            StateManager.actions.navigateTo('units');
+            
+            // Legacy compatibility - these will be synced automatically
+            StorageModule.setCurrentUsername(name);
             initClassData();
             showUsernameWelcome();
             initializeFromEmbeddedData();
@@ -5118,6 +5417,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
         
         // ===============================================
+        // INITIALIZATION
+        // ===============================================
+        
+        // Restore saved state on startup
+        StateManager.restoreState();
+        syncGlobalVariables();
+        
+        // ===============================================
         // MODULE ORGANIZATION
         // ===============================================
         
@@ -5204,6 +5511,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             User: UserModule,
             Utils: Utils,
             Storage: StorageModule,
+            State: StateManager,
             
             // Legacy direct access (for backward compatibility)
             toggleTheme: toggleTheme,

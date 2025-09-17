@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>State Management Test</title>
+    <style>
+        body { 
+            font-family: 'Courier New', monospace; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1, h2 { color: #569cd6; }
+        .test-section {
+            background: #252525;
+            padding: 15px;
+            margin: 20px 0;
+            border: 1px solid #3c3c3c;
+            border-radius: 5px;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        button:hover { background: #1177bb; }
+        .state-display {
+            background: #1e1e1e;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+            border-radius: 3px;
+            margin: 10px 0;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .log-entry { 
+            padding: 5px; 
+            margin: 2px 0; 
+            background: #2d2d2d;
+            border-left: 3px solid #569cd6;
+        }
+        pre { color: #ce9178; }
+    </style>
+</head>
+<body>
+    <h1>🎯 State Management System - Week 4, Step 2</h1>
+    
+    <div class="test-section">
+        <h2>Current State</h2>
+        <div id="current-state" class="state-display">Loading...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Actions</h2>
+        <button onclick="testSetUser()">Set User</button>
+        <button onclick="testNavigate()">Navigate to Quiz</button>
+        <button onclick="testToggleTheme()">Toggle Theme</button>
+        <button onclick="testSaveAnswer()">Save Answer</button>
+        <button onclick="testLogout()">Logout</button>
+        <button onclick="testPersist()">Save to localStorage</button>
+        <button onclick="testRestore()">Restore from localStorage</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>State Change Log</h2>
+        <div id="state-log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Features Implemented</h2>
+        <ul>
+            <li class="success">✅ Centralized state object with all app state</li>
+            <li class="success">✅ setState() method with validation</li>
+            <li class="success">✅ getState() method returns immutable clones</li>
+            <li class="success">✅ Subscribe/unsubscribe pattern for state changes</li>
+            <li class="success">✅ Predefined actions for common state mutations</li>
+            <li class="success">✅ Automatic persistence to localStorage</li>
+            <li class="success">✅ State restoration on app load</li>
+            <li class="success">✅ Backward compatibility with global variables</li>
+            <li class="success">✅ Debug utilities for state inspection</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>API Usage Examples</h2>
+        <pre>
+// Get state
+const username = APStatsQuiz.State.getState('currentUsername');
+const fullState = APStatsQuiz.State.getState();
+
+// Set state
+APStatsQuiz.State.setState({ 
+    currentUnit: 1, 
+    currentLesson: 'L1' 
+});
+
+// Use actions
+APStatsQuiz.State.actions.setUser('Apple_Bear');
+APStatsQuiz.State.actions.navigateTo('quiz', { lesson: 'L1' });
+APStatsQuiz.State.actions.toggleTheme();
+
+// Subscribe to changes
+const unsubscribe = APStatsQuiz.State.subscribe('currentUsername', 
+    (newVal, oldVal) => {
+        console.log(`User changed from ${oldVal} to ${newVal}`);
+    }
+);
+
+// Later: unsubscribe();
+
+// Debug state
+APStatsQuiz.State.debugState();
+        </pre>
+    </div>
+    
+    <!-- Load dependencies -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+    
+    <script>
+        let stateChangeCount = 0;
+        
+        function updateStateDisplay() {
+            const stateDiv = document.getElementById('current-state');
+            if (typeof APStatsQuiz !== 'undefined' && APStatsQuiz.State) {
+                const state = APStatsQuiz.State.getState();
+                stateDiv.innerHTML = '<pre>' + JSON.stringify(state, null, 2) + '</pre>';
+            }
+        }
+        
+        function logStateChange(state, key, newVal, oldVal) {
+            const logDiv = document.getElementById('state-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <strong>#${++stateChangeCount}</strong> 
+                <span style="color: #dcdcaa;">${key}</span>: 
+                <span style="color: #f48771;">${JSON.stringify(oldVal)}</span> → 
+                <span style="color: #4ec9b0;">${JSON.stringify(newVal)}</span>
+            `;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+            updateStateDisplay();
+        }
+        
+        // Test functions
+        function testSetUser() {
+            APStatsQuiz.State.actions.setUser('TestUser_' + Date.now());
+        }
+        
+        function testNavigate() {
+            APStatsQuiz.State.actions.navigateTo('quiz', { lesson: 'L' + Math.floor(Math.random() * 5 + 1) });
+        }
+        
+        function testToggleTheme() {
+            APStatsQuiz.State.actions.toggleTheme();
+        }
+        
+        function testSaveAnswer() {
+            const questionId = 'Q' + Math.floor(Math.random() * 10);
+            const answer = ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)];
+            APStatsQuiz.State.actions.saveAnswer(questionId, answer);
+        }
+        
+        function testLogout() {
+            APStatsQuiz.State.actions.logout();
+        }
+        
+        function testPersist() {
+            APStatsQuiz.State.persistState();
+            alert('State saved to localStorage!');
+        }
+        
+        function testRestore() {
+            APStatsQuiz.State.restoreState();
+            alert('State restored from localStorage!');
+        }
+        
+        // Load the main application
+        fetch('index.html')
+            .then(r => r.text())
+            .then(html => {
+                const match = html.match(/<script>([\s\S]*?)<\/script>/);
+                if (match && match[1]) {
+                    try {
+                        eval(match[1]);
+                        
+                        // Subscribe to all state changes
+                        APStatsQuiz.State.subscribe('*', logStateChange);
+                        
+                        // Initial display
+                        updateStateDisplay();
+                        
+                        // Log success
+                        const logDiv = document.getElementById('state-log');
+                        logDiv.innerHTML = '<div class="success">✅ State Management System loaded successfully!</div>';
+                        
+                    } catch(e) {
+                        document.getElementById('current-state').innerHTML = 
+                            `<div class="error">Error: ${e.toString()}</div>`;
+                    }
+                }
+            });
+    </script>
+</body>
+</html>
