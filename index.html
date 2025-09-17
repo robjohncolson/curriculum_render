@@ -85,6 +85,12 @@
         };
         
         // Helper functions for charts
+        
+        /**
+         * Generates an array of colors for chart data visualization
+         * @param {number} count - Number of colors needed
+         * @returns {string[]} Array of color hex codes
+         */
         function generateChartColors(count) {
             const result = [];
             for (let i = 0; i < count; i++) {
@@ -93,18 +99,34 @@
             return result;
         }
 
+        /**
+         * Checks if the application is in dark mode
+         * @returns {boolean} True if dark mode is active
+         */
         function isDarkMode() {
             return document.body.classList.contains('dark-theme');
         }
 
+        /**
+         * Gets the appropriate text color based on current theme
+         * @returns {string} Hex color code for text
+         */
         function getTextColor() {
             return isDarkMode() ? '#e0e0e0' : '#333333';
         }
 
+        /**
+         * Gets the appropriate grid color based on current theme
+         * @returns {string} Hex color code for grid lines
+         */
         function getGridColor() {
             return isDarkMode() ? '#444444' : '#e0e0e0';
         }
 
+        /**
+         * Gets scatter plot point colors based on current theme
+         * @returns {string} Hex color code for scatter plot points
+         */
         function getScatterPointColor() {
             return isDarkMode() ? '#5BC0EB' : '#36A2EB';
         }
@@ -146,7 +168,11 @@
             9: { name: 'Inference for Slopes', lessons: 2 }
         };
 
-        // Initialize class data
+        /**
+         * Initializes class data structure from localStorage or creates new structure
+         * Creates user entry if it doesn't exist
+         * @returns {void}
+         */
         function initClassData() {
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
@@ -163,6 +189,11 @@
             saveClassData();
         }
 
+        /**
+         * Saves class data to localStorage with error handling
+         * @returns {void}
+         * @throws {Error} When localStorage quota is exceeded
+         */
         function saveClassData() {
             try {
                 localStorage.setItem('classData', JSON.stringify(classData));
@@ -226,16 +257,29 @@
         }
 
         // Check if question has been answered
+        /**
+         * Checks if a specific question has been answered by the current user
+         * @param {string} questionId - The ID of the question to check
+         * @returns {boolean} True if question has been answered
+         */
         function isQuestionAnswered(questionId) {
             return classData.users[currentUsername]?.answers?.[questionId] !== undefined;
         }
 
-        // Get attempt count for a question
+        /**
+         * Gets the number of attempts for a specific question
+         * @param {string} questionId - The ID of the question
+         * @returns {number} Number of attempts (0 if never attempted)
+         */
         function getAttemptCount(questionId) {
             return classData.users[currentUsername]?.attempts?.[questionId] || 0;
         }
 
-        // Check if can retry (has reason in previous attempt and < CONFIG.MAX_ATTEMPTS attempts)
+        /**
+         * Determines if a user can retry a question based on attempts and previous reasoning
+         * @param {string} questionId - The ID of the question to check
+         * @returns {boolean} True if retry is allowed, false otherwise
+         */
         function canRetry(questionId) {
             const attempts = getAttemptCount(questionId);
             if (attempts >= CONFIG.MAX_ATTEMPTS) return false;
@@ -651,7 +695,11 @@ function renderLessonSelector(unitInfo) {
             renderLessonSelector(unitInfo);
         }
 
-        // Render quiz
+        /**
+         * Main function to render the quiz interface
+         * Displays questions based on current selection and handles chart rendering
+         * @returns {void}
+         */
         function renderQuiz() {
             const questionsContainer = document.getElementById('questionsContainer');
             
