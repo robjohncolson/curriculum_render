@@ -131,8 +131,16 @@
         };
         
         // ===============================================
-        // DATA SERVICE - Centralized Data Access Layer
+        // MODULE SYSTEM - Internal Module Organization
         // ===============================================
+        
+        /**
+         * Storage Module - Handles all data persistence
+         */
+        const StorageModule = (function() {
+            // ===============================================
+            // DATA SERVICE - Centralized Data Access Layer
+            // ===============================================
         class DataService {
             constructor() {
                 this.cache = new Map();
@@ -429,11 +437,80 @@
             }
         }
         
-        // Create singleton instance
-        const dataService = new DataService();
+            // Create singleton instance
+            const dataService = new DataService();
+            
+            // Public API for Storage Module
+            return {
+                // Core data methods
+                getCurrentUsername: () => dataService.getCurrentUsername(),
+                setCurrentUsername: (username) => dataService.setCurrentUsername(username),
+                getUserAnswers: (username) => dataService.getUserAnswers(username),
+                saveUserAnswer: (questionId, answer, username) => dataService.saveUserAnswer(questionId, answer, username),
+                getUserProgress: (username) => dataService.getUserProgress(username),
+                updateUserProgress: (lessonId, progressData, username) => dataService.updateUserProgress(lessonId, progressData, username),
+                
+                // Class data methods
+                getClassData: () => dataService.getClassData(),
+                saveClassData: (data) => dataService.saveClassData(data),
+                getConsensusData: () => dataService.getConsensusData(),
+                saveConsensusVote: (questionId, voteData) => dataService.saveConsensusVote(questionId, voteData),
+                
+                // Quiz data methods
+                loadQuestions: () => dataService.loadQuestions(),
+                getLessonQuestions: (lessonId) => dataService.getLessonQuestions(lessonId),
+                loadUnit: (unitId) => dataService.loadUnit(unitId),
+                
+                // Utility methods
+                exportUserData: (username) => dataService.exportUserData(username),
+                importUserData: (data, overwrite) => dataService.importUserData(data, overwrite),
+                clearUserData: (username) => dataService.clearUserData(username),
+                getStorageStats: () => dataService.getStorageStats(),
+                
+                // Direct access to internal methods if needed
+                setLocalData: (key, value) => dataService.setLocalData(key, value),
+                getLocalData: (key, defaultValue) => dataService.getLocalData(key, defaultValue),
+                
+                // Cache access
+                cache: dataService.cache
+            };
+        })();
         
         // ===============================================
-        // PERFORMANCE UTILITIES
+        // SAVE FUNCTIONS - Defined before UtilitiesModule
+        // ===============================================
+        
+        /**
+         * Saves class data to localStorage with error handling (immediate)
+         * @returns {void}
+         * @throws {Error} When localStorage quota is exceeded
+         */
+        function saveClassDataImmediate() {
+            try {
+                StorageModule.saveClassData(classData);
+                if (window.DevTools) {
+                    window.DevTools.log.debug('Class data saved immediately');
+                }
+            } catch(e) {
+                console.log("Storage quota exceeded");
+                showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
+            }
+        }
+        
+        // Forward declaration - will be assigned after UtilitiesModule is available
+        let saveClassData = function() {
+            // Temporary function until debounced version is ready
+            if (classData) {
+                StorageModule.saveClassData(classData);
+            }
+        };
+        
+        // ===============================================
+        // UTILITIES MODULE - Performance & Helper Functions
+        // ===============================================
+        const UtilitiesModule = (function() {
+            // ===============================================
+            // PERFORMANCE UTILITIES
         // ===============================================
         
         /**
@@ -479,15 +556,15 @@
         async function lazyLoadQuizData(lessonId) {
             // Check cache first
             const cacheKey = `quiz_${lessonId}`;
-            if (dataService.cache.has(cacheKey)) {
-                return dataService.cache.get(cacheKey);
+            if (StorageModule.cache.has(cacheKey)) {
+                return StorageModule.cache.get(cacheKey);
             }
             
             // Simulate async loading (in real app, this would be a fetch)
             return new Promise((resolve) => {
                 setTimeout(() => {
-                    const questions = dataService.getLessonQuestions(lessonId);
-                    dataService.cache.set(cacheKey, questions);
+                    const questions = StorageModule.getLessonQuestions(lessonId);
+                    StorageModule.cache.set(cacheKey, questions);
                     resolve(questions);
                 }, 10);
             });
@@ -577,9 +654,9 @@
             // Data inspection
             inspectData() {
                 return {
-                    currentUser: dataService.getCurrentUsername(),
-                    storageStats: dataService.getStorageStats(),
-                    classData: dataService.getClassData(),
+                    currentUser: StorageModule.getCurrentUsername(),
+                    storageStats: StorageModule.getStorageStats(),
+                    classData: StorageModule.getClassData(),
                     memoryUsage: this.getMemoryUsage()
                 };
             },
@@ -597,11 +674,11 @@
             }
         };
         
-        // Expose DevTools in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            window.DevTools = DevTools;
-            DevTools.log.info('Development tools available. Use window.DevTools');
-        }
+            // Expose DevTools in development (moved inside UtilitiesModule)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                window.DevTools = DevTools;
+                DevTools.log.info('Development tools available. Use window.DevTools');
+            }
         
         // ===============================================
         // OPTIMIZED RENDERING
@@ -683,6 +760,23 @@
             
             document.querySelectorAll(selector).forEach(el => observer.observe(el));
         }
+        
+            // Return public API for UtilitiesModule
+            return {
+                debounce: debounce,
+                throttle: throttle,
+                smoothUpdate: smoothUpdate,
+                batchDOMUpdates: batchDOMUpdates,
+                virtualScroll: virtualScroll,
+                lazyLoadElements: lazyLoadElements,
+                lazyLoadQuizData: lazyLoadQuizData,
+                errorBoundary: errorBoundary,
+                DevTools: DevTools
+            };
+        })(); // End of UtilitiesModule
+        
+        // Now that UtilitiesModule is defined, replace saveClassData with debounced version
+        saveClassData = UtilitiesModule.debounce(saveClassDataImmediate, 500);
         
         // ===============================================
         // HELPER FUNCTIONS
@@ -778,7 +872,7 @@
          * @returns {void}
          */
         function initClassData() {
-            classData = dataService.getClassData();
+            classData = StorageModule.getClassData();
             if (!classData.users) {
                 classData = {users: {}};
             }
@@ -794,27 +888,6 @@
 
             saveClassData();
         }
-
-        /**
-         * Saves class data to localStorage with error handling (immediate)
-         * @returns {void}
-         * @throws {Error} When localStorage quota is exceeded
-         */
-        function saveClassDataImmediate() {
-            try {
-                dataService.saveClassData(classData);
-                DevTools.log.debug('Class data saved immediately');
-            } catch(e) {
-                console.log("Storage quota exceeded");
-                showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
-            }
-        }
-        
-        /**
-         * Debounced version of saveClassData - waits 500ms after last call
-         * Prevents excessive localStorage writes during rapid updates
-         */
-        const saveClassData = debounce(saveClassDataImmediate, 500);
 
         // Student Performance Badges
         function calculateBadges(username) {
@@ -961,7 +1034,7 @@
 
         // Username management
         function promptUsername() {
-            const savedUsername = dataService.getCurrentUsername();
+            const savedUsername = StorageModule.getCurrentUsername();
             if (savedUsername) {
                 currentUsername = savedUsername;
                 initClassData();
@@ -992,7 +1065,7 @@
 
         function acceptUsername(name) {
             currentUsername = name;
-            dataService.setCurrentUsername(currentUsername);
+            StorageModule.setCurrentUsername(currentUsername);
             initClassData();
             showUsernameWelcome();
             initializeFromEmbeddedData();
@@ -1013,7 +1086,7 @@
         function initializeFromEmbeddedData() {
             // Parse embedded curriculum
             allCurriculumData = {};
-            const allQuestions = dataService.loadQuestions();
+            const allQuestions = StorageModule.loadQuestions();
 
             // Group by units
             const unitGroups = {};
@@ -3901,7 +3974,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
 
                 // Get all class data without filtering
-                classData: dataService.getClassData(),
+                classData: StorageModule.getClassData(),
 
                 // Get all answers from all users
                 allAnswers: {},
@@ -3910,7 +3983,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 allProgress: {},
 
                 // Get any other data structures you have
-                consensusData: dataService.getConsensusData(),
+                consensusData: StorageModule.getConsensusData(),
 
                 // Include raw localStorage for complete backup
                 rawLocalStorage: {}
@@ -3920,11 +3993,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
             Object.keys(localStorage).forEach(key => {
                 if (key.startsWith('answers_')) {
                     const username = key.replace('answers_', '');
-                    masterData.allAnswers[username] = dataService.getUserAnswers(username);
+                    masterData.allAnswers[username] = StorageModule.getUserAnswers(username);
                 }
                 if (key.startsWith('progress_')) {
                     const username = key.replace('progress_', '');
-                    masterData.allProgress[username] = dataService.getUserProgress(username);
+                    masterData.allProgress[username] = StorageModule.getUserProgress(username);
                 }
 
                 // Store everything in raw format too
@@ -3976,15 +4049,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
             let preservedCount = 0;
 
             // Get current user's existing data
-            const currentUserAnswers = dataService.getUserAnswers(currentUsername);
-            const currentUserProgress = dataService.getUserProgress(currentUsername);
+            const currentUserAnswers = StorageModule.getUserAnswers(currentUsername);
+            const currentUserProgress = StorageModule.getUserProgress(currentUsername);
 
             // Merge class-wide data (consensus, etc.) - always take the master version for these
             if (masterData.classData) {
-                dataService.saveClassData(masterData.classData);
+                StorageModule.saveClassData(masterData.classData);
             }
             if (masterData.consensusData) {
-                dataService.setLocalData('consensusResponses', masterData.consensusData);
+                StorageModule.setLocalData('consensusResponses', masterData.consensusData);
             }
 
             // Import OTHER users' data completely (not the current user)
@@ -3992,7 +4065,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 Object.keys(masterData.allAnswers).forEach(username => {
                     if (username !== currentUsername) {
                         // Import other users' data completely
-                        dataService.setLocalData(`answers_${username}`, masterData.allAnswers[username]);
+                        StorageModule.setLocalData(`answers_${username}`, masterData.allAnswers[username]);
                         updatedCount++;
                     }
                 });
@@ -4001,7 +4074,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (masterData.allProgress) {
                 Object.keys(masterData.allProgress).forEach(username => {
                     if (username !== currentUsername) {
-                        dataService.setLocalData(`progress_${username}`, masterData.allProgress[username]);
+                        StorageModule.setLocalData(`progress_${username}`, masterData.allProgress[username]);
                     }
                 });
             }
@@ -4053,7 +4126,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 // Save the merged answers
-                dataService.setLocalData(`answers_${currentUsername}`, currentUserAnswers);
+                StorageModule.setLocalData(`answers_${currentUsername}`, currentUserAnswers);
             }
 
             // Merge progress similarly
@@ -4067,7 +4140,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                 });
 
-                dataService.setLocalData(`progress_${currentUsername}`, currentUserProgress);
+                StorageModule.setLocalData(`progress_${currentUsername}`, currentUserProgress);
             }
 
             // Import any other non-user-specific data from rawLocalStorage
@@ -5045,10 +5118,94 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
         
         // ===============================================
+        // MODULE ORGANIZATION
+        // ===============================================
+        
+        /**
+         * Charts Module - All chart rendering functions
+         */
+        const ChartsModule = {
+            renderChart: renderChart,
+            renderMCQDistribution: typeof renderMCQDistribution !== 'undefined' ? renderMCQDistribution : null,
+            renderFRQResponses: typeof renderFRQResponses !== 'undefined' ? renderFRQResponses : null,
+            destroyChart: function(chartId) {
+                if (chartInstances[chartId]) {
+                    chartInstances[chartId].destroy();
+                    delete chartInstances[chartId];
+                }
+            },
+            destroyAllCharts: function() {
+                Object.keys(chartInstances).forEach(id => this.destroyChart(id));
+            },
+            getChartColors: generateChartColors,
+            getGridColor: getGridColor,
+            getScatterPointColor: getScatterPointColor
+        };
+        
+        /**
+         * Quiz Module - Quiz logic and question handling
+         */
+        const QuizModule = {
+            loadUnit: loadUnit,
+            loadLesson: loadLesson,
+            submitAnswer: submitAnswer,
+            renderQuiz: renderQuiz,
+            getCurrentQuestions: () => currentQuestions,
+            isQuestionAnswered: isQuestionAnswered,
+            calculateBadges: calculateBadges,
+            backToUnits: backToUnits,
+            backToLessons: backToLessons,
+            selectUnit: selectUnit
+        };
+        
+        /**
+         * UI Module - User interface components
+         */
+        const UIModule = {
+            showMessage: showMessage,
+            toggleTheme: toggleTheme,
+            renderProgressBar: typeof renderProgressBar !== 'undefined' ? renderProgressBar : null,
+            renderBadges: typeof renderBadges !== 'undefined' ? renderBadges : null,
+            renderAttachments: renderAttachments,
+            renderTable: typeof renderTable !== 'undefined' ? renderTable : null,
+            updateMessageArea: function(html) {
+                document.getElementById('messageArea').innerHTML = html;
+            },
+            updateQuestionsContainer: function(html) {
+                document.getElementById('questionsContainer').innerHTML = html;
+            }
+        };
+        
+        /**
+         * User Module - User management functions
+         */
+        const UserModule = {
+            generateRandomUsername: generateRandomUsername,
+            rerollUsername: rerollUsername,
+            acceptUsername: acceptUsername,
+            getCurrentUsername: () => currentUsername,
+            initClassData: initClassData,
+            voteFRQ: voteFRQ
+        };
+        
+        /**
+         * Utils Module - Reference to UtilitiesModule
+         */
+        const Utils = UtilitiesModule;
+        
+        // ===============================================
         // PUBLIC API - Expose necessary functions
         // ===============================================
         return {
-            // Core functions
+            // Organized modules
+            Charts: ChartsModule,
+            Quiz: QuizModule,
+            UI: UIModule,
+            User: UserModule,
+            Utils: Utils,
+            Storage: StorageModule,
+            
+            // Legacy direct access (for backward compatibility)
             toggleTheme: toggleTheme,
             rerollUsername: rerollUsername,
             acceptUsername: acceptUsername,
@@ -5059,14 +5216,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
             submitAnswer: submitAnswer,
             voteFRQ: voteFRQ,
             selectUnit: selectUnit,
-            
-            // Utility functions that may be needed
             renderQuiz: renderQuiz,
             saveClassData: saveClassData,
             showMessage: showMessage,
             
             // Data service for centralized data access
-            dataService: dataService,
+            dataService: StorageModule,
             
             // Configuration access (read-only)
             getConfig: function() { return CONFIG; },

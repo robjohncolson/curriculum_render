@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Final Module Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f0f0f0; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        pre { background: white; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Final Module Test - Week 4 Step 1 Complete</h1>
+    <div id="results"></div>
+    
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+    
+    <script>
+        // Test loading the main application
+        fetch('index.html')
+            .then(r => r.text())
+            .then(html => {
+                const match = html.match(/<script>([\s\S]*?)<\/script>/);
+                if (match && match[1]) {
+                    try {
+                        // Execute the script
+                        eval(match[1]);
+                        
+                        // Run tests
+                        let results = '<h2>Test Results:</h2><ul>';
+                        let allPassed = true;
+                        
+                        // Test 1: APStatsQuiz exists
+                        if (typeof APStatsQuiz !== 'undefined') {
+                            results += '<li class="success">✅ APStatsQuiz loaded successfully</li>';
+                        } else {
+                            results += '<li class="error">❌ APStatsQuiz not found</li>';
+                            allPassed = false;
+                        }
+                        
+                        // Test 2: All modules exist
+                        const modules = ['Storage', 'Charts', 'Quiz', 'UI', 'User', 'Utils'];
+                        modules.forEach(mod => {
+                            if (APStatsQuiz && APStatsQuiz[mod]) {
+                                results += `<li class="success">✅ ${mod} module exists</li>`;
+                            } else {
+                                results += `<li class="error">❌ ${mod} module missing</li>`;
+                                allPassed = false;
+                            }
+                        });
+                        
+                        // Test 3: Storage module functions
+                        try {
+                            const stats = APStatsQuiz.Storage.getStorageStats();
+                            results += `<li class="success">✅ Storage.getStorageStats() works: ${stats.estimatedMB} MB</li>`;
+                        } catch(e) {
+                            results += `<li class="error">❌ Storage.getStorageStats() failed: ${e.message}</li>`;
+                            allPassed = false;
+                        }
+                        
+                        // Test 4: User module functions
+                        try {
+                            const username = APStatsQuiz.User.generateRandomUsername();
+                            results += `<li class="success">✅ User.generateRandomUsername() works: ${username}</li>`;
+                        } catch(e) {
+                            results += `<li class="error">❌ User.generateRandomUsername() failed: ${e.message}</li>`;
+                            allPassed = false;
+                        }
+                        
+                        // Test 5: Utils module functions
+                        try {
+                            const testFn = () => console.log('test');
+                            const debounced = APStatsQuiz.Utils.debounce(testFn, 100);
+                            results += '<li class="success">✅ Utils.debounce() works</li>';
+                        } catch(e) {
+                            results += `<li class="error">❌ Utils.debounce() failed: ${e.message}</li>`;
+                            allPassed = false;
+                        }
+                        
+                        // Test 6: Legacy compatibility
+                        if (typeof APStatsQuiz.submitAnswer === 'function') {
+                            results += '<li class="success">✅ Legacy functions still accessible</li>';
+                        } else {
+                            results += '<li class="error">❌ Legacy functions not found</li>';
+                            allPassed = false;
+                        }
+                        
+                        results += '</ul>';
+                        
+                        if (allPassed) {
+                            results += '<h2 class="success">🎉 All tests passed! Module structure is working correctly.</h2>';
+                        } else {
+                            results += '<h2 class="error">⚠️ Some tests failed. Check console for details.</h2>';
+                        }
+                        
+                        results += '<p><a href="index.html">Open main application</a></p>';
+                        
+                        document.getElementById('results').innerHTML = results;
+                        
+                    } catch(e) {
+                        document.getElementById('results').innerHTML = 
+                            `<h2 class="error">Error loading script:</h2><pre>${e.toString()}\nLine: ${e.lineNumber || 'unknown'}\nStack: ${e.stack}</pre>`;
+                        console.error('Error:', e);
+                    }
+                }
+            })
+            .catch(e => {
+                document.getElementById('results').innerHTML = 
+                    `<h2 class="error">Failed to fetch index.html:</h2><pre>${e.toString()}</pre>`;
+            });
+    </script>
+</body>
+</html>

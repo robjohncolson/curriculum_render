@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug</title>
+</head>
+<body>
+    <h1>Debug Test</h1>
+    <pre id="error"></pre>
+    
+    <!-- Load dependencies first -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+    
+    <!-- Now load main app with error catching -->
+    <script>
+        window.addEventListener('error', function(e) {
+            document.getElementById('error').textContent = 
+                'Error: ' + e.message + '\n' +
+                'Line: ' + e.lineno + '\n' +
+                'Column: ' + e.colno + '\n' +
+                'File: ' + e.filename;
+        });
+    </script>
+    
+    <!-- Try to load the main script inline -->
+    <script>
+        // We'll add a try-catch to see what's wrong
+        try {
+            console.log('Starting APStatsQuiz initialization...');
+        } catch(e) {
+            console.error('Error in initialization:', e);
+            document.getElementById('error').textContent = e.toString();
+        }
+    </script>
+    
+    <iframe src="index.html" width="100%" height="400"></iframe>
+</body>
+</html>

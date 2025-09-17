@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Module Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Testing Module Structure</h1>
+        <div id="test-results"></div>
+    </div>
+    
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+    <script>
+        // Copy the main script from index.html here for testing
+        // This is just to test if it loads without errors
+        
+        window.addEventListener('DOMContentLoaded', function() {
+            const results = document.getElementById('test-results');
+            let html = '<h2>Module Loading Test Results:</h2><ul>';
+            
+            // Test if APStatsQuiz loaded
+            if (typeof APStatsQuiz !== 'undefined') {
+                html += '<li style="color: green;">✅ APStatsQuiz loaded successfully</li>';
+                
+                // Test modules
+                const modules = ['Storage', 'Charts', 'Quiz', 'UI', 'User', 'Utils'];
+                modules.forEach(mod => {
+                    if (APStatsQuiz[mod]) {
+                        html += `<li style="color: green;">✅ ${mod} module loaded</li>`;
+                    } else {
+                        html += `<li style="color: red;">❌ ${mod} module missing</li>`;
+                    }
+                });
+                
+                // Test some functions
+                try {
+                    const username = APStatsQuiz.User.generateRandomUsername();
+                    html += `<li style="color: green;">✅ Generated username: ${username}</li>`;
+                } catch(e) {
+                    html += `<li style="color: red;">❌ Error generating username: ${e.message}</li>`;
+                }
+                
+                try {
+                    const stats = APStatsQuiz.Storage.getStorageStats();
+                    html += `<li style="color: green;">✅ Storage stats: ${stats.estimatedMB} MB used</li>`;
+                } catch(e) {
+                    html += `<li style="color: red;">❌ Error getting storage stats: ${e.message}</li>`;
+                }
+                
+            } else {
+                html += '<li style="color: red;">❌ APStatsQuiz failed to load</li>';
+            }
+            
+            html += '</ul>';
+            html += '<p><a href="index.html">Go to main application</a></p>';
+            results.innerHTML = html;
+        });
+    </script>
+    
+    <!-- Load the actual application -->
+    <script>
+        // Load index.html's script content
+        fetch('index.html')
+            .then(r => r.text())
+            .then(html => {
+                const match = html.match(/<script>([\s\S]*?)<\/script>/);
+                if (match && match[1]) {
+                    try {
+                        eval(match[1]);
+                        console.log('✅ Main script loaded successfully');
+                    } catch(e) {
+                        console.error('❌ Error loading main script:', e);
+                        document.getElementById('test-results').innerHTML = 
+                            `<h2 style="color: red;">Error Loading Script:</h2><pre>${e.toString()}\nLine: ${e.lineNumber || 'unknown'}</pre>`;
+                    }
+                }
+            })
+            .catch(e => {
+                console.error('Failed to fetch index.html:', e);
+            });
+    </script>
+</body>
+</html>
