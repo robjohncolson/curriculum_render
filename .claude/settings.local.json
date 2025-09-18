@@ -5,7 +5,8 @@
       "Bash(curl:*)",
       "Bash(node:*)",
       "Read(///**)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

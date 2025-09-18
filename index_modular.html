@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP Stats Consensus Quiz - Modular</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/charts.css">
+    <link rel="stylesheet" href="styles/dark-theme.css">
+
+    <!-- Legacy compatibility - will be removed -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- External Data Files -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>🧮 AP Statistics Consensus Quiz</h1>
+            <div class="header-controls">
+                <button class="theme-toggle" title="Toggle theme">🌙</button>
+                <button class="menu-toggle" title="Menu" style="display: none;">☰</button>
+            </div>
+        </header>
+
+        <div id="messageArea" class="message-area"></div>
+
+        <main id="questionsContainer" class="questions-container">
+            <!-- Content will be dynamically loaded here -->
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Loading application...</p>
+            </div>
+        </main>
+
+        <footer class="app-footer" style="display: none;">
+            <p>© 2024 AP Statistics Learning Platform</p>
+        </footer>
+    </div>
+
+    <!-- Main Application Entry Point -->
+    <script type="module" src="src/main.js"></script>
+
+    <!-- Fallback for browsers without module support -->
+    <script nomodule>
+        console.warn('Your browser does not support ES6 modules. Loading fallback...');
+        var script = document.createElement('script');
+        script.src = 'dist/bundle.js'; // Would need to be built
+        document.head.appendChild(script);
+    </script>
+
+    <!-- Temporary: Keep inline script for compatibility -->
+    <script>
+        // Check if modules loaded successfully
+        setTimeout(function() {
+            if (!window.CONFIG) {
+                console.warn('Modules failed to load, using fallback');
+                // Could load the original monolithic script here
+                var fallback = document.createElement('script');
+                fallback.src = 'fallback.js';
+                document.body.appendChild(fallback);
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
