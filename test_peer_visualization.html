@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Peer Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .control-section {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .visualization-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        /* Peer visualization styles */
+        .consensus-achieved {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .no-consensus {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .user-comparison {
+            background: #d1ecf1;
+            color: #004085;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .peer-explanation {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 10px;
+        }
+        .explanation-header {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        .peer-username {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .toggle-btn {
+            background: #6c757d;
+            flex: 1;
+        }
+        .toggle-btn.active {
+            background: #3498db;
+        }
+        .distribution-chart {
+            margin: 20px 0;
+            height: 300px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Peer Visualization Test</h1>
+
+        <div class="control-section">
+            <h3>Simulation Controls</h3>
+            <p>Current User: <strong id="current-user">You</strong></p>
+            <p>Your Answer: <strong id="your-answer">B</strong></p>
+
+            <div>
+                <button onclick="addPeers('uniform')">Add Uniform Distribution</button>
+                <button onclick="addPeers('consensus')">Add Consensus (70%+ on B)</button>
+                <button onclick="addPeers('split')">Add Split Opinion</button>
+                <button onclick="clearPeers()">Clear All Peers</button>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <button onclick="toggleVisualization('mcq')">Show MCQ Distribution</button>
+                <button onclick="toggleVisualization('explanations')">Show Peer Explanations</button>
+                <button onclick="toggleVisualization('both')">Show Both</button>
+            </div>
+        </div>
+
+        <div class="status" id="status">
+            Ready to simulate peer responses
+        </div>
+
+        <div class="visualization-container">
+            <div id="mcq-visualization"></div>
+            <div id="explanation-visualization"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data structure
+        const mockClassData = {
+            users: {
+                'You': {
+                    answers: { 'Q1': 'B' },
+                    reasons: { 'Q1': 'I chose B because the data shows a clear trend.' },
+                    timestamps: { 'Q1': new Date().toISOString() },
+                    attempts: { 'Q1': 1 }
+                }
+            },
+            metadata: {
+                totalUsers: 1,
+                lastUpdate: new Date().toISOString()
+            }
+        };
+
+        // Mock StorageModule
+        const StorageModule = {
+            getClassData: () => mockClassData,
+            getCurrentUsername: () => 'You',
+            getUserFromClassData: (username) => mockClassData.users[username] || {}
+        };
+
+        // Mock PeerDataManager
+        const PeerDataManager = {
+            aggregateMCQResponses: (questionId) => {
+                const distribution = {};
+                const userResponses = [];
+
+                Object.entries(mockClassData.users).forEach(([username, userData]) => {
+                    const answer = userData.answers?.[questionId];
+                    if (answer) {
+                        distribution[answer] = (distribution[answer] || 0) + 1;
+                        userResponses.push({
+                            username,
+                            answer,
+                            reason: userData.reasons?.[questionId],
+                            timestamp: userData.timestamps?.[questionId]
+                        });
+                    }
+                });
+
+                return {
+                    distribution,
+                    userResponses,
+                    totalResponses: userResponses.length,
+                    uniqueAnswers: Object.keys(distribution).length
+                };
+            },
+
+            calculateMCQConsensus: (questionId) => {
+                const data = PeerDataManager.aggregateMCQResponses(questionId);
+                const threshold = 0.7;
+
+                if (data.totalResponses === 0) {
+                    return { hasConsensus: false, consensusAnswer: null, percentage: 0 };
+                }
+
+                let maxCount = 0;
+                let modeAnswer = null;
+
+                Object.entries(data.distribution).forEach(([answer, count]) => {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        modeAnswer = answer;
+                    }
+                });
+
+                const percentage = maxCount / data.totalResponses;
+
+                return {
+                    hasConsensus: percentage >= threshold,
+                    consensusAnswer: modeAnswer,
+                    percentage: (percentage * 100).toFixed(1),
+                    supportCount: maxCount,
+                    totalCount: data.totalResponses
+                };
+            },
+
+            getPeerComparison: (questionId, username) => {
+                const mcqData = PeerDataManager.aggregateMCQResponses(questionId);
+                const userAnswer = mockClassData.users[username]?.answers?.[questionId];
+
+                if (!userAnswer || mcqData.totalResponses === 0) {
+                    return { hasData: false };
+                }
+
+                const sameAnswerCount = mcqData.distribution[userAnswer] || 0;
+                const percentage = ((sameAnswerCount / mcqData.totalResponses) * 100).toFixed(1);
+
+                return {
+                    hasData: true,
+                    userAnswer,
+                    sameAnswerCount: sameAnswerCount - 1,
+                    totalPeers: mcqData.totalResponses - 1,
+                    percentage,
+                    isWithMajority: sameAnswerCount === Math.max(...Object.values(mcqData.distribution))
+                };
+            },
+
+            getPeerExplanations: (questionId, limit) => {
+                const explanations = [];
+
+                Object.entries(mockClassData.users).forEach(([username, userData]) => {
+                    if (username === 'You') return;
+
+                    const reason = userData.reasons?.[questionId];
+                    if (reason) {
+                        explanations.push({
+                            username,
+                            reason,
+                            answer: userData.answers?.[questionId],
+                            timestamp: userData.timestamps?.[questionId]
+                        });
+                    }
+                });
+
+                return explanations.slice(0, limit || 10);
+            },
+
+            getPeerCount: () => Object.keys(mockClassData.users).length
+        };
+
+        // Mock DynamicSizing
+        const DynamicSizing = {
+            calculatePeerVisualizationHeight: () => 400,
+            applyCanvasHeight: (canvas, height) => {
+                if (canvas) {
+                    canvas.style.height = `${height}px`;
+                    if (canvas.parentElement) {
+                        canvas.parentElement.style.height = `${height}px`;
+                    }
+                }
+            }
+        };
+
+        // Include the actual PeerVisualization module code here
+        ${`// Copy the PeerVisualization module code here for testing
+        // This would be the actual module from the main file`}
+
+        // Test functions
+        function addPeers(distribution) {
+            const answers = ['A', 'B', 'C', 'D'];
+            let peerCount = 20;
+
+            // Clear existing peers (except current user)
+            mockClassData.users = {
+                'You': mockClassData.users['You']
+            };
+
+            for (let i = 0; i < peerCount; i++) {
+                const username = `Student_${i + 1}`;
+                let answer;
+
+                if (distribution === 'uniform') {
+                    answer = answers[i % 4];
+                } else if (distribution === 'consensus') {
+                    // 75% choose B, others random
+                    answer = Math.random() < 0.75 ? 'B' : answers[Math.floor(Math.random() * 4)];
+                } else if (distribution === 'split') {
+                    // 40% A, 40% B, 10% C, 10% D
+                    const rand = Math.random();
+                    if (rand < 0.4) answer = 'A';
+                    else if (rand < 0.8) answer = 'B';
+                    else if (rand < 0.9) answer = 'C';
+                    else answer = 'D';
+                }
+
+                mockClassData.users[username] = {
+                    answers: { 'Q1': answer },
+                    reasons: { 'Q1': `I believe ${answer} is correct because of reason ${i + 1}` },
+                    timestamps: { 'Q1': new Date(Date.now() - Math.random() * 86400000).toISOString() },
+                    attempts: { 'Q1': 1 }
+                };
+            }
+
+            mockClassData.metadata.totalUsers = Object.keys(mockClassData.users).length;
+            updateStatus(`Added ${peerCount} peers with ${distribution} distribution. Total: ${mockClassData.metadata.totalUsers}`);
+        }
+
+        function clearPeers() {
+            mockClassData.users = {
+                'You': mockClassData.users['You']
+            };
+            mockClassData.metadata.totalUsers = 1;
+            updateStatus('Cleared all peer data');
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function toggleVisualization(type) {
+            const mcqContainer = document.getElementById('mcq-visualization');
+            const expContainer = document.getElementById('explanation-visualization');
+
+            if (type === 'mcq' || type === 'both') {
+                // Render MCQ distribution
+                renderMCQVisualization(mcqContainer);
+            }
+
+            if (type === 'explanations' || type === 'both') {
+                // Render peer explanations
+                renderExplanationVisualization(expContainer);
+            }
+        }
+
+        function renderMCQVisualization(container) {
+            // Simple implementation without the full module
+            const peerData = PeerDataManager.aggregateMCQResponses('Q1');
+            const consensus = PeerDataManager.calculateMCQConsensus('Q1');
+            const comparison = PeerDataManager.getPeerComparison('Q1', 'You');
+
+            let html = '<h3>MCQ Distribution</h3>';
+
+            if (consensus.hasConsensus) {
+                html += `<div class="consensus-achieved">✓ Consensus: ${consensus.percentage}% chose ${consensus.consensusAnswer}</div>`;
+            } else {
+                html += `<div class="no-consensus">No consensus (${peerData.totalResponses} responses)</div>`;
+            }
+
+            if (comparison.hasData) {
+                html += `<div class="user-comparison">Your answer: ${comparison.userAnswer} - ${comparison.percentage}% agreement</div>`;
+            }
+
+            html += '<div class="distribution-chart"><canvas id="dist-chart"></canvas></div>';
+            container.innerHTML = html;
+
+            // Render chart
+            setTimeout(() => {
+                const canvas = document.getElementById('dist-chart');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(peerData.distribution),
+                            datasets: [{
+                                label: 'Responses',
+                                data: Object.values(peerData.distribution),
+                                backgroundColor: Object.keys(peerData.distribution).map(k =>
+                                    k === 'B' ? '#3498db' : '#95a5a6'
+                                )
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            }, 100);
+        }
+
+        function renderExplanationVisualization(container) {
+            const explanations = PeerDataManager.getPeerExplanations('Q1', 5);
+
+            let html = '<h3>Peer Explanations</h3>';
+
+            if (explanations.length === 0) {
+                html += '<p>No peer explanations available</p>';
+            } else {
+                explanations.forEach(exp => {
+                    html += `
+                        <div class="peer-explanation">
+                            <div class="explanation-header">
+                                <span class="peer-username">${exp.username}</span> chose ${exp.answer}
+                            </div>
+                            <div>"${exp.reason}"</div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Initialize with some data
+        window.onload = () => {
+            addPeers('uniform');
+            toggleVisualization('both');
+        };
+    </script>
+</body>
+</html>

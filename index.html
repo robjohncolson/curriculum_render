@@ -803,6 +803,379 @@
         })();
 
         // ===============================================
+        // PEER VISUALIZATION MODULE
+        // ===============================================
+        const PeerVisualization = (function() {
+            /**
+             * Render MCQ distribution as an interactive dotplot
+             * @param {string} questionId - Question ID
+             * @param {HTMLElement} container - Container element
+             */
+            function renderMCQDistribution(questionId, container) {
+                if (!container) return;
+
+                const currentUser = StorageModule.getCurrentUsername();
+                const peerData = PeerDataManager.aggregateMCQResponses(questionId);
+                const consensus = PeerDataManager.calculateMCQConsensus(questionId);
+                const comparison = PeerDataManager.getPeerComparison(questionId, currentUser);
+
+                // Create visualization HTML
+                let html = '<div class="peer-mcq-visualization">';
+
+                // Consensus status
+                if (consensus.hasConsensus) {
+                    html += `
+                        <div class="consensus-achieved">
+                            <span class="consensus-icon">✓</span>
+                            <strong>Consensus reached!</strong>
+                            ${consensus.percentage}% chose answer ${consensus.consensusAnswer}
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="no-consensus">
+                            <span class="info-icon">ℹ</span>
+                            No clear consensus yet (${peerData.totalResponses} responses)
+                        </div>
+                    `;
+                }
+
+                // User comparison
+                if (comparison.hasData) {
+                    const alignmentText = comparison.isWithMajority ?
+                        'You\'re with the majority!' :
+                        'You chose differently from most peers';
+
+                    html += `
+                        <div class="user-comparison">
+                            <div class="your-answer">
+                                Your answer: <strong>${comparison.userAnswer}</strong>
+                            </div>
+                            <div class="peer-alignment">
+                                ${alignmentText} - ${comparison.percentage}% chose the same
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Distribution chart container
+                html += `
+                    <div class="distribution-chart">
+                        <canvas id="peer-dist-${questionId}"></canvas>
+                    </div>
+                `;
+
+                // Peer count summary
+                html += `
+                    <div class="peer-summary">
+                        <small>${peerData.totalResponses} peer${peerData.totalResponses !== 1 ? 's' : ''}
+                        have answered this question</small>
+                    </div>
+                `;
+
+                html += '</div>';
+                container.innerHTML = html;
+
+                // Render the actual chart
+                setTimeout(() => renderDistributionChart(questionId, peerData, comparison.userAnswer), 100);
+            }
+
+            /**
+             * Render distribution chart using Chart.js
+             */
+            function renderDistributionChart(questionId, peerData, userAnswer) {
+                const canvas = document.getElementById(`peer-dist-${questionId}`);
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                // Apply dynamic sizing
+                if (DynamicSizing) {
+                    const height = DynamicSizing.calculatePeerVisualizationHeight(questionId);
+                    DynamicSizing.applyCanvasHeight(canvas, height);
+                }
+
+                // Prepare data for Chart.js
+                const labels = Object.keys(peerData.distribution).sort();
+                const data = labels.map(label => peerData.distribution[label] || 0);
+
+                // Color coding: highlight user's answer
+                const colors = labels.map(label => {
+                    if (label === userAnswer) {
+                        return '#3498db'; // Blue for user's answer
+                    }
+                    return '#95a5a6'; // Gray for other answers
+                });
+
+                // Create the chart
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels.map(l => `Answer ${l}`),
+                        datasets: [{
+                            label: 'Number of Responses',
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: colors.map(c => c.replace('0.7', '1')),
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const count = context.parsed.y;
+                                        const total = peerData.totalResponses;
+                                        const percent = ((count / total) * 100).toFixed(1);
+                                        return `${count} response${count !== 1 ? 's' : ''} (${percent}%)`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1,
+                                    precision: 0
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Number of Peers'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Answer Choices'
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 500
+                        }
+                    }
+                });
+
+                // Store chart instance for cleanup
+                if (!window.peerChartInstances) window.peerChartInstances = {};
+                if (window.peerChartInstances[questionId]) {
+                    window.peerChartInstances[questionId].destroy();
+                }
+                window.peerChartInstances[questionId] = chart;
+            }
+
+            /**
+             * Render expandable peer explanations
+             * @param {string} questionId - Question ID
+             * @param {HTMLElement} container - Container element
+             * @param {number} initialLimit - Initial number to show
+             */
+            function renderPeerExplanations(questionId, container, initialLimit = 3) {
+                if (!container) return;
+
+                const explanations = PeerDataManager.getPeerExplanations(questionId, 20);
+
+                if (explanations.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-explanations">
+                            <p>No peer explanations available yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '<div class="peer-explanations">';
+                html += '<h4>Peer Explanations</h4>';
+
+                // Show initial explanations
+                const initialExplanations = explanations.slice(0, initialLimit);
+                const remainingExplanations = explanations.slice(initialLimit);
+
+                html += '<div class="explanations-list">';
+                initialExplanations.forEach(exp => {
+                    html += renderSingleExplanation(exp);
+                });
+                html += '</div>';
+
+                // Expandable section for remaining explanations
+                if (remainingExplanations.length > 0) {
+                    html += `
+                        <div class="expandable-explanations" id="more-exp-${questionId}" style="display: none;">
+                    `;
+                    remainingExplanations.forEach(exp => {
+                        html += renderSingleExplanation(exp);
+                    });
+                    html += '</div>';
+
+                    html += `
+                        <button class="show-more-btn" data-action="toggle-explanations" data-param="${questionId}">
+                            Show ${remainingExplanations.length} more explanation${remainingExplanations.length !== 1 ? 's' : ''}
+                        </button>
+                    `;
+                }
+
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            /**
+             * Render a single peer explanation
+             */
+            function renderSingleExplanation(explanation) {
+                const timeAgo = getTimeAgo(explanation.timestamp);
+                return `
+                    <div class="peer-explanation">
+                        <div class="explanation-header">
+                            <span class="peer-username">${explanation.username}</span>
+                            <span class="peer-answer">chose ${explanation.answer}</span>
+                            <span class="time-ago">${timeAgo}</span>
+                        </div>
+                        <div class="explanation-text">
+                            "${explanation.reason}"
+                        </div>
+                    </div>
+                `;
+            }
+
+            /**
+             * Create toggle button for peer/self view
+             * @param {string} questionId - Question ID
+             * @returns {string} HTML for toggle button
+             */
+            function createViewToggle(questionId) {
+                return `
+                    <div class="view-toggle" data-question="${questionId}">
+                        <button class="toggle-btn self-view active" data-action="show-self-view" data-param="${questionId}">
+                            My Answer
+                        </button>
+                        <button class="toggle-btn peer-view" data-action="show-peer-view" data-param="${questionId}">
+                            Peer Responses (${PeerDataManager.getPeerCount()})
+                        </button>
+                    </div>
+                `;
+            }
+
+            /**
+             * Toggle between self and peer view
+             */
+            function toggleView(questionId, viewType) {
+                const selfContainer = document.getElementById(`self-view-${questionId}`);
+                const peerContainer = document.getElementById(`peer-view-${questionId}`);
+                const toggleButtons = document.querySelectorAll(`.view-toggle[data-question="${questionId}"] .toggle-btn`);
+
+                if (viewType === 'peer') {
+                    if (selfContainer) selfContainer.style.display = 'none';
+                    if (peerContainer) peerContainer.style.display = 'block';
+
+                    // Update button states
+                    toggleButtons.forEach(btn => {
+                        if (btn.classList.contains('peer-view')) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    });
+
+                    // Render peer visualization if not already done
+                    if (peerContainer && !peerContainer.hasAttribute('data-rendered')) {
+                        const distContainer = peerContainer.querySelector('.distribution-container');
+                        const expContainer = peerContainer.querySelector('.explanations-container');
+
+                        if (distContainer) renderMCQDistribution(questionId, distContainer);
+                        if (expContainer) renderPeerExplanations(questionId, expContainer);
+
+                        peerContainer.setAttribute('data-rendered', 'true');
+                    }
+                } else {
+                    // Show self view
+                    if (selfContainer) selfContainer.style.display = 'block';
+                    if (peerContainer) peerContainer.style.display = 'none';
+
+                    // Update button states
+                    toggleButtons.forEach(btn => {
+                        if (btn.classList.contains('self-view')) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    });
+                }
+            }
+
+            /**
+             * Initialize peer visualization for a question
+             */
+            function initialize(questionId) {
+                // Check if peer view should be shown
+                if (!PeerDataManager.shouldShowPeerView(questionId)) {
+                    return;
+                }
+
+                // Add toggle if it doesn't exist
+                const container = document.getElementById(`peer-panel-${questionId}`);
+                if (container && !container.querySelector('.view-toggle')) {
+                    const toggleHtml = createViewToggle(questionId);
+                    container.insertAdjacentHTML('afterbegin', toggleHtml);
+                }
+            }
+
+            /**
+             * Get human-readable time ago string
+             */
+            function getTimeAgo(timestamp) {
+                if (!timestamp) return '';
+
+                const now = Date.now();
+                const then = new Date(timestamp).getTime();
+                const diff = now - then;
+
+                const minutes = Math.floor(diff / 60000);
+                const hours = Math.floor(diff / 3600000);
+                const days = Math.floor(diff / 86400000);
+
+                if (minutes < 1) return 'just now';
+                if (minutes < 60) return `${minutes}m ago`;
+                if (hours < 24) return `${hours}h ago`;
+                if (days < 7) return `${days}d ago`;
+                return new Date(timestamp).toLocaleDateString();
+            }
+
+            // Public API
+            return {
+                renderMCQDistribution,
+                renderPeerExplanations,
+                createViewToggle,
+                toggleView,
+                initialize,
+
+                // Refresh all peer visualizations
+                refreshAll: function() {
+                    document.querySelectorAll('[data-question]').forEach(element => {
+                        const questionId = element.getAttribute('data-question');
+                        if (questionId) this.initialize(questionId);
+                    });
+                },
+
+                // Clean up chart instances
+                cleanup: function() {
+                    if (window.peerChartInstances) {
+                        Object.values(window.peerChartInstances).forEach(chart => {
+                            if (chart) chart.destroy();
+                        });
+                        window.peerChartInstances = {};
+                    }
+                }
+            };
+        })();
+
+        // ===============================================
         // STATE MANAGEMENT MODULE
         // ===============================================
         const StateManager = (function() {
