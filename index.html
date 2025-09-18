@@ -83,7 +83,7 @@
             // Quiz Settings
             MAX_ATTEMPTS: 3,
             MIN_ATTEMPTS_FOR_BADGES: 5,
-            
+
             // Badge Thresholds
             BADGES: {
                 ACTIVE_LEARNER_MIN: 5,
@@ -96,7 +96,7 @@
                 OUTLIER_THRESHOLD: 0.5,
                 EXPLORER_THRESHOLD: 0.3
             },
-            
+
             // UI Settings
             CHART: {
                 DEFAULT_HEIGHT: 400,
@@ -106,28 +106,66 @@
                 LEGEND_PADDING: 20,
                 ANIMATION_DURATION: 300
             },
-            
-            // Timing
+
+            // Timing (in milliseconds)
             DELAYS: {
                 CHART_RENDER: 100,
                 MESSAGE_DISPLAY: 3000,
-                SCROLL_DELAY: 100
+                SCROLL_DELAY: 100,
+                DEBOUNCE_SAVE: 500,
+                THROTTLE_SCROLL: 16,
+                ANIMATION_FRAME: 16,
+                ANSWER_REVEAL: 60 * 60 * 1000, // 1 hour
+                TEACHER_MODE_TIMEOUT: 30 * 60 * 1000 // 30 minutes
             },
-            
+
             // Text Area Settings
             TEXTAREA: {
                 MIN_HEIGHT: 200,
-                DEFAULT_PADDING: 10
+                DEFAULT_PADDING: 10,
+                MAX_LENGTH: 5000
             },
-            
+
             // Random Username Generation
             RANDOM_NUMBER_MAX: 1000,
-            
+
             // Chart Colors
             CHART_COLORS: [
                 '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
                 '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
-            ]
+            ],
+
+            // Storage Settings
+            STORAGE: {
+                PREFIX: 'apstats_',
+                MAX_SIZE_MB: 10,
+                CACHE_DURATION: 24 * 60 * 60 * 1000 // 24 hours
+            },
+
+            // Validation Rules
+            VALIDATION: {
+                MIN_USERNAME_LENGTH: 3,
+                MAX_USERNAME_LENGTH: 50,
+                MIN_EXPLANATION_LENGTH: 10,
+                REQUIRED_EXPLANATION_ATTEMPTS: 3
+            },
+
+            // UI Layout
+            LAYOUT: {
+                QUESTION_PANEL_WIDTH: 900,
+                PEER_PANEL_MIN_WIDTH: 400,
+                RESPONSIVE_BREAKPOINT: 1400,
+                MAX_VISIBLE_PEERS: 20,
+                ITEMS_PER_PAGE: 10
+            },
+
+            // Performance
+            PERFORMANCE: {
+                VIRTUAL_SCROLL_BUFFER: 3,
+                LAZY_LOAD_THRESHOLD: 0.1,
+                MAX_CHART_INSTANCES: 10,
+                BATCH_UPDATE_SIZE: 50
+            }
         };
         
         // ===============================================
@@ -2127,6 +2165,133 @@
             }
         
         // ===============================================
+        // DOM UTILITIES - Safe DOM manipulation helpers
+        // ===============================================
+
+        /**
+         * Safe getElementById wrapper with error handling
+         * @param {string} id - Element ID
+         * @returns {HTMLElement|null} Element or null if not found
+         */
+        function safeGetElement(id) {
+            try {
+                return document.getElementById(id);
+            } catch (error) {
+                console.warn(`Element with id "${id}" not found`);
+                return null;
+            }
+        }
+
+        /**
+         * Safe querySelector wrapper
+         * @param {string} selector - CSS selector
+         * @param {Element} context - Context element (default: document)
+         * @returns {Element|null} Element or null if not found
+         */
+        function safeQuery(selector, context = document) {
+            try {
+                return context.querySelector(selector);
+            } catch (error) {
+                console.warn(`No element matching selector "${selector}"`);
+                return null;
+            }
+        }
+
+        /**
+         * Safe querySelectorAll wrapper
+         * @param {string} selector - CSS selector
+         * @param {Element} context - Context element (default: document)
+         * @returns {NodeList} NodeList (empty if no matches)
+         */
+        function safeQueryAll(selector, context = document) {
+            try {
+                return context.querySelectorAll(selector);
+            } catch (error) {
+                console.warn(`Error with selector "${selector}"`);
+                return [];
+            }
+        }
+
+        /**
+         * Safe innerHTML setter with XSS prevention
+         * @param {Element} element - Target element
+         * @param {string} html - HTML content
+         * @param {boolean} sanitize - Whether to sanitize (default: true)
+         */
+        function safeSetHTML(element, html, sanitize = true) {
+            if (!element) return;
+
+            if (sanitize) {
+                // Basic XSS prevention - remove script tags
+                html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+            }
+
+            element.innerHTML = html;
+        }
+
+        /**
+         * Create element with attributes and content
+         * @param {string} tag - HTML tag name
+         * @param {Object} attrs - Attributes object
+         * @param {string|Element} content - Content (text or element)
+         * @returns {Element} Created element
+         */
+        function createElement(tag, attrs = {}, content = null) {
+            const element = document.createElement(tag);
+
+            // Set attributes
+            Object.entries(attrs).forEach(([key, value]) => {
+                if (key === 'class' || key === 'className') {
+                    element.className = value;
+                } else if (key === 'style' && typeof value === 'object') {
+                    Object.assign(element.style, value);
+                } else if (key.startsWith('data-')) {
+                    element.setAttribute(key, value);
+                } else {
+                    element[key] = value;
+                }
+            });
+
+            // Set content
+            if (content !== null) {
+                if (typeof content === 'string') {
+                    element.textContent = content;
+                } else if (content instanceof Element) {
+                    element.appendChild(content);
+                }
+            }
+
+            return element;
+        }
+
+        /**
+         * Toggle class on element
+         * @param {Element} element - Target element
+         * @param {string} className - Class name to toggle
+         * @param {boolean} force - Force add (true) or remove (false)
+         */
+        function toggleClass(element, className, force = undefined) {
+            if (!element) return;
+
+            if (force !== undefined) {
+                element.classList.toggle(className, force);
+            } else {
+                element.classList.toggle(className);
+            }
+        }
+
+        /**
+         * Show/hide element with display style
+         * @param {Element} element - Target element
+         * @param {boolean} show - Show (true) or hide (false)
+         * @param {string} displayType - Display type when shown (default: 'block')
+         */
+        function toggleDisplay(element, show, displayType = 'block') {
+            if (!element) return;
+            element.style.display = show ? displayType : 'none';
+        }
+
+        // ===============================================
         // OPTIMIZED RENDERING
         // ===============================================
         
@@ -2217,12 +2382,20 @@
                 lazyLoadElements: lazyLoadElements,
                 lazyLoadQuizData: lazyLoadQuizData,
                 errorBoundary: errorBoundary,
-                DevTools: DevTools
+                DevTools: DevTools,
+                // DOM Utilities
+                safeGetElement: safeGetElement,
+                safeQuery: safeQuery,
+                safeQueryAll: safeQueryAll,
+                safeSetHTML: safeSetHTML,
+                createElement: createElement,
+                toggleClass: toggleClass,
+                toggleDisplay: toggleDisplay
             };
         })(); // End of UtilitiesModule
         
         // Now that UtilitiesModule is defined, replace saveClassData with debounced version
-        saveClassData = UtilitiesModule.debounce(saveClassDataImmediate, 500);
+        saveClassData = UtilitiesModule.debounce(saveClassDataImmediate, CONFIG.DELAYS.DEBOUNCE_SAVE);
 
         // ===============================================
         // DYNAMIC SIZING MODULE - Responsive Chart Heights
@@ -2965,7 +3138,7 @@
                         <div style="flex: 1; max-width: 300px; padding: 20px; border: 2px solid #3498db; border-radius: 8px;">
                             <h3 style="margin-top: 0;">New Student</h3>
                             <p>Your generated username:</p>
-                            <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
+                            <div class="username-suggestion">${suggestedName}</div>
                             <button data-action="accept-username" data-param="${suggestedName}" class="start-button" style="width: 100%; margin-bottom: 10px;">Use This Name</button>
                             <button data-action="reroll-username" class="start-button" style="background: #7f8c8d; width: 100%;">Generate New Name</button>
                         </div>
@@ -2976,12 +3149,12 @@
                             <p>Enter your existing username:</p>
                             <input type="text" id="existing-username-input" placeholder="e.g., Cherry_Dog" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
                             <button data-action="login-existing" class="start-button" style="background: #27ae60; width: 100%;">Login</button>
-                            <p style="font-size: 12px; color: #666; margin-top: 10px;">Use this if you already have data from another session or device</p>
+                            <p class="import-hint">Use this if you already have data from another session or device</p>
                         </div>
                     </div>
 
                     <div style="margin-top: 30px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
-                        <p style="margin: 0; color: #666;">
+                        <p class="username-note">
                             <strong>Note:</strong> Your username lets you track your progress and compare with peers.
                             If switching devices, use "Returning Student" to continue where you left off.
                         </p>
@@ -3405,7 +3578,7 @@ function renderLessonSelector(unitInfo) {
                             <div class="quiz-container">
                                 <div class="question-header">
                                     <span>Question ${questionNumber}</span>
-                                    ${isAnswered ? '<span style="color: #a5d6a7;">✓ Answered</span>' : ''}
+                                    ${isAnswered ? '<span class="status-answered">✓ Answered</span>' : ''}
                                 </div>
                                 <div class="question-id">ID: ${question.id || 'N/A'}</div>
                                 <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
@@ -3466,7 +3639,7 @@ function renderLessonSelector(unitInfo) {
                     <div class="reason-wrapper">
                         <label class="reason-label">
                             Explain your reasoning:
-                            ${!savedReason && isAnswered ? '<span style="color: #FF9800;"> (Add explanation to unlock answer changes)</span>' : ''}
+                            ${!savedReason && isAnswered ? '<span class="status-warning"> (Add explanation to unlock answer changes)</span>' : ''}
                         </label>
                         <textarea
                             id="reason-${question.id}"
@@ -3488,7 +3661,7 @@ function renderLessonSelector(unitInfo) {
                                 id="add-reason-${question.id}"
                                 class="add-reason-button"
                                 data-action="add-reason" data-param="${question.id}"
-                                style="background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;"
+                                class="btn-warning"
                             >
                                 Add Explanation Only
                             </button>
@@ -3504,7 +3677,7 @@ function renderLessonSelector(unitInfo) {
                         <div class="peer-data-panel ${isAnswered ? 'visible' : 'hidden'}" id="peer-panel-${question.id}">
                             <div class="peer-panel-header">
                                 <h3>Peer Consensus</h3>
-                                ${isAnswered ? '' : '<p style="color: #999;">Submit your answer to see peer data</p>'}
+                                ${isAnswered ? '' : '<p class="status-pending">Submit your answer to see peer data</p>'}
                             </div>
                             ${isAnswered ? `
                                 <div class="dotplot-container" id="dotplot-section-${question.id}">
@@ -3547,7 +3720,7 @@ function renderLessonSelector(unitInfo) {
               let chartHtml = `
                   <div class="chart-container" ${containerStyle}>
                       <div class="chart-title">${chartTitle}</div>
-                      ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` :
+                      ${config.description ? `<div class="chart-description">${config.description}</div>` :
   ''}
                       <div class="chart-canvas" style="height: ${dynamicHeight}px;">
                           <canvas id="${chartId}" style="height: ${dynamicHeight}px;"></canvas>

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(grep:*)",
       "Bash(curl:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Read(///**)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": []

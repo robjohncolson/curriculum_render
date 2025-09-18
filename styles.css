@@ -928,6 +928,101 @@ body.dark-theme .lesson-buttons {
     transition: width 0.3s ease;
 }
 
+/* ===== Refactored Inline Styles (Phase 1) ===== */
+
+/* Username modal styles */
+.username-suggestion {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3498db;
+    margin: 15px;
+}
+
+.import-hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.username-note {
+    margin: 0;
+    color: #666;
+}
+
+/* Status indicators */
+.status-answered {
+    color: #a5d6a7;
+}
+
+.status-warning {
+    color: #FF9800;
+}
+
+.status-pending {
+    color: #999;
+}
+
+/* Button styles */
+.btn-warning {
+    background: #FF9800;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-warning:hover {
+    background: #F57C00;
+}
+
+/* Description text */
+.chart-description {
+    font-size: 0.9em;
+    color: #666;
+    text-align: center;
+    margin-bottom: 10px;
+    font-style: italic;
+}
+
+/* Dark mode additions */
+body.dark-theme .username-suggestion {
+    color: #5BC0EB;
+}
+
+body.dark-theme .import-hint {
+    color: #a0a0a0;
+}
+
+body.dark-theme .username-note {
+    color: #a0a0a0;
+}
+
+body.dark-theme .status-answered {
+    color: #51cf66;
+}
+
+body.dark-theme .status-warning {
+    color: #ffa94d;
+}
+
+body.dark-theme .status-pending {
+    color: #666;
+}
+
+body.dark-theme .btn-warning {
+    background: #FF9800;
+    color: #1a1a1a;
+}
+
+body.dark-theme .btn-warning:hover {
+    background: #ffa94d;
+}
+
+body.dark-theme .chart-description {
+    color: #a0a0a0;
+}
+
 /* ===== Side-by-side Question Layout ===== */
 .quiz-container-wrapper {
     width: 100%;
