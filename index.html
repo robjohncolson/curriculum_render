@@ -6490,17 +6490,50 @@ function renderAttachments(attachments, questionId) {
 
         // Show message
         function showMessage(text, type) {
-            const messageArea = document.getElementById('messageArea');
+            let messageArea = document.getElementById('messageArea');
+
+            // If messageArea doesn't exist, create a temporary one
+            if (!messageArea) {
+                messageArea = document.createElement('div');
+                messageArea.id = 'messageArea';
+                messageArea.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    max-width: 400px;
+                `;
+                document.body.appendChild(messageArea);
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
+            messageDiv.style.cssText = `
+                padding: 15px 20px;
+                margin-bottom: 10px;
+                border-radius: 5px;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                opacity: 1;
+                transition: opacity 0.3s ease;
+                ${type === 'error' ? 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;' : ''}
+                ${type === 'success' ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : ''}
+                ${type === 'info' ? 'background: #d1ecf1; color: #004085; border: 1px solid #bee5eb;' : ''}
+                ${type === 'warning' ? 'background: #fff3cd; color: #856404; border: 1px solid #ffeeba;' : ''}
+            `;
             messageDiv.textContent = text;
-            
+
             messageArea.innerHTML = '';
             messageArea.appendChild(messageDiv);
-            
+
             setTimeout(() => {
                 messageDiv.style.opacity = '0';
-                setTimeout(() => messageArea.innerHTML = '', 300);
+                setTimeout(() => {
+                    if (messageArea && messageArea.parentNode) {
+                        messageArea.innerHTML = '';
+                    }
+                }, 300);
             }, 5000);
         }
 
@@ -6532,17 +6565,426 @@ function renderAttachments(attachments, questionId) {
             applyTheme(newTheme);
         }
 
+        // ===============================================
+        // USERNAME PERSISTENCE & LOGIN SYSTEM
+        // ===============================================
+
+        /**
+         * Generate a unique username for new students (Fruit_Animal format)
+         */
+        function generateUniqueUsername() {
+            const fruits = ['Apple', 'Cherry', 'Melon', 'Berry', 'Peach', 'Mango', 'Grape', 'Lemon', 'Orange', 'Plum', 'Kiwi', 'Date'];
+            const animals = ['Owl', 'Dog', 'Cat', 'Horse', 'Bear', 'Fox', 'Wolf', 'Eagle', 'Deer', 'Lion', 'Tiger', 'Rabbit'];
+            const fruit = fruits[Math.floor(Math.random() * fruits.length)];
+            const animal = animals[Math.floor(Math.random() * animals.length)];
+            return `${fruit}_${animal}`;
+        }
+
+        // Alias for compatibility
+        function generateRandomUsername() {
+            return generateUniqueUsername();
+        }
+
+        /**
+         * Show username prompt with options for new and returning students
+         */
+        function promptUsername() {
+            const container = document.getElementById('questions-container') || document.getElementById('questionsContainer') || document.body;
+
+            // Check for existing username from multiple sources
+            const savedUsername = localStorage.getItem('rememberedUsername') ||
+                                  localStorage.getItem('consensusUsername') ||
+                                  StorageModule.getCurrentUsername();
+
+            container.innerHTML = `
+                <div class="username-welcome" style="
+                    max-width: 600px;
+                    margin: 50px auto;
+                    padding: 30px;
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                    text-align: center;
+                ">
+                    <h1 style="color: #2c3e50; margin-bottom: 20px;">Welcome to AP Statistics Quiz</h1>
+
+                    ${savedUsername ? `
+                        <div class="remembered-user" style="
+                            background: #e8f4f8;
+                            padding: 20px;
+                            border-radius: 10px;
+                            margin-bottom: 20px;
+                        ">
+                            <p style="margin-bottom: 15px;">Welcome back, <strong>${savedUsername}</strong>!</p>
+                            <button onclick="continueAsUser('${savedUsername}')" style="
+                                background: #3498db;
+                                color: white;
+                                padding: 12px 30px;
+                                border: none;
+                                border-radius: 5px;
+                                font-size: 16px;
+                                cursor: pointer;
+                                margin: 5px;
+                            ">Continue as ${savedUsername}</button>
+                            <button onclick="loginAsDifferentUser()" style="
+                                background: #95a5a6;
+                                color: white;
+                                padding: 12px 30px;
+                                border: none;
+                                border-radius: 5px;
+                                font-size: 16px;
+                                cursor: pointer;
+                                margin: 5px;
+                            ">Use Different Account</button>
+                        </div>
+                    ` : ''}
+
+                    <div class="username-options">
+                        ${!savedUsername ? `
+                            <div style="margin-bottom: 30px;">
+                                <button onclick="showNewStudentSetup()" style="
+                                    background: #27ae60;
+                                    color: white;
+                                    padding: 15px 40px;
+                                    border: none;
+                                    border-radius: 8px;
+                                    font-size: 18px;
+                                    cursor: pointer;
+                                    margin: 10px;
+                                    transition: all 0.3s;
+                                ">
+                                    🆕 I'm a New Student
+                                </button>
+                                <button onclick="showReturningStudentLogin()" style="
+                                    background: #3498db;
+                                    color: white;
+                                    padding: 15px 40px;
+                                    border: none;
+                                    border-radius: 8px;
+                                    font-size: 18px;
+                                    cursor: pointer;
+                                    margin: 10px;
+                                    transition: all 0.3s;
+                                ">
+                                    🔄 I Have a Username
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        <div id="username-input-area"></div>
+                    </div>
+
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;">
+                        <p style="color: #7f8c8d; font-size: 14px;">
+                            💡 Tip: Remember your username to access your data on any device!
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Show new student setup
+         */
+        function showNewStudentSetup() {
+            const inputArea = document.getElementById('username-input-area');
+            const suggestedUsername = generateUniqueUsername();
+
+            inputArea.innerHTML = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h3>Create Your Username</h3>
+                    <p style="margin-bottom: 15px;">Choose a unique username or use our suggestion:</p>
+
+                    <input type="text" id="username-input" value="${suggestedUsername}" style="
+                        width: 300px;
+                        padding: 10px;
+                        font-size: 16px;
+                        border: 2px solid #3498db;
+                        border-radius: 5px;
+                        margin-bottom: 15px;
+                    ">
+
+                    <div>
+                        <button onclick="generateNewSuggestion()" style="
+                            background: #95a5a6;
+                            color: white;
+                            padding: 8px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin: 5px;
+                        ">🎲 New Suggestion</button>
+
+                        <button onclick="acceptUsername()" style="
+                            background: #27ae60;
+                            color: white;
+                            padding: 8px 30px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin: 5px;
+                        ">✓ Start Quiz</button>
+                    </div>
+
+                    <label style="display: block; margin-top: 15px;">
+                        <input type="checkbox" id="remember-checkbox" checked>
+                        Remember me on this device
+                    </label>
+                </div>
+            `;
+
+            document.getElementById('username-input').focus();
+        }
+
+        /**
+         * Show returning student login
+         */
+        function showReturningStudentLogin() {
+            const inputArea = document.getElementById('username-input-area');
+
+            inputArea.innerHTML = `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h3>Enter Your Username</h3>
+                    <p style="margin-bottom: 15px;">Enter your existing username to continue:</p>
+
+                    <input type="text" id="username-input" placeholder="Enter your username..." style="
+                        width: 300px;
+                        padding: 10px;
+                        font-size: 16px;
+                        border: 2px solid #3498db;
+                        border-radius: 5px;
+                        margin-bottom: 15px;
+                    ">
+
+                    <div>
+                        <button onclick="loginWithUsername()" style="
+                            background: #3498db;
+                            color: white;
+                            padding: 8px 30px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin: 5px;
+                        ">📥 Login & Sync Data</button>
+                    </div>
+
+                    <label style="display: block; margin-top: 15px;">
+                        <input type="checkbox" id="remember-checkbox" checked>
+                        Remember me on this device
+                    </label>
+
+                    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                        <p style="margin: 0; color: #856404;">
+                            📁 Have a data export file?
+                            <label style="color: #3498db; cursor: pointer; text-decoration: underline;">
+                                <input type="file" accept=".json" onchange="importStudentDataFile(event)" style="display: none;">
+                                Click here to import
+                            </label>
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('username-input').focus();
+        }
+
+        /**
+         * Generate new username suggestion
+         */
+        function generateNewSuggestion() {
+            const input = document.getElementById('username-input');
+            input.value = generateUniqueUsername();
+        }
+
+        /**
+         * Accept the entered username
+         */
+        function acceptUsername() {
+            const username = document.getElementById('username-input').value.trim();
+            const remember = document.getElementById('remember-checkbox').checked;
+
+            if (!username) {
+                showMessage('Please enter a username', 'error');
+                return;
+            }
+
+            // Set current username
+            currentUsername = username;
+
+            // Remember if requested
+            if (remember) {
+                localStorage.setItem('rememberedUsername', username);
+            }
+
+            // Initialize user data
+            initClassData();
+
+            // Check if this user has existing data in class
+            if (classData.users[username] && Object.keys(classData.users[username].answers || {}).length > 0) {
+                showMessage(`Welcome back, ${username}! Your progress has been restored.`, 'success');
+            } else {
+                showMessage(`Welcome, ${username}! Let's get started!`, 'success');
+            }
+
+            // Initialize from embedded data and show unit menu
+            initializeFromEmbeddedData();
+        }
+
+        /**
+         * Login with existing username
+         */
+        function loginWithUsername() {
+            const username = document.getElementById('username-input').value.trim();
+            const remember = document.getElementById('remember-checkbox').checked;
+
+            if (!username) {
+                showMessage('Please enter your username', 'error');
+                return;
+            }
+
+            currentUsername = username;
+
+            if (remember) {
+                localStorage.setItem('rememberedUsername', username);
+            }
+
+            initClassData();
+
+            // Check for existing data
+            const userData = classData.users[username];
+            if (userData && Object.keys(userData.answers || {}).length > 0) {
+                const answerCount = Object.keys(userData.answers).length;
+                showMessage(`Welcome back, ${username}! Found ${answerCount} saved answers.`, 'success');
+            } else {
+                showMessage(`Welcome, ${username}! No previous data found. Starting fresh.`, 'info');
+            }
+
+            initializeFromEmbeddedData();
+        }
+
+        /**
+         * Continue as remembered user
+         */
+        function continueAsUser(username) {
+            currentUsername = username;
+            initClassData();
+
+            const userData = classData.users[username];
+            if (userData && Object.keys(userData.answers || {}).length > 0) {
+                const answerCount = Object.keys(userData.answers).length;
+                showMessage(`Welcome back, ${username}! You have ${answerCount} saved answers.`, 'success');
+            }
+
+            initializeFromEmbeddedData();
+        }
+
+        /**
+         * Login as different user
+         */
+        function loginAsDifferentUser() {
+            localStorage.removeItem('rememberedUsername');
+            promptUsername();
+        }
+
+        /**
+         * Import student data file
+         */
+        async function importStudentDataFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const importData = JSON.parse(text);
+
+                // Validate the import
+                if (!importData.username || !importData.data) {
+                    showMessage('Invalid data file format', 'error');
+                    return;
+                }
+
+                // Set the username
+                currentUsername = importData.username;
+                document.getElementById('username-input').value = importData.username;
+
+                // Import the data
+                initClassData();
+
+                // Merge imported data
+                const mergeResult = StorageModule.mergeStudentData(
+                    classData,
+                    importData.username,
+                    importData.data
+                );
+
+                StorageModule.saveClassData(classData);
+
+                const answerCount = Object.keys(importData.data.answers || {}).length;
+                showMessage(`Successfully imported ${answerCount} answers for ${importData.username}`, 'success');
+
+                // Remember username if checkbox is checked
+                if (document.getElementById('remember-checkbox').checked) {
+                    localStorage.setItem('rememberedUsername', importData.username);
+                }
+
+                // Auto-login after import
+                setTimeout(() => {
+                    initializeFromEmbeddedData();
+                }, 1500);
+
+            } catch (error) {
+                showMessage(`Import error: ${error.message}`, 'error');
+            }
+        }
+
         // Initialize on load
         window.onload = function() {
             initTheme();
-            
+
             // Check localStorage support
             if (!window.localStorage) {
                 showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
             }
-            
-            promptUsername();
+
+            // Check if user already exists
+            const existingUsername = localStorage.getItem('consensusUsername') ||
+                                     localStorage.getItem('rememberedUsername');
+
+            if (existingUsername) {
+                // Auto-login existing user
+                currentUsername = existingUsername;
+                initClassData();
+
+                // Check if they have data
+                const userData = classData.users[existingUsername];
+                if (userData && Object.keys(userData.answers || {}).length > 0) {
+                    // Go straight to units
+                    initializeFromEmbeddedData();
+                } else {
+                    // Show prompt with their name pre-filled
+                    promptUsername();
+                }
+            } else {
+                promptUsername();
+            }
         }
+
+        // Expose functions to global scope for onclick handlers
+        window.generateUniqueUsername = generateUniqueUsername;
+        window.generateRandomUsername = generateRandomUsername;
+        window.promptUsername = promptUsername;
+        window.showNewStudentSetup = showNewStudentSetup;
+        window.showReturningStudentLogin = showReturningStudentLogin;
+        window.generateNewSuggestion = generateNewSuggestion;
+        window.acceptUsername = acceptUsername;
+        window.loginWithUsername = loginWithUsername;
+        window.continueAsUser = continueAsUser;
+        window.loginAsDifferentUser = loginAsDifferentUser;
+        window.importStudentDataFile = importStudentDataFile;
+        window.showMessage = showMessage;
+        window.initClassData = initClassData;
+        window.initializeFromEmbeddedData = initializeFromEmbeddedData;
+        window.renderUnitMenu = renderUnitMenu;
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
