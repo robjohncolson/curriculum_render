@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Merge Testing - Teacher Tools</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: white;
+            padding: 30px;
+        }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            opacity: 0.9;
+        }
+        .content {
+            padding: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .success-btn { background: #27ae60; }
+        .success-btn:hover { background: #229954; }
+        .warning-btn { background: #f39c12; }
+        .warning-btn:hover { background: #e67e22; }
+        .danger-btn { background: #e74c3c; }
+        .danger-btn:hover { background: #c0392b; }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .file-input-label:hover {
+            background: #2980b9;
+        }
+        .file-list {
+            margin: 15px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .file-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #ecf0f1;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .log {
+            background: #2c3e50;
+            color: #1abc9c;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-warning { color: #f39c12; }
+        .log-info { color: #3498db; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            animation: slideIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👩‍🏫 Teacher Data Management Console</h1>
+            <p>Import, merge, and export student data for AP Statistics Quiz</p>
+        </div>
+
+        <div class="content">
+            <!-- Data Generation Section -->
+            <div class="section">
+                <h2>📝 Generate Test Data</h2>
+                <p>Create simulated student export files for testing the merge functionality</p>
+                <div class="button-group">
+                    <button onclick="generateStudentFiles(5)">Generate 5 Students</button>
+                    <button onclick="generateStudentFiles(10)">Generate 10 Students</button>
+                    <button onclick="generateStudentFiles(30)">Generate 30 Students</button>
+                    <button onclick="generateConflictingFiles()">Generate Conflicting Data</button>
+                </div>
+                <div id="generated-files" class="file-list" style="display:none;"></div>
+            </div>
+
+            <!-- Import Section -->
+            <div class="section">
+                <h2>📥 Import & Merge Student Data</h2>
+                <p>Select multiple student export files to merge into master database</p>
+
+                <div class="file-input-wrapper">
+                    <input type="file" id="import-files" multiple accept=".json">
+                    <label for="import-files" class="file-input-label">
+                        Choose Files (JSON)
+                    </label>
+                </div>
+
+                <div id="selected-files" class="file-list" style="display:none;"></div>
+
+                <div class="button-group">
+                    <button id="merge-btn" onclick="performMerge()" disabled>
+                        Merge Selected Files
+                    </button>
+                    <button onclick="clearSelection()" class="warning-btn">
+                        Clear Selection
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="section">
+                <h2>📊 Current Database Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-students">0</div>
+                        <div class="stat-label">Total Students</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-questions">0</div>
+                        <div class="stat-label">Questions Answered</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-responses">0</div>
+                        <div class="stat-label">Total Responses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-conflicts">0</div>
+                        <div class="stat-label">Conflicts Resolved</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Section -->
+            <div class="section">
+                <h2>📤 Export Data</h2>
+                <p>Export merged data for distribution or backup</p>
+                <div class="button-group">
+                    <button onclick="exportMasterDatabase()" class="success-btn">
+                        Export Master Database
+                    </button>
+                    <button onclick="exportForGradebook()">
+                        Export Gradebook Format
+                    </button>
+                    <button onclick="exportStudentReports()">
+                        Generate Student Reports
+                    </button>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="section">
+                <h2>📋 Activity Log</h2>
+                <div id="log" class="log">
+                    <div class="log-entry log-info">System ready. Waiting for input...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content">
+            <h2>✅ Merge Complete!</h2>
+            <p id="merge-summary"></p>
+            <button onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Mock StorageModule for testing
+        const StorageModule = {
+            importAndMergeFiles: async function(files) {
+                // Simulate merge process
+                const results = {
+                    successful: 0,
+                    failed: 0,
+                    conflicts: [],
+                    mergedUsers: [],
+                    errors: []
+                };
+
+                for (const file of files) {
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        results.successful++;
+                        results.mergedUsers.push(data.username || `Student_${results.successful}`);
+                    } catch (e) {
+                        results.failed++;
+                        results.errors.push({ file: file.name, error: e.message });
+                    }
+                }
+
+                return results;
+            },
+
+            mergeMasterDatabase: function(imports) {
+                return {
+                    users: imports.reduce((acc, imp) => {
+                        if (imp.username) {
+                            acc[imp.username] = imp.data || {};
+                        }
+                        return acc;
+                    }, {}),
+                    metadata: {
+                        totalUsers: imports.length,
+                        lastMerge: new Date().toISOString(),
+                        version: '2.0'
+                    }
+                };
+            }
+        };
+
+        let generatedData = [];
+        let selectedFiles = [];
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function generateStudentFiles(count) {
+            generatedData = [];
+            const container = document.getElementById('generated-files');
+            container.innerHTML = '<strong>Generated Files:</strong><br>';
+
+            for (let i = 0; i < count; i++) {
+                const studentName = `Student_${Date.now()}_${i}`;
+                const data = {
+                    version: '2.0',
+                    exportType: 'student_data',
+                    exportDate: new Date().toISOString(),
+                    username: studentName,
+                    data: {
+                        answers: generateRandomAnswers(),
+                        reasons: generateRandomReasons(),
+                        timestamps: generateTimestamps(),
+                        attempts: generateAttempts()
+                    }
+                };
+
+                generatedData.push(data);
+
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>${studentName}.json</span>
+                    <button onclick="downloadGeneratedFile(${i})">Download</button>
+                `;
+                container.appendChild(item);
+            }
+
+            container.style.display = 'block';
+            log(`Generated ${count} student files`, 'success');
+        }
+
+        function generateRandomAnswers() {
+            const answers = {};
+            const choices = ['A', 'B', 'C', 'D'];
+            for (let q = 1; q <= 10; q++) {
+                if (Math.random() > 0.3) { // 70% chance of answering
+                    answers[`Q${q}`] = choices[Math.floor(Math.random() * 4)];
+                }
+            }
+            return answers;
+        }
+
+        function generateRandomReasons() {
+            const reasons = {};
+            const templates = [
+                'I chose this because the data suggests',
+                'The pattern indicates',
+                'Based on the statistical analysis',
+                'The evidence points to',
+                'My reasoning is that'
+            ];
+            for (let q = 1; q <= 10; q++) {
+                if (Math.random() > 0.5) { // 50% add reasons
+                    reasons[`Q${q}`] = templates[Math.floor(Math.random() * templates.length)] +
+                                      ' this is the correct answer.';
+                }
+            }
+            return reasons;
+        }
+
+        function generateTimestamps() {
+            const timestamps = {};
+            const now = Date.now();
+            for (let q = 1; q <= 10; q++) {
+                if (Math.random() > 0.3) {
+                    // Random time in last 7 days
+                    timestamps[`Q${q}`] = new Date(now - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString();
+                }
+            }
+            return timestamps;
+        }
+
+        function generateAttempts() {
+            const attempts = {};
+            for (let q = 1; q <= 10; q++) {
+                if (Math.random() > 0.3) {
+                    attempts[`Q${q}`] = Math.floor(Math.random() * 3) + 1;
+                }
+            }
+            return attempts;
+        }
+
+        function generateConflictingFiles() {
+            // Generate files with same username but different data
+            generatedData = [];
+            const username = 'Conflict_Student';
+
+            for (let i = 0; i < 3; i++) {
+                const data = {
+                    version: '2.0',
+                    exportType: 'student_data',
+                    exportDate: new Date(Date.now() + i * 1000).toISOString(),
+                    username: username,
+                    data: {
+                        answers: generateRandomAnswers(),
+                        reasons: generateRandomReasons(),
+                        timestamps: generateTimestamps(),
+                        attempts: generateAttempts()
+                    }
+                };
+                generatedData.push(data);
+            }
+
+            log('Generated 3 conflicting files for testing conflict resolution', 'warning');
+        }
+
+        function downloadGeneratedFile(index) {
+            const data = generatedData[index];
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${data.username}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            log(`Downloaded ${data.username}.json`, 'info');
+        }
+
+        // File selection handling
+        document.getElementById('import-files').addEventListener('change', function(e) {
+            selectedFiles = Array.from(e.target.files);
+            const container = document.getElementById('selected-files');
+
+            if (selectedFiles.length > 0) {
+                container.innerHTML = '<strong>Selected Files:</strong><br>';
+                selectedFiles.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.innerHTML = `
+                        <span>${file.name}</span>
+                        <span>${(file.size / 1024).toFixed(2)} KB</span>
+                    `;
+                    container.appendChild(item);
+                });
+                container.style.display = 'block';
+                document.getElementById('merge-btn').disabled = false;
+                log(`Selected ${selectedFiles.length} files for import`, 'info');
+            }
+        });
+
+        async function performMerge() {
+            if (selectedFiles.length === 0) {
+                log('No files selected', 'error');
+                return;
+            }
+
+            log(`Starting merge of ${selectedFiles.length} files...`, 'info');
+
+            try {
+                const results = await StorageModule.importAndMergeFiles(selectedFiles);
+
+                // Update statistics
+                updateStats(results);
+
+                // Show success modal
+                const summary = `
+                    Successfully merged ${results.successful} files.
+                    Added ${results.mergedUsers.length} students.
+                    ${results.conflicts.length} conflicts resolved.
+                    ${results.failed} files failed.
+                `;
+                document.getElementById('merge-summary').textContent = summary;
+                document.getElementById('success-modal').classList.add('active');
+
+                log(`Merge complete: ${results.successful} successful, ${results.failed} failed`, 'success');
+
+                if (results.conflicts.length > 0) {
+                    log(`Resolved ${results.conflicts.length} conflicts using timestamp priority`, 'warning');
+                }
+
+            } catch (error) {
+                log(`Merge error: ${error.message}`, 'error');
+            }
+        }
+
+        function updateStats(results) {
+            document.getElementById('stat-students').textContent = results.mergedUsers.length;
+            document.getElementById('stat-questions').textContent = '10'; // Mock
+            document.getElementById('stat-responses').textContent = results.mergedUsers.length * 7; // Mock
+            document.getElementById('stat-conflicts').textContent = results.conflicts.length;
+        }
+
+        function clearSelection() {
+            selectedFiles = [];
+            document.getElementById('selected-files').style.display = 'none';
+            document.getElementById('import-files').value = '';
+            document.getElementById('merge-btn').disabled = true;
+            log('Cleared file selection', 'info');
+        }
+
+        function exportMasterDatabase() {
+            const masterData = {
+                version: '2.0',
+                exportType: 'class_data',
+                exportDate: new Date().toISOString(),
+                users: {}, // Would contain merged data
+                metadata: {
+                    totalUsers: document.getElementById('stat-students').textContent,
+                    exportedBy: 'Teacher'
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `master_database_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            log('Exported master database', 'success');
+        }
+
+        function exportForGradebook() {
+            log('Gradebook export feature coming soon', 'info');
+        }
+
+        function exportStudentReports() {
+            log('Student reports feature coming soon', 'info');
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

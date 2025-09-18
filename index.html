@@ -507,19 +507,261 @@
             getStorageStats() {
                 let totalSize = 0;
                 let itemCount = 0;
-                
+
                 for (let key in localStorage) {
                     if (localStorage.hasOwnProperty(key)) {
                         totalSize += localStorage[key].length + key.length;
                         itemCount++;
                     }
                 }
-                
+
                 return {
                     totalSize: totalSize,
                     itemCount: itemCount,
                     estimatedMB: (totalSize / 1024 / 1024).toFixed(2)
                 };
+            }
+
+            // ========== Enhanced Export/Import for Class Data ==========
+
+            /**
+             * Export entire class data for teacher/backup
+             * @returns {Object} Complete class data export
+             */
+            exportClassData() {
+                const classData = this.getClassData();
+                const timestamp = new Date().toISOString();
+
+                return {
+                    version: '2.0',
+                    exportType: 'class_data',
+                    exportDate: timestamp,
+                    metadata: {
+                        ...classData.metadata,
+                        exportedBy: this.getCurrentUsername(),
+                        studentCount: Object.keys(classData.users || {}).length
+                    },
+                    users: classData.users,
+                    consensusData: this.getConsensusData()
+                };
+            }
+
+            /**
+             * Export single student data for sharing
+             * @param {string} username - Student username
+             * @returns {Object} Student data export
+             */
+            exportStudentData(username) {
+                const user = username || this.getCurrentUsername();
+                const userData = this.getUserFromClassData(user);
+
+                return {
+                    version: '2.0',
+                    exportType: 'student_data',
+                    exportDate: new Date().toISOString(),
+                    username: user,
+                    data: userData
+                };
+            }
+
+            /**
+             * Import and merge multiple student files
+             * @param {Array<File>} files - Array of JSON files to import
+             * @returns {Promise<Object>} Merge result with statistics
+             */
+            async importAndMergeFiles(files) {
+                const results = {
+                    successful: 0,
+                    failed: 0,
+                    conflicts: [],
+                    mergedUsers: [],
+                    errors: []
+                };
+
+                const classData = this.getClassData();
+
+                for (const file of files) {
+                    try {
+                        const text = await file.text();
+                        const importData = JSON.parse(text);
+
+                        // Validate import data
+                        if (!importData.version || !importData.exportType) {
+                            results.errors.push({
+                                file: file.name,
+                                error: 'Invalid file format'
+                            });
+                            results.failed++;
+                            continue;
+                        }
+
+                        // Handle different export types
+                        if (importData.exportType === 'student_data') {
+                            const mergeResult = this.mergeStudentData(
+                                classData,
+                                importData.username,
+                                importData.data
+                            );
+
+                            if (mergeResult.conflict) {
+                                results.conflicts.push(mergeResult);
+                            }
+
+                            results.mergedUsers.push(importData.username);
+                            results.successful++;
+
+                        } else if (importData.exportType === 'class_data') {
+                            // Merge entire class data
+                            Object.entries(importData.users || {}).forEach(([username, userData]) => {
+                                const mergeResult = this.mergeStudentData(classData, username, userData);
+                                if (mergeResult.conflict) {
+                                    results.conflicts.push(mergeResult);
+                                }
+                                results.mergedUsers.push(username);
+                            });
+                            results.successful++;
+                        }
+
+                    } catch (error) {
+                        results.errors.push({
+                            file: file.name,
+                            error: error.message
+                        });
+                        results.failed++;
+                    }
+                }
+
+                // Save merged data
+                this.saveClassData(classData);
+
+                return results;
+            }
+
+            /**
+             * Merge single student data with conflict resolution
+             * @param {Object} classData - Current class data
+             * @param {string} username - Student username
+             * @param {Object} studentData - Student data to merge
+             * @returns {Object} Merge result
+             */
+            mergeStudentData(classData, username, studentData) {
+                const result = {
+                    username,
+                    conflict: false,
+                    resolvedBy: 'timestamp',
+                    changes: []
+                };
+
+                if (!classData.users[username]) {
+                    // New user, no conflict
+                    classData.users[username] = studentData;
+                    result.changes.push('Created new user');
+                    return result;
+                }
+
+                // Merge with timestamp-based conflict resolution
+                const existingData = classData.users[username];
+
+                Object.entries(studentData.answers || {}).forEach(([questionId, answer]) => {
+                    const existingTimestamp = new Date(existingData.timestamps?.[questionId] || 0);
+                    const newTimestamp = new Date(studentData.timestamps?.[questionId] || 0);
+
+                    if (newTimestamp > existingTimestamp) {
+                        // Newer data wins
+                        if (!existingData.answers) existingData.answers = {};
+                        existingData.answers[questionId] = answer;
+
+                        if (studentData.reasons?.[questionId]) {
+                            if (!existingData.reasons) existingData.reasons = {};
+                            existingData.reasons[questionId] = studentData.reasons[questionId];
+                        }
+
+                        if (studentData.timestamps?.[questionId]) {
+                            if (!existingData.timestamps) existingData.timestamps = {};
+                            existingData.timestamps[questionId] = studentData.timestamps[questionId];
+                        }
+
+                        if (studentData.attempts?.[questionId]) {
+                            if (!existingData.attempts) existingData.attempts = {};
+                            existingData.attempts[questionId] = studentData.attempts[questionId];
+                        }
+
+                        result.changes.push(`Updated Q${questionId}`);
+                    } else if (existingTimestamp.getTime() === newTimestamp.getTime() &&
+                               existingData.answers[questionId] !== answer) {
+                        // Same timestamp but different answer - conflict!
+                        result.conflict = true;
+                        result.changes.push(`Conflict on Q${questionId}`);
+                    }
+                });
+
+                return result;
+            }
+
+            /**
+             * Create master database from multiple exports (Teacher function)
+             * @param {Array<Object>} imports - Array of parsed import objects
+             * @returns {Object} Master database
+             */
+            mergeMasterDatabase(imports) {
+                const masterData = {
+                    users: {},
+                    metadata: {
+                        totalUsers: 0,
+                        lastMerge: new Date().toISOString(),
+                        version: '2.0',
+                        mergeCount: imports.length
+                    }
+                };
+
+                // Track merge statistics
+                const stats = {
+                    totalQuestions: new Set(),
+                    totalAnswers: 0,
+                    conflicts: []
+                };
+
+                imports.forEach((importData, index) => {
+                    if (importData.exportType === 'student_data') {
+                        // Single student export
+                        const username = importData.username;
+                        const mergeResult = this.mergeStudentData(masterData, username, importData.data);
+
+                        if (mergeResult.conflict) {
+                            stats.conflicts.push(mergeResult);
+                        }
+
+                        // Track statistics
+                        Object.keys(importData.data.answers || {}).forEach(qId => {
+                            stats.totalQuestions.add(qId);
+                            stats.totalAnswers++;
+                        });
+
+                    } else if (importData.exportType === 'class_data') {
+                        // Class data export (contains multiple students)
+                        Object.entries(importData.users || {}).forEach(([username, userData]) => {
+                            const mergeResult = this.mergeStudentData(masterData, username, userData);
+
+                            if (mergeResult.conflict) {
+                                stats.conflicts.push(mergeResult);
+                            }
+
+                            Object.keys(userData.answers || {}).forEach(qId => {
+                                stats.totalQuestions.add(qId);
+                                stats.totalAnswers++;
+                            });
+                        });
+                    }
+                });
+
+                masterData.metadata.totalUsers = Object.keys(masterData.users).length;
+                masterData.metadata.stats = {
+                    questionsAnswered: stats.totalQuestions.size,
+                    totalResponses: stats.totalAnswers,
+                    conflictsResolved: stats.conflicts.length
+                };
+
+                return masterData;
             }
         }
         
@@ -555,6 +797,13 @@
                 importUserData: (data, overwrite) => dataService.importUserData(data, overwrite),
                 clearUserData: (username) => dataService.clearUserData(username),
                 getStorageStats: () => dataService.getStorageStats(),
+
+                // Enhanced export/import methods
+                exportClassData: () => dataService.exportClassData(),
+                exportStudentData: (username) => dataService.exportStudentData(username),
+                importAndMergeFiles: (files) => dataService.importAndMergeFiles(files),
+                mergeStudentData: (classData, username, studentData) => dataService.mergeStudentData(classData, username, studentData),
+                mergeMasterDatabase: (imports) => dataService.mergeMasterDatabase(imports),
                 
                 // Direct access to internal methods if needed
                 setLocalData: (key, value) => dataService.setLocalData(key, value),
