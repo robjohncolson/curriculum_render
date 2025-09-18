@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP Stats Consensus Quiz - Modular</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- External Data Files -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 AP Statistics Consensus Quiz</h1>
+        <div id="messageArea"></div>
+        <div id="questionsContainer"></div>
+    </div>
+
+    <button class="theme-toggle" title="Toggle theme">🌙</button>
+
+    <!-- Modular JavaScript Files - Loaded in Order -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

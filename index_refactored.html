@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP Stats Consensus Quiz - Refactored</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- External Data Files -->
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header-wrapper">
+            <h1>🧮 AP Statistics Consensus Quiz</h1>
+            <div id="userInfo" class="user-info"></div>
+        </div>
+        <div id="messageArea"></div>
+        <div id="questionsContainer"></div>
+    </div>
+
+    <button class="theme-toggle" title="Toggle theme">🌙</button>
+
+    <script>
+    /**
+     * ===============================================
+     * AP STATISTICS QUIZ APPLICATION - REFACTORED
+     * ===============================================
+     *
+     * Refactored for better maintainability while keeping
+     * everything in one file for simplicity and compatibility.
+     *
+     * Main improvements:
+     * - Configuration extracted to top
+     * - Modules organized with clear sections
+     * - Functions broken down to manageable sizes
+     * - Components for reusable UI elements
+     *
+     * ===============================================
+     */
+
+    var APStatsQuiz = (function() {
+        'use strict';
+
+        // ===============================================
+        // CONFIGURATION
+        // ===============================================
+        var CONFIG = {
+            MAX_ATTEMPTS: 3,
+            MIN_ATTEMPTS_FOR_BADGES: 5,
+
+            BADGES: {
+                ACTIVE_LEARNER_MIN: 5,
+                KNOWLEDGE_SEEKER_MIN: 10,
+                QUIZ_MASTER_MIN: 20,
+                PROBLEM_SOLVER_MIN: 5,
+                STATISTICS_PRO_MIN: 10,
+                ACCURACY_EXPERT_PERCENT: 80,
+                PERFECT_SCORE_MIN: 3
+            },
+
+            CHART: {
+                DEFAULT_HEIGHT: 400,
+                DOTPLOT_WIDTH: 400,
+                DOTPLOT_HEIGHT: 200,
+                MAX_TICKS_LIMIT: 10,
+                LEGEND_PADDING: 20,
+                ANIMATION_DURATION: 300,
+                COLORS: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+                ]
+            },
+
+            DELAYS: {
+                CHART_RENDER: 100,
+                MESSAGE_DISPLAY: 3000,
+                SCROLL_DELAY: 100,
+                DEBOUNCE_SAVE: 500
+            },
+
+            TEXTAREA: {
+                MIN_HEIGHT: 200,
+                DEFAULT_PADDING: 10
+            }
+        };
+
+        // ===============================================
+        // UTILITIES
+        // ===============================================
+        var Utils = {
+            safeGetElement: function(id) {
+                return document.getElementById(id);
+            },
+
+            safeQuery: function(selector) {
+                return document.querySelector(selector);
+            },
+
+            safeQueryAll: function(selector) {
+                return document.querySelectorAll(selector);
+            },
+
+            safeSetHTML: function(element, html) {
+                if (!element) return;
+                // Basic XSS prevention
+                html = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+                element.innerHTML = html;
+            },
+
+            debounce: function(func, wait) {
+                var timeout;
+                return function() {
+                    var context = this, args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(function() {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            },
+
+            generateRandomUsername: function() {
+                var fruits = ['Apple', 'Banana', 'Cherry', 'Grape', 'Lemon', 'Mango', 'Orange', 'Peach'];
+                var animals = ['Bear', 'Cat', 'Dog', 'Eagle', 'Fox', 'Horse', 'Lion', 'Panda'];
+                var fruit = fruits[Math.floor(Math.random() * fruits.length)];
+                var animal = animals[Math.floor(Math.random() * animals.length)];
+                return fruit + '_' + animal;
+            },
+
+            showMessage: function(message, type) {
+                var messageArea = Utils.safeGetElement('messageArea');
+                if (!messageArea) return;
+
+                var messageEl = document.createElement('div');
+                messageEl.className = 'message ' + (type || 'info');
+                messageEl.textContent = message;
+                messageArea.appendChild(messageEl);
+
+                setTimeout(function() {
+                    if (messageEl.parentNode) {
+                        messageEl.parentNode.removeChild(messageEl);
+                    }
+                }, CONFIG.DELAYS.MESSAGE_DISPLAY);
+            }
+        };
+
+        // ===============================================
+        // STORAGE MODULE
+        // ===============================================
+        var Storage = {
+            getLocalData: function(key, defaultValue) {
+                try {
+                    var item = localStorage.getItem(key);
+                    if (item === null) return defaultValue || null;
+                    try {
+                        return JSON.parse(item);
+                    } catch {
+                        return item;
+                    }
+                } catch (error) {
+                    console.error('Error reading from localStorage:', error);
+                    return defaultValue || null;
+                }
+            },
+
+            setLocalData: function(key, value) {
+                try {
+                    var item = typeof value === 'string' ? value : JSON.stringify(value);
+                    localStorage.setItem(key, item);
+                } catch (error) {
+                    console.error('Error writing to localStorage:', error);
+                }
+            },
+
+            getCurrentUsername: function() {
+                return this.getLocalData('consensusUsername');
+            },
+
+            setCurrentUsername: function(username) {
+                this.setLocalData('consensusUsername', username);
+            },
+
+            getUserAnswers: function(username) {
+                username = username || this.getCurrentUsername();
+                if (!username) return {};
+                return this.getLocalData('answers_' + username, {});
+            },
+
+            saveUserAnswer: function(questionId, answer) {
+                var username = this.getCurrentUsername();
+                if (!username) return;
+
+                var answers = this.getUserAnswers(username);
+                answers[questionId] = answer;
+                this.setLocalData('answers_' + username, answers);
+            },
+
+            getClassData: function() {
+                var defaultData = {
+                    users: {},
+                    metadata: {
+                        totalUsers: 0,
+                        version: '2.0'
+                    }
+                };
+                return this.getLocalData('classData', defaultData);
+            },
+
+            saveClassData: function(data) {
+                if (data.users) {
+                    data.metadata = data.metadata || {};
+                    data.metadata.totalUsers = Object.keys(data.users).length;
+                    data.metadata.lastUpdate = new Date().toISOString();
+                }
+                this.setLocalData('classData', data);
+            }
+        };
+
+        // ===============================================
+        // UI COMPONENTS
+        // ===============================================
+        var Components = {
+            createQuestionHeader: function(questionNumber, isAnswered) {
+                return '<div class="question-header">' +
+                    '<span>Question ' + questionNumber + '</span>' +
+                    (isAnswered ? '<span class="status-answered">✓ Answered</span>' : '') +
+                    '</div>';
+            },
+
+            createMCQChoices: function(questionId, choices, savedAnswer, isDisabled) {
+                var html = '<div class="choices">';
+                choices.forEach(function(choice) {
+                    var isSelected = savedAnswer === choice.key;
+                    html += '<div class="choice ' + (isSelected ? 'selected' : '') + ' ' + (isDisabled ? 'disabled' : '') + '">' +
+                        '<label>' +
+                        '<input type="radio" name="choice-' + questionId + '" value="' + choice.key + '"' +
+                        (isSelected ? ' checked' : '') + (isDisabled ? ' disabled' : '') + '>' +
+                        '<span class="choice-key">' + choice.key + '.</span> ' +
+                        '<span>' + choice.value + '</span>' +
+                        '</label></div>';
+                });
+                html += '</div>';
+                return html;
+            },
+
+            createSubmitButton: function(questionId, isAnswered, canRetry) {
+                var buttonText = isAnswered ?
+                    (canRetry ? 'Update Answer' : 'Max Attempts Reached') :
+                    'Submit Answer';
+
+                return '<button id="submit-' + questionId + '" class="submit-button"' +
+                    ' data-action="submit-answer" data-param="' + questionId + '"' +
+                    (isAnswered && !canRetry ? ' disabled' : '') + '>' +
+                    buttonText + '</button>';
+            },
+
+            createModal: function(title, content, buttons) {
+                var html = '<div class="modal"><div class="modal-content">';
+                if (title) {
+                    html += '<div class="modal-header"><h3>' + title + '</h3></div>';
+                }
+                html += '<div class="modal-body">' + content + '</div>';
+                if (buttons && buttons.length > 0) {
+                    html += '<div class="modal-buttons">';
+                    buttons.forEach(function(btn) {
+                        html += '<button class="' + (btn.className || 'modal-btn') + '"' +
+                            ' data-action="' + (btn.action || '') + '"' +
+                            ' data-param="' + (btn.param || '') + '">' +
+                            btn.text + '</button>';
+                    });
+                    html += '</div>';
+                }
+                html += '</div></div>';
+                return html;
+            }
+        };
+
+        // ===============================================
+        // CHART RENDERERS
+        // ===============================================
+        var ChartRenderers = {
+            renderBarChart: function(canvas, data, config) {
+                var ctx = canvas.getContext('2d');
+                var datasets = data.series.map(function(series, index) {
+                    var color = CONFIG.CHART.COLORS[index % CONFIG.CHART.COLORS.length];
+                    return {
+                        label: series.name,
+                        data: series.values,
+                        backgroundColor: color,
+                        borderColor: color,
+                        borderWidth: 1
+                    };
+                });
+
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.xLabels || [],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: datasets.length > 1 }
+                        }
+                    }
+                });
+            },
+
+            renderDotPlot: function(canvas, data) {
+                var ctx = canvas.getContext('2d');
+                var values = data.values || [];
+
+                // Calculate frequencies
+                var frequencies = {};
+                values.forEach(function(val) {
+                    frequencies[val] = (frequencies[val] || 0) + 1;
+                });
+
+                var uniqueValues = Object.keys(frequencies).map(Number).sort(function(a, b) { return a - b; });
+                var dotData = [];
+
+                uniqueValues.forEach(function(value) {
+                    for (var i = 0; i < frequencies[value]; i++) {
+                        dotData.push({ x: value, y: i + 1 });
+                    }
+                });
+
+                return new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Frequency',
+                            data: dotData,
+                            backgroundColor: '#36A2EB',
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        };
+
+        // ===============================================
+        // MAIN APPLICATION
+        // ===============================================
+        var App = {
+            currentUsername: null,
+            classData: null,
+            chartInstances: {},
+
+            init: function() {
+                // Initialize data
+                this.currentUsername = Storage.getCurrentUsername();
+                this.classData = Storage.getClassData();
+
+                // Show appropriate interface
+                if (this.currentUsername) {
+                    this.updateUserInfo();
+                    this.showMainInterface();
+                } else {
+                    this.showUsernamePrompt();
+                }
+
+                // Set up event delegation
+                this.setupEventDelegation();
+
+                // Initialize theme
+                this.initializeTheme();
+            },
+
+            updateUserInfo: function() {
+                var userInfoEl = Utils.safeGetElement('userInfo');
+                if (!userInfoEl) return;
+
+                var html = '<div class="user-display">';
+                html += '<span class="username-label">User: </span>';
+                html += '<span class="username-value">' + this.currentUsername + '</span>';
+                html += '<button class="btn-small" data-action="change-user" title="Change User">🔄</button>';
+                html += '<button class="btn-small" data-action="logout" title="Logout">🚪</button>';
+                html += '</div>';
+
+                Utils.safeSetHTML(userInfoEl, html);
+            },
+
+            showUsernamePrompt: function() {
+                var suggestedName = Utils.generateRandomUsername();
+                var container = Utils.safeGetElement('questionsContainer');
+
+                var content = '<div style="display: flex; gap: 20px; justify-content: center;">' +
+                    '<div style="flex: 1; padding: 20px; border: 2px solid #3498db; border-radius: 8px;">' +
+                    '<h3 style="margin-top: 0;">New Student</h3>' +
+                    '<p>Your generated username:</p>' +
+                    '<div class="username-suggestion">' + suggestedName + '</div>' +
+                    '<button class="start-button" data-action="accept-username" data-param="' + suggestedName + '">Use This Name</button>' +
+                    '<button class="start-button btn-secondary" data-action="reroll-username" style="margin-top: 10px;">Generate New</button>' +
+                    '</div>' +
+                    '<div style="flex: 1; padding: 20px; border: 2px solid #27ae60; border-radius: 8px;">' +
+                    '<h3 style="margin-top: 0;">Returning Student</h3>' +
+                    '<p>Enter your existing username:</p>' +
+                    '<input type="text" id="existing-username-input" placeholder="e.g., Cherry_Dog" ' +
+                    'style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">' +
+                    '<button class="start-button" data-action="login-existing" style="background: #27ae60;">Login</button>' +
+                    '</div>' +
+                    '</div>';
+
+                var modal = Components.createModal(
+                    'Welcome to AP Statistics Quiz',
+                    content,
+                    []
+                );
+
+                Utils.safeSetHTML(container, modal);
+            },
+
+            showMainInterface: function() {
+                var container = Utils.safeGetElement('questionsContainer');
+
+                // For demo, show a simple welcome message
+                var html = '<div class="welcome-message">' +
+                    '<h2>Welcome back, ' + this.currentUsername + '!</h2>' +
+                    '<p>Select a unit to begin or continue your quiz.</p>' +
+                    '<div class="unit-buttons">';
+
+                for (var i = 1; i <= 9; i++) {
+                    html += '<button class="unit-btn" data-action="select-unit" data-param="' + i + '">' +
+                        'Unit ' + i + '</button>';
+                }
+
+                html += '</div></div>';
+                Utils.safeSetHTML(container, html);
+            },
+
+            setupEventDelegation: function() {
+                var self = this;
+                document.body.addEventListener('click', function(event) {
+                    var target = event.target.closest('[data-action]');
+                    if (!target) return;
+
+                    event.preventDefault();
+                    var action = target.dataset.action;
+                    var param = target.dataset.param;
+
+                    self.handleAction(action, param);
+                });
+            },
+
+            handleAction: function(action, param) {
+                switch(action) {
+                    case 'accept-username':
+                        Storage.setCurrentUsername(param);
+                        this.currentUsername = param;
+                        this.updateUserInfo();
+                        this.showMainInterface();
+                        Utils.showMessage('Welcome, ' + param + '!', 'success');
+                        break;
+
+                    case 'reroll-username':
+                        this.showUsernamePrompt();
+                        break;
+
+                    case 'login-existing':
+                        var input = Utils.safeGetElement('existing-username-input');
+                        if (input && input.value.trim()) {
+                            var username = input.value.trim();
+                            Storage.setCurrentUsername(username);
+                            this.currentUsername = username;
+                            this.updateUserInfo();
+                            this.showMainInterface();
+                            Utils.showMessage('Welcome back, ' + username + '!', 'success');
+                        } else {
+                            Utils.showMessage('Please enter a username', 'warning');
+                        }
+                        break;
+
+                    case 'select-unit':
+                        Utils.showMessage('Loading Unit ' + param + '...', 'info');
+                        this.loadUnit(param);
+                        break;
+
+                    case 'select-lesson':
+                        this.loadLesson(param);
+                        break;
+
+                    case 'submit-answer':
+                        this.submitAnswer(param);
+                        break;
+
+                    case 'back-to-lessons':
+                        if (this.currentUnit) {
+                            this.loadUnit(this.currentUnit);
+                        }
+                        break;
+
+                    case 'back-to-units':
+                        this.showMainInterface();
+                        break;
+
+                    case 'toggle-theme':
+                        this.toggleTheme();
+                        break;
+
+                    case 'change-user':
+                        this.changeUser();
+                        break;
+
+                    case 'logout':
+                        this.logout();
+                        break;
+
+                    default:
+                        console.warn('Unhandled action:', action);
+                }
+            },
+
+            initializeTheme: function() {
+                var themeBtn = Utils.safeQuery('.theme-toggle');
+                if (themeBtn) {
+                    themeBtn.addEventListener('click', this.toggleTheme.bind(this));
+                }
+            },
+
+            toggleTheme: function() {
+                document.body.classList.toggle('dark-theme');
+                var isDark = document.body.classList.contains('dark-theme');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+                var themeBtn = Utils.safeQuery('.theme-toggle');
+                if (themeBtn) {
+                    themeBtn.textContent = isDark ? '☀️' : '🌙';
+                }
+            },
+
+            loadUnit: function(unitId) {
+                var self = this;
+                this.currentUnit = unitId;
+
+                // Filter questions for this unit from EMBEDDED_CURRICULUM
+                if (typeof EMBEDDED_CURRICULUM === 'undefined') {
+                    Utils.showMessage('No curriculum data available', 'error');
+                    return;
+                }
+
+                var unitQuestions = EMBEDDED_CURRICULUM.filter(function(q) {
+                    return q.id && q.id.startsWith('U' + unitId + '-');
+                });
+
+                if (unitQuestions.length === 0) {
+                    Utils.showMessage('No questions found for Unit ' + unitId, 'warning');
+                    return;
+                }
+
+                // Group questions by lesson
+                var lessonGroups = {};
+                unitQuestions.forEach(function(q) {
+                    var match = q.id.match(/U\d+-L(\d+)/);
+                    if (match) {
+                        var lessonNum = match[1];
+                        if (!lessonGroups[lessonNum]) {
+                            lessonGroups[lessonNum] = [];
+                        }
+                        lessonGroups[lessonNum].push(q);
+                    }
+                });
+
+                // Display lesson selector
+                this.displayLessonSelector(unitId, lessonGroups);
+            },
+
+            displayLessonSelector: function(unitId, lessonGroups) {
+                var container = Utils.safeGetElement('questionsContainer');
+                var html = '<div class="lesson-selector">';
+                html += '<h2>Unit ' + unitId + ' - Select a Lesson</h2>';
+                html += '<button class="btn-back" data-action="back-to-units">← Back to Units</button>';
+                html += '<div class="lesson-buttons">';
+
+                var lessons = Object.keys(lessonGroups).sort(function(a, b) {
+                    return parseInt(a) - parseInt(b);
+                });
+
+                lessons.forEach(function(lessonNum) {
+                    var questionCount = lessonGroups[lessonNum].length;
+                    html += '<button class="lesson-btn" data-action="select-lesson" data-param="' +
+                            unitId + '-' + lessonNum + '">';
+                    html += 'Lesson ' + lessonNum + ' (' + questionCount + ' questions)</button>';
+                });
+
+                html += '</div></div>';
+                Utils.safeSetHTML(container, html);
+            },
+
+            loadLesson: function(unitLesson) {
+                var parts = unitLesson.split('-');
+                var unitId = parts[0];
+                var lessonId = parts[1];
+
+                var lessonQuestions = EMBEDDED_CURRICULUM.filter(function(q) {
+                    return q.id && q.id.startsWith('U' + unitId + '-L' + lessonId + '-');
+                });
+
+                if (lessonQuestions.length === 0) {
+                    Utils.showMessage('No questions found for this lesson', 'warning');
+                    return;
+                }
+
+                this.currentQuestions = lessonQuestions;
+                this.displayQuestions(lessonQuestions, unitId, lessonId);
+            },
+
+            displayQuestions: function(questions, unitId, lessonId) {
+                var container = Utils.safeGetElement('questionsContainer');
+                var html = '<div class="quiz-header">';
+                html += '<h2>Unit ' + (unitId || '') + (lessonId ? ' - Lesson ' + lessonId : '') +
+                        ' (' + questions.length + ' questions)</h2>';
+                html += '<button class="btn-back" data-action="back-to-lessons">← Back to Lessons</button>';
+                html += '<button class="btn-back" data-action="back-to-units">← Back to Units</button>';
+                html += '</div>';
+                html += '<div id="questions-list">';
+
+                var self = this;
+                questions.forEach(function(question, index) {
+                    html += self.renderQuestion(question, index + 1);
+                });
+
+                html += '</div>';
+                Utils.safeSetHTML(container, html);
+
+                // Render MathJax if available
+                if (window.MathJax) {
+                    MathJax.typesetPromise().catch(function(e) {
+                        console.log('MathJax error:', e);
+                    });
+                }
+
+                // Render peer charts for answered questions
+                var self = this;
+                setTimeout(function() {
+                    questions.forEach(function(question) {
+                        var savedAnswer = Storage.getUserAnswers()[question.id];
+                        if (savedAnswer) {
+                            // Question is answered, render peer data chart
+                            var peerDataEl = Utils.safeGetElement('peer-data-' + question.id);
+                            if (peerDataEl) {
+                                Utils.safeSetHTML(peerDataEl, self.renderPeerData(question.id));
+                            }
+                        }
+                    });
+                }, 200);
+            },
+
+            renderQuestion: function(question, questionNumber) {
+                var savedAnswer = Storage.getUserAnswers()[question.id];
+                var isAnswered = !!savedAnswer;
+                var classData = Storage.getClassData();
+                var savedReason = '';
+
+                // Get saved reason if exists
+                if (classData.users && classData.users[this.currentUsername]) {
+                    savedReason = classData.users[this.currentUsername].reasons ?
+                                 classData.users[this.currentUsername].reasons[question.id] || '' : '';
+                }
+
+                var html = '<div class="quiz-container-wrapper" data-question-id="' + question.id + '">';
+                html += '<div class="quiz-main-content">';
+
+                // LEFT SIDE: Question content
+                html += '<div class="question-content"><div class="quiz-container">';
+
+                // Question header
+                html += Components.createQuestionHeader(questionNumber, isAnswered);
+
+                // Question ID and prompt
+                html += '<div class="question-id">ID: ' + question.id + '</div>';
+                html += '<div class="question-prompt">' + (question.prompt || 'No prompt provided') + '</div>';
+
+                // Handle attachments (tables, images, etc.)
+                if (question.attachments) {
+                    html += this.renderAttachments(question.attachments);
+                }
+
+                // Handle MCQ
+                if (question.type === 'multiple-choice') {
+                    var choices = question.choices || [];
+                    if (question.attachments && question.attachments.choices) {
+                        choices = question.attachments.choices;
+                    }
+
+                    html += Components.createMCQChoices(question.id, choices, savedAnswer, isAnswered);
+                }
+
+                // Handle FRQ
+                if (question.type === 'free-response') {
+                    html += '<div class="answer-section">';
+                    html += '<textarea id="frq-' + question.id + '" class="frq-textarea"';
+                    html += ' placeholder="Enter your response here..."';
+                    html += (isAnswered ? ' disabled' : '') + '>';
+                    html += (savedAnswer || '') + '</textarea>';
+                    html += '</div>';
+                }
+
+                // REASONING SECTION
+                html += '<div class="answer-section">';
+                html += '<div class="reason-wrapper">';
+                html += '<label class="reason-label">Explain your reasoning:';
+                if (isAnswered && !savedReason) {
+                    html += ' <span class="status-warning">(Add explanation to unlock answer changes)</span>';
+                }
+                html += '</label>';
+                html += '<textarea id="reason-' + question.id + '" class="reason-textarea"';
+                html += ' placeholder="Explain why you chose this answer...">' + savedReason + '</textarea>';
+                html += '</div>';
+
+                // Submit button
+                html += '<div style="display: flex; gap: 10px; margin-top: 10px;">';
+                html += Components.createSubmitButton(question.id, isAnswered, false);
+                html += '<span id="feedback-' + question.id + '" class="feedback-msg"></span>';
+                html += '</div>';
+                html += '</div>';
+
+                html += '</div></div>'; // End question-content
+
+                // RIGHT SIDE: Peer data panel
+                html += '<div class="peer-data-panel ' + (isAnswered ? 'visible' : 'hidden') + '">';
+                html += '<div class="peer-panel-header">';
+                html += '<h3>Peer Consensus</h3>';
+                if (!isAnswered) {
+                    html += '<p class="status-pending">Submit your answer to see peer data</p>';
+                }
+                html += '</div>';
+
+                if (isAnswered) {
+                    html += '<div id="peer-data-' + question.id + '">';
+                    html += this.renderPeerData(question.id);
+                    html += '</div>';
+                }
+
+                html += '</div>'; // End peer-data-panel
+
+                html += '</div>'; // End quiz-main-content
+                html += '</div>'; // End quiz-container-wrapper
+                return html;
+            },
+
+            renderPeerData: function(questionId) {
+                var self = this;
+                var classData = Storage.getClassData();
+                var html = '<div class="peer-responses">';
+
+                // Get current user's answer for comparison
+                var myAnswer = null;
+                if (classData.users && classData.users[this.currentUsername]) {
+                    myAnswer = classData.users[this.currentUsername].answers[questionId];
+                }
+
+                // Collect all answers including current user
+                var allAnswers = [];
+                var answerCounts = {};
+                var totalResponses = 0;
+
+                if (classData.users) {
+                    Object.keys(classData.users).forEach(function(username) {
+                        var userAnswers = classData.users[username].answers;
+                        if (userAnswers && userAnswers[questionId]) {
+                            var answer = userAnswers[questionId];
+                            allAnswers.push({
+                                username: username,
+                                answer: answer,
+                                isCurrentUser: username === self.currentUsername
+                            });
+                            answerCounts[answer] = (answerCounts[answer] || 0) + 1;
+                            totalResponses++;
+                        }
+                    });
+                }
+
+                if (totalResponses > 0) {
+                    html += '<h4>Answer Distribution (' + totalResponses + ' response' + (totalResponses > 1 ? 's' : '') + ')</h4>';
+
+                    // Add canvas for dotplot
+                    html += '<div class="dotplot-container">';
+                    html += '<canvas id="peer-dotplot-' + questionId + '" style="width: 100%; height: 200px;"></canvas>';
+                    html += '</div>';
+
+                    // Add text distribution
+                    html += '<div class="answer-distribution" style="margin-top: 20px;">';
+
+                    Object.keys(answerCounts).sort().forEach(function(answer) {
+                        var count = answerCounts[answer];
+                        var percentage = Math.round((count / totalResponses) * 100);
+                        var isMyAnswer = answer === myAnswer;
+
+                        html += '<div class="distribution-item' + (isMyAnswer ? ' my-answer' : '') + '">';
+                        html += '<span class="answer-label">Answer ' + answer + ':' + (isMyAnswer ? ' (You)' : '') + '</span>';
+                        html += '<div class="distribution-bar">';
+                        html += '<div class="bar-fill" style="width: ' + percentage + '%; background-color: ' +
+                                (isMyAnswer ? '#27ae60' : '#3498db') + '"></div>';
+                        html += '</div>';
+                        html += '<span class="percentage">' + count + ' (' + percentage + '%)</span>';
+                        html += '</div>';
+                    });
+
+                    html += '</div>';
+
+                    // Schedule chart rendering
+                    setTimeout(function() {
+                        self.renderPeerDotplot(questionId, allAnswers, answerCounts);
+                    }, 100);
+
+                } else {
+                    html += '<p>Be the first to answer this question!</p>';
+                }
+
+                html += '</div>';
+                return html;
+            },
+
+            renderPeerDotplot: function(questionId, allAnswers, answerCounts) {
+                var canvas = Utils.safeGetElement('peer-dotplot-' + questionId);
+                if (!canvas) return;
+
+                // Destroy existing chart if it exists
+                var chartKey = 'peer-dotplot-' + questionId;
+                if (this.chartInstances[chartKey]) {
+                    this.chartInstances[chartKey].destroy();
+                }
+
+                // Prepare data for dotplot
+                var uniqueAnswers = Object.keys(answerCounts).sort();
+                var dotData = [];
+
+                // Create stacked dots for each answer
+                var answerStacks = {};
+                uniqueAnswers.forEach(function(answer) {
+                    answerStacks[answer] = 0;
+                });
+
+                allAnswers.forEach(function(item) {
+                    var stackHeight = answerStacks[item.answer];
+                    dotData.push({
+                        x: item.answer,
+                        y: stackHeight + 1,
+                        username: item.username,
+                        isCurrentUser: item.isCurrentUser
+                    });
+                    answerStacks[item.answer]++;
+                });
+
+                // Create the chart
+                var ctx = canvas.getContext('2d');
+                this.chartInstances[chartKey] = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Peer Responses',
+                            data: dotData,
+                            backgroundColor: function(context) {
+                                var point = context.raw;
+                                return point.isCurrentUser ? '#27ae60' : '#3498db';
+                            },
+                            borderColor: function(context) {
+                                var point = context.raw;
+                                return point.isCurrentUser ? '#229954' : '#2980b9';
+                            },
+                            borderWidth: 2,
+                            pointRadius: 8,
+                            pointHoverRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var point = context.raw;
+                                        return point.username + ': Answer ' + point.x;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: {
+                                    display: true,
+                                    text: 'Answers'
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Count'
+                                },
+                                min: 0,
+                                ticks: {
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    display: true
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            renderAttachments: function(attachments) {
+                var html = '';
+
+                // Render table if present
+                if (attachments.table) {
+                    html += '<div class="attachment-table"><table>';
+                    attachments.table.forEach(function(row, index) {
+                        var tag = index === 0 ? 'th' : 'td';
+                        html += '<tr>';
+                        row.forEach(function(cell) {
+                            html += '<' + tag + '>' + cell + '</' + tag + '>';
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</table></div>';
+                }
+
+                // Render image if present
+                if (attachments.image) {
+                    html += '<div class="attachment-image">';
+                    html += '<img src="' + attachments.image.url + '" alt="' +
+                            (attachments.image.alt || 'Question image') + '">';
+                    html += '</div>';
+                }
+
+                return html;
+            },
+
+            submitAnswer: function(questionId) {
+                var self = this;
+                var question = this.currentQuestions.find(function(q) {
+                    return q.id === questionId;
+                });
+
+                if (!question) {
+                    Utils.showMessage('Question not found', 'error');
+                    return;
+                }
+
+                var answer = null;
+                var reasoning = '';
+
+                // Get answer based on question type
+                if (question.type === 'multiple-choice') {
+                    var selected = document.querySelector('input[name="choice-' + questionId + '"]:checked');
+                    if (!selected) {
+                        Utils.showMessage('Please select an answer', 'warning');
+                        return;
+                    }
+                    answer = selected.value;
+                } else if (question.type === 'free-response') {
+                    var textarea = Utils.safeGetElement('frq-' + questionId);
+                    if (!textarea || !textarea.value.trim()) {
+                        Utils.showMessage('Please enter a response', 'warning');
+                        return;
+                    }
+                    answer = textarea.value.trim();
+                }
+
+                // Get reasoning
+                var reasonTextarea = Utils.safeGetElement('reason-' + questionId);
+                if (reasonTextarea) {
+                    reasoning = reasonTextarea.value.trim();
+                }
+
+                // Save answer to personal storage
+                Storage.saveUserAnswer(questionId, answer);
+
+                // Save to class data for peer comparison
+                var classData = Storage.getClassData();
+                if (!classData.users) classData.users = {};
+                if (!classData.users[this.currentUsername]) {
+                    classData.users[this.currentUsername] = {
+                        answers: {},
+                        reasons: {},
+                        attempts: {},
+                        timestamps: {}
+                    };
+                }
+
+                classData.users[this.currentUsername].answers[questionId] = answer;
+                if (reasoning) {
+                    classData.users[this.currentUsername].reasons[questionId] = reasoning;
+                }
+                classData.users[this.currentUsername].timestamps[questionId] = new Date().toISOString();
+                var attempts = classData.users[this.currentUsername].attempts[questionId] || 0;
+                classData.users[this.currentUsername].attempts[questionId] = attempts + 1;
+
+                Storage.saveClassData(classData);
+
+                // Update UI
+                var submitBtn = Utils.safeGetElement('submit-' + questionId);
+                if (submitBtn) {
+                    submitBtn.textContent = 'Answer Saved!';
+                    submitBtn.disabled = true;
+                }
+
+                // Show feedback
+                var feedbackEl = Utils.safeGetElement('feedback-' + questionId);
+                if (feedbackEl) {
+                    if (question.type === 'multiple-choice' && question.answerKey) {
+                        var isCorrect = answer === question.answerKey;
+                        feedbackEl.className = isCorrect ? 'feedback-msg correct' : 'feedback-msg incorrect';
+                        feedbackEl.textContent = isCorrect ? '✓ Correct!' : '✗ Incorrect';
+                    } else {
+                        feedbackEl.className = 'feedback-msg saved';
+                        feedbackEl.textContent = '✓ Response saved';
+                    }
+                }
+
+                // Show peer data panel
+                var peerPanel = document.querySelector('[data-question-id="' + questionId + '"] .peer-data-panel');
+                if (peerPanel) {
+                    peerPanel.classList.remove('hidden');
+                    peerPanel.classList.add('visible');
+
+                    // Update peer data content
+                    var peerDataEl = Utils.safeGetElement('peer-data-' + questionId);
+                    if (peerDataEl) {
+                        Utils.safeSetHTML(peerDataEl, this.renderPeerData(questionId));
+                    }
+                }
+
+                Utils.showMessage('Answer submitted successfully!', 'success');
+            },
+
+            changeUser: function() {
+                var newUsername = prompt('Enter new username (or click Cancel to generate a random one):');
+
+                if (newUsername === null) {
+                    // User cancelled
+                    return;
+                }
+
+                if (newUsername === '') {
+                    // Generate random username
+                    newUsername = Utils.generateRandomUsername();
+                }
+
+                // Validate username
+                newUsername = newUsername.trim();
+                if (newUsername.length < 3) {
+                    Utils.showMessage('Username must be at least 3 characters', 'warning');
+                    return;
+                }
+
+                // Save the new username
+                Storage.setCurrentUsername(newUsername);
+                this.currentUsername = newUsername;
+
+                // Reload class data to include new user
+                this.classData = Storage.getClassData();
+
+                // Update UI
+                this.updateUserInfo();
+                this.showMainInterface();
+
+                Utils.showMessage('Switched to user: ' + newUsername, 'success');
+            },
+
+            logout: function() {
+                if (confirm('Are you sure you want to logout?')) {
+                    // Clear current username
+                    Storage.setCurrentUsername(null);
+                    this.currentUsername = null;
+
+                    // Clear user info display
+                    var userInfoEl = Utils.safeGetElement('userInfo');
+                    if (userInfoEl) {
+                        userInfoEl.innerHTML = '';
+                    }
+
+                    // Show username prompt
+                    this.showUsernamePrompt();
+
+                    Utils.showMessage('Logged out successfully', 'info');
+                }
+            }
+        };
+
+        // ===============================================
+        // INITIALIZATION
+        // ===============================================
+
+        // Start the application when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                App.init();
+            });
+        } else {
+            App.init();
+        }
+
+        // Public API (for debugging/testing)
+        return {
+            CONFIG: CONFIG,
+            Utils: Utils,
+            Storage: Storage,
+            Components: Components,
+            ChartRenderers: ChartRenderers,
+            App: App
+        };
+
+    })(); // End of APStatsQuiz module
+
+    // For debugging in console
+    window.APStatsQuiz = APStatsQuiz;
+    </script>
+</body>
+</html>
