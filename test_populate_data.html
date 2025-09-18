@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Populate Test Data</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Data Population</h1>
+        <button onclick="populateTestData()">Populate Test Data</button>
+        <button onclick="clearAllData()">Clear All Data</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        function populateTestData() {
+            // Create test data for multiple users
+            var testUsers = [
+                'Apple_Bear',
+                'Banana_Cat',
+                'Cherry_Dog',
+                'Grape_Eagle',
+                'Lemon_Fox'
+            ];
+
+            // Sample questions from Unit 1, Lesson 1
+            var testQuestions = [
+                'U1-L1-Q1',
+                'U1-L1-Q2',
+                'U1-L1-Q3'
+            ];
+
+            // Different answer patterns to create interesting distributions
+            var answerPatterns = [
+                ['A', 'B', 'A', 'C', 'A'],  // Q1: A is most common
+                ['B', 'B', 'C', 'B', 'D'],  // Q2: B is most common
+                ['A', 'B', 'C', 'D', 'E']   // Q3: Even distribution
+            ];
+
+            var classData = {
+                users: {},
+                timestamp: new Date().toISOString()
+            };
+
+            // Populate answers for each user
+            testUsers.forEach(function(username, userIndex) {
+                classData.users[username] = {
+                    answers: {},
+                    reasons: {},
+                    attempts: {},
+                    timestamps: {}
+                };
+
+                testQuestions.forEach(function(questionId, qIndex) {
+                    // Get answer from pattern
+                    var answer = answerPatterns[qIndex][userIndex];
+
+                    classData.users[username].answers[questionId] = answer;
+                    classData.users[username].reasons[questionId] = 'Test reasoning for ' + answer;
+                    classData.users[username].attempts[questionId] = 1;
+                    classData.users[username].timestamps[questionId] = new Date().toISOString();
+                });
+
+                // Also save user answers in their personal storage
+                var userAnswers = {};
+                testQuestions.forEach(function(questionId, qIndex) {
+                    userAnswers[questionId] = answerPatterns[qIndex][userIndex];
+                });
+                localStorage.setItem('apstats_userAnswers_' + username, JSON.stringify(userAnswers));
+            });
+
+            // Save class data
+            localStorage.setItem('apstats_classData', JSON.stringify(classData));
+
+            // Set first user as current user
+            localStorage.setItem('apstats_currentUsername', testUsers[0]);
+
+            document.getElementById('status').innerHTML =
+                '<p style="color: green;">✓ Created data for ' + testUsers.length +
+                ' users with ' + testQuestions.length + ' questions each</p>' +
+                '<p>Current user set to: ' + testUsers[0] + '</p>' +
+                '<p>Now open <a href="/index_refactored.html">index_refactored.html</a> to see the charts!</p>';
+        }
+
+        function clearAllData() {
+            // Clear all apstats data from localStorage
+            var keysToRemove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('apstats_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(function(key) {
+                localStorage.removeItem(key);
+            });
+
+            document.getElementById('status').innerHTML =
+                '<p style="color: orange;">Cleared all test data (' + keysToRemove.length + ' items)</p>';
+        }
+    </script>
+</body>
+</html>

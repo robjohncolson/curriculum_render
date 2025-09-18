@@ -359,6 +359,8 @@
             currentUsername: null,
             classData: null,
             chartInstances: {},
+            currentQuestions: [],
+            currentUnit: null,
 
             init: function() {
                 // Initialize data
@@ -646,16 +648,7 @@
                 // Render peer charts for answered questions
                 var self = this;
                 setTimeout(function() {
-                    questions.forEach(function(question) {
-                        var savedAnswer = Storage.getUserAnswers()[question.id];
-                        if (savedAnswer) {
-                            // Question is answered, render peer data chart
-                            var peerDataEl = Utils.safeGetElement('peer-data-' + question.id);
-                            if (peerDataEl) {
-                                Utils.safeSetHTML(peerDataEl, self.renderPeerData(question.id));
-                            }
-                        }
-                    });
+                    self.renderAllPeerCharts(questions);
                 }, 200);
             },
 
@@ -752,6 +745,55 @@
                 return html;
             },
 
+            renderAllPeerCharts: function(questions) {
+                var self = this;
+                // Render charts for all answered questions
+
+                questions.forEach(function(question, index) {
+                    var savedAnswer = Storage.getUserAnswers()[question.id];
+                    if (savedAnswer) {
+                        // Question is answered, render peer data
+                        var peerDataEl = Utils.safeGetElement('peer-data-' + question.id);
+                        if (peerDataEl) {
+                            Utils.safeSetHTML(peerDataEl, self.renderPeerData(question.id));
+
+                            // Stagger chart rendering to avoid overwhelming the browser
+                            setTimeout(function() {
+                                self.renderChartForQuestion(question.id);
+                            }, 150 * index);
+                        }
+                    }
+                });
+            },
+
+            renderChartForQuestion: function(questionId) {
+                var classData = Storage.getClassData();
+
+                // Collect all answers
+                var allAnswers = [];
+                var answerCounts = {};
+
+                if (classData.users) {
+                    var self = this;
+                    Object.keys(classData.users).forEach(function(username) {
+                        var userAnswers = classData.users[username].answers;
+                        if (userAnswers && userAnswers[questionId]) {
+                            var answer = userAnswers[questionId];
+                            allAnswers.push({
+                                username: username,
+                                answer: answer,
+                                isCurrentUser: username === self.currentUsername
+                            });
+                            answerCounts[answer] = (answerCounts[answer] || 0) + 1;
+                        }
+                    });
+                }
+
+                if (allAnswers.length > 0) {
+                    this.renderPeerDotplot(questionId, allAnswers, answerCounts);
+                }
+            },
+
             renderPeerData: function(questionId) {
                 var self = this;
                 var classData = Storage.getClassData();
@@ -812,10 +854,7 @@
 
                     html += '</div>';
 
-                    // Schedule chart rendering
-                    setTimeout(function() {
-                        self.renderPeerDotplot(questionId, allAnswers, answerCounts);
-                    }, 100);
+                    // Chart rendering is now handled by renderAllPeerCharts/renderChartForQuestion
 
                 } else {
                     html += '<p>Be the first to answer this question!</p>';
@@ -827,7 +866,9 @@
 
             renderPeerDotplot: function(questionId, allAnswers, answerCounts) {
                 var canvas = Utils.safeGetElement('peer-dotplot-' + questionId);
-                if (!canvas) return;
+                if (!canvas) {
+                    return;
+                }
 
                 // Destroy existing chart if it exists
                 var chartKey = 'peer-dotplot-' + questionId;
@@ -835,30 +876,52 @@
                     this.chartInstances[chartKey].destroy();
                 }
 
+                // Get the question to find all possible choices
+                var question = this.currentQuestions.find(function(q) {
+                    return q.id === questionId;
+                });
+
+                // Determine all possible answers for x-axis
+                var possibleAnswers = [];
+                if (question && question.type === 'multiple-choice') {
+                    // Get choices from question
+                    var choices = question.choices || [];
+                    if (question.attachments && question.attachments.choices) {
+                        choices = question.attachments.choices;
+                    }
+                    // Extract answer letters (A, B, C, D, E)
+                    possibleAnswers = choices.map(function(choice, index) {
+                        return String.fromCharCode(65 + index); // A, B, C, D, E
+                    });
+                } else {
+                    // For non-MCQ, use unique answers from responses
+                    possibleAnswers = Object.keys(answerCounts).sort();
+                }
+
                 // Prepare data for dotplot
-                var uniqueAnswers = Object.keys(answerCounts).sort();
                 var dotData = [];
 
                 // Create stacked dots for each answer
                 var answerStacks = {};
-                uniqueAnswers.forEach(function(answer) {
+                possibleAnswers.forEach(function(answer) {
                     answerStacks[answer] = 0;
                 });
 
                 allAnswers.forEach(function(item) {
-                    var stackHeight = answerStacks[item.answer];
+                    var stackHeight = answerStacks[item.answer] || 0;
                     dotData.push({
                         x: item.answer,
                         y: stackHeight + 1,
                         username: item.username,
                         isCurrentUser: item.isCurrentUser
                     });
-                    answerStacks[item.answer]++;
+                    answerStacks[item.answer] = (answerStacks[item.answer] || 0) + 1;
                 });
 
                 // Create the chart
                 var ctx = canvas.getContext('2d');
-                this.chartInstances[chartKey] = new Chart(ctx, {
+                try {
+                    this.chartInstances[chartKey] = new Chart(ctx, {
                     type: 'scatter',
                     data: {
                         datasets: [{
@@ -896,12 +959,16 @@
                         scales: {
                             x: {
                                 type: 'category',
+                                labels: possibleAnswers, // Show all possible answers
                                 title: {
                                     display: true,
-                                    text: 'Answers'
+                                    text: 'Answer Choices'
                                 },
                                 grid: {
                                     display: false
+                                },
+                                ticks: {
+                                    autoSkip: false // Show all labels
                                 }
                             },
                             y: {
@@ -920,6 +987,9 @@
                         }
                     }
                 });
+                } catch (e) {
+                    console.error('Error creating peer chart:', e);
+                }
             },
 
             renderAttachments: function(attachments) {
@@ -1042,6 +1112,12 @@
                     var peerDataEl = Utils.safeGetElement('peer-data-' + questionId);
                     if (peerDataEl) {
                         Utils.safeSetHTML(peerDataEl, this.renderPeerData(questionId));
+
+                        // Render the chart for this question after DOM update
+                        var self = this;
+                        setTimeout(function() {
+                            self.renderChartForQuestion(questionId);
+                        }, 150);
                     }
                 }
 
@@ -1078,6 +1154,14 @@
                 // Update UI
                 this.updateUserInfo();
                 this.showMainInterface();
+
+                // Refresh any displayed charts since current user changed
+                if (this.currentQuestions && this.currentQuestions.length > 0) {
+                    var self = this;
+                    setTimeout(function() {
+                        self.renderAllPeerCharts(self.currentQuestions);
+                    }, 300);
+                }
 
                 Utils.showMessage('Switched to user: ' + newUsername, 'success');
             },

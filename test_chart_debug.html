@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Debug Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Chart.js Test</h1>
+        <button onclick="addTestData()">Add Test Data</button>
+        <button onclick="clearData()">Clear Data</button>
+        <button onclick="renderChart()">Render Chart</button>
+
+        <div id="status"></div>
+
+        <div style="margin-top: 20px;">
+            <canvas id="test-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script>
+        var testChart = null;
+
+        // Test if Chart.js is loaded
+        if (typeof Chart !== 'undefined') {
+            document.getElementById('status').innerHTML = '<p style="color: green;">✓ Chart.js is loaded</p>';
+        } else {
+            document.getElementById('status').innerHTML = '<p style="color: red;">✗ Chart.js is NOT loaded</p>';
+        }
+
+        function addTestData() {
+            // Simulate adding user data to localStorage
+            var classData = JSON.parse(localStorage.getItem('apstats_classData') || '{}');
+            if (!classData.users) classData.users = {};
+
+            // Add test users
+            var testUsers = ['Apple_Bear', 'Banana_Cat', 'Cherry_Dog', 'Grape_Eagle'];
+            var testAnswers = ['A', 'B', 'A', 'C', 'A', 'B', 'A'];
+
+            testUsers.forEach(function(username, index) {
+                if (!classData.users[username]) {
+                    classData.users[username] = { answers: {}, reasons: {} };
+                }
+                classData.users[username].answers['U1-L1-Q1'] = testAnswers[index % testAnswers.length];
+            });
+
+            localStorage.setItem('apstats_classData', JSON.stringify(classData));
+            document.getElementById('status').innerHTML += '<p>Added test data for ' + testUsers.length + ' users</p>';
+        }
+
+        function clearData() {
+            localStorage.removeItem('apstats_classData');
+            if (testChart) {
+                testChart.destroy();
+                testChart = null;
+            }
+            document.getElementById('status').innerHTML = '<p>Data cleared</p>';
+        }
+
+        function renderChart() {
+            var canvas = document.getElementById('test-chart');
+            if (!canvas) {
+                document.getElementById('status').innerHTML += '<p style="color: red;">Canvas not found!</p>';
+                return;
+            }
+
+            // Get test data
+            var classData = JSON.parse(localStorage.getItem('apstats_classData') || '{}');
+            var answerCounts = {};
+            var dotData = [];
+
+            if (classData.users) {
+                // Count answers
+                Object.keys(classData.users).forEach(function(username) {
+                    var answer = classData.users[username].answers['U1-L1-Q1'];
+                    if (answer) {
+                        answerCounts[answer] = (answerCounts[answer] || 0) + 1;
+                    }
+                });
+
+                // Create dot data
+                var answerStacks = {};
+                Object.keys(answerCounts).forEach(function(answer) {
+                    answerStacks[answer] = 0;
+                });
+
+                Object.keys(classData.users).forEach(function(username) {
+                    var answer = classData.users[username].answers['U1-L1-Q1'];
+                    if (answer) {
+                        var stackHeight = answerStacks[answer];
+                        dotData.push({
+                            x: answer,
+                            y: stackHeight + 1,
+                            username: username
+                        });
+                        answerStacks[answer]++;
+                    }
+                });
+            }
+
+            // Destroy existing chart
+            if (testChart) {
+                testChart.destroy();
+            }
+
+            // Create new chart
+            try {
+                var ctx = canvas.getContext('2d');
+                testChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Responses',
+                            data: dotData,
+                            backgroundColor: '#3498db',
+                            borderColor: '#2980b9',
+                            borderWidth: 2,
+                            pointRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.raw.username + ': Answer ' + context.raw.x;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Answers' }
+                            },
+                            y: {
+                                title: { display: true, text: 'Count' },
+                                min: 0,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+
+                document.getElementById('status').innerHTML += '<p style="color: green;">✓ Chart created with ' + dotData.length + ' points</p>';
+            } catch (e) {
+                document.getElementById('status').innerHTML += '<p style="color: red;">✗ Error: ' + e.message + '</p>';
+            }
+        }
+
+        // Auto-load test on page load
+        window.onload = function() {
+            setTimeout(function() {
+                addTestData();
+                renderChart();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
