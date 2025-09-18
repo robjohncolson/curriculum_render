@@ -1275,381 +1275,7 @@
         
         // Now that UtilitiesModule is defined, replace saveClassData with debounced version
         saveClassData = UtilitiesModule.debounce(saveClassDataImmediate, 500);
-
-        // ===============================================
-        // DYNAMIC SIZING MODULE - Responsive Chart Heights
-        // ===============================================
-        const DynamicSizing = (function() {
-            // Base heights for different chart types
-            const BASE_HEIGHTS = {
-                dotplot: 150,
-                bar: 300,
-                histogram: 300,
-                pie: 350,
-                scatter: 400,
-                boxplot: 200,
-                numberline: 100,
-                mcqDistribution: 250,
-                frqResponses: 300
-            };
-
-            // Minimum and maximum heights
-            const MIN_HEIGHT = 100;
-            const MAX_HEIGHT = 800;
-
-            /**
-             * Calculate optimal height for a chart based on its type and data
-             */
-            function calculateChartHeight(chartType, data, config = {}) {
-                let height = BASE_HEIGHTS[chartType] || 300;
-
-                switch(chartType) {
-                    case 'dotplot':
-                        // For dotplots, height depends on max stack height
-                        if (data.values) {
-                            const frequencies = {};
-                            data.values.forEach(val => {
-                                frequencies[val] = (frequencies[val] || 0) + 1;
-                            });
-                            const maxStack = Math.max(...Object.values(frequencies));
-                            const dotRadius = config.dotRadius || 4;
-                            // Each dot needs space plus some padding
-                            height = Math.max(BASE_HEIGHTS.dotplot,
-                                             80 + (maxStack * (dotRadius * 2.5)));
-                        }
-                        break;
-
-                    case 'bar':
-                    case 'histogram':
-                        // For bar charts, consider number of bars and series
-                        if (data.series) {
-                            const numBars = data.xLabels ? data.xLabels.length : 10;
-                            const numSeries = data.series.length;
-                            // More bars or series need more height
-                            height = Math.max(BASE_HEIGHTS.bar,
-                                            200 + (numBars * 15) + (numSeries * 20));
-                        }
-                        break;
-
-                    case 'scatter':
-                        // Scatter plots need consistent aspect ratio
-                        height = BASE_HEIGHTS.scatter;
-                        if (config.maintainAspectRatio) {
-                            const width = getContainerWidth();
-                            height = width * 0.75; // 4:3 aspect ratio
-                        }
-                        break;
-
-                    case 'pie':
-                        // Pie charts should be square-ish
-                        const width = getContainerWidth();
-                        height = Math.min(width, BASE_HEIGHTS.pie);
-                        break;
-
-                    case 'boxplot':
-                        // Height depends on number of boxplots
-                        if (config.boxplotData) {
-                            const numBoxplots = Array.isArray(config.boxplotData) ?
-                                               config.boxplotData.length : 1;
-                            height = BASE_HEIGHTS.boxplot + (numBoxplots * 50);
-                        }
-                        break;
-
-                    case 'numberline':
-                        // Number lines are always thin
-                        height = BASE_HEIGHTS.numberline;
-                        break;
-                }
-
-                // Apply min/max constraints
-                return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, height));
-            }
-
-            /**
-             * Calculate height for peer visualization dotplot
-             */
-            function calculatePeerVisualizationHeight(questionId) {
-                // Get actual response counts for each choice
-                const responseCounts = {};
-
-                Object.entries(classData.users || {}).forEach(([username, userData]) => {
-                    const answer = userData.answers?.[questionId];
-                    if (answer) {
-                        const choice = answer.value || answer;
-                        responseCounts[choice] = (responseCounts[choice] || 0) + 1;
-                    }
-                });
-
-                // Find the maximum stack height
-                const maxStack = Math.max(...Object.values(responseCounts), 1);
-
-                // Calculate height based on max stack (each dot needs ~12-15 pixels)
-                const dotSpacing = 12;
-                const baseHeight = 100; // Minimum height for axes and labels
-                const calculatedHeight = baseHeight + (maxStack * dotSpacing);
-
-                // Apply reasonable limits
-                return Math.max(MIN_HEIGHT, Math.min(calculatedHeight, 500));
-            }
-
-            /**
-             * Calculate height for FRQ responses section
-             */
-            function calculateFRQResponsesHeight(questionId) {
-                const responses = [];
-                Object.entries(classData.users || {}).forEach(([username, userData]) => {
-                    if (userData.answers?.[questionId]) {
-                        responses.push(userData.answers[questionId]);
-                    }
-                });
-
-                // Base height plus extra for each response
-                const baseHeight = BASE_HEIGHTS.frqResponses;
-                return Math.min(MAX_HEIGHT, baseHeight + (responses.length * 30));
-            }
-
-            /**
-             * Get container width for aspect ratio calculations
-             */
-            function getContainerWidth() {
-                const container = document.querySelector('.quiz-container');
-                return container ? container.clientWidth : 600;
-            }
-
-            /**
-             * Apply dynamic height to a canvas element
-             */
-            function applyCanvasHeight(canvas, height) {
-                if (!canvas || !canvas.parentElement) return;
-
-                // Set both canvas and container heights
-                canvas.style.height = height + 'px';
-                canvas.parentElement.style.height = height + 'px';
-                canvas.parentElement.style.position = 'relative';
-                canvas.parentElement.style.overflow = 'visible';
-
-                // Remove any fixed heights that might conflict
-                canvas.parentElement.style.minHeight = 'unset';
-                canvas.parentElement.style.maxHeight = 'unset';
-            }
-
-            /**
-             * Setup ResizeObserver for a chart container
-             */
-            function observeResize(element, callback) {
-                if (!window.ResizeObserver) return null;
-
-                const observer = new ResizeObserver(entries => {
-                    for (let entry of entries) {
-                        callback(entry.contentRect);
-                    }
-                });
-
-                observer.observe(element);
-                return observer;
-            }
-
-            /**
-             * Auto-resize chart when container changes
-             */
-            function enableAutoResize(chartId) {
-                const canvas = document.getElementById(chartId);
-                if (!canvas || !canvas.parentElement) return;
-
-                const container = canvas.parentElement.parentElement;
-                if (!container) return;
-
-                return observeResize(container, (rect) => {
-                    // Trigger chart resize if it exists
-                    if (chartInstances[chartId]) {
-                        chartInstances[chartId].resize();
-                    }
-                });
-            }
-
-            // Public API
-            return {
-                calculateChartHeight,
-                calculatePeerVisualizationHeight,
-                calculateFRQResponsesHeight,
-                applyCanvasHeight,
-                observeResize,
-                enableAutoResize,
-                BASE_HEIGHTS,
-                MIN_HEIGHT,
-                MAX_HEIGHT
-            };
-        })();
-
-        // ===============================================
-        // ANSWER REVEAL TIMING MODULE
-        // ===============================================
-        const AnswerRevealTiming = (function() {
-            // Configuration for answer reveal rules
-            const REVEAL_RULES = {
-                // Immediate reveal if correct + explanation
-                IMMEDIATE: 'immediate',
-                // 1 hour delay after 3 attempts with explanations
-                DELAYED: 'delayed',
-                // Never reveal if no explanation
-                NEVER: 'never',
-                // Teacher override
-                TEACHER_OVERRIDE: 'teacher_override'
-            };
-
-            // Timing delays in milliseconds
-            const DELAYS = {
-                ONE_HOUR: 60 * 60 * 1000,  // 1 hour
-                FIVE_MINUTES: 5 * 60 * 1000,  // 5 minutes for testing
-                IMMEDIATE: 0
-            };
-
-            /**
-             * Determine if answer should be revealed for a question
-             */
-            function shouldRevealAnswer(questionId) {
-                const userData = classData.users[currentUsername];
-                if (!userData) return false;
-
-                const answer = userData.answers?.[questionId];
-                const reason = userData.reasons?.[questionId];
-                const attempts = userData.attempts?.[questionId] || 0;
-                const timestamp = userData.timestamps?.[questionId];
-
-                // No answer submitted yet
-                if (!answer) return false;
-
-                // Teacher mode check (to be implemented)
-                if (isTeacherMode()) {
-                    return true;
-                }
-
-                // Get the correct answer
-                const question = currentQuestions.find(q => q.id === questionId);
-                const correctAnswer = question?.answerKey;
-                if (!correctAnswer) return false;  // No answer key available
-
-                const isCorrect = (answer.value || answer) === correctAnswer;
-
-                // Rule 1: Correct answer + explanation = immediate reveal
-                if (isCorrect && reason && reason.trim()) {
-                    return true;
-                }
-
-                // Rule 2: Wrong answer + no explanation = never reveal
-                if (!reason || !reason.trim()) {
-                    return false;
-                }
-
-                // Rule 3: 3+ attempts with explanations = delayed reveal
-                if (attempts >= 3 && reason && reason.trim()) {
-                    if (!timestamp) return false;
-
-                    const timePassed = Date.now() - new Date(timestamp).getTime();
-                    const delay = getRevealDelay();
-                    return timePassed >= delay;
-                }
-
-                return false;
-            }
-
-            /**
-             * Get time remaining until answer reveal
-             */
-            function getTimeUntilReveal(questionId) {
-                const userData = classData.users[currentUsername];
-                if (!userData) return null;
-
-                const attempts = userData.attempts?.[questionId] || 0;
-                const reason = userData.reasons?.[questionId];
-                const timestamp = userData.timestamps?.[questionId];
-
-                // Not eligible for delayed reveal
-                if (attempts < 3 || !reason || !reason.trim()) {
-                    return null;
-                }
-
-                if (!timestamp) return null;
-
-                const timePassed = Date.now() - new Date(timestamp).getTime();
-                const delay = getRevealDelay();
-                const remaining = delay - timePassed;
-
-                return remaining > 0 ? remaining : 0;
-            }
-
-            /**
-             * Format time for display
-             */
-            function formatTimeRemaining(milliseconds) {
-                if (milliseconds <= 0) return 'Available now';
-
-                const seconds = Math.floor(milliseconds / 1000);
-                const minutes = Math.floor(seconds / 60);
-                const hours = Math.floor(minutes / 60);
-
-                if (hours > 0) {
-                    return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes % 60} minute${minutes % 60 !== 1 ? 's' : ''}`;
-                } else if (minutes > 0) {
-                    return `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds % 60} second${seconds % 60 !== 1 ? 's' : ''}`;
-                } else {
-                    return `${seconds} second${seconds !== 1 ? 's' : ''}`;
-                }
-            }
-
-            /**
-             * Get the reveal delay (configurable for testing)
-             */
-            function getRevealDelay() {
-                // Use shorter delay for testing on localhost
-                if (window.location.hostname === 'localhost') {
-                    return DELAYS.FIVE_MINUTES;
-                }
-                return DELAYS.ONE_HOUR;
-            }
-
-            /**
-             * Check if teacher mode is active
-             */
-            function isTeacherMode() {
-                return localStorage.getItem('teacherMode') === 'true';
-            }
-
-            /**
-             * Activate teacher mode with password
-             */
-            function activateTeacherMode(password) {
-                const TEACHER_PASSWORD = 'stats2024';
-                if (password === TEACHER_PASSWORD) {
-                    localStorage.setItem('teacherMode', 'true');
-                    showMessage('Teacher mode activated!', 'success');
-                    return true;
-                }
-                showMessage('Incorrect password', 'error');
-                return false;
-            }
-
-            /**
-             * Deactivate teacher mode
-             */
-            function deactivateTeacherMode() {
-                localStorage.removeItem('teacherMode');
-                showMessage('Teacher mode deactivated', 'info');
-            }
-
-            // Public API
-            return {
-                shouldRevealAnswer,
-                getTimeUntilReveal,
-                formatTimeRemaining,
-                isTeacherMode,
-                activateTeacherMode,
-                deactivateTeacherMode,
-                REVEAL_RULES,
-                DELAYS
-            };
-        })();
-
+        
         // ===============================================
         // HELPER FUNCTIONS
         // ===============================================
@@ -1699,33 +1325,6 @@
          */
         function getScatterPointColor() {
             return isDarkMode() ? '#5BC0EB' : '#36A2EB';
-        }
-
-        /**
-         * Gets background colors for panels and containers
-         */
-        function getPanelBackgroundColor() {
-            return isDarkMode() ? '#2d2d2d' : '#f9f9f9';
-        }
-
-        function getContainerBackgroundColor() {
-            return isDarkMode() ? '#1a1a1a' : 'white';
-        }
-
-        function getPeerItemBackgroundColor() {
-            return isDarkMode() ? '#333' : '#f5f5f5';
-        }
-
-        function getUserItemBackgroundColor() {
-            return isDarkMode() ? '#2d4a2d' : '#e8f5e9';
-        }
-
-        function getSecondaryTextColor() {
-            return isDarkMode() ? '#aaa' : '#666';
-        }
-
-        function getTertiaryTextColor() {
-            return isDarkMode() ? '#888' : '#999';
         }
 
         // Username Generation
@@ -1998,33 +1597,10 @@
             questionsContainer.innerHTML = `
                 <div class="username-prompt">
                     <h2>Welcome to AP Statistics Consensus Quiz</h2>
-
-                    <div style="display: flex; gap: 20px; justify-content: center; margin-top: 30px;">
-                        <!-- New Student Option -->
-                        <div style="flex: 1; max-width: 300px; padding: 20px; border: 2px solid #3498db; border-radius: 8px;">
-                            <h3 style="margin-top: 0;">New Student</h3>
-                            <p>Your generated username:</p>
-                            <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
-                            <button data-action="accept-username" data-param="${suggestedName}" class="start-button" style="width: 100%; margin-bottom: 10px;">Use This Name</button>
-                            <button data-action="reroll-username" class="start-button" style="background: #7f8c8d; width: 100%;">Generate New Name</button>
-                        </div>
-
-                        <!-- Existing Student Option -->
-                        <div style="flex: 1; max-width: 300px; padding: 20px; border: 2px solid #27ae60; border-radius: 8px;">
-                            <h3 style="margin-top: 0;">Returning Student</h3>
-                            <p>Enter your existing username:</p>
-                            <input type="text" id="existing-username-input" placeholder="e.g., Cherry_Dog" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
-                            <button data-action="login-existing" class="start-button" style="background: #27ae60; width: 100%;">Login</button>
-                            <p style="font-size: 12px; color: #666; margin-top: 10px;">Use this if you already have data from another session or device</p>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 30px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
-                        <p style="margin: 0; color: #666;">
-                            <strong>Note:</strong> Your username lets you track your progress and compare with peers.
-                            If switching devices, use "Returning Student" to continue where you left off.
-                        </p>
-                    </div>
+                    <p>Your generated username:</p>
+                    <div style="font-size: 24px; font-weight: bold; color: #3498db; margin: 15px;">${suggestedName}</div>
+                    <button data-action="accept-username" data-param="${suggestedName}" class="start-button">Accept This Name</button>
+                    <button data-action="reroll-username" class="start-button" style="background: #7f8c8d;">Generate New Name</button>
                 </div>
             `;
         }
@@ -2435,19 +2011,14 @@ function renderLessonSelector(unitInfo) {
             const attempts = getAttemptCount(question.id);
             const canRetryQuestion = canRetry(question.id);
             
-            // Use a side-by-side layout with question on left and peer data on right
             let html = `
-                <div class="quiz-container-wrapper" data-question-id="${question.id}" data-question-number="${questionNumber}">
-                    <div class="quiz-main-content">
-                        <!-- Left side: Question and answer input -->
-                        <div class="question-content">
-                            <div class="quiz-container">
-                                <div class="question-header">
-                                    <span>Question ${questionNumber}</span>
-                                    ${isAnswered ? '<span style="color: #a5d6a7;">✓ Answered</span>' : ''}
-                                </div>
-                                <div class="question-id">ID: ${question.id || 'N/A'}</div>
-                                <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
+                <div class="quiz-container" data-question-id="${question.id}" data-question-number="${questionNumber}">
+                    <div class="question-header">
+                        <span>Question ${questionNumber}</span>
+                        ${isAnswered ? '<span style="color: #a5d6a7;">✓ Answered</span>' : ''}
+                    </div>
+                    <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                    <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
             `;
 
             // Render attachments if present
@@ -2498,65 +2069,53 @@ function renderLessonSelector(unitInfo) {
                 `;
             }
 
-            // Add answer section (still in left column)
-            const savedReason = classData.users[currentUsername]?.reasons?.[question.id] || '';
+            // Add answer section
             html += `
                 <div class="answer-section">
                     <div class="reason-wrapper">
                         <label class="reason-label">
-                            Explain your reasoning:
-                            ${!savedReason && isAnswered ? '<span style="color: #FF9800;"> (Add explanation to unlock answer changes)</span>' : ''}
+                            ${attempts > 0 && !canRetryQuestion ? 
+                                'Your explanation (required for retry):' : 
+                                'Explain your reasoning (optional but enables retry):'}
                         </label>
-                        <textarea
+                        <textarea 
                             id="reason-${question.id}"
-                            class="reason-textarea"
-                            placeholder="Explain why you chose this answer..."
-                        >${savedReason}</textarea>
+                            class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
+                            placeholder="${attempts > 0 && !canRetryQuestion ? 
+                                'Previous attempt did not include reasoning. Add reasoning to enable retry.' : 
+                                'Explain why you chose this answer...'}"
+                            ${!canRetryQuestion && attempts >= CONFIG.MAX_ATTEMPTS ? 'disabled' : ''}
+                        >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button
+                    <div>
+                        <button 
                             id="submit-${question.id}"
-                            class="submit-button"
+                            class="submit-button" 
                             data-action="submit-answer" data-param="${question.id}" data-question-type="${question.type}"
                             ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
                         >
-                            ${isAnswered ? (canRetryQuestion ? 'Update Answer' : (savedReason ? 'Max Attempts Reached' : 'Add Explanation First')) : 'Submit Answer'}
+                            ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Max Attempts Reached') : 'Submit Answer'}
                         </button>
-                        ${isAnswered && !savedReason ? `
-                            <button
-                                id="add-reason-${question.id}"
-                                class="add-reason-button"
-                                data-action="add-reason" data-param="${question.id}"
-                                style="background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;"
-                            >
-                                Add Explanation Only
-                            </button>
-                        ` : ''}
                         <span id="error-${question.id}" class="error-msg"></span>
                         <span id="success-${question.id}" class="success-msg"></span>
                     </div>
                 </div>
-                            </div> <!-- End quiz-container -->
-                        </div> <!-- End question-content -->
-
-                        <!-- Right side: Peer data and visualization -->
-                        <div class="peer-data-panel ${isAnswered ? 'visible' : 'hidden'}" id="peer-panel-${question.id}">
-                            <div class="peer-panel-header">
-                                <h3>Peer Consensus</h3>
-                                ${isAnswered ? '' : '<p style="color: #999;">Submit your answer to see peer data</p>'}
-                            </div>
-                            ${isAnswered ? `
-                                <div class="dotplot-container" id="dotplot-section-${question.id}">
-                                    <canvas id="dotplot-${question.id}" style="width: 100%; height: auto;"></canvas>
-                                </div>
-                                <div class="consensus-container" id="consensus-${question.id}"></div>
-                                <div class="contributors-container" id="contributors-${question.id}"></div>
-                            ` : ''}
-                        </div>
-                    </div> <!-- End quiz-main-content -->
-                </div> <!-- End quiz-container-wrapper -->
             `;
 
+            // Add dotplot section (always visible if answered)
+            if (isAnswered) {
+                html += `
+                    <div class="dotplot-section show" id="dotplot-section-${question.id}">
+                        <canvas id="dotplot-${question.id}" width="${CONFIG.CHART.DOTPLOT_WIDTH}" height="${CONFIG.CHART.DOTPLOT_HEIGHT}"></canvas>
+                        <div id="consensus-${question.id}"></div>
+                        <div class="contributors-list" id="contributors-${question.id}"></div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="dotplot-section" id="dotplot-section-${question.id}"></div>`;
+            }
+
+            html += '</div>';
             return html;
         }
 
@@ -3243,12 +2802,10 @@ function renderLessonSelector(unitInfo) {
                       });
                        chartInstances[chartId] = chart;
 
-                      // Use DynamicSizing module for responsive height
-                      const chartHeight = DynamicSizing.calculateChartHeight('dotplot', chartData, config);
-                      DynamicSizing.applyCanvasHeight(canvas, chartHeight);
-
-                      // Enable auto-resize
-                      DynamicSizing.enableAutoResize(chartId);
+                      // Adjust chart height so stacked dots appear closer (rough heuristic)
+                      const minHeight = 120;
+                      const desiredHeight = Math.max(minHeight, (dotRadius * 2 + 4) * (maxFrequency + 1));
+                      canvas.parentElement.style.height = desiredHeight + 'px';
 
 
                   } else if (chartData.chartType === 'boxplot') {
@@ -4083,10 +3640,11 @@ function renderChartNow(chartId) {
 
     const ctx = canvas.getContext('2d');
 
-    // Use DynamicSizing for responsive height instead of fixed
+    // FIX: Set canvas parent height to prevent infinite expansion
+    canvas.parentElement.style.height = '400px';
+    canvas.parentElement.style.position = 'relative';
+
     const config = chartData.chartConfig || {};
-    const chartHeight = DynamicSizing.calculateChartHeight(chartData.chartType, chartData, config);
-    DynamicSizing.applyCanvasHeight(canvas, chartHeight);
     
     // Bar/Histogram charts
     if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
@@ -4550,14 +4108,6 @@ function renderAttachments(attachments, questionId) {
                 }, 10);
             }
 
-            // Keep the radio button selected after submission for multiple choice
-            if (questionType === 'multiple-choice') {
-                const selectedRadio = document.querySelector(`input[name="choice-${questionId}"][value="${value}"]`);
-                if (selectedRadio) {
-                    selectedRadio.checked = true;
-                }
-            }
-
             // Always destroy existing chart to force complete refresh
             const chartId = `dotplot-${questionId}`;
             if (chartInstances[chartId]) {
@@ -4629,334 +4179,123 @@ function renderAttachments(attachments, questionId) {
             }
         );
 
-        // Helper functions for theme-aware colors
-        function isDarkMode() {
-            // Check if dark mode is enabled (can be expanded later)
-            return document.body.getAttribute('data-theme') === 'dark' ||
-                   window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
-
-        function getTextColor() {
-            return isDarkMode() ? '#e0e0e0' : '#333';
-        }
-
-        function getSecondaryTextColor() {
-            return isDarkMode() ? '#b0b0b0' : '#666';
-        }
-
-        function getTertiaryTextColor() {
-            return isDarkMode() ? '#888' : '#999';
-        }
-
-        function getPeerItemBackgroundColor() {
-            return isDarkMode() ? '#333' : '#f5f5f5';
-        }
-
-        function getUserItemBackgroundColor() {
-            return isDarkMode() ? '#2d4a2d' : '#e8f5e9';
-        }
-
-        // Render MCQ distribution with peer data
+        // Render MCQ distribution
         function renderMCQDistribution(questionId) {
             const canvas = document.getElementById(`dotplot-${questionId}`);
             if (!canvas) return;
 
-            // Use DynamicSizing for responsive height
-            const height = DynamicSizing.calculatePeerVisualizationHeight(questionId);
-            // Ensure minimum height for proper display
-            const finalHeight = Math.max(height, 250);
-            DynamicSizing.applyCanvasHeight(canvas, finalHeight);
+            // Fix canvas dimensions to prevent cropping
+            const container = canvas.parentElement;
+            container.style.height = '500px';  // Increased from 350px
+            container.style.position = 'relative';
+            container.style.overflow = 'visible';  // Changed from 'hidden' to 'visible'
 
-            // Separate current user from peers
-            const currentUserAnswer = classData.users[currentUsername]?.answers?.[questionId];
-            const currentUserChoice = currentUserAnswer?.value || currentUserAnswer;
-            const currentUserReason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+            // Ensure the canvas itself has room
+            canvas.style.height = '600px';  // Increased from 300px
+            canvas.style.width = '100%';
 
             // Aggregate responses
-            const peerChoiceCounts = {};
-            const myChoiceCount = {};
-            let peerCount = 0;
-            const peerContributors = [];
+            const choiceCounts = {};
+            let totalCount = 0;
+            const contributors = [];
 
             // Get the question to know all possible choices
             const question = currentQuestions.find(q => q.id === questionId);
             const allChoices = question?.choices || question?.attachments?.choices || [];
 
-            // Initialize all choices with 0 for both peer and current user
+            // Initialize all choices with 0
             allChoices.forEach(choice => {
-                peerChoiceCounts[choice.key] = 0;
-                myChoiceCount[choice.key] = 0;
+                choiceCounts[choice.key] = 0;
             });
 
-            // Count peer responses (excluding current user)
+            // Count actual responses
             for (let username in classData.users) {
-                if (username === currentUsername) {
-                    // Track current user separately
-                    if (currentUserChoice) {
-                        myChoiceCount[currentUserChoice] = 1;
-                    }
-                } else {
-                    // Count peer responses
-                    const userAnswer = classData.users[username].answers?.[questionId];
-                    if (userAnswer) {
-                        const choice = userAnswer.value || userAnswer;
-                        const reason = classData.users[username].reasons?.[questionId] || '';
+                const userAnswer = classData.users[username].answers?.[questionId];
+                if (userAnswer) {
+                    const choice = userAnswer.value || userAnswer;
+                    const reason = classData.users[username].reasons?.[questionId] || '';
 
-                        peerChoiceCounts[choice] = (peerChoiceCounts[choice] || 0) + 1;
-                        peerCount++;
-                        peerContributors.push({
-                            username: username,
-                            choice: choice,
-                            reason: reason
-                        });
-                    }
-                }
-            }
-
-            // Create DOTPLOT visualization showing "You" vs "Peers" as actual dots
-            const ctx = canvas.getContext('2d');
-            const choices = allChoices.map(c => c.key).sort();
-            const totalCount = peerCount + (currentUserChoice ? 1 : 0);
-
-            // Destroy existing chart if any
-            if (chartInstances[`dotplot-${questionId}`]) {
-                chartInstances[`dotplot-${questionId}`].destroy();
-                delete chartInstances[`dotplot-${questionId}`];
-            }
-
-            // Build dotplot data with stacked dots for each choice
-            const dotplotData = [];
-            const choicePositions = {};
-            choices.forEach((choice, index) => {
-                choicePositions[choice] = index;
-            });
-
-            // Debug: log choices to ensure they're correct
-            console.log('Dotplot for', questionId, 'choices:', choices, 'positions:', choicePositions);
-
-            // Helper to add dots for a choice
-            function addDotsForChoice(choice, count, color, label, startY = 0) {
-                const xPos = choicePositions[choice];
-                const dots = [];
-                for (let i = 0; i < count; i++) {
-                    dots.push({
-                        x: xPos,
-                        y: startY + i + 1,
-                        backgroundColor: color,
-                        borderColor: color,
-                        label: label
+                    choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
+                    totalCount++;
+                    contributors.push({
+                        username: username,
+                        choice: choice,
+                        reason: reason
                     });
                 }
-                return dots;
             }
 
-            // Create separate datasets for peers and current user
-            const datasets = [];
+            // Create bar chart (like your example JSON)
+            const ctx = canvas.getContext('2d');
+            const choices = Object.keys(choiceCounts).sort();
+            const counts = choices.map(c => choiceCounts[c] || 0);
+            const relativeFrequencies = counts.map(c => totalCount > 0 ? c / totalCount : 0);
 
-            // Add peer dots (bottom layer)
-            const peerDots = [];
-            choices.forEach(choice => {
-                const count = peerChoiceCounts[choice] || 0;
-                if (count > 0) {
-                    peerDots.push(...addDotsForChoice(choice, count, '#64B5F6', 'Peer'));
-                }
-            });
-
-            if (peerDots.length > 0) {
-                datasets.push({
-                    label: `Peers (${peerCount})`,
-                    data: peerDots,
-                    backgroundColor: '#64B5F6',
-                    borderColor: '#1976D2',
-                    borderWidth: 1,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    showLine: false
-                });
-            }
-
-            // Add current user's dot (same shape, different color)
-            if (currentUserChoice) {
-                const peerCountForChoice = peerChoiceCounts[currentUserChoice] || 0;
-                datasets.push({
-                    label: 'You',
-                    data: [{
-                        x: choicePositions[currentUserChoice],
-                        y: peerCountForChoice + 1,  // Stack on top of peers
-                        backgroundColor: '#4CAF50',
-                        borderColor: '#2E7D32'
-                    }],
-                    backgroundColor: '#4CAF50',  // Green for current user
-                    borderColor: '#2E7D32',
-                    borderWidth: 2,
-                    pointRadius: 7,  // Same size as peers
-                    pointHoverRadius: 9,
-                    pointStyle: 'circle',  // Same shape as peers
-                    showLine: false
-                });
-            }
-
-            // Add correct answer indicator if timing rules allow
-            const correctAnswer = question?.answerKey;
-            const shouldShowAnswer = AnswerRevealTiming.shouldRevealAnswer(questionId);
-
-            if (correctAnswer && choicePositions[correctAnswer] !== undefined && shouldShowAnswer) {
-                const totalForCorrect = (peerChoiceCounts[correctAnswer] || 0) + (currentUserChoice === correctAnswer ? 1 : 0);
-                datasets.push({
-                    label: 'Correct Answer',
-                    data: [{
-                        x: choicePositions[correctAnswer],
-                        y: totalForCorrect + 1.5,  // Float above all dots
-                        backgroundColor: '#FFD700',
-                        borderColor: '#FFA500'
-                    }],
-                    backgroundColor: '#FFD700',  // Gold color for correct answer
-                    borderColor: '#FFA500',
-                    borderWidth: 3,  // Thicker border for emphasis
-                    pointRadius: 8,  // Slightly larger
-                    pointHoverRadius: 10,
-                    pointStyle: 'circle',  // Same shape as others
-                    showLine: false
-                });
-            }
-
-            // Show timing information if answer is not yet revealed
-            if (correctAnswer && !shouldShowAnswer) {
-                const timeRemaining = AnswerRevealTiming.getTimeUntilReveal(questionId);
-                if (timeRemaining !== null && timeRemaining > 0) {
-                    // Add this info to the consensus div later
-                    const formattedTime = AnswerRevealTiming.formatTimeRemaining(timeRemaining);
-                    // Store for later use in consensus display
-                    window.pendingAnswerReveal = window.pendingAnswerReveal || {};
-                    window.pendingAnswerReveal[questionId] = formattedTime;
-                }
-            }
-
-            // Find max stack height for y-axis scaling
-            const maxStackHeight = Math.max(
-                ...choices.map(c => (peerChoiceCounts[c] || 0) + (c === currentUserChoice ? 1 : 0))
-            );
-
-            // Store choices in a way that's accessible to the callback
-            const choiceLabels = [...choices];  // Create a copy that will be captured in the closure
-
-            // Create the dotplot using scatter chart
+            // Destroy existing chart if any
+            // Destroy existing chart if any
+if (chartInstances[`dotplot-${questionId}`]) {
+    chartInstances[`dotplot-${questionId}`].destroy();
+    delete chartInstances[`dotplot-${questionId}`];  // Add just this line
+}
+            // Create bar chart with relative frequencies
             chartInstances[`dotplot-${questionId}`] = new Chart(ctx, {
-                type: 'scatter',
+                type: 'bar',
                 data: {
-                    datasets: datasets,
-                    labels: choiceLabels  // Add labels to data object
+                    labels: choices,
+                    datasets: [{
+                        label: 'Relative Frequency',
+                        data: relativeFrequencies,
+                        backgroundColor: choices.map(c => {
+                            // Highlight user's choice in different color
+                            const userChoice = classData.users[currentUsername]?.answers?.[questionId];
+                            const userChoiceValue = userChoice?.value || userChoice;
+                            return c === userChoiceValue ? '#4CAF50' : '#36A2EB';
+                        }),
+                        borderColor: '#2196F3',
+                        borderWidth: 1
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: {
                         padding: {
-                            bottom: 60,  // Even more space for x-axis labels
-                            top: 20,
-                            left: 20,
-                            right: 20
+                            bottom: 20
                         }
                     },
                     scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            min: -0.5,
-                            max: choiceLabels.length - 0.5,
-                            title: {
-                                display: true,
-                                text: 'Answer Choice',
-                                color: '#333',  // Always use dark color for visibility
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                stepSize: 0.1,
+                                callback: function(value) {
+                                    return (value * 100).toFixed(0) + '%';
                                 }
                             },
-                            ticks: {
-                                stepSize: 1,
-                                autoSkip: false,  // Don't skip any labels
-                                callback: function(value, index, ticks) {
-                                    const intValue = Math.round(value);
-                                    if (intValue >= 0 && intValue < choiceLabels.length && Math.abs(value - intValue) < 0.01) {
-                                        return choiceLabels[intValue];
-                                    }
-                                    return '';
-                                },
-                                color: '#333',  // Always use dark color for visibility
-                                font: {
-                                    size: 18,  // Even larger font for visibility
-                                    weight: 'bold'
-                                },
-                                padding: 15,  // More space between axis and labels
-                                maxRotation: 0,  // Don't rotate labels
-                                minRotation: 0
-                            },
-                            grid: {
-                                display: false
+                            title: {
+                                display: true,
+                                text: 'Relative Frequency'
                             }
                         },
-                        y: {
-                            type: 'linear',
-                            min: 0,
-                            max: maxStackHeight + 1,
+                        x: {
                             title: {
-                                display: false  // Dotplots typically don't show y-axis
-                            },
-                            ticks: {
-                                display: false,  // Hide y-axis values
-                                stepSize: 1
-                            },
-                            grid: {
-                                display: false
+                                display: true,
+                                text: 'Answer Choice'
                             }
                         }
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: {
-                                    size: 12
-                                }
-                            }
+                            display: false
                         },
                         tooltip: {
                             callbacks: {
-                                title: function(context) {
-                                    const xValue = context[0].parsed.x;
-                                    if (xValue >= 0 && xValue < choices.length) {
-                                        return `Choice ${choices[Math.round(xValue)]}`;
-                                    }
-                                    return '';
-                                },
                                 label: function(context) {
-                                    const datasetLabel = context.dataset.label;
-                                    const xValue = Math.round(context.parsed.x);
-                                    const choice = choices[xValue];
-
-                                    if (datasetLabel.includes('You')) {
-                                        return 'Your answer';
-                                    } else {
-                                        const count = peerChoiceCounts[choice] || 0;
-                                        const percentage = peerCount > 0 ? (count / peerCount * 100).toFixed(1) : 0;
-                                        return `${count} peer${count !== 1 ? 's' : ''} chose this (${percentage}% of peers)`;
-                                    }
-                                },
-                                footer: function(tooltipItems) {
-                                    if (tooltipItems.length > 0) {
-                                        const xValue = Math.round(tooltipItems[0].parsed.x);
-                                        const choice = choices[xValue];
-                                        const peerC = peerChoiceCounts[choice] || 0;
-                                        const meC = choice === currentUserChoice ? 1 : 0;
-                                        const total = peerC + meC;
-                                        const percentage = totalCount > 0 ? (total / totalCount * 100).toFixed(1) : 0;
-                                        return `Total: ${total} student${total !== 1 ? 's' : ''} (${percentage}% of class)`;
-                                    }
-                                    return '';
+                                    const value = context.parsed.y;
+                                    const percentage = (value * 100).toFixed(1);
+                                    const count = counts[context.dataIndex];
+                                    return `${percentage}% (${count} of ${totalCount} responses)`;
                                 }
                             }
                         }
@@ -4964,154 +4303,66 @@ function renderAttachments(attachments, questionId) {
                 }
             });
 
-            // Calculate consensus based on combined data
-            const combinedCounts = choices.map(c => (peerChoiceCounts[c] || 0) + (myChoiceCount[c] || 0));
-            const maxCount = Math.max(...combinedCounts);
-            const consensusPercentage = totalCount > 0 ? maxCount / totalCount : 0;
-
+            // Add consensus coloring
+            const maxFreq = Math.max(...relativeFrequencies);
             const consensusDiv = document.getElementById(`consensus-${questionId}`);
-            if (consensusDiv) {
-                if (consensusPercentage >= 0.7) {
-                    consensusDiv.style.backgroundColor = '#e8f5e9';
-                    consensusDiv.style.border = '2px solid #4CAF50';
-                } else if (consensusPercentage >= 0.6) {
-                    consensusDiv.style.backgroundColor = '#fff3e0';
-                    consensusDiv.style.border = '2px solid #ff9800';
-                } else {
-                    consensusDiv.style.backgroundColor = '#ffebee';
-                    consensusDiv.style.border = '2px solid #f44336';
-                }
+            if (maxFreq >= 0.7) {
+                consensusDiv.style.backgroundColor = '#e8f5e9';
+                consensusDiv.style.border = '2px solid #4CAF50';
+            } else if (maxFreq >= 0.6) {
+                consensusDiv.style.backgroundColor = '#fff3e0';
+                consensusDiv.style.border = '2px solid #ff9800';
+            } else {
+                consensusDiv.style.backgroundColor = '#ffebee';
+                consensusDiv.style.border = '2px solid #f44336';
             }
 
             // Show consensus message
             if (consensusDiv) {
-                if (totalCount > 0) {
-                    const modeIndex = combinedCounts.indexOf(maxCount);
+                if (totalCount > 1) {
+                    const modeIndex = relativeFrequencies.indexOf(maxFreq);
                     const mode = choices[modeIndex];
-                    const percentage = (consensusPercentage * 100).toFixed(0);
+                    const percentage = (maxFreq * 100).toFixed(0);
 
                     // Check for consensus (70% or more agreement)
-                    if (consensusPercentage >= 0.7) {
+                    if (maxFreq >= 0.7) {
                         consensusDiv.innerHTML = `
                             <div class="consensus-msg consensus">
-                                ✓ Strong consensus on choice ${mode} (${percentage}% agreement among ${totalCount} students)
-                            </div>
-                        `;
-                    } else if (consensusPercentage >= 0.5) {
-                        consensusDiv.innerHTML = `
-                            <div class="consensus-msg partial-consensus">
-                                Moderate agreement on choice ${mode} (${percentage}% among ${totalCount} students)
+                                ✓ Consensus reached on choice ${mode} (${percentage}% agreement)
                             </div>
                         `;
                     } else {
                         consensusDiv.innerHTML = `
                             <div class="consensus-msg no-consensus">
-                                No clear consensus - most common: ${mode} at ${percentage}% (${totalCount} students total)
+                                No consensus yet - highest agreement: ${mode} at ${percentage}%
                             </div>
                         `;
-                    }
-
-                    // Add note about user's position
-                    if (currentUserChoice) {
-                        const userInMajority = currentUserChoice === mode;
-                        consensusDiv.innerHTML += `
-                            <div style="margin-top: 5px; font-size: 0.9em; color: ${userInMajority ? '#4CAF50' : '#FF9800'};">
-                                ${userInMajority ? '✓ You agree with the majority' : '⚠ Your answer differs from the majority'}
-                            </div>
-                        `;
-                    }
-
-                    // Add answer reveal timing info if applicable
-                    if (window.pendingAnswerReveal?.[questionId]) {
-                        consensusDiv.innerHTML += `
-                            <div style="margin-top: 10px; padding: 10px; background: #FFF3CD; border: 1px solid #FFC107; border-radius: 4px;">
-                                <strong>⏱️ Correct answer will be revealed in:</strong> ${window.pendingAnswerReveal[questionId]}
-                            </div>
-                        `;
-                    } else if (question?.answerKey && !AnswerRevealTiming.shouldRevealAnswer(questionId)) {
-                        const reason = classData.users[currentUsername]?.reasons?.[questionId];
-                        if (!reason || !reason.trim()) {
-                            consensusDiv.innerHTML += `
-                                <div style="margin-top: 10px; padding: 10px; background: #F8D7DA; border: 1px solid #DC3545; border-radius: 4px;">
-                                    <strong>🔒 Correct answer locked:</strong> Add an explanation to your answer to unlock answer reveals
-                                </div>
-                            `;
-                        } else {
-                            consensusDiv.innerHTML += `
-                                <div style="margin-top: 10px; padding: 10px; background: #D1ECF1; border: 1px solid #17A2B8; border-radius: 4px;">
-                                    <strong>ℹ️ Keep trying:</strong> Correct answer will be revealed after 3 attempts with explanations
-                                </div>
-                            `;
-                        }
                     }
                 } else {
                     consensusDiv.innerHTML = `
                         <div class="consensus-msg no-consensus">
-                            Be the first to answer! Import class data to see peer responses.
+                            You're the first to answer! Import class data to see peer responses.
                         </div>
                     `;
                 }
             }
 
-            // Show expandable peer explanations
+            // Show contributors with their choices and reasons
             const contributorsDiv = document.getElementById(`contributors-${questionId}`);
-            if (contributorsDiv && peerContributors.length > 0) {
-                const MAX_INITIAL_DISPLAY = 3;
-                const showAll = peerContributors.length <= MAX_INITIAL_DISPLAY;
-
-                let html = `
-                    <div class="peer-explanations-header" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-                        <h4 style="margin: 0;">Peer Explanations (${peerContributors.length})</h4>
-                        ${!showAll ? `<button class="toggle-explanations" data-question="${questionId}" style="background: #2196F3; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Show All</button>` : ''}
-                    </div>
-                    <div class="peer-explanations-list" id="peer-list-${questionId}">
-                `;
-
-                // Show current user's response first if they have one
-                if (currentUserChoice && currentUserReason) {
-                    const badges = calculateBadges(currentUsername);
-                    const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
-                    html += `
-                        <div class="contributor-item" style="background: ${getUserItemBackgroundColor()}; border-left: 4px solid #4CAF50; margin-bottom: 10px; padding: 10px; border-radius: 4px;">
-                            <span class="contributor-choice" style="color: ${getTextColor()};"><strong>You${badgeText}</strong> → Choice ${currentUserChoice}</span>
-                            ${currentUserReason ? `<div class="contributor-reason" style="margin-top: 5px; font-style: italic; color: ${getTextColor()};">"${currentUserReason}"</div>` : ''}
-                        </div>
-                    `;
-                }
-
-                // Show peer responses (limited initially)
-                const displayContributors = showAll ? peerContributors : peerContributors.slice(0, MAX_INITIAL_DISPLAY);
-                displayContributors.forEach(c => {
+            if (contributorsDiv && contributors.length > 0) {
+                let html = '<h4 style="margin-top: 10px;">Individual Responses:</h4>';
+                contributors.forEach(c => {
+                    const isCurrentUser = c.username === currentUsername;
                     const badges = calculateBadges(c.username);
                     const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
                     html += `
-                        <div class="contributor-item peer-item" style="background: ${getPeerItemBackgroundColor()}; margin-bottom: 8px; padding: 10px; border-radius: 4px;">
-                            <span class="contributor-choice" style="color: ${getTextColor()};"><strong>${c.username}${badgeText}</strong> → Choice ${c.choice}</span>
-                            ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; color: ${getSecondaryTextColor()};">"${c.reason}"</div>` : `<div style="margin-top: 5px; color: ${getTertiaryTextColor()}; font-style: italic;">No explanation provided</div>`}
+                        <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
+                            <span class="contributor-choice">${c.username}${badgeText} → Choice ${c.choice}</span>
+                            ${c.reason ? `<div class="contributor-reason">"${c.reason}"</div>` : ''}
                         </div>
                     `;
                 });
-
-                if (!showAll) {
-                    // Add hidden peer responses
-                    html += `<div class="hidden-peers" id="hidden-peers-${questionId}" style="display: none;">`;
-                    peerContributors.slice(MAX_INITIAL_DISPLAY).forEach(c => {
-                        const badges = calculateBadges(c.username);
-                        const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
-                        html += `
-                            <div class="contributor-item peer-item" style="background: ${getPeerItemBackgroundColor()}; margin-bottom: 8px; padding: 10px; border-radius: 4px;">
-                                <span class="contributor-choice" style="color: ${getTextColor()};"><strong>${c.username}${badgeText}</strong> → Choice ${c.choice}</span>
-                                ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; color: ${getSecondaryTextColor()};">"${c.reason}"</div>` : `<div style="margin-top: 5px; color: ${getTertiaryTextColor()}; font-style: italic;">No explanation provided</div>`}
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                }
-
-                html += '</div>';
                 contributorsDiv.innerHTML = html;
-            } else if (contributorsDiv) {
-                contributorsDiv.innerHTML = `<div style="color: ${getTertiaryTextColor()}; font-style: italic;">No peer explanations yet</div>`;
             }
         }
 
@@ -5160,7 +4411,7 @@ function renderAttachments(attachments, questionId) {
                     html += `
                         <div class="contributor-item">
                             <strong>${r.username}:</strong>
-                            <div style="margin-top: 5px; padding: 10px; background: ${getPeerItemBackgroundColor()}; border-radius: 4px; color: ${getTextColor()};">
+                            <div style="margin-top: 5px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
                                 ${r.response}
                             </div>
                             ${r.reason ? `<div class="contributor-reason">${r.reason}</div>` : ''}
@@ -5236,38 +4487,7 @@ function renderAttachments(attachments, questionId) {
                     // Show dotplot if answered
                     const questionType = question.type;
                     showDotplot(qId, questionType);
-
-                    // Restore previous answer selection for multiple choice
-                    if (questionType === 'multiple-choice') {
-                        const previousAnswer = classData.users[currentUsername]?.answers?.[qId];
-                        const answerValue = previousAnswer?.value || previousAnswer;
-                        if (answerValue) {
-                            const radioButton = document.querySelector(`input[name="choice-${qId}"][value="${answerValue}"]`);
-                            if (radioButton) {
-                                radioButton.checked = true;
-                            }
-                        }
-                    } else {
-                        // Restore previous answer for FRQ
-                        const previousAnswer = classData.users[currentUsername]?.answers?.[qId];
-                        const answerValue = previousAnswer?.value || previousAnswer;
-                        if (answerValue) {
-                            const textarea = document.getElementById(`frq-${qId}`);
-                            if (textarea) {
-                                textarea.value = answerValue;
-                            }
-                        }
-                    }
-
-                    // Restore previous explanation
-                    const previousReason = classData.users[currentUsername]?.reasons?.[qId];
-                    if (previousReason) {
-                        const reasonTextarea = document.getElementById(`reason-${qId}`);
-                        if (reasonTextarea) {
-                            reasonTextarea.value = previousReason;
-                        }
-                    }
-
+                    
                     // Update button state
                     const submitBtn = document.getElementById(`submit-${qId}`);
                     if (submitBtn) {
@@ -6405,46 +5625,6 @@ function renderAttachments(attachments, questionId) {
                         case 'reroll-username':
                             rerollUsername();
                             break;
-                        case 'login-existing':
-                            const existingUsernameInput = document.getElementById('existing-username-input');
-                            if (existingUsernameInput && existingUsernameInput.value.trim()) {
-                                const existingUsername = existingUsernameInput.value.trim();
-                                acceptUsername(existingUsername);
-                            } else {
-                                showMessage('Please enter your existing username', 'error');
-                            }
-                            break;
-                        case 'add-reason':
-                            // Allow adding explanation retroactively
-                            const reasonTextarea = document.getElementById(`reason-${param}`);
-                            if (reasonTextarea && reasonTextarea.value.trim()) {
-                                // Save the reason
-                                if (!classData.users[currentUsername]) {
-                                    classData.users[currentUsername] = {
-                                        answers: {},
-                                        reasons: {},
-                                        timestamps: {},
-                                        attempts: {}
-                                    };
-                                }
-                                classData.users[currentUsername].reasons[param] = reasonTextarea.value.trim();
-                                saveClassData();
-
-                                // Update UI
-                                const addReasonBtn = document.getElementById(`add-reason-${param}`);
-                                if (addReasonBtn) {
-                                    addReasonBtn.style.display = 'none';
-                                }
-                                const submitBtn = document.getElementById(`submit-${param}`);
-                                if (submitBtn) {
-                                    submitBtn.disabled = false;
-                                    submitBtn.textContent = 'Update Answer';
-                                }
-                                showMessage('Explanation added! You can now update your answer.', 'success');
-                            } else {
-                                showMessage('Please enter an explanation.', 'error');
-                            }
-                            break;
                         case 'load-unit':
                             loadUnit(parseInt(param));
                             break;
@@ -6478,21 +5658,6 @@ function renderAttachments(attachments, questionId) {
                     const unitNum = unitCard.getAttribute('data-unit');
                     if (unitNum && !target.tagName.match(/BUTTON|A/)) {
                         selectUnit(parseInt(unitNum));
-                    }
-                }
-
-                // Handle toggle explanations button
-                if (target.classList.contains('toggle-explanations')) {
-                    const questionId = target.getAttribute('data-question');
-                    const hiddenPeers = document.getElementById(`hidden-peers-${questionId}`);
-                    if (hiddenPeers) {
-                        if (hiddenPeers.style.display === 'none') {
-                            hiddenPeers.style.display = 'block';
-                            target.textContent = 'Show Less';
-                        } else {
-                            hiddenPeers.style.display = 'none';
-                            target.textContent = 'Show All';
-                        }
                     }
                 }
             });

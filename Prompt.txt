@@ -1,0 +1,166 @@
+Refined Refactoring Plan
+
+  Phase 1: Dynamic Sizing for Real Class Data
+
+  Priority: HIGHEST - This is breaking the app with real usage
+
+  const DynamicSizing = {
+      calculatePeerVisualizationHeight(questionId) {
+          // Get REAL peer count
+          const peerCount = Object.keys(classData.users).length - 1;
+          const responseTypes = getUniqueResponses(questionId);
+
+          // Scale height based on actual class size
+          if (chartType === 'dotplot') {
+              // Each peer is a real student - need room for all
+              const maxStack = getMaxStackHeight(questionId);
+              return Math.max(200, maxStack * 20 + 100);
+          }
+
+          // For bar charts showing peer distribution
+          return Math.max(300, peerCount * 5);
+      }
+  }
+
+  Phase 2: Enhanced Real Peer Visualization
+
+  1. Visual Hierarchy for Real Data
+  function renderMCQDistribution(questionId) {
+      // Clearly separate current user from peers
+      const currentUserAnswer = classData.users[currentUsername]?.answers[questionId];
+      const peerAnswers = {};
+
+      Object.entries(classData.users).forEach(([username, userData]) => {
+          if (username !== currentUsername) {  // Real peers only
+              const answer = userData.answers?.[questionId];
+              if (answer) {
+                  peerAnswers[username] = answer;
+              }
+          }
+      });
+
+      // Render with clear visual distinction
+      renderWithHighlight(currentUserAnswer, peerAnswers);
+  }
+
+  2. Expandable Peer Explanations
+  // Show real peer reasoning in collapsible sections
+  function renderPeerExplanations(questionId) {
+      const peerReasons = [];
+
+      Object.entries(classData.users).forEach(([username, userData]) => {
+          if (username !== currentUsername) {
+              const reason = userData.reasons?.[questionId];
+              if (reason) {
+                  peerReasons.push({
+                      username,  // Real student identifier
+                      reason,
+                      answer: userData.answers[questionId]
+                  });
+              }
+          }
+      });
+
+      // Render first 3, with "Show all 27 peer explanations" button
+  }
+
+  Phase 3: Master Data Merge System
+
+  For Teacher's Manual Merge Process:
+  function mergeMasterDatabase(importedFiles) {
+      const masterData = {
+          users: {},
+          mergeTimestamp: new Date().toISOString(),
+          totalStudents: 0
+      };
+
+      // Each file is a real student's export
+      importedFiles.forEach(studentExport => {
+          const username = studentExport.username;
+
+          // Preserve ALL real student data
+          masterData.users[username] = {
+              answers: studentExport.answers,
+              reasons: studentExport.reasons,
+              attempts: studentExport.attempts,
+              timestamps: studentExport.timestamps
+          };
+
+          masterData.totalStudents++;
+      });
+
+      // Teacher exports this master for redistribution
+      return masterData;
+  }
+
+  Phase 4: Username Persistence for Real Students
+
+  // Students need to reclaim their identity on new devices
+  function welcomeScreen() {
+      return `
+          <div class="welcome">
+              <h2>AP Statistics Quiz</h2>
+              <button onclick="generateNewStudent()">
+                  I'm a New Student
+              </button>
+              <button onclick="showExistingStudentLogin()">
+                  I Have a Username
+              </button>
+          </div>
+      `;
+  }
+
+  function showExistingStudentLogin() {
+      // Let student enter their existing username
+      // Import their data if available
+      // Continue accumulating peer data
+  }
+
+  Phase 5: Teacher Controls (Simple Password)
+
+  const TeacherMode = {
+      PASSWORD: 'stats2024',  // Fine for educational use
+
+      activate() {
+          // Show all student answers
+          // Export gradebook format
+          // Reset specific students
+          // Manage peer data visibility
+      },
+
+      exportGradebook() {
+          // Format real student data for grading
+          const gradebook = {};
+          Object.entries(classData.users).forEach(([username, data]) => {
+              gradebook[username] = calculateStudentScore(data);
+          });
+          return gradebook;
+      }
+  }
+
+  What We're NOT Doing
+
+  - ❌ NO simulated/fake peer data
+  - ❌ NO cloud sync (stays fully offline)
+  - ❌ NO automatic merging (teacher controls data flow)
+  - ❌ NO anonymization (real usernames are visible)
+
+  Success Metrics
+
+  1. Can handle 50+ real students without UI breaking
+  2. Clear visual separation of self vs peers
+  3. Smooth manual merge of 30+ student export files
+  4. Peer explanations readable without overwhelming UI
+  5. Students can reclaim identity on new devices
+
+  Priority Order
+
+  1. FIX DYNAMIC SIZING - Without this, real peer data is unusable
+  2. Enhance peer visualization - Clear "me vs them" distinction
+  3. Improve merge workflow - Teacher needs easy tools
+  4. Add existing student login - Cross-device continuity
+  5. Teacher controls - Nice to have but not critical
+
+  ---
+  The key insight: This is a real collaborative learning tool where every user contributes to the peer data pool. The sizing issues become even more critical when you have 20-40 real
+  students' responses to display!

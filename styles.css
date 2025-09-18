@@ -1,6 +1,6 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 900px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 20px;
     background-color: #f5f5f5;
@@ -926,4 +926,123 @@ body.dark-theme .lesson-buttons {
     height: 100%;
     background: linear-gradient(90deg, #4CAF50, #8BC34A);
     transition: width 0.3s ease;
+}
+
+/* ===== Side-by-side Question Layout ===== */
+.quiz-container-wrapper {
+    width: 100%;
+    margin-bottom: 40px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 20px;
+}
+
+.quiz-main-content {
+    display: flex;
+    gap: 30px;
+    width: 100%;
+    align-items: flex-start;
+}
+
+.question-content {
+    flex: 0 0 900px;  /* Fixed width for question, no shrinking */
+    max-width: 900px;
+}
+
+.peer-data-panel {
+    flex: 1;  /* Takes remaining space */
+    min-width: 400px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.peer-data-panel.hidden {
+    display: none;
+}
+
+.peer-panel-header {
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.peer-panel-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.dotplot-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.consensus-container {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+.contributors-container {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+/* Dark mode styles for peer panel */
+.dark-mode .peer-data-panel {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+.dark-mode .peer-panel-header {
+    border-bottom-color: #555;
+}
+
+.dark-mode .peer-panel-header h3 {
+    color: #e0e0e0;
+}
+
+.dark-mode .dotplot-container,
+.dark-mode .consensus-container,
+.dark-mode .contributors-container {
+    background: #1a1a1a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.dark-mode .contributor-item {
+    background: #2a2a2a;
+    color: #e0e0e0;
+}
+
+.dark-mode .peer-item {
+    background: #333 !important;
+}
+
+/* Responsive - stack vertically on smaller screens */
+@media (max-width: 1400px) {
+    .quiz-main-content {
+        flex-direction: column;
+    }
+
+    .question-content {
+        flex: 1 1 auto;
+        max-width: 100%;
+    }
+
+    .peer-data-panel {
+        position: static;
+        width: 100%;
+        max-height: none;
+    }
 }
