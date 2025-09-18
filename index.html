@@ -1695,7 +1695,20 @@
              * Calculate height for peer visualization dotplot
              */
             function calculatePeerVisualizationHeight(questionId) {
-                // Get actual response counts for each choice
+                // Use PeerDataManager if available for better aggregation
+                if (typeof PeerDataManager !== 'undefined') {
+                    const peerData = PeerDataManager.aggregateMCQResponses(questionId);
+                    if (peerData && peerData.distribution) {
+                        const maxStack = Math.max(...Object.values(peerData.distribution), 1);
+                        // Each dot needs ~25px vertical space (including padding)
+                        const dotHeight = 25;
+                        const baseHeight = 150; // For labels and margins
+                        const calculatedHeight = baseHeight + (maxStack * dotHeight);
+                        return Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, calculatedHeight));
+                    }
+                }
+
+                // Fallback to original implementation
                 const responseCounts = {};
 
                 Object.entries(classData.users || {}).forEach(([username, userData]) => {
@@ -2873,7 +2886,7 @@ function renderLessonSelector(unitInfo) {
                             </div>
                             ${isAnswered ? `
                                 <div class="dotplot-container" id="dotplot-section-${question.id}">
-                                    <canvas id="dotplot-${question.id}" style="width: 100%; height: auto;"></canvas>
+                                    <canvas id="dotplot-${question.id}" style="width: 100%;"></canvas>
                                 </div>
                                 <div class="consensus-container" id="consensus-${question.id}"></div>
                                 <div class="contributors-container" id="contributors-${question.id}"></div>
@@ -2904,13 +2917,18 @@ function renderLessonSelector(unitInfo) {
               // Allow a chart to request full horizontal space when rendered inside a "multiple-charts-container"
               const containerStyle = chartData.fullWidth ? 'style="flex:0 0 100%; max-width:100%; width:100%;"' : '';
 
+              // Calculate dynamic height for the chart
+              const dynamicHeight = DynamicSizing ?
+                  DynamicSizing.calculateChartHeight(chartData.chartType, chartData, config) :
+                  300;
+
               let chartHtml = `
                   <div class="chart-container" ${containerStyle}>
                       <div class="chart-title">${chartTitle}</div>
-                      ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` : 
+                      ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` :
   ''}
-                      <div class="chart-canvas">
-                          <canvas id="${chartId}"></canvas>
+                      <div class="chart-canvas" style="height: ${dynamicHeight}px;">
+                          <canvas id="${chartId}" style="height: ${dynamicHeight}px;"></canvas>
                       </div>
                   </div>
               `;

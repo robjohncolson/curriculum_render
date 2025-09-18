@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dynamic Sizing with Large Peer Counts</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .control-panel {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .control-panel button {
+            margin: 5px;
+            padding: 8px 15px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .control-panel button:hover {
+            background: #2980b9;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .chart-container {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 20px 0;
+            background: white;
+        }
+        .peer-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <h1>Dynamic Sizing Test - Large Peer Counts</h1>
+
+    <div class="test-section">
+        <h2>Test Controls</h2>
+        <div class="control-panel">
+            <button onclick="simulatePeers(10)">Add 10 Peers</button>
+            <button onclick="simulatePeers(25)">Add 25 Peers</button>
+            <button onclick="simulatePeers(50)">Add 50 Peers</button>
+            <button onclick="simulatePeers(100)">Add 100 Peers</button>
+            <button onclick="clearPeers()">Clear All Peers</button>
+            <button onclick="testDynamicResize()">Test Dynamic Resize</button>
+        </div>
+        <div id="status" class="status info">Ready to test. Click buttons to simulate peer data.</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Peer Data Simulation</h2>
+        <p>Current peer count: <strong id="peer-count">0</strong></p>
+        <p>Question ID: <strong>TEST_Q1</strong></p>
+        <div class="peer-list" id="peer-list"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Dynamic Chart Test</h2>
+        <div class="chart-container">
+            <canvas id="test-chart" width="400" height="300"></canvas>
+        </div>
+        <p>Chart Height: <strong id="chart-height">300px</strong></p>
+        <p>Container Height: <strong id="container-height">300px</strong></p>
+    </div>
+
+    <script>
+        // Simulate the modules from main application
+        const testClassData = {
+            users: {},
+            metadata: {
+                totalUsers: 0,
+                lastUpdate: null
+            }
+        };
+
+        // Mock StorageModule
+        const StorageModule = {
+            getClassData: () => testClassData,
+            saveClassData: (data) => {
+                Object.assign(testClassData, data);
+                localStorage.setItem('testClassData', JSON.stringify(data));
+            },
+            getCurrentUsername: () => 'test_user'
+        };
+
+        // Mock PeerDataManager
+        const PeerDataManager = {
+            getPeerCount: () => Object.keys(testClassData.users).length,
+            aggregateMCQResponses: (questionId) => {
+                const distribution = { A: 0, B: 0, C: 0, D: 0 };
+                const userResponses = [];
+
+                Object.entries(testClassData.users).forEach(([username, userData]) => {
+                    const answer = userData.answers?.[questionId];
+                    if (answer) {
+                        distribution[answer] = (distribution[answer] || 0) + 1;
+                        userResponses.push({ username, answer });
+                    }
+                });
+
+                return {
+                    distribution,
+                    userResponses,
+                    totalResponses: userResponses.length,
+                    uniqueAnswers: Object.keys(distribution).filter(k => distribution[k] > 0).length
+                };
+            }
+        };
+
+        // Simplified DynamicSizing module
+        const DynamicSizing = {
+            calculatePeerVisualizationHeight: function(questionId) {
+                const peerData = PeerDataManager.aggregateMCQResponses(questionId);
+                if (!peerData || peerData.totalResponses === 0) {
+                    return 200;
+                }
+
+                const maxResponsesPerAnswer = Math.max(...Object.values(peerData.distribution));
+                const dotSize = 20;
+                const dotSpacing = 5;
+                const stackHeight = maxResponsesPerAnswer * (dotSize + dotSpacing);
+                const padding = 150;
+                const calculatedHeight = stackHeight + padding;
+
+                return Math.max(250, Math.min(calculatedHeight, 600));
+            },
+
+            applyCanvasHeight: function(canvas, height) {
+                if (!canvas) return;
+                canvas.style.height = `${height}px`;
+                const container = canvas.parentElement;
+                if (container) {
+                    container.style.height = `${height}px`;
+                }
+            }
+        };
+
+        let chartInstance = null;
+
+        function simulatePeers(count) {
+            const choices = ['A', 'B', 'C', 'D'];
+            const questionId = 'TEST_Q1';
+
+            for (let i = 0; i < count; i++) {
+                const username = `peer_${Date.now()}_${i}`;
+                // Simulate realistic distribution: 40% A, 30% B, 20% C, 10% D
+                const rand = Math.random();
+                let answer;
+                if (rand < 0.4) answer = 'A';
+                else if (rand < 0.7) answer = 'B';
+                else if (rand < 0.9) answer = 'C';
+                else answer = 'D';
+
+                testClassData.users[username] = {
+                    answers: { [questionId]: answer },
+                    reasons: { [questionId]: `Reason from ${username}` },
+                    timestamps: { [questionId]: new Date().toISOString() },
+                    attempts: { [questionId]: 1 }
+                };
+            }
+
+            testClassData.metadata.totalUsers = Object.keys(testClassData.users).length;
+            testClassData.metadata.lastUpdate = new Date().toISOString();
+
+            StorageModule.saveClassData(testClassData);
+            updateDisplay();
+            updateChart();
+
+            document.getElementById('status').className = 'status success';
+            document.getElementById('status').textContent = `Added ${count} peers. Total: ${testClassData.metadata.totalUsers}`;
+        }
+
+        function clearPeers() {
+            testClassData.users = {};
+            testClassData.metadata.totalUsers = 0;
+            StorageModule.saveClassData(testClassData);
+            updateDisplay();
+            updateChart();
+
+            document.getElementById('status').className = 'status info';
+            document.getElementById('status').textContent = 'All peers cleared.';
+        }
+
+        function updateDisplay() {
+            const peerCount = Object.keys(testClassData.users).length;
+            document.getElementById('peer-count').textContent = peerCount;
+
+            const peerList = document.getElementById('peer-list');
+            const peerData = PeerDataManager.aggregateMCQResponses('TEST_Q1');
+
+            let html = '<strong>Distribution:</strong><br>';
+            Object.entries(peerData.distribution).forEach(([answer, count]) => {
+                if (count > 0) {
+                    const percentage = ((count / peerData.totalResponses) * 100).toFixed(1);
+                    html += `Answer ${answer}: ${count} peers (${percentage}%)<br>`;
+                }
+            });
+
+            peerList.innerHTML = html;
+        }
+
+        function updateChart() {
+            const canvas = document.getElementById('test-chart');
+            const peerData = PeerDataManager.aggregateMCQResponses('TEST_Q1');
+
+            // Calculate dynamic height
+            const height = DynamicSizing.calculatePeerVisualizationHeight('TEST_Q1');
+            DynamicSizing.applyCanvasHeight(canvas, height);
+
+            // Update height displays
+            document.getElementById('chart-height').textContent = `${height}px`;
+            document.getElementById('container-height').textContent = `${canvas.parentElement.style.height}`;
+
+            // Destroy existing chart
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // Create new chart with distribution data
+            const ctx = canvas.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(peerData.distribution),
+                    datasets: [{
+                        label: 'Peer Responses',
+                        data: Object.values(peerData.distribution),
+                        backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Peers'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Answer Choice'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: `Peer Response Distribution (n=${peerData.totalResponses})`
+                        }
+                    }
+                }
+            });
+        }
+
+        function testDynamicResize() {
+            // Test automatic resizing
+            const heights = [];
+            const peerCounts = [5, 10, 20, 30, 50, 75, 100];
+
+            peerCounts.forEach(count => {
+                clearPeers();
+                simulatePeers(count);
+                const height = DynamicSizing.calculatePeerVisualizationHeight('TEST_Q1');
+                heights.push({ peers: count, height: height });
+            });
+
+            let report = 'Dynamic Sizing Report:\n\n';
+            heights.forEach(item => {
+                report += `${item.peers} peers → ${item.height}px\n`;
+            });
+
+            alert(report);
+
+            // Restore to 50 peers for visual check
+            clearPeers();
+            simulatePeers(50);
+        }
+
+        // Initialize with some data
+        window.onload = () => {
+            simulatePeers(5);
+        };
+    </script>
+</body>
+</html>
