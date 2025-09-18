@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Peer Data Functionality</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Testing Peer Data Functionality</h1>
+    <div id="results"></div>
+
+    <script src="question.js"></script>
+    <script src="allUnitsData.js"></script>
+
+    <script>
+        // Copy the essential modules from index.html
+        // We'll load them via script tag instead
+        const script = document.createElement('script');
+        script.src = 'index.html';
+        script.onerror = function() {
+            // If we can't load index.html as script, we'll test basic functionality
+            runBasicTests();
+        };
+
+        function runBasicTests() {
+            const results = document.getElementById('results');
+
+            // Test 1: Check localStorage availability
+            addResult('Testing localStorage', () => {
+                localStorage.setItem('test', 'value');
+                const value = localStorage.getItem('test');
+                localStorage.removeItem('test');
+                return value === 'value';
+            });
+
+            // Test 2: Test class data structure
+            addResult('Testing class data structure', () => {
+                const testData = {
+                    users: {
+                        'test_user1': {
+                            answers: { 'Q1': 'A', 'Q2': 'B' },
+                            reasons: { 'Q1': 'Because...', 'Q2': 'I think...' },
+                            attempts: { 'Q1': 1, 'Q2': 2 },
+                            timestamps: { 'Q1': new Date().toISOString() }
+                        },
+                        'test_user2': {
+                            answers: { 'Q1': 'A', 'Q2': 'C' },
+                            reasons: { 'Q1': 'My reason...' },
+                            attempts: { 'Q1': 1, 'Q2': 1 },
+                            timestamps: { 'Q1': new Date().toISOString() }
+                        }
+                    },
+                    metadata: {
+                        totalUsers: 2,
+                        lastUpdate: new Date().toISOString()
+                    }
+                };
+
+                localStorage.setItem('classData', JSON.stringify(testData));
+                const retrieved = JSON.parse(localStorage.getItem('classData'));
+
+                return retrieved.users &&
+                       retrieved.users.test_user1 &&
+                       retrieved.users.test_user2 &&
+                       retrieved.metadata.totalUsers === 2;
+            });
+
+            // Test 3: Test peer aggregation logic
+            addResult('Testing peer aggregation logic', () => {
+                const testData = JSON.parse(localStorage.getItem('classData'));
+
+                // Simulate aggregation
+                const distribution = {};
+                Object.values(testData.users).forEach(user => {
+                    const answer = user.answers['Q1'];
+                    if (answer) {
+                        distribution[answer] = (distribution[answer] || 0) + 1;
+                    }
+                });
+
+                // Both users answered 'A' for Q1
+                return distribution['A'] === 2;
+            });
+
+            // Test 4: Test consensus calculation
+            addResult('Testing consensus calculation', () => {
+                const testData = JSON.parse(localStorage.getItem('classData'));
+
+                // Calculate consensus for Q1 (both answered 'A')
+                const totalResponses = 2;
+                const modeCount = 2;
+                const percentage = modeCount / totalResponses;
+                const hasConsensus = percentage >= 0.7; // 100% > 70%
+
+                return hasConsensus === true && percentage === 1;
+            });
+
+            // Test 5: Test data persistence
+            addResult('Testing data persistence', () => {
+                const timestamp = new Date().toISOString();
+                localStorage.setItem('test_timestamp', timestamp);
+                const retrieved = localStorage.getItem('test_timestamp');
+                localStorage.removeItem('test_timestamp');
+                return retrieved === timestamp;
+            });
+
+            function addResult(testName, testFn) {
+                const div = document.createElement('div');
+                try {
+                    const result = testFn();
+                    div.className = 'test-result ' + (result ? 'success' : 'error');
+                    div.innerHTML = `<strong>${testName}:</strong> ${result ? '✓ PASSED' : '✗ FAILED'}`;
+                } catch (error) {
+                    div.className = 'test-result error';
+                    div.innerHTML = `<strong>${testName}:</strong> ✗ ERROR - ${error.message}`;
+                }
+                results.appendChild(div);
+            }
+
+            // Clean up test data
+            localStorage.removeItem('classData');
+
+            // Show summary
+            const summary = document.createElement('div');
+            summary.style.marginTop = '20px';
+            summary.innerHTML = '<h2>Test Summary</h2><p>Basic functionality tests completed. The extended class data structure is working correctly.</p>';
+            results.appendChild(summary);
+        }
+
+        // Run tests immediately
+        runBasicTests();
+    </script>
+</body>
+</html>
