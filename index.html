@@ -1961,6 +1961,210 @@
         });
         
         // ===============================================
+        // COMPONENTS MODULE - Reusable UI Components
+        // ===============================================
+        const Components = (function() {
+            /**
+             * Question Header Component
+             */
+            function createQuestionHeader(questionNumber, isAnswered) {
+                return `
+                    <div class="question-header">
+                        <span>Question ${questionNumber}</span>
+                        ${isAnswered ? '<span class="status-answered">✓ Answered</span>' : ''}
+                    </div>
+                `;
+            }
+
+            /**
+             * MCQ Choices Component
+             */
+            function createMCQChoices(questionId, choices, savedAnswer, isDisabled) {
+                let html = '<div class="choices">';
+                choices.forEach(choice => {
+                    const isSelected = savedAnswer?.value === choice.key || savedAnswer === choice.key;
+                    html += `
+                        <div class="choice ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}">
+                            <label>
+                                <input type="radio"
+                                       name="choice-${questionId}"
+                                       value="${choice.key}"
+                                       ${isSelected ? 'checked' : ''}
+                                       ${isDisabled ? 'disabled' : ''}>
+                                <span class="choice-key">${choice.key}.</span>
+                                <span>${choice.value}</span>
+                            </label>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                return html;
+            }
+
+            /**
+             * FRQ Textarea Component
+             */
+            function createFRQTextarea(questionId, savedAnswer, isDisabled) {
+                return `
+                    <div class="answer-section">
+                        <textarea
+                            id="frq-${questionId}"
+                            class="frq-textarea"
+                            placeholder="Enter your complete response here..."
+                            ${isDisabled ? 'disabled' : ''}
+                            style="width: 100%; min-height: ${CONFIG.TEXTAREA.MIN_HEIGHT}px; padding: ${CONFIG.TEXTAREA.DEFAULT_PADDING}px; border: 2px solid #ddd;"
+                        >${savedAnswer?.value || savedAnswer || ''}</textarea>
+                    </div>
+                `;
+            }
+
+            /**
+             * Reasoning Section Component
+             */
+            function createReasoningSection(questionId, savedReason, isAnswered) {
+                return `
+                    <div class="reason-wrapper">
+                        <label class="reason-label">
+                            Explain your reasoning:
+                            ${!savedReason && isAnswered ? '<span class="status-warning"> (Add explanation to unlock answer changes)</span>' : ''}
+                        </label>
+                        <textarea
+                            id="reason-${questionId}"
+                            class="reason-textarea"
+                            placeholder="Explain why you chose this answer..."
+                        >${savedReason}</textarea>
+                    </div>
+                `;
+            }
+
+            /**
+             * Submit Button Component
+             */
+            function createSubmitButton(questionId, questionType, isAnswered, canRetry, hasReason) {
+                const buttonText = isAnswered ?
+                    (canRetry ? 'Update Answer' :
+                        (hasReason ? 'Max Attempts Reached' : 'Add Explanation First')) :
+                    'Submit Answer';
+
+                return `
+                    <button
+                        id="submit-${questionId}"
+                        class="submit-button"
+                        data-action="submit-answer"
+                        data-param="${questionId}"
+                        data-question-type="${questionType}"
+                        ${!canRetry && isAnswered ? 'disabled' : ''}
+                    >
+                        ${buttonText}
+                    </button>
+                `;
+            }
+
+            /**
+             * Peer Data Panel Component
+             */
+            function createPeerDataPanel(questionId, isAnswered) {
+                return `
+                    <div class="peer-data-panel ${isAnswered ? 'visible' : 'hidden'}" id="peer-panel-${questionId}">
+                        <div class="peer-panel-header">
+                            <h3>Peer Consensus</h3>
+                            ${isAnswered ? '' : '<p class="status-pending">Submit your answer to see peer data</p>'}
+                        </div>
+                        ${isAnswered ? `
+                            <div class="dotplot-container" id="dotplot-section-${questionId}">
+                                <canvas id="dotplot-${questionId}" style="width: 100%;"></canvas>
+                            </div>
+                            <div class="consensus-container" id="consensus-${questionId}"></div>
+                            <div class="contributors-container" id="contributors-${questionId}"></div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            /**
+             * Modal Component Factory
+             */
+            function createModal(options = {}) {
+                const {
+                    id = 'modal',
+                    title = '',
+                    content = '',
+                    buttons = [],
+                    className = ''
+                } = options;
+
+                let buttonsHtml = '';
+                if (buttons.length > 0) {
+                    buttonsHtml = '<div class="modal-buttons">';
+                    buttons.forEach(btn => {
+                        buttonsHtml += `
+                            <button
+                                class="${btn.className || 'modal-btn'}"
+                                data-action="${btn.action || ''}"
+                                data-param="${btn.param || ''}"
+                            >
+                                ${btn.text}
+                            </button>
+                        `;
+                    });
+                    buttonsHtml += '</div>';
+                }
+
+                return `
+                    <div id="${id}" class="modal ${className}">
+                        <div class="modal-content">
+                            ${title ? `<div class="modal-header"><h3>${title}</h3></div>` : ''}
+                            <div class="modal-body">
+                                ${content}
+                            </div>
+                            ${buttonsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            /**
+             * Button Factory
+             */
+            function createButton(options = {}) {
+                const {
+                    id = '',
+                    text = 'Button',
+                    action = '',
+                    param = '',
+                    className = 'button',
+                    disabled = false,
+                    icon = ''
+                } = options;
+
+                return `
+                    <button
+                        ${id ? `id="${id}"` : ''}
+                        class="${className}"
+                        ${action ? `data-action="${action}"` : ''}
+                        ${param ? `data-param="${param}"` : ''}
+                        ${disabled ? 'disabled' : ''}
+                    >
+                        ${icon ? `<i class="${icon}"></i> ` : ''}
+                        ${text}
+                    </button>
+                `;
+            }
+
+            // Public API
+            return {
+                createQuestionHeader,
+                createMCQChoices,
+                createFRQTextarea,
+                createReasoningSection,
+                createSubmitButton,
+                createPeerDataPanel,
+                createModal,
+                createButton
+            };
+        })();
+
+        // ===============================================
         // SAVE FUNCTIONS - Defined before UtilitiesModule
         // ===============================================
         
@@ -2612,6 +2816,301 @@
                 BASE_HEIGHTS,
                 MIN_HEIGHT,
                 MAX_HEIGHT
+            };
+        })();
+
+        // ===============================================
+        // CHART RENDERERS MODULE - Type-specific chart handlers
+        // ===============================================
+        const ChartRenderers = (function() {
+            /**
+             * Bar/Histogram Chart Renderer
+             */
+            function renderBarChart(canvas, chartData, config = {}) {
+                const ctx = canvas.getContext('2d');
+                const colorPalette = generateChartColors(chartData.series.length);
+
+                const datasets = chartData.series.map((series, index) => {
+                    const color = colorPalette[index % colorPalette.length] || '#36A2EB';
+                    return {
+                        label: series.name,
+                        data: series.values,
+                        backgroundColor: color,
+                        borderColor: color,
+                        borderWidth: 1
+                    };
+                });
+
+                // Handle grid lines
+                let showHorizontalGrid = true;
+                let showVerticalGrid = false;
+
+                if (config.gridLines !== undefined) {
+                    if (typeof config.gridLines === 'boolean') {
+                        showHorizontalGrid = config.gridLines;
+                        showVerticalGrid = config.gridLines;
+                    } else if (typeof config.gridLines === 'object') {
+                        showHorizontalGrid = config.gridLines.horizontal !== false;
+                        showVerticalGrid = config.gridLines.vertical === true;
+                    }
+                }
+
+                const chartConfig = {
+                    type: chartData.chartType === 'histogram' ? 'bar' : 'bar',
+                    data: {
+                        labels: chartData.xLabels || [],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: datasets.length > 1,
+                                labels: { color: getTextColor() }
+                            },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: !!config.xAxis?.label,
+                                    text: config.xAxis?.label || '',
+                                    color: getTextColor()
+                                },
+                                grid: { display: showVerticalGrid, color: getGridColor() },
+                                ticks: { color: getTextColor() },
+                                stacked: config.stacked === true
+                            },
+                            y: {
+                                title: {
+                                    display: !!config.yAxis?.label,
+                                    text: config.yAxis?.label || '',
+                                    color: getTextColor()
+                                },
+                                grid: { display: showHorizontalGrid, color: getGridColor() },
+                                ticks: { color: getTextColor() },
+                                stacked: config.stacked === true,
+                                beginAtZero: config.yAxis?.min === 0
+                            }
+                        }
+                    }
+                };
+
+                return new Chart(ctx, chartConfig);
+            }
+
+            /**
+             * Scatter Plot Renderer
+             */
+            function renderScatterPlot(canvas, chartData, config = {}) {
+                const ctx = canvas.getContext('2d');
+
+                // Transform data for scatter plot
+                const scatterData = chartData.points.map(point => ({
+                    x: point.x,
+                    y: point.y
+                }));
+
+                const chartConfig = {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: config.label || 'Data Points',
+                            data: scatterData,
+                            backgroundColor: getScatterPointColor(),
+                            borderColor: getScatterPointColor(),
+                            pointRadius: config.pointRadius || 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `(${context.parsed.x}, ${context.parsed.y})`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                title: {
+                                    display: !!config.xAxis?.label,
+                                    text: config.xAxis?.label || 'X',
+                                    color: getTextColor()
+                                },
+                                grid: { color: getGridColor() },
+                                ticks: { color: getTextColor() }
+                            },
+                            y: {
+                                title: {
+                                    display: !!config.yAxis?.label,
+                                    text: config.yAxis?.label || 'Y',
+                                    color: getTextColor()
+                                },
+                                grid: { color: getGridColor() },
+                                ticks: { color: getTextColor() }
+                            }
+                        }
+                    }
+                };
+
+                return new Chart(ctx, chartConfig);
+            }
+
+            /**
+             * Dot Plot Renderer
+             */
+            function renderDotPlot(canvas, chartData, config = {}) {
+                const ctx = canvas.getContext('2d');
+                const values = chartData.values || [];
+
+                // Calculate dot plot data
+                const frequencies = {};
+                values.forEach(val => {
+                    frequencies[val] = (frequencies[val] || 0) + 1;
+                });
+
+                const uniqueValues = Object.keys(frequencies).map(Number).sort((a, b) => a - b);
+                const maxFreq = Math.max(...Object.values(frequencies));
+
+                // Create stacked dots
+                const dotData = [];
+                uniqueValues.forEach(value => {
+                    for (let i = 0; i < frequencies[value]; i++) {
+                        dotData.push({
+                            x: value,
+                            y: i + 1
+                        });
+                    }
+                });
+
+                const chartConfig = {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Frequency',
+                            data: dotData,
+                            backgroundColor: '#36A2EB',
+                            borderColor: '#2980b9',
+                            pointRadius: config.dotRadius || 4,
+                            pointStyle: 'circle'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Value: ${context.parsed.x}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                title: {
+                                    display: !!config.xAxis?.label,
+                                    text: config.xAxis?.label || 'Values',
+                                    color: getTextColor()
+                                },
+                                grid: { display: false },
+                                ticks: {
+                                    color: getTextColor(),
+                                    stepSize: 1
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Count',
+                                    color: getTextColor()
+                                },
+                                grid: { display: false },
+                                ticks: {
+                                    color: getTextColor(),
+                                    stepSize: 1
+                                },
+                                max: maxFreq + 1
+                            }
+                        }
+                    }
+                };
+
+                return new Chart(ctx, chartConfig);
+            }
+
+            /**
+             * Generic Chart Renderer - delegates to specific renderers
+             */
+            function renderChart(chartData, questionId) {
+                const chartId = `chart-${questionId}`;
+                const config = chartData.chartConfig || {};
+
+                // Calculate dynamic height
+                const dynamicHeight = DynamicSizing ?
+                    DynamicSizing.calculateChartHeight(chartData.chartType, chartData, config) :
+                    300;
+
+                // Create chart container HTML
+                const chartTitle = chartData.title || `📊 ${chartData.chartType.toUpperCase()} CHART`;
+                const containerStyle = chartData.fullWidth ? 'style="flex:0 0 100%; max-width:100%; width:100%;"' : '';
+
+                const chartHtml = `
+                    <div class="chart-container" ${containerStyle}>
+                        <div class="chart-title">${chartTitle}</div>
+                        ${config.description ? `<div class="chart-description">${config.description}</div>` : ''}
+                        <div class="chart-canvas" style="height: ${dynamicHeight}px;">
+                            <canvas id="${chartId}" style="height: ${dynamicHeight}px;"></canvas>
+                        </div>
+                    </div>
+                `;
+
+                // Schedule chart creation after DOM update
+                setTimeout(() => {
+                    const canvas = document.getElementById(chartId);
+                    if (!canvas) return;
+
+                    let chartInstance;
+                    switch(chartData.chartType) {
+                        case 'bar':
+                        case 'histogram':
+                            chartInstance = renderBarChart(canvas, chartData, config);
+                            break;
+                        case 'scatter':
+                            chartInstance = renderScatterPlot(canvas, chartData, config);
+                            break;
+                        case 'dotplot':
+                            chartInstance = renderDotPlot(canvas, chartData, config);
+                            break;
+                        default:
+                            console.warn(`Unknown chart type: ${chartData.chartType}`);
+                    }
+
+                    if (chartInstance) {
+                        chartInstances[chartId] = chartInstance;
+                    }
+                }, CONFIG.DELAYS.CHART_RENDER);
+
+                return chartHtml;
+            }
+
+            // Public API
+            return {
+                renderChart,
+                renderBarChart,
+                renderScatterPlot,
+                renderDotPlot
             };
         })();
 
@@ -3562,133 +4061,68 @@ function renderLessonSelector(unitInfo) {
             }, 100);
         }
 
-        // Render question
+        // Render question - REFACTORED to use Components
         function renderQuestion(question, index) {
             const questionNumber = index + 1;
             const isAnswered = isQuestionAnswered(question.id);
             const attempts = getAttemptCount(question.id);
             const canRetryQuestion = canRetry(question.id);
-            
-            // Use a side-by-side layout with question on left and peer data on right
-            let html = `
-                <div class="quiz-container-wrapper" data-question-id="${question.id}" data-question-number="${questionNumber}">
-                    <div class="quiz-main-content">
-                        <!-- Left side: Question and answer input -->
-                        <div class="question-content">
-                            <div class="quiz-container">
-                                <div class="question-header">
-                                    <span>Question ${questionNumber}</span>
-                                    ${isAnswered ? '<span class="status-answered">✓ Answered</span>' : ''}
-                                </div>
-                                <div class="question-id">ID: ${question.id || 'N/A'}</div>
-                                <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
+            const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
+            const savedReason = classData.users[currentUsername]?.reasons?.[question.id] || '';
+
+            // Build question content
+            let questionContent = `
+                <div class="quiz-container">
+                    ${Components.createQuestionHeader(questionNumber, isAnswered)}
+                    <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                    <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
             `;
 
-            // Render attachments if present
+            // Add attachments if present
             if (question.attachments) {
-                html += renderAttachments(question.attachments, question.id);
+                questionContent += renderAttachments(question.attachments, question.id);
             }
 
-            // Handle MCQ
+            // Add question type specific input
             if (question.type === 'multiple-choice') {
                 const choices = question.choices || question.attachments?.choices || [];
-                const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
                 const isDisabled = isAnswered && !canRetryQuestion;
-                
-                html += '<div class="choices">';
-                choices.forEach(choice => {
-                    const isSelected = savedAnswer?.value === choice.key || savedAnswer === choice.key;
-                    html += `
-                        <div class="choice ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}">
-                            <label>
-                                <input type="radio" 
-                                       name="choice-${question.id}" 
-                                       value="${choice.key}"
-                                       ${isSelected ? 'checked' : ''}
-                                       ${isDisabled ? 'disabled' : ''}>
-                                <span class="choice-key">${choice.key}.</span>
-                                <span>${choice.value}</span>
-                            </label>
-                        </div>
-                    `;
-                });
-                html += '</div>';
+                questionContent += Components.createMCQChoices(question.id, choices, savedAnswer, isDisabled);
+            } else if (question.type === 'free-response') {
+                const isDisabled = isAnswered && !canRetryQuestion;
+                questionContent += Components.createFRQTextarea(question.id, savedAnswer, isDisabled);
             }
 
-            // Handle FRQ
-            if (question.type === 'free-response') {
-                const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
-                const isDisabled = isAnswered && !canRetryQuestion;
-                html += `
-                    <div class="answer-section">
-                        <textarea
-                            id="frq-${question.id}"
-                            class="frq-textarea"
-                            placeholder="Enter your complete response here..."
-                            ${isDisabled ? 'disabled' : ''}
-                            style="width: 100%; min-height: ${CONFIG.TEXTAREA.MIN_HEIGHT}px; padding: ${CONFIG.TEXTAREA.DEFAULT_PADDING}px; border: 2px solid #ddd;"
-                        >${savedAnswer?.value || savedAnswer || ''}</textarea>
-                    </div>
-                `;
-            }
-
-            // Add answer section (still in left column)
-            const savedReason = classData.users[currentUsername]?.reasons?.[question.id] || '';
-            html += `
+            // Add reasoning section and submit buttons
+            questionContent += `
                 <div class="answer-section">
-                    <div class="reason-wrapper">
-                        <label class="reason-label">
-                            Explain your reasoning:
-                            ${!savedReason && isAnswered ? '<span class="status-warning"> (Add explanation to unlock answer changes)</span>' : ''}
-                        </label>
-                        <textarea
-                            id="reason-${question.id}"
-                            class="reason-textarea"
-                            placeholder="Explain why you chose this answer..."
-                        >${savedReason}</textarea>
-                    </div>
+                    ${Components.createReasoningSection(question.id, savedReason, isAnswered)}
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button
-                            id="submit-${question.id}"
-                            class="submit-button"
-                            data-action="submit-answer" data-param="${question.id}" data-question-type="${question.type}"
-                            ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
-                        >
-                            ${isAnswered ? (canRetryQuestion ? 'Update Answer' : (savedReason ? 'Max Attempts Reached' : 'Add Explanation First')) : 'Submit Answer'}
-                        </button>
-                        ${isAnswered && !savedReason ? `
-                            <button
-                                id="add-reason-${question.id}"
-                                class="add-reason-button"
-                                data-action="add-reason" data-param="${question.id}"
-                                class="btn-warning"
-                            >
-                                Add Explanation Only
-                            </button>
-                        ` : ''}
+                        ${Components.createSubmitButton(question.id, question.type, isAnswered, canRetryQuestion, !!savedReason)}
+                        ${isAnswered && !savedReason ? Components.createButton({
+                            id: `add-reason-${question.id}`,
+                            text: 'Add Explanation Only',
+                            action: 'add-reason',
+                            param: question.id,
+                            className: 'btn-warning'
+                        }) : ''}
                         <span id="error-${question.id}" class="error-msg"></span>
                         <span id="success-${question.id}" class="success-msg"></span>
                     </div>
                 </div>
-                            </div> <!-- End quiz-container -->
-                        </div> <!-- End question-content -->
+                </div> <!-- End quiz-container -->
+            `;
 
-                        <!-- Right side: Peer data and visualization -->
-                        <div class="peer-data-panel ${isAnswered ? 'visible' : 'hidden'}" id="peer-panel-${question.id}">
-                            <div class="peer-panel-header">
-                                <h3>Peer Consensus</h3>
-                                ${isAnswered ? '' : '<p class="status-pending">Submit your answer to see peer data</p>'}
-                            </div>
-                            ${isAnswered ? `
-                                <div class="dotplot-container" id="dotplot-section-${question.id}">
-                                    <canvas id="dotplot-${question.id}" style="width: 100%;"></canvas>
-                                </div>
-                                <div class="consensus-container" id="consensus-${question.id}"></div>
-                                <div class="contributors-container" id="contributors-${question.id}"></div>
-                            ` : ''}
+            // Build final HTML with peer data panel
+            const html = `
+                <div class="quiz-container-wrapper" data-question-id="${question.id}" data-question-number="${questionNumber}">
+                    <div class="quiz-main-content">
+                        <div class="question-content">
+                            ${questionContent}
                         </div>
-                    </div> <!-- End quiz-main-content -->
-                </div> <!-- End quiz-container-wrapper -->
+                        ${Components.createPeerDataPanel(question.id, isAnswered)}
+                    </div>
+                </div>
             `;
 
             return html;
@@ -3697,8 +4131,13 @@ function renderLessonSelector(unitInfo) {
         // Render attachments (charts, tables, images)
         // renderAttachments removed - using the more complete version defined later
         
-        // Render chart placeholder (actual rendering happens later)
+        // Render chart - REFACTORED to use ChartRenderers module
         function renderChart(chartData, questionId) {
+            return ChartRenderers.renderChart(chartData, questionId);
+        }
+
+        // OLD renderChart function - DEPRECATED (kept for reference, will be removed)
+        function renderChartOLD(chartData, questionId) {
               const chartId = `chart-${questionId}`;
               const config = chartData.chartConfig || {};
 
