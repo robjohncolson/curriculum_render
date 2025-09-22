@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757700543284,
+  "username": "Papaya_Goat",
+  "users": {
+    "Papaya_Goat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699297305
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699839889
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757700126147
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "One_half_of_students_=_150_and_the_combination_of_Vanilla_and_Chocolate=165...So_E_is_my_answer.",
+        "U1-L3-Q02": "0.20X500=100__Which_is_supported_by_the_table",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699297305,
+        "U1-L3-Q02": 1757699839890,
+        "U1-L3-Q03": 1757700126147
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

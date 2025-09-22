@@ -1,0 +1,58 @@
+{
+  "exportTime": "2025-09-15T18:24:59.430Z",
+  "username": "Guava_Wolf",
+  "users": {
+    "Guava_Wolf": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T18:23:48.906Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T18:23:56.504Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T18:24:03.802Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:24:10.829Z"
+        },
+        "U1-L4-Q05": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:24:18.166Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:24:24.907Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "i understand the question",
+        "U1-L4-Q02": "i understand",
+        "U1-L4-Q03": "i understand",
+        "U1-L4-Q04": "i understand",
+        "U1-L4-Q05": "i understand",
+        "U1-L4-Q06": "i understand"
+      },
+      "timestamps": {
+        "U1-L4-Q01": "2025-09-15T18:23:48.906Z",
+        "U1-L4-Q02": "2025-09-15T18:23:56.504Z",
+        "U1-L4-Q03": "2025-09-15T18:24:03.802Z",
+        "U1-L4-Q04": "2025-09-15T18:24:10.829Z",
+        "U1-L4-Q05": "2025-09-15T18:24:18.166Z",
+        "U1-L4-Q06": "2025-09-15T18:24:24.907Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1
+      }
+    }
+  }
+}

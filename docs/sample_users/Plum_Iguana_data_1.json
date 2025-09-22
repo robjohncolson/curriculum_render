@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757701272822,
+  "username": "Plum_Iguana",
+  "users": {
+    "Plum_Iguana": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701156797
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": 1757701207441
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757701210915
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757701156797,
+        "U1-L3-Q02": 1757701207441,
+        "U1-L3-Q03": 1757701210915
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

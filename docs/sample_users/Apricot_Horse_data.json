@@ -1,0 +1,86 @@
+{
+  "exportTime": "2025-09-19T13:17:53.258Z",
+  "username": "Apricot_Horse",
+  "users": {
+    "Apricot_Horse": {
+      "answers": {
+        "U1-L4-Q02": {
+          "value": "B",
+          "timestamp": 1757942263726
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757942286046
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757942806116
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757943159611
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:10:13.326Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:15:43.644Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:25:25.864Z"
+        },
+        "U1-L6-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:10:14.856Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:10:20.013Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-19T13:10:22.549Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q02": "Because it is the most obvious one.",
+        "U1-L4-Q01": "",
+        "U1-L4-Q03": "That's the right one i believe",
+        "U1-L4-Q04": "that's the most obvious one",
+        "U1-L5-Q01": "uergiuergriuhiur",
+        "U1-L5-Q02": "represented quantities that are counted rather than measured.",
+        "U1-L5-Q03": "jhgvjyhviyhvhyvjuhyv",
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": ""
+      },
+      "timestamps": {
+        "U1-L4-Q02": 1757942263726,
+        "U1-L4-Q01": 1757942286046,
+        "U1-L4-Q03": 1757942806116,
+        "U1-L4-Q04": 1757943159611,
+        "U1-L5-Q01": "2025-09-18T14:10:13.326Z",
+        "U1-L5-Q02": "2025-09-18T14:15:43.645Z",
+        "U1-L5-Q03": "2025-09-18T14:25:25.864Z",
+        "U1-L6-Q01": "2025-09-19T13:10:14.857Z",
+        "U1-L6-Q02": "2025-09-19T13:10:20.013Z",
+        "U1-L6-Q03": "2025-09-19T13:10:22.549Z"
+      },
+      "attempts": {
+        "U1-L4-Q02": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1
+      }
+    }
+  }
+}

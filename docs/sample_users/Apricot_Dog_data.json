@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757684559683,
+  "username": "Apricot_Dog",
+  "users": {
+    "Apricot_Dog": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757684012225
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757684150046
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757684259295
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "Half of the students would be 150, but the answer pertains to 165 students, which is more than half.",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757684012225,
+        "U1-L3-Q02": 1757684150046,
+        "U1-L3-Q03": 1757684259295
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

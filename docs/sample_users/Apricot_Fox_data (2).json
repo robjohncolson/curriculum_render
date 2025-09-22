@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757941508549,
+  "username": "Apricot_Fox",
+  "users": {
+    "Apricot_Fox": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757684456314
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757684459618
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757684465748
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "I chose this answer because I divided the total of number of college students (300) by the students who picked vanilla and chocolate (100 + 65 = 165). I divided 165 by 300 and got ,55. .55 turned into a fraction is 11/20 not 1/2.",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757684456315,
+        "U1-L3-Q02": 1757684459618,
+        "U1-L3-Q03": 1757684465748
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "exportTime": 1757948843226,
+  "username": "Kiwi_Panda",
+  "users": {
+    "Kiwi_Panda": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757699021157
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757699253475
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757699395922
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757700739917
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701142109
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757948539947
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is categorical because it is not a numerical value and it describes the features of different objects.",
+        "U1-L2-Q02": "It tells us the different colors of the cars in the parking lot, without give us a numerical value.",
+        "U1-L2-Q03": "Quantitative variable is related to numbers, therefore the values of these different types of coins would be quantitative.",
+        "U1-L3-Q02": "500 times the number of Independents, which is 0.2, and it gives us that 100 people are affiliated with the Independents.",
+        "U1-L3-Q01": "The number of students that chose vanilla or chocolate was 165, which is not one-half of the students vote.",
+        "U1-L3-Q03": "The combine total of key lime pies and pumpkin pies sold was 30, and 30 divided by 90 gave me 0.33, which turned into a percentage was less than 50%, giving me my answer."
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757699021157,
+        "U1-L2-Q02": 1757699253476,
+        "U1-L2-Q03": 1757699395922,
+        "U1-L3-Q02": 1757700739917,
+        "U1-L3-Q01": 1757701142109,
+        "U1-L3-Q03": 1757948539947
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

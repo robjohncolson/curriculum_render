@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757701131641,
+  "username": "Grape_Newt",
+  "users": {
+    "Grape_Newt": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "A",
+          "timestamp": 1757700503932
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": 1757700534007
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757700695762
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757700503932,
+        "U1-L3-Q02": 1757700534007,
+        "U1-L3-Q03": 1757700695762
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "exportTime": "2025-09-19T12:59:33.488Z",
+  "username": "Apple_Rabbit",
+  "users": {
+    "Apple_Rabbit": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757683639793
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757683678357
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757683740521
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757683800760
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757683806403
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757683809760
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:41.521Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T13:36:43.365Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T13:36:45.277Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T13:36:47.685Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:49.770Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T13:36:51.890Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:04:40.227Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:05:42.964Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:07:09.556Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is not numerical and is rather focused on the \"label\"",
+        "U1-L2-Q02": "The colors of the cars in the lot is non-numerical and is focused on qualitative traits.",
+        "U1-L2-Q03": "The value of the coin can be collected numerically (based on price = money = numbers). This is the only one that is not a qualitative description of a coin.",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L4-Q06": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q01": "",
+        "U1-L5-Q01": "There is no possible way to have \"gaps\" in the diameters of tree trunks, the diameter is a continuous growth that never suddenly jumps from one measurement to the other.",
+        "U1-L5-Q02": "I don't honestly remember why I chose this one but I did so...",
+        "U1-L5-Q03": "First, this is numerical so it is quantitative and it also has gaps, therefore it is discrete. Duh."
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757683639793,
+        "U1-L2-Q02": 1757683678357,
+        "U1-L2-Q03": 1757683740521,
+        "U1-L3-Q03": 1757683800760,
+        "U1-L3-Q01": 1757683806403,
+        "U1-L3-Q02": 1757683809760,
+        "U1-L4-Q06": "2025-09-15T13:36:41.521Z",
+        "U1-L4-Q05": "2025-09-15T13:36:43.365Z",
+        "U1-L4-Q04": "2025-09-15T13:36:45.277Z",
+        "U1-L4-Q03": "2025-09-15T13:36:47.685Z",
+        "U1-L4-Q02": "2025-09-15T13:36:49.770Z",
+        "U1-L4-Q01": "2025-09-15T13:36:51.890Z",
+        "U1-L5-Q01": "2025-09-18T14:04:40.227Z",
+        "U1-L5-Q02": "2025-09-18T14:05:42.964Z",
+        "U1-L5-Q03": "2025-09-18T14:07:09.556Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L4-Q06": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q01": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1
+      }
+    }
+  }
+}

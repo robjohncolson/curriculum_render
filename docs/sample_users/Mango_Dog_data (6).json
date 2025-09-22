@@ -1,0 +1,79 @@
+{
+  "exportTime": "2025-09-15T18:03:27.329Z",
+  "username": "Mango_Dog",
+  "users": {
+    "Mango_Dog": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757699264908
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": 1757699682756
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757700802934
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701302388
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757902720680
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757902982195
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:42:23.305Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:56:23.289Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:03:14.340Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "Answer C is correct because when calculating the number of men who chose a combination that had black in it, it turned out that 44 men chose a design with black. However, when calculating the number of men that chose a design with blue, it turned out to be 56 men who chose that a design with blue, making answer C a false statement but the answer to this question.",
+        "U1-L4-Q02": "I think that the answer is choice D because in the bar chart above I observed that in grade 12, out of all the grades did in fact have the least frequency out of all the grades",
+        "U1-L4-Q03": "I chose answer A because when I was calculating the percentage of five years old who selected red, I got 21% and for blue I got  35%. Also, I calculated the percentage of ten year old who selected red and got 14% and for blue, it was 24%. This makes the statement true as I calculated the other answers and they were proven to be false.",
+        "U1-L3-Q01": "When I added the amount of students who chose vanilla and chocolate I got the value of 165. However, when I found out what would be 1/2 of the students who participated, it turned out to be 150, making letter E a false statement but the correct answer for this question.",
+        "U1-L3-Q02": "Answer B is the correct answer. This is because based on the bar graph, the numbers shown are showcased in percentages. This means that the number of independents out of the 500 people was 20%. So when I found out what 20% of 500 it was indeed 100, making answer B a correct statement.",
+        "U1-L3-Q03": "The answer is E because when I added up the number of key lime pies sold and pumpkin pies sold, it was 30 pies. Now, having that number I looked for the percentage that would be out of the total number of all the pies which was 90. Doing so, I got 33% which is less than 50%, making E correct.",
+        "U1-L4-Q04": "In total, the percentage of reasoning of delay by weather was 70%. When I added percentages of all the rest of the percentages, they were in total 30%. This means that this answer B is correct as 70 is greater than 30.",
+        "U1-L4-Q05": "Answer E is the correct answer in this problem. When I calculated the percentages for undecided people at Liberty High School and Central High School into the number of students I got 10 from LHS and 6 from CHS, making E a correct statement.",
+        "U1-L4-Q06": "This is the correct answer because as I calculated the percentage  into days for Region C, I found out that the number of days for Region C was 10.5 days. With this in mind, by looking at answer C, this statement is false but the correct answer to this question."
+      },
+      "timestamps": {
+        "U1-L4-Q01": 1757699264908,
+        "U1-L4-Q02": 1757699682756,
+        "U1-L4-Q03": 1757700802934,
+        "U1-L3-Q01": 1757701302388,
+        "U1-L3-Q02": 1757902720680,
+        "U1-L3-Q03": 1757902982195,
+        "U1-L4-Q04": "2025-09-15T17:42:23.305Z",
+        "U1-L4-Q05": "2025-09-15T17:56:23.289Z",
+        "U1-L4-Q06": "2025-09-15T18:03:14.340Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1
+      }
+    }
+  }
+}

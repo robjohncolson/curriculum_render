@@ -1,0 +1,37 @@
+{
+  "exportTime": 1757700533614,
+  "username": "Lemon_Monkey",
+  "users": {
+    "Lemon_Monkey": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757698959605
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699467562
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699489907
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q02": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757698959605,
+        "U1-L3-Q03": 1757699467562,
+        "U1-L3-Q02": 1757699489907
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q02": 1
+      }
+    }
+  }
+}

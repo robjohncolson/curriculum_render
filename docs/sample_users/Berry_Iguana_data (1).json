@@ -1,0 +1,100 @@
+{
+  "exportTime": "2025-09-19T17:23:51.455Z",
+  "username": "Berry_Iguana",
+  "users": {
+    "Berry_Iguana": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:32:14.723Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:42:17.030Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:56:33.849Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:58:54.513Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T18:02:30.096Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:04:59.277Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T18:07:40.192Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:10:40.869Z"
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:11:32.684Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T17:02:16.509Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T16:56:44.288Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:03:39.899Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "This is because vanilla and chocolate, when combined, equal 165 votes by the students. Since 300 students voted, half of the votes would be 150. Knowing this, we also know that 165 is 15 more than half of the students, therefore answer E is the wrong statement.",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "C is the correct answer since it is the only statement that is false and therefore not supported by the table. We can see that answer C is false because it claims that more men chose a combination with black than a combination with blue, however the table shows the opposite as 44 men chose a combination with black and 56 men chose a combination with blue.",
+        "U1-L4-Q02": "Based on the table, it appears that answers A through D are all correct but not E. Due to only being able to choose one answer, I went with answer E despite the question asking which statements IS supported by the table.",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L3-Q02": "",
+        "U1-L5-Q03": "The numbers listed are the quantity of video games sold per each day of the week, therefore making them quantitative. They are also discrete because there are gaps between the quantities.",
+        "U1-L5-Q02": "Option E. is the right answer because it asks to count and the possible numbers counted can have gaps.",
+        "U1-L5-Q01": "Option C. is the best because it includes diameters which need to be measured and amongst the values of the diameters there may not be gaps."
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-15T17:32:14.723Z",
+        "U1-L3-Q03": "2025-09-15T17:42:17.030Z",
+        "U1-L4-Q01": "2025-09-15T17:56:33.849Z",
+        "U1-L4-Q02": "2025-09-15T17:58:54.513Z",
+        "U1-L4-Q03": "2025-09-15T18:02:30.096Z",
+        "U1-L4-Q04": "2025-09-15T18:04:59.277Z",
+        "U1-L4-Q05": "2025-09-15T18:07:40.192Z",
+        "U1-L4-Q06": "2025-09-15T18:10:40.869Z",
+        "U1-L3-Q02": "2025-09-15T18:11:32.684Z",
+        "U1-L5-Q03": "2025-09-17T17:02:16.509Z",
+        "U1-L5-Q02": "2025-09-17T16:56:44.288Z",
+        "U1-L5-Q01": "2025-09-17T17:03:39.899Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L3-Q02": 1,
+        "U1-L5-Q03": 2,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1
+      }
+    }
+  }
+}
