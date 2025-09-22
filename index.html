@@ -59,6 +59,13 @@
                             <small>Export all users' data</small>
                         </span>
                     </button>
+                    <button id="masterImportBtn" class="modal-btn">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        <span>
+                            <strong>Master Import</strong>
+                            <small>Import peer data from master database</small>
+                        </span>
+                    </button>
                 </div>
             </div>
 
@@ -569,6 +576,11 @@
 
         // Function to import data for a specific user
         function importDataForUser(username, importData) {
+            console.log('=== importDataForUser called ===');
+            console.log('Target username:', username);
+            console.log('Import data:', importData);
+            console.log('Import data keys:', Object.keys(importData));
+
             try {
                 // Set the username first
                 currentUsername = username;
@@ -620,7 +632,9 @@
                 else if (importData.exportType === 'master_database') {
                     console.log('Detected: Master database format');
                     if (importData.allAnswers && importData.allAnswers[username]) {
-                        localStorage.setItem(`answers_${username}`, JSON.stringify(importData.allAnswers[username]));
+                        // STANDARDIZATION FIX: Use migration function for consistency
+                        const standardizedAnswers = migrateAnswersToStandardFormat(importData.allAnswers[username]);
+                        localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
                         importSuccess = true;
                     }
                     if (importData.allProgress && importData.allProgress[username]) {
@@ -644,8 +658,10 @@
 
                     // Import user's personal data to both individual keys AND classData structure
                     if (userData.answers) {
-                        localStorage.setItem(`answers_${username}`, JSON.stringify(userData.answers));
-                        console.log(`Imported ${Object.keys(userData.answers).length} answers for ${username}`);
+                        // STANDARDIZATION FIX: Use migration function for consistency
+                        const standardizedAnswers = migrateAnswersToStandardFormat(userData.answers);
+                        localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
+                        console.log(`Imported ${Object.keys(standardizedAnswers).length} answers for ${username} (standardized format)`);
                     }
                     if (userData.reasons) {
                         localStorage.setItem(`reasons_${username}`, JSON.stringify(userData.reasons));
@@ -669,11 +685,19 @@
                     if (!classData.users[username]) {
                         classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
                     }
-                    if (userData.answers) Object.assign(classData.users[username].answers, userData.answers);
+                    if (userData.answers) {
+                        // STANDARDIZATION FIX: Use migration function for current user too
+                        const standardizedAnswers = migrateAnswersToStandardFormat(userData.answers);
+                        Object.assign(classData.users[username].answers, standardizedAnswers);
+                        // Also update timestamps
+                        Object.keys(standardizedAnswers).forEach(qId => {
+                            classData.users[username].timestamps[qId] = standardizedAnswers[qId].timestamp;
+                        });
+                    }
                     if (userData.reasons) Object.assign(classData.users[username].reasons, userData.reasons);
                     if (userData.timestamps) Object.assign(classData.users[username].timestamps, userData.timestamps);
                     if (userData.attempts) Object.assign(classData.users[username].attempts, userData.attempts);
-                    console.log(`Updated classData for current user ${username} with ${Object.keys(userData.answers || {}).length} answers`);
+                    console.log(`Updated classData for current user ${username} with ${Object.keys(userData.answers || {}).length} answers (standardized format)`);
 
                     let peerCount = 0;
                     Object.keys(allStudentsData).forEach(otherUsername => {
@@ -685,12 +709,14 @@
 
                             const otherUserData = allStudentsData[otherUsername];
                             if (otherUserData.answers) {
-                                Object.keys(otherUserData.answers).forEach(questionId => {
-                                    const answer = otherUserData.answers[questionId];
-                                    classData.users[otherUsername].answers[questionId] = answer.value || answer;
-                                    if (answer.timestamp) {
-                                        classData.users[otherUsername].timestamps[questionId] = answer.timestamp;
-                                    }
+                                // STANDARDIZATION FIX: Use consistent object format for peer data too
+                                const standardizedAnswers = migrateAnswersToStandardFormat(otherUserData.answers);
+                                Object.keys(standardizedAnswers).forEach(questionId => {
+                                    const answerObj = standardizedAnswers[questionId];
+                                    // Store the full object, not just the value
+                                    classData.users[otherUsername].answers[questionId] = answerObj;
+                                    // Also store timestamp separately for backward compatibility
+                                    classData.users[otherUsername].timestamps[questionId] = answerObj.timestamp;
                                 });
                             }
                             if (otherUserData.reasons) {
@@ -800,6 +826,7 @@
         }
 
         window.loadMasterDataFile = function(event) {
+            console.log('=== loadMasterDataFile called ===');
             const file = event.target.files[0];
             if (!file) return;
 
@@ -807,8 +834,11 @@
             reader.onload = function(e) {
                 try {
                     masterDataForCSV = JSON.parse(e.target.result);
+                    console.log('Master data loaded:', masterDataForCSV);
+
+                    const studentCount = Object.keys(masterDataForCSV.students || masterDataForCSV.allUsers || {}).length;
                     document.getElementById('masterDataStatus').innerHTML =
-                        `<span style="color: green;">✓ Master data loaded (${Object.keys(masterDataForCSV.students || masterDataForCSV.allUsers || {}).length} students)</span>`;
+                        `<span style="color: green;">✓ Master data loaded (${studentCount} students)</span>`;
                     checkCSVImportReady();
                 } catch (error) {
                     document.getElementById('masterDataStatus').innerHTML =
@@ -817,6 +847,19 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // New function to import all peer data directly
+        window.importAllPeerData = function() {
+            if (!masterDataForCSV) {
+                showMessage('No master data loaded', 'error');
+                return;
+            }
+
+            console.log('=== Importing all peer data ===');
+            importMasterData(masterDataForCSV);
+            showMessage('✅ All peer data imported successfully!', 'success');
+            closeCSVImportModal();
         }
 
         window.loadCSVMappingFile = function(event) {
@@ -3338,6 +3381,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Import class data
         window.importClassData = function(event) {
+            console.log('=== importClassData called (sync modal) ===');
             const file = event.target.files[0];
             if (!file) return;
 
@@ -3345,16 +3389,25 @@ if (chartInstances[`dotplot-${questionId}`]) {
             reader.onload = function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
+                    console.log('Sync modal - imported data:', importedData);
+                    console.log('Sync modal - data keys:', Object.keys(importedData));
 
-                    // Check if this is a master database export
-                    if (importedData.exportType === 'master_database') {
+                    // Use the same detection logic as the main import
+                    if (isMasterDataFile(importedData)) {
+                        console.log('Sync modal - detected master database file');
+                        importMasterData(importedData);
+                        showMessage('✅ Master database imported successfully!', 'success');
+                    } else if (importedData.exportType === 'master_database') {
+                        console.log('Sync modal - legacy master database format');
                         mergeMasterData(importedData);
                     } else {
+                        console.log('Sync modal - regular class data');
                         // Handle regular class data import (existing behavior)
                         mergeRegularClassData(importedData);
                     }
 
                 } catch (error) {
+                    console.error('Sync modal import error:', error);
                     showMessage('Error importing data: ' + error.message, 'error');
                 }
             };
@@ -3366,7 +3419,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             let preservedCount = 0;
 
             // Get current user's existing data
-            const currentUserAnswers = JSON.parse(localStorage.getItem(`answers_${currentUsername}`) || '{}');
+            let currentUserAnswers = JSON.parse(localStorage.getItem(`answers_${currentUsername}`) || '{}');
+            // STANDARDIZATION FIX: Ensure existing data is also in standardized format
+            currentUserAnswers = migrateAnswersToStandardFormat(currentUserAnswers);
             const currentUserProgress = JSON.parse(localStorage.getItem(`progress_${currentUsername}`) || '{}');
 
             // Merge class-wide data (consensus, etc.) - always take the master version for these
@@ -3381,8 +3436,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (masterData.allAnswers) {
                 Object.keys(masterData.allAnswers).forEach(username => {
                     if (username !== currentUsername) {
-                        // Import other users' data completely
-                        localStorage.setItem(`answers_${username}`, JSON.stringify(masterData.allAnswers[username]));
+                        // STANDARDIZATION FIX: Use migration function for other users' data
+                        const standardizedAnswers = migrateAnswersToStandardFormat(masterData.allAnswers[username]);
+                        localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
                         updatedCount++;
                     }
                 });
@@ -3398,7 +3454,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // For the CURRENT user, merge intelligently
             if (masterData.allAnswers && masterData.allAnswers[currentUsername]) {
-                const importedUserAnswers = masterData.allAnswers[currentUsername];
+                // STANDARDIZATION FIX: Standardize imported data first
+                const standardizedImportedAnswers = migrateAnswersToStandardFormat(masterData.allAnswers[currentUsername]);
+                const importedUserAnswers = standardizedImportedAnswers;
 
                 // Merge answers - keep newer ones based on timestamp or attempt count
                 Object.keys(importedUserAnswers).forEach(questionId => {
@@ -4056,6 +4114,49 @@ if (chartInstances[`dotplot-${questionId}`]) {
             localStorage.removeItem(`tempProgress_${currentUsername}`);
 
             console.log(`Progress tracking initialized for ${currentUsername} at ${now}`);
+
+            // Check for import debug info from before page refresh
+            const importDebug = localStorage.getItem('import_debug');
+            if (importDebug) {
+                const debugInfo = JSON.parse(importDebug);
+                console.log('=== IMPORT DEBUG INFO (from before refresh) ===');
+                console.log('Data keys:', debugInfo.dataKeys);
+                console.log('Is personal file:', debugInfo.isPersonal);
+                console.log('Is master file:', debugInfo.isMaster);
+                console.log('Import timestamp:', debugInfo.timestamp);
+                console.log('=== END IMPORT DEBUG ===');
+
+                // Clear the debug info
+                localStorage.removeItem('import_debug');
+            }
+
+            // Check for pending imports from before page refresh
+            const pendingMaster = localStorage.getItem('pending_master_import');
+            const pendingPersonal = localStorage.getItem('pending_personal_import');
+
+            if (pendingMaster) {
+                console.log('Processing pending master import...');
+                try {
+                    const data = JSON.parse(pendingMaster);
+                    importMasterData(data);
+                    console.log('✅ Master import completed after refresh');
+                } catch (error) {
+                    console.error('Error processing pending master import:', error);
+                }
+                localStorage.removeItem('pending_master_import');
+            }
+
+            if (pendingPersonal) {
+                console.log('Processing pending personal import...');
+                try {
+                    const data = JSON.parse(pendingPersonal);
+                    importPersonalData(data);
+                    console.log('✅ Personal import completed after refresh');
+                } catch (error) {
+                    console.error('Error processing pending personal import:', error);
+                }
+                localStorage.removeItem('pending_personal_import');
+            }
         }
 
         function markProgressAsUnsaved() {
@@ -4648,6 +4749,144 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             });
 
+            // Handle Master Import button click
+            document.addEventListener('click', function(event) {
+                if (event.target.id === 'masterImportBtn' || event.target.closest('#masterImportBtn')) {
+                    event.preventDefault(); // Prevent any default behavior
+                    event.stopPropagation(); // Stop event bubbling
+
+                    console.log('=== Master Import button clicked ===');
+                    // Create hidden file input for master import
+                    let masterImportInput = document.getElementById('masterImportFile');
+                    if (!masterImportInput) {
+                        masterImportInput = document.createElement('input');
+                        masterImportInput.type = 'file';
+                        masterImportInput.accept = '.json';
+                        masterImportInput.id = 'masterImportFile';
+                        masterImportInput.style.display = 'none';
+                        masterImportInput.addEventListener('change', function(fileEvent) {
+                            fileEvent.preventDefault(); // Prevent any default behavior
+                            console.log('Master import file selected');
+                            const file = fileEvent.target.files[0];
+                            if (!file) return;
+
+                            // Reset the file input to allow re-selection of the same file
+                            fileEvent.target.value = '';
+
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                try {
+                                    const data = JSON.parse(e.target.result);
+                                    console.log('Master import - calling importMasterData with:', data);
+
+                                    // Prevent ALL forms of page refresh/navigation
+                                    window.onbeforeunload = function(e) {
+                                        console.log('Preventing page refresh during import...');
+                                        return 'Import in progress, are you sure you want to leave?';
+                                    };
+
+                                    // Capture and prevent any navigation
+                                    const originalLocation = window.location.href;
+                                    const preventNavigation = () => {
+                                        if (window.location.href !== originalLocation) {
+                                            window.location.href = originalLocation;
+                                        }
+                                    };
+                                    const navInterval = setInterval(preventNavigation, 10);
+
+                                    try {
+                                        console.log('Starting direct localStorage import...');
+
+                                        // Do the import directly here without calling any functions
+                                        if (data && data.students) {
+                                            const students = data.students;
+                                            let importCount = 0;
+
+                                            // Get or create classData structure for peer display
+                                            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                                            if (!classData.users) classData.users = {};
+
+                                            Object.entries(students).forEach(([username, userInfo]) => {
+                                                if (userInfo.answers) {
+                                                    // STANDARDIZATION FIX: Use migration function for consistency
+                                                    const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+
+                                                    // Store individual keys (for existing functionality)
+                                                    localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
+
+                                                    // ALSO store in classData structure (for peer display)
+                                                    if (!classData.users[username]) {
+                                                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                                                    }
+                                                    Object.assign(classData.users[username].answers, standardizedAnswers);
+
+                                                    importCount++;
+                                                }
+                                                if (userInfo.progress) {
+                                                    localStorage.setItem(`progress_${username}`, JSON.stringify(userInfo.progress));
+                                                }
+                                                if (userInfo.reasons) {
+                                                    localStorage.setItem(`reasons_${username}`, JSON.stringify(userInfo.reasons));
+                                                    Object.assign(classData.users[username].reasons, userInfo.reasons);
+                                                }
+                                                if (userInfo.timestamps) {
+                                                    localStorage.setItem(`timestamps_${username}`, JSON.stringify(userInfo.timestamps));
+                                                    Object.assign(classData.users[username].timestamps, userInfo.timestamps);
+                                                }
+                                                if (userInfo.attempts) {
+                                                    localStorage.setItem(`attempts_${username}`, JSON.stringify(userInfo.attempts));
+                                                    Object.assign(classData.users[username].attempts, userInfo.attempts);
+                                                }
+                                            });
+
+                                            // Save the updated classData structure
+                                            localStorage.setItem('classData', JSON.stringify(classData));
+
+                                            // CRITICAL: Refresh the global classData variable
+                                            window.classData = classData;
+
+                                            // Also call initClassData to ensure everything is properly loaded
+                                            if (typeof initClassData === 'function') {
+                                                initClassData();
+                                            }
+
+                                            console.log(`Imported data for ${importCount} students`);
+                                            console.log('Global classData updated:', window.classData);
+                                            alert(`✅ Imported data for ${importCount} students! Peer answers should now be visible.`);
+                                        } else {
+                                            alert('❌ No students data found in file');
+                                        }
+                                    } catch (error) {
+                                        console.error('Import failed:', error);
+                                        alert('❌ Import failed: ' + error.message);
+                                    } finally {
+                                        // Clean up after import
+                                        clearInterval(navInterval);
+                                        window.onbeforeunload = null;
+                                    }
+
+                                } catch (error) {
+                                    console.error('Master import error:', error);
+                                    alert('❌ Error importing master database: ' + error.message);
+                                }
+                            };
+                            reader.readAsText(file);
+                        });
+                        document.body.appendChild(masterImportInput);
+                    }
+
+                    // Use setTimeout to prevent any refresh issues
+                    setTimeout(() => {
+                        masterImportInput.click();
+                    }, 50);
+
+                    // Don't close modal immediately - let import complete first
+                    setTimeout(() => {
+                        closeSyncModal();
+                    }, 200);
+                }
+            });
+
             // Handle Master Export button click
             document.addEventListener('click', function(event) {
                 if (event.target.id === 'masterExportBtn' || event.target.closest('#masterExportBtn')) {
@@ -4659,8 +4898,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Smart Import Function - Auto-detects file type
         function handleSmartImport(event) {
+            console.log('handleSmartImport called', event);
             const file = event.target.files[0];
-            if (!file) return;
+            console.log('Selected file:', file);
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -4668,17 +4912,45 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     const data = JSON.parse(e.target.result);
 
                     // Detect file type and handle appropriately
-                    if (isPersonalDataFile(data)) {
-                        console.log('Detected: Personal data file');
-                        importPersonalData(data);
-                        showMessage('✅ Personal data imported successfully!', 'success');
-                    } else if (isMasterDataFile(data)) {
-                        console.log('Detected: Master database file');
-                        importMasterData(data);
-                        showMessage('✅ Master database imported successfully!', 'success');
-                    } else {
-                        showMessage('❌ Unrecognized file format. Please check your file.', 'error');
+                    const debugInfo = {
+                        dataKeys: Object.keys(data),
+                        isPersonal: isPersonalDataFile(data),
+                        isMaster: isMasterDataFile(data),
+                        timestamp: new Date().toISOString()
+                    };
+
+                    // Store debug info to survive page refresh
+                    localStorage.setItem('import_debug', JSON.stringify(debugInfo));
+
+                    console.log('File import debug - data keys:', debugInfo.dataKeys);
+                    console.log('File import debug - isPersonalDataFile:', debugInfo.isPersonal);
+                    console.log('File import debug - isMasterDataFile:', debugInfo.isMaster);
+
+                    // Store the data temporarily to survive refresh
+                    if (isMasterDataFile(data)) {
+                        localStorage.setItem('pending_master_import', JSON.stringify(data));
+                        console.log('Stored master data for import after refresh');
+                    } else if (isPersonalDataFile(data)) {
+                        localStorage.setItem('pending_personal_import', JSON.stringify(data));
+                        console.log('Stored personal data for import after refresh');
                     }
+
+                    // Prevent immediate actions that might cause refresh
+                    setTimeout(() => {
+                        if (isPersonalDataFile(data)) {
+                            console.log('Detected: Personal data file');
+                            importPersonalData(data);
+                            showMessage('✅ Personal data imported successfully!', 'success');
+                        } else if (isMasterDataFile(data)) {
+                            console.log('Detected: Master database file');
+                            importMasterData(data);
+                            showMessage('✅ Master database imported successfully!', 'success');
+                        } else {
+                            console.log('File structure does not match expected formats');
+                            console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500));
+                            showMessage('❌ Unrecognized file format. Please check your file.', 'error');
+                        }
+                    }, 500);
                 } catch (error) {
                     console.error('Import error:', error);
                     showMessage('❌ Error reading file. Please check the file format.', 'error');
@@ -4697,10 +4969,31 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         function isMasterDataFile(data) {
             // Master data files have multiple users or class-wide data
-            return data.students ||
-                   data.allUsers ||
-                   data.exportType === 'master_database' ||
-                   (data.users && Object.keys(data.users).length > 1);
+            return !!(data.students ||
+                     data.allUsers ||
+                     data.exportType === 'master_database' ||
+                     (data.users && Object.keys(data.users).length > 1));
+        }
+
+        // Backward compatibility migration function
+        function migrateAnswersToStandardFormat(answers) {
+            const standardizedAnswers = {};
+            const currentTime = Date.now();
+
+            Object.entries(answers).forEach(([questionId, answer]) => {
+                if (typeof answer === 'object' && answer.value !== undefined) {
+                    // Already in new format
+                    standardizedAnswers[questionId] = answer;
+                } else {
+                    // Convert from simple string format to object format
+                    standardizedAnswers[questionId] = {
+                        value: answer,
+                        timestamp: currentTime
+                    };
+                }
+            });
+
+            return standardizedAnswers;
         }
 
         // Import functions for different file types
@@ -4710,9 +5003,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 return;
             }
 
-            // Import answers
+            // Import answers with standardization
             if (data.answers) {
-                localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(data.answers));
+                const standardizedAnswers = migrateAnswersToStandardFormat(data.answers);
+                localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(standardizedAnswers));
+                console.log(`✓ Imported personal answers for ${currentUsername} (standardized format)`);
             }
 
             // Import progress
@@ -4727,24 +5022,147 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        function importMasterData(data) {
+        function importMasterData(data, targetUsername = null) {
+            console.log('=== importMasterData called ===');
+            console.log('Data passed to importMasterData:', data);
+            console.log('Target username for restoration:', targetUsername);
+
             // Use existing master data import functionality
-            if (typeof importClassData === 'function') {
-                importClassData(data);
-            } else if (typeof mergeMasterData === 'function') {
+            if (typeof mergeMasterData === 'function') {
+                console.log('Found mergeMasterData function, using it');
                 mergeMasterData(data);
             } else {
-                console.warn('No master import function found, attempting basic import...');
-                // Basic fallback import
+                console.warn('No mergeMasterData function found, attempting basic import...');
+                console.log('Import data structure:', data);
+                console.log('Data keys:', Object.keys(data));
+                console.log('Has students property:', !!data.students);
+                console.log('Has allUsers property:', !!data.allUsers);
+                console.log('Has users property:', !!data.users);
+
+                // Try different possible structures
+                let userData = null;
                 if (data.students) {
-                    Object.entries(data.students).forEach(([username, userData]) => {
-                        if (userData.answers) {
-                            localStorage.setItem(`answers_${username}`, JSON.stringify(userData.answers));
+                    userData = data.students;
+                    console.log('Using data.students:', userData);
+                } else if (data.allUsers) {
+                    userData = data.allUsers;
+                    console.log('Using data.allUsers:', userData);
+                } else if (data.users) {
+                    userData = data.users;
+                    console.log('Using data.users:', userData);
+                }
+
+                if (userData) {
+                    // Check if this is single-user restoration (from username screen)
+                    if (targetUsername && userData[targetUsername]) {
+                        console.log(`SINGLE-USER RESTORATION: Importing only data for ${targetUsername}`);
+                        const userInfo = userData[targetUsername];
+
+                        if (userInfo.answers) {
+                            // STANDARDIZATION FIX: Use migration function for consistency
+                            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+                            localStorage.setItem(`answers_${targetUsername}`, JSON.stringify(standardizedAnswers));
+                            console.log(`✓ Restored answers for ${targetUsername} (standardized format)`);
                         }
-                        if (userData.progress) {
-                            localStorage.setItem(`progress_${username}`, JSON.stringify(userData.progress));
+                        if (userInfo.progress) {
+                            localStorage.setItem(`progress_${targetUsername}`, JSON.stringify(userInfo.progress));
+                            console.log(`✓ Restored progress for ${targetUsername}`);
+                        }
+                        if (userInfo.reasons) {
+                            localStorage.setItem(`reasons_${targetUsername}`, JSON.stringify(userInfo.reasons));
+                            console.log(`✓ Restored reasons for ${targetUsername}`);
+                        }
+                        if (userInfo.timestamps) {
+                            localStorage.setItem(`timestamps_${targetUsername}`, JSON.stringify(userInfo.timestamps));
+                            console.log(`✓ Restored timestamps for ${targetUsername}`);
+                        }
+                        if (userInfo.attempts) {
+                            localStorage.setItem(`attempts_${targetUsername}`, JSON.stringify(userInfo.attempts));
+                            console.log(`✓ Restored attempts for ${targetUsername}`);
+                        }
+
+                        console.log(`=== Single-user restoration completed for ${targetUsername} ===`);
+                        return;
+                    }
+
+                    // Otherwise, do multi-user peer import
+                    console.log('MULTI-USER PEER IMPORT: Importing data for', Object.keys(userData).length, 'students');
+                    console.log('Student usernames:', Object.keys(userData));
+
+                    // Get or create classData structure for peer display
+                    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                    if (!classData.users) classData.users = {};
+
+                    Object.entries(userData).forEach(([username, userInfo]) => {
+                        console.log(`Processing user: ${username}`, userInfo);
+
+                        if (userInfo.answers) {
+                            // STANDARDIZATION FIX: Use migration function for consistency
+                            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+
+                            // Store individual keys (for existing functionality)
+                            const key = `answers_${username}`;
+                            localStorage.setItem(key, JSON.stringify(standardizedAnswers));
+                            console.log(`✓ Stored answers for ${username} in ${key} (standardized format)`);
+
+                            // ALSO store in classData structure (for peer display)
+                            if (!classData.users[username]) {
+                                classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                            }
+                            Object.assign(classData.users[username].answers, standardizedAnswers);
+                            console.log(`✓ Added ${username} to classData structure`);
+                        } else {
+                            console.log(`⚠ No answers found for ${username}`);
+                        }
+
+                        if (userInfo.progress) {
+                            const key = `progress_${username}`;
+                            localStorage.setItem(key, JSON.stringify(userInfo.progress));
+                            console.log(`✓ Stored progress for ${username} in ${key}`);
+                        }
+
+                        if (userInfo.reasons) {
+                            localStorage.setItem(`reasons_${username}`, JSON.stringify(userInfo.reasons));
+                            if (classData.users[username]) {
+                                Object.assign(classData.users[username].reasons, userInfo.reasons);
+                            }
+                        }
+
+                        if (userInfo.timestamps) {
+                            localStorage.setItem(`timestamps_${username}`, JSON.stringify(userInfo.timestamps));
+                            if (classData.users[username]) {
+                                Object.assign(classData.users[username].timestamps, userInfo.timestamps);
+                            }
+                        }
+
+                        if (userInfo.attempts) {
+                            localStorage.setItem(`attempts_${username}`, JSON.stringify(userInfo.attempts));
+                            if (classData.users[username]) {
+                                Object.assign(classData.users[username].attempts, userInfo.attempts);
+                            }
                         }
                     });
+
+                    // Save the updated classData structure
+                    localStorage.setItem('classData', JSON.stringify(classData));
+                    console.log(`✓ Updated classData with ${Object.keys(classData.users).length} users`);
+
+                    // CRITICAL: Refresh the global classData variable
+                    window.classData = classData;
+
+                    // Reinitialize to show imported data
+                    if (typeof initClassData === 'function') {
+                        console.log('Calling initClassData()');
+                        initClassData();
+                    }
+                    if (typeof renderUnitMenu === 'function') {
+                        console.log('Calling renderUnitMenu()');
+                        renderUnitMenu();
+                    }
+                    console.log('=== Master data import completed ===');
+                } else {
+                    console.warn('❌ No students data found in import file');
+                    console.log('Available data keys:', Object.keys(data));
                 }
             }
         }
@@ -4805,6 +5223,24 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (currentUserDisplay) {
                 currentUserDisplay.textContent = localStorage.getItem('consensusUsername') || 'Unknown';
             }
+
+            // Ensure Master Import button exists (add dynamically if missing)
+            const masterExportBtn = document.getElementById('masterExportBtn');
+            if (masterExportBtn && !document.getElementById('masterImportBtn')) {
+                console.log('Master Import button missing, adding it dynamically');
+                const masterImportBtn = document.createElement('button');
+                masterImportBtn.id = 'masterImportBtn';
+                masterImportBtn.className = 'modal-btn';
+                masterImportBtn.innerHTML = `
+                    <i class="fas fa-cloud-download-alt"></i>
+                    <span>
+                        <strong>Master Import</strong>
+                        <small>Import peer data from master database</small>
+                    </span>
+                `;
+                masterExportBtn.parentNode.appendChild(masterImportBtn);
+                console.log('Master Import button added dynamically');
+            }
         }
 
         // Show sync modal
@@ -4814,6 +5250,37 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const modal = document.getElementById('syncModal');
             if (modal) {
                 modal.style.display = 'block';
+
+                // Debug: Check if Master Import button exists and add if missing
+                setTimeout(() => {
+                    let masterImportBtn = document.getElementById('masterImportBtn');
+                    console.log('Master Import button exists:', !!masterImportBtn);
+
+                    if (masterImportBtn) {
+                        console.log('Master Import button element:', masterImportBtn);
+                    } else {
+                        console.error('Master Import button NOT FOUND in DOM!');
+                        console.log('All buttons in modal:', modal.querySelectorAll('button'));
+
+                        // Force add the button
+                        const masterExportBtn = document.getElementById('masterExportBtn');
+                        if (masterExportBtn) {
+                            console.log('Adding Master Import button manually...');
+                            masterImportBtn = document.createElement('button');
+                            masterImportBtn.id = 'masterImportBtn';
+                            masterImportBtn.className = 'modal-btn';
+                            masterImportBtn.innerHTML = `
+                                <i class="fas fa-cloud-download-alt"></i>
+                                <span>
+                                    <strong>Master Import</strong>
+                                    <small>Import peer data from master database</small>
+                                </span>
+                            `;
+                            masterExportBtn.parentNode.appendChild(masterImportBtn);
+                            console.log('Master Import button added manually!');
+                        }
+                    }
+                }, 100);
             } else {
                 console.error('Sync modal element not found!');
                 // Fallback: try to find any modal with sync-related content
@@ -4822,8 +5289,49 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
+        // Runtime migration function to update existing localStorage data
+        function migrateExistingAnswersData() {
+            console.log('Checking for existing answers data that needs migration...');
+            let migrationCount = 0;
+
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('answers_')) {
+                    try {
+                        const answers = JSON.parse(localStorage.getItem(key));
+                        let needsMigration = false;
+
+                        // Check if any answers are still in simple string format
+                        for (const questionId in answers) {
+                            if (typeof answers[questionId] !== 'object' || answers[questionId].value === undefined) {
+                                needsMigration = true;
+                                break;
+                            }
+                        }
+
+                        if (needsMigration) {
+                            const standardizedAnswers = migrateAnswersToStandardFormat(answers);
+                            localStorage.setItem(key, JSON.stringify(standardizedAnswers));
+                            migrationCount++;
+                            console.log(`✓ Migrated ${key} to standardized format`);
+                        }
+                    } catch (error) {
+                        console.error(`Error migrating ${key}:`, error);
+                    }
+                }
+            });
+
+            if (migrationCount > 0) {
+                console.log(`✅ Migrated ${migrationCount} answer datasets to standardized format`);
+            } else {
+                console.log('✅ All existing answer data is already in standardized format');
+            }
+        }
+
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            // Run migration on existing data
+            migrateExistingAnswersData();
+
             // Set up sync button
             const syncBtn = document.getElementById('syncBtn');
             if (syncBtn) {
