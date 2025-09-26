@@ -337,7 +337,7 @@
                                 <div class="option-icon">🔄</div>
                                 <h3>Restore</h3>
                                 <p class="option-description">Import master data using CSV student roster</p>
-                                <button onclick="showCSVImportModal()"
+                                <button onclick="showRestoreOptionsModal()"
                                         class="action-button primary">
                                     Restore Data
                                 </button>
@@ -573,6 +573,425 @@
             document.querySelector('.modal').remove();
             pendingImportData = null;
         }
+
+        // --- Start of New Code for Phase 2 (Revised) ---
+
+        function showRestoreOptionsModal() {
+            // Prevent creating duplicate modals
+            if (document.getElementById('restoreOptionsModal')) {
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.id = 'restoreOptionsModal';
+            modal.className = 'modal';
+
+            // Using the exact HTML structure you provided in Phase 1
+            modal.innerHTML = `
+                <div class="modal-content enhanced-sync-modal">
+                    <span class="close-modal" onclick="closeRestoreOptionsModal()">&times;</span>
+                    <h3>Choose Restore Method</h3>
+
+                    <div class="restore-option">
+                        <h4>🏫 Classroom Restore</h4>
+                        <p>Your teacher has a master file and a class roster to restore your account.</p>
+                        <button class="action-button primary" onclick="showCSVImportModal(); closeRestoreOptionsModal();">
+                            Use Classroom File
+                        </button>
+                    </div>
+
+                    <div class="restore-option">
+                        <h4>💾 Personal Restore</h4>
+                        <p>You have your username and your personal backup (.json) file.</p>
+                        <input type="text" id="manualUsernameInput" class="username-input"
+                               placeholder="Enter your username (e.g., Apple_Bear)">
+                        <button id="continueWithUsernameBtn" class="action-button primary">
+                            Continue to Import
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.style.display = 'block';
+
+           // --- Start of New Code for Phase 3 (Revised) ---
+
+// Attach the event listener for the "Continue to Import" button now that it exists in the DOM.
+const continueBtn = document.getElementById('continueWithUsernameBtn');
+if (continueBtn) {
+    continueBtn.onclick = function() {
+        const usernameInput = document.getElementById('manualUsernameInput');
+        const username = usernameInput.value.trim();
+
+        // 1. Validate that the username is not empty.
+        if (!username) {
+            // Use the existing showMessage function for consistent UI feedback.
+            if (typeof showMessage === 'function') {
+                showMessage('Please enter a username to continue.', 'error');
+            } else {
+                alert('Please enter a username to continue.');
+            }
+            return;
+        }
+        
+        // 2. Call the existing `acceptUsername` function to establish the session.
+        // CRITICAL: We use the username with its original capitalization to match the "Fruit_Animal" format.
+        acceptUsername(username);
+        
+        // 3. Close the modal.
+        closeRestoreOptionsModal();
+
+        // 4. Display a helpful guidance message to the user.
+        if (typeof showMessage === 'function') {
+            showMessage(`Welcome, ${username}! Use the Sync button (⚡️) to import your personal backup file.`, 'info');
+        }
+    };
+}
+
+// --- End of New Code for Phase 3 (Revised) ---
+
+            // Automatically focus the input field for a better user experience
+            const usernameInput = document.getElementById('manualUsernameInput');
+            if (usernameInput) {
+                usernameInput.focus();
+            }
+        }
+
+        function closeRestoreOptionsModal() {
+            const modal = document.getElementById('restoreOptionsModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // --- End of New Code for Phase 2 (Revised) ---/
+        // / --- Start of mergePersonalData Function for Phase 4.1 ---
+
+  /**
+   * Merges two user data objects with non-destructive timestamp-based logic.
+   * This function implements the approved merge rules for handling multiple personal backup imports.
+   * 
+   * @param {Object} existingUserData - The current user's data from classData.users[username]
+   * @param {Object} newUserData - The incoming user data from an imported file
+   * @returns {Object} The merged user data object with the most recent/relevant information
+   */
+  function mergePersonalData(existingUserData, newUserData) {
+      try {
+          console.log('=== Starting mergePersonalData ===');
+
+          // 1. Initialization and Edge Cases
+          // If no existing data, return the new data immediately
+          if (!existingUserData || Object.keys(existingUserData).length === 0) {
+              console.log('No existing data found, returning new data as-is');
+              return newUserData || {};
+          }
+
+          // If no new data, return existing data
+          if (!newUserData || Object.keys(newUserData).length === 0) {
+              console.log('No new data to merge, returning existing data');
+              return existingUserData;
+          }
+
+          // Create a deep copy of existingUserData to avoid mutations
+          let mergedUserData = JSON.parse(JSON.stringify(existingUserData));
+
+          // Ensure all primary keys exist on mergedUserData
+          mergedUserData.answers = mergedUserData.answers || {};
+          mergedUserData.reasons = mergedUserData.reasons || {};
+          mergedUserData.timestamps = mergedUserData.timestamps || {};
+          mergedUserData.attempts = mergedUserData.attempts || {};
+          mergedUserData.progress = mergedUserData.progress || {};
+          mergedUserData.badges = mergedUserData.badges || {};
+          mergedUserData.preferences = mergedUserData.preferences || {};
+
+          // Also ensure newUserData has these structures for safe access
+          newUserData.answers = newUserData.answers || {};
+          newUserData.reasons = newUserData.reasons || {};
+          newUserData.timestamps = newUserData.timestamps || {};
+          newUserData.attempts = newUserData.attempts || {};
+          newUserData.progress = newUserData.progress || {};
+
+          // 2. Merge Answers, Timestamps, and Reasons
+          console.log('Merging answers based on timestamps...');
+          let answersUpdated = 0;
+
+          for (const questionId in newUserData.answers) {
+              try {
+                  const newAnswer = newUserData.answers[questionId];
+                  const existingAnswer = mergedUserData.answers[questionId];
+
+                  // Extract timestamps - handle both direct timestamps and answer objects with timestamp property
+                  let newTimestamp = null;
+                  let existingTimestamp = null;
+
+                  // Check for timestamp in various possible locations
+                  if (newAnswer && typeof newAnswer === 'object' && newAnswer.timestamp) {
+                      newTimestamp = newAnswer.timestamp;
+                  } else if (newUserData.timestamps && newUserData.timestamps[questionId]) {
+                      newTimestamp = newUserData.timestamps[questionId];
+                  }
+
+                  if (existingAnswer && typeof existingAnswer === 'object' && existingAnswer.timestamp) {
+                      existingTimestamp = existingAnswer.timestamp;
+                  } else if (mergedUserData.timestamps && mergedUserData.timestamps[questionId]) {
+                      existingTimestamp = mergedUserData.timestamps[questionId];
+                  }
+
+                  // Convert timestamps to numbers for comparison
+                  newTimestamp = Number(newTimestamp) || 0;
+                  existingTimestamp = Number(existingTimestamp) || 0;
+
+                  // Rule: If new answer is more recent (or no existing answer), update all related fields
+                  if (!existingAnswer || newTimestamp > existingTimestamp) {
+                      mergedUserData.answers[questionId] = newAnswer;
+                      mergedUserData.timestamps[questionId] = newTimestamp || newUserData.timestamps[questionId];
+
+                      // Update reason if it exists for this question
+                      if (newUserData.reasons && newUserData.reasons[questionId]) {
+                          mergedUserData.reasons[questionId] = newUserData.reasons[questionId];
+                      }
+
+                      answersUpdated++;
+                      console.log(`  Updated ${questionId}: timestamp ${newTimestamp} > ${existingTimestamp}`);
+                  } else if (newTimestamp === existingTimestamp && existingTimestamp > 0) {
+                      // Edge Case: If timestamps are identical, preserve existing data
+                      console.log(`  Preserved ${questionId}: timestamps identical (${existingTimestamp})`);
+                  }
+
+              } catch (answerError) {
+                  console.error(`Error merging answer for ${questionId}:`, answerError);
+                  // Continue processing other answers
+              }
+          }
+
+          console.log(`Updated ${answersUpdated} answers based on timestamps`);
+
+          // 3. Merge Attempts
+          console.log('Merging attempt counts...');
+          let attemptsUpdated = 0;
+
+          for (const questionId in newUserData.attempts) {
+              const existingAttempts = Number(mergedUserData.attempts[questionId]) || 0;
+              const newAttempts = Number(newUserData.attempts[questionId]) || 0;
+
+              // Rule: Keep the highest attempt count
+              const maxAttempts = Math.max(existingAttempts, newAttempts);
+
+              if (maxAttempts !== existingAttempts) {
+                  mergedUserData.attempts[questionId] = maxAttempts;
+                  attemptsUpdated++;
+                  console.log(`  Updated attempts for ${questionId}: ${existingAttempts} -> ${maxAttempts}`);
+              }
+          }
+
+          // Also check for attempts in existing data that aren't in new data
+          for (const questionId in mergedUserData.attempts) {
+              if (!(questionId in newUserData.attempts)) {
+                  // Keep existing attempts for questions not in new data
+                  console.log(`  Preserved attempts for ${questionId}: ${mergedUserData.attempts[questionId]}`);
+              }
+          }
+
+          console.log(`Updated ${attemptsUpdated} attempt counts`);
+
+          // 4. Merge Progress
+          console.log('Merging progress indicators...');
+          let progressUpdated = 0;
+
+          for (const key in newUserData.progress) {
+              const existingProgress = Number(mergedUserData.progress[key]) || 0;
+              const newProgress = Number(newUserData.progress[key]) || 0;
+
+              // Rule: Keep the maximum progress value
+              const maxProgress = Math.max(existingProgress, newProgress);
+
+              if (maxProgress !== existingProgress) {
+                  mergedUserData.progress[key] = maxProgress;
+                  progressUpdated++;
+                  console.log(`  Updated progress.${key}: ${existingProgress} -> ${maxProgress}`);
+              }
+          }
+
+          console.log(`Updated ${progressUpdated} progress indicators`);
+
+          // 5. Merge Badges (bonus: merge unique badges, keeping earliest timestamp)
+          if (newUserData.badges) {
+              console.log('Merging badges...');
+              mergedUserData.badges = mergedUserData.badges || {};
+
+              for (const badge in newUserData.badges) {
+                  if (!mergedUserData.badges[badge]) {
+                      // New badge not in existing data
+                      mergedUserData.badges[badge] = newUserData.badges[badge];
+                      console.log(`  Added new badge: ${badge}`);
+                  } else {
+                      // Badge exists - keep the one with earlier timestamp (first earned)
+                      const existingBadgeTime = mergedUserData.badges[badge].earnedAt || 0;
+                      const newBadgeTime = newUserData.badges[badge].earnedAt || 0;
+
+                      if (newBadgeTime && (!existingBadgeTime || newBadgeTime < existingBadgeTime)) {
+                          mergedUserData.badges[badge] = newUserData.badges[badge];
+                          console.log(`  Updated badge ${badge} with earlier timestamp`);
+                      }
+                  }
+              }
+          }
+
+          // 6. Merge Preferences (use most recent)
+          if (newUserData.preferences) {
+              // For preferences, we'll take the entire new preferences object if it exists
+              // as preferences are typically set as a complete unit
+              mergedUserData.preferences = newUserData.preferences;
+              console.log('Updated user preferences with latest values');
+          }
+
+          console.log('=== Merge complete ===');
+          console.log(`Final merged data contains ${Object.keys(mergedUserData.answers).length} answers`);
+
+          return mergedUserData;
+
+      } catch (error) {
+          console.error('Fatal error in mergePersonalData:', error);
+          console.error('Stack trace:', error.stack);
+
+          // In case of catastrophic failure, preserve existing data
+          console.log('Returning existing data due to merge error');
+          return existingUserData || {};
+      }
+  }
+
+  // --- End of mergePersonalData Function for Phase 4.1 ---
+    // --- Start of importAndMergePersonalData Function for Phase 4.2 ---
+
+  /**
+   * Wrapper function that imports personal data with non-destructive merging.
+   * This function handles the integration of imported data using the mergePersonalData logic.
+   * 
+   * @param {Object} importedData - The imported user data object from a JSON file
+   */
+   function importAndMergePersonalData(importedData) {
+      console.log('=== Starting importAndMergePersonalData ===');
+
+      try {
+          // 1. Get the currentUsername - if not set, show error and return
+          if (!currentUsername) {
+              showMessage('No username set. Please establish a session first.', 'error');
+              console.error('No currentUsername set');
+              return;
+          }
+
+          console.log('Processing import for username:', currentUsername);
+
+          // 2. Load the entire classData object from localStorage
+          let classData = JSON.parse(localStorage.getItem('classData') || '{}');
+
+          // Ensure classData has the users object
+          if (!classData.users) {
+              classData.users = {};
+          }
+
+          // 3. Safely access the user's existing data slice
+          let existingUserData = classData.users[currentUsername] || {};
+          console.log('Existing user data keys:', Object.keys(existingUserData));
+
+          // 4. Prepare the imported data for merging
+          // First, check if importedData has the user's data nested inside
+          let dataToMerge = null;
+
+          // Handle different import formats
+          if (importedData.users && importedData.users[currentUsername]) {
+              // Data is in master export format with users object
+              dataToMerge = importedData.users[currentUsername];
+              console.log('Found user data in users object');
+            } else if (importedData.username && importedData.username === currentUsername && importedData.users && importedData.users[currentUsername]) {
+      // Personal export format with username field
+      dataToMerge = importedData.users[currentUsername];
+      console.log('Found user data in personal export format');
+          } else if (importedData.username === currentUsername && importedData.answers) {
+              // Data is in personal export format
+              dataToMerge = {
+                  answers: importedData.answers || {},
+                  reasons: importedData.reasons || {},
+                  timestamps: importedData.timestamps || {},
+                  attempts: importedData.attempts || {},
+                  progress: importedData.progress || {},
+                  badges: importedData.badges || {},
+                  preferences: importedData.preferences || {}
+              };
+              console.log('Using personal export format');
+          } else if (importedData.answers) {
+              // Direct data object format
+              dataToMerge = importedData;
+              console.log('Using direct data format');
+          } else {
+              showMessage('Could not find data for your username in the imported file.', 'error');
+              console.error('No matching data found for username:', currentUsername);
+              return;
+          }
+
+          // Migrate answers to standard format if the function exists
+          if (typeof migrateAnswersToStandardFormat === 'function' && dataToMerge.answers) {
+              console.log('Migrating answers to standard format...');
+              dataToMerge.answers = migrateAnswersToStandardFormat(dataToMerge.answers);
+          }
+
+          // 5. Call mergePersonalData to merge the data
+          console.log('Calling mergePersonalData...');
+          let mergedUserData = mergePersonalData(existingUserData, dataToMerge);
+
+          // 6. Update the main data structure in memory
+          classData.users[currentUsername] = mergedUserData;
+          console.log('Updated classData.users for', currentUsername);
+
+          // 7. Save the entire updated classData object back to localStorage
+          localStorage.setItem('classData', JSON.stringify(classData));
+          console.log('Saved updated classData to localStorage');
+
+          // 8. Call initClassData() to refresh global variables from the new state
+          if (typeof initClassData === 'function') {
+              initClassData();
+              console.log('Reinitialized class data');
+          }
+
+          // 9. Refresh the UI with the merged data
+          // Try to refresh visualizations if the function exists
+          if (typeof refreshAllVisualizations === 'function') {
+              refreshAllVisualizations();
+              console.log('Refreshed all visualizations');
+          } else if (typeof updateProgressDisplay === 'function') {
+              updateProgressDisplay();
+              console.log('Updated progress display');
+          }
+
+          // If we're on a question page, reload it to show the merged data
+          if (typeof currentQuestionId !== 'undefined' && currentQuestionId) {
+              if (typeof loadQuestion === 'function') {
+                  // Extract topic and question number from currentQuestionId if possible
+                  const parts = currentQuestionId.split('-');
+                  if (parts.length >= 3) {
+                      const topic = parts[0] + '-' + parts[1];
+                      const questionNum = parseInt(parts[2].replace('Q', ''));
+                      loadQuestion(topic, questionNum);
+                      console.log('Reloaded current question');
+                  }
+              }
+          }
+
+          // 10. Show success message
+          const answerCount = Object.keys(mergedUserData.answers || {}).length;
+          showMessage(`Successfully merged your personal data! You now have ${answerCount} answers.`, 'success');
+          console.log('=== Merge complete ===');
+          console.log(`Final data contains ${answerCount} answers`);
+
+      } catch (error) {
+          console.error('Error in importAndMergePersonalData:', error);
+          console.error('Stack trace:', error.stack);
+          showMessage('Error merging personal data: ' + error.message, 'error');
+      }
+  }
+
+  // --- End of importAndMergePersonalData Function for Phase 4.2 ---
 
         // Function to import data for a specific user
         function importDataForUser(username, importData) {
@@ -4895,7 +5314,55 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             });
         });
+  // --- File Type Detection Functions ---
 
+  /**
+   * Detects if the imported data is a personal data file
+   * Personal files have username and users object with the user's data
+   */
+   function isPersonalDataFile(data) {
+      // Check for personal export format
+      if (data.username && data.users && data.users[data.username]) {
+          return true;
+      }
+
+      // Check for single user export with answers directly
+      if (data.username && data.answers) {
+          return true;
+      }
+
+      // Check if it has a single user in users object
+      if (data.users && Object.keys(data.users).length === 1) {
+          return true;
+      }
+
+      return false;
+  }
+
+  /**
+   * Detects if the imported data is a master data file
+   * Master files have multiple users or explicit master export type
+   */
+  function isMasterDataFile(data) {
+      // Check for explicit master export type
+      if (data.exportType === 'master_database') {
+          return true;
+      }
+
+      // Check for multiple users
+      if (data.users && Object.keys(data.users).length > 1) {
+          return true;
+      }
+
+      // Check for master export format with allUsers
+      if (data.allUsers && Array.isArray(data.allUsers)) {
+          return true;
+      }
+
+      return false;
+  }
+
+  // --- End of File Type Detection Functions ---
         // Smart Import Function - Auto-detects file type
         function handleSmartImport(event) {
             console.log('handleSmartImport called', event);
@@ -4921,10 +5388,55 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                     // Store debug info to survive page refresh
                     localStorage.setItem('import_debug', JSON.stringify(debugInfo));
+                    
+                    console.log('File import debug - data keys:', Object.keys(data));
 
-                    console.log('File import debug - data keys:', debugInfo.dataKeys);
-                    console.log('File import debug - isPersonalDataFile:', debugInfo.isPersonal);
-                    console.log('File import debug - isMasterDataFile:', debugInfo.isMaster);
+  // Direct detection logic without external functions
+  let isPersonalFile = false;
+  let isMasterFile = false;
+
+  // Check for personal file formats
+  if (data.username && data.users && data.users[data.username]) {
+      // Standard personal export format
+      isPersonalFile = true;
+      console.log('Detected: Personal export format with username and users');
+  } else if (data.username && data.answers) {
+      // Alternative personal format with direct answers
+      isPersonalFile = true;
+      console.log('Detected: Personal format with direct answers');
+  } else if (data.users && Object.keys(data.users).length === 1) {
+      // Single user export
+      isPersonalFile = true;
+      console.log('Detected: Single user export format');
+  } else if (data.users && Object.keys(data.users).length > 1) {
+      // Multiple users - master file
+      isMasterFile = true;
+      console.log('Detected: Master file with multiple users');
+  } else if (data.exportType === 'master_database') {
+      // Explicit master export
+      isMasterFile = true;
+      console.log('Detected: Master database export');
+  }
+
+  console.log('File import debug - isPersonalFile:', isPersonalFile);
+  console.log('File import debug - isMasterFile:', isMasterFile);
+
+  // Process based on file type
+  if (isPersonalFile) {
+      console.log('Processing as personal data file...');
+      importAndMergePersonalData(data);
+      // Message is handled inside importAndMergePersonalData
+      return;
+  } else if (isMasterFile) {
+      console.log('Processing as master data file...');
+      importMasterData(data);
+      showMessage('✅ Master data imported successfully!', 'success');
+      return;
+  } else {
+      console.error('File structure does not match expected formats');
+      console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
+      showMessage('⚠️ Unrecognized file format. Please check your file.', 'error');
+  }
 
                     // Store the data temporarily to survive refresh
                     if (isMasterDataFile(data)) {
@@ -4939,9 +5451,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     setTimeout(() => {
                         if (isPersonalDataFile(data)) {
                             console.log('Detected: Personal data file');
-                            importPersonalData(data);
-                            showMessage('✅ Personal data imported successfully!', 'success');
-                        } else if (isMasterDataFile(data)) {
+                            importAndMergePersonalData(data);
+  // Message is now handled inside importAndMergePersonalData for better feedback
+                          } else if (isMasterDataFile(data)) {
                             console.log('Detected: Master database file');
                             importMasterData(data);
                             showMessage('✅ Master database imported successfully!', 'success');
