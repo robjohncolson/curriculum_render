@@ -1,0 +1,107 @@
+{
+  "exportTime": "2025-09-24T16:59:01.862Z",
+  "username": "Coconut_Cat",
+  "users": {
+    "Coconut_Cat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:04:33.817Z"
+        },
+        "U1-L3-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:09:44.267Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:14:42.757Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:40:50.643Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:41:40.500Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:38:52.128Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:46:14.688Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:47:32.991Z"
+        },
+        "U1-L2-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:49:05.839Z"
+        },
+        "U1-L4-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:50:13.285Z"
+        },
+        "U1-L4-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:51:28.347Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:52:58.203Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:53:26.196Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "More people chose vanilla than half being both vanilla or chocolate.",
+        "U1-L3-Q02": "The percentage given proves that less than half of people were affiliated with Democrats and Republicans.",
+        "U1-L3-Q03": "",
+        "U1-L6-Q02": "Even if one more bar is added, the sum of all the frequencies should be the same.",
+        "U1-L6-Q03": "There's more data points directed towards the left.",
+        "U1-L6-Q01": "It didn't specify if the gap was empty or if there were less data presented in front of the point.",
+        "U1-L2-Q01": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": "Where the coin was minted would be quantitative because it gives a definitive number of where the coin was traced back to, which could be categorial.",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-17T17:04:33.818Z",
+        "U1-L3-Q02": "2025-09-17T17:09:44.267Z",
+        "U1-L3-Q03": "2025-09-17T17:14:42.757Z",
+        "U1-L6-Q02": "2025-09-24T15:40:50.643Z",
+        "U1-L6-Q03": "2025-09-24T15:41:40.500Z",
+        "U1-L6-Q01": "2025-09-24T15:38:52.128Z",
+        "U1-L2-Q01": "2025-09-24T15:46:14.688Z",
+        "U1-L2-Q02": "2025-09-24T15:47:32.991Z",
+        "U1-L2-Q03": "2025-09-24T15:49:05.839Z",
+        "U1-L4-Q01": "2025-09-24T15:50:13.285Z",
+        "U1-L4-Q02": "2025-09-24T15:51:28.347Z",
+        "U1-L4-Q03": "2025-09-24T15:52:58.203Z",
+        "U1-L4-Q04": "2025-09-24T15:53:26.196Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L6-Q02": 2,
+        "U1-L6-Q03": 3,
+        "U1-L6-Q01": 3,
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 3,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1
+      }
+    }
+  }
+}

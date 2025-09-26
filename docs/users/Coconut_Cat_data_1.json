@@ -1,0 +1,58 @@
+{
+  "exportTime": "2025-09-24T15:36:48.645Z",
+  "username": "Coconut_Cat",
+  "users": {
+    "Coconut_Cat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:04:33.817Z"
+        },
+        "U1-L3-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:09:44.267Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:14:42.757Z"
+        },
+        "U1-L6-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:34:26.504Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:34:47.175Z"
+        },
+        "U1-L6-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:35:40.406Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "More people chose vanilla than half being both vanilla or chocolate.",
+        "U1-L3-Q02": "The percentage given proves that less than half of people were affiliated with Democrats and Republicans.",
+        "U1-L3-Q03": "",
+        "U1-L6-Q02": "Even if one more bar is added, the width should stay the same.",
+        "U1-L6-Q03": "There's more data points directed towards the left.",
+        "U1-L6-Q01": "It didn't specify if the gap was empty or if there were less data presented in front of the point."
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-17T17:04:33.818Z",
+        "U1-L3-Q02": "2025-09-17T17:09:44.267Z",
+        "U1-L3-Q03": "2025-09-17T17:14:42.757Z",
+        "U1-L6-Q02": "2025-09-24T15:34:26.504Z",
+        "U1-L6-Q03": "2025-09-24T15:34:47.175Z",
+        "U1-L6-Q01": "2025-09-24T15:35:40.406Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 2,
+        "U1-L6-Q01": 1
+      }
+    }
+  }
+}
