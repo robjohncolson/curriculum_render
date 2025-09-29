@@ -1,0 +1,184 @@
+{
+  "exportTime": "2025-09-26T17:22:59.831Z",
+  "username": "Banana_Goat",
+  "users": {
+    "Banana_Goat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699196915
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699353190
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699467018
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:32:54.646Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:32:58.393Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:33:00.217Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:33:07.015Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:33:16.465Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:33:41.291Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:35:49.945Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T15:35:53.268Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T15:35:56.602Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:27:24.524Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:27:26.160Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T17:27:28.038Z"
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-22T15:50:02.221Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-22T15:50:04.318Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-22T15:50:06.174Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:27:21.839Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:29:21.514Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:31:54.154Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:36:24.991Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:43:55.608Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:48:19.529Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "We are looking for an answer that is NOT supported by the table data.\nA. is supported by the data. Since by adding all the values would add up to 300\nB. is supported by the data. Since there is 300 students and 100 of them enjoy vanilla, that means that with a ratio of 100/300 a 1/3 of the students DID choose vanilla\nC. is supported by the data. Adding both chocolate and strawberry gives you 100, which means that again, 1/3 of the students chose either chocolate or strawberry\nD. is supported by the data. Adding both mint chip and coffee ice cream together yields a value of 75, and dividing this by the total of 300 gives you 1/4\nE. is not supported by the data. Adding vanilla and chocolate together yields a value of 165, which while it IS more than half of the students, is not exactly 1/2 of them.",
+        "U1-L3-Q02": "B is the best answer choice here. The qualitative values given in the table represent relative frequencies, or the percentage that the categorical values show up. Multiplying 0.20 by the total sample population, 500, you get 100, which supports answer choice B.",
+        "U1-L3-Q03": "The total counts of each value add up to 90. Adding key lime pies and pumpkin pies sold equals 30, and dividing this value by the total yields a percentage less than 50%.",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q03": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q01": "",
+        "U1-L6-Q03": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q01": "",
+        "U1-L2-Q03": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q01": "",
+        "U1-L7-Q01": "The mean is an average of the data, so if an outlier is added it'll change the value of the values in total while also adding another variable to divide with.",
+        "U1-L7-Q02": "This follows the equation that helps to find the standard deviation of a data set",
+        "U1-L7-Q03": "It is an a data set with an even amount of data points, so we must take the average of the two middle values.",
+        "U1-L7-Q04": "To find an outlier using the mean and standard deviation, you would multiply the standard deviation by 2 and then both add and subtract from the mean. This will be the maximum and minimum value that a value can be without being considered an outlier.",
+        "U1-L7-Q05": "When dealing with a percentile, being in the 77th percentile means that you placed at that certain score and there were likely people that performed less than you.",
+        "U1-L7-Q06": "The IQR is 38-32, which = 6. 1.5 * 6 = 9, and seeing if a value is an outlier would be (Q1 - 1.5*IQR) or (Q3 - 1.5*IQR)"
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699196915,
+        "U1-L3-Q02": 1757699353190,
+        "U1-L3-Q03": 1757699467018,
+        "U1-L4-Q01": "2025-09-15T17:32:54.647Z",
+        "U1-L4-Q02": "2025-09-15T17:32:58.393Z",
+        "U1-L4-Q03": "2025-09-15T17:33:00.217Z",
+        "U1-L4-Q04": "2025-09-15T17:33:07.015Z",
+        "U1-L4-Q05": "2025-09-15T17:33:16.465Z",
+        "U1-L4-Q06": "2025-09-15T17:33:41.291Z",
+        "U1-L5-Q03": "2025-09-17T15:35:49.945Z",
+        "U1-L5-Q02": "2025-09-17T15:35:53.268Z",
+        "U1-L5-Q01": "2025-09-17T15:35:56.602Z",
+        "U1-L6-Q03": "2025-09-19T17:27:24.525Z",
+        "U1-L6-Q02": "2025-09-19T17:27:26.160Z",
+        "U1-L6-Q01": "2025-09-19T17:27:28.038Z",
+        "U1-L2-Q03": "2025-09-22T15:50:02.221Z",
+        "U1-L2-Q02": "2025-09-22T15:50:04.318Z",
+        "U1-L2-Q01": "2025-09-22T15:50:06.174Z",
+        "U1-L7-Q01": "2025-09-24T15:27:21.839Z",
+        "U1-L7-Q02": "2025-09-24T15:29:21.514Z",
+        "U1-L7-Q03": "2025-09-24T15:31:54.154Z",
+        "U1-L7-Q04": "2025-09-24T15:36:24.991Z",
+        "U1-L7-Q05": "2025-09-24T15:43:55.608Z",
+        "U1-L7-Q06": "2025-09-24T15:48:19.530Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q01": 1,
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1
+      }
+    }
+  }
+}

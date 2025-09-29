@@ -1,0 +1,163 @@
+{
+  "exportTime": "2025-09-26T17:52:00.151Z",
+  "username": "Mango_Dog",
+  "users": {
+    "Mango_Dog": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757699264908
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": 1757699682756
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757700802934
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701302388
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757902720680
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757902982195
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:42:23.305Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:56:23.289Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:03:14.340Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T16:14:23.996Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T16:16:12.706Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T16:18:01.134Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:25:11.510Z"
+        },
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:31:35.606Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:31:19.951Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:28:12.395Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:31:36.162Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:39:09.849Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:49:54.445Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:51:37.770Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:48:34.339Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "Answer C is correct because when calculating the number of men who chose a combination that had black in it, it turned out that 44 men chose a design with black. However, when calculating the number of men that chose a design with blue, it turned out to be 56 men who chose that a design with blue, making answer C a false statement but the answer to this question.",
+        "U1-L4-Q02": "I think that the answer is choice D because in the bar chart above I observed that in grade 12, out of all the grades did in fact have the least frequency out of all the grades",
+        "U1-L4-Q03": "I chose answer A because when I was calculating the percentage of five years old who selected red, I got 21% and for blue I got  35%. Also, I calculated the percentage of ten year old who selected red and got 14% and for blue, it was 24%. This makes the statement true as I calculated the other answers and they were proven to be false.",
+        "U1-L3-Q01": "When I added the amount of students who chose vanilla and chocolate I got the value of 165. However, when I found out what would be 1/2 of the students who participated, it turned out to be 150, making letter E a false statement but the correct answer for this question.",
+        "U1-L3-Q02": "Answer B is the correct answer. This is because based on the bar graph, the numbers shown are showcased in percentages. This means that the number of independents out of the 500 people was 20%. So when I found out what 20% of 500 it was indeed 100, making answer B a correct statement.",
+        "U1-L3-Q03": "The answer is E because when I added up the number of key lime pies sold and pumpkin pies sold, it was 30 pies. Now, having that number I looked for the percentage that would be out of the total number of all the pies which was 90. Doing so, I got 33% which is less than 50%, making E correct.",
+        "U1-L4-Q04": "In total, the percentage of reasoning of delay by weather was 70%. When I added percentages of all the rest of the percentages, they were in total 30%. This means that this answer B is correct as 70 is greater than 30.",
+        "U1-L4-Q05": "Answer E is the correct answer in this problem. When I calculated the percentages for undecided people at Liberty High School and Central High School into the number of students I got 10 from LHS and 6 from CHS, making E a correct statement.",
+        "U1-L4-Q06": "This is the correct answer because as I calculated the percentage  into days for Region C, I found out that the number of days for Region C was 10.5 days. With this in mind, by looking at answer C, this statement is false but the correct answer to this question.",
+        "U1-L5-Q01": "Answer C is correct because out of all the answers that are listed above, answer C is the only one that can have values that are in between another with no gaps. It can be any value with a decimal while the other answers have a countable value with gaps.",
+        "U1-L5-Q02": "I think that letter E is the correct answer because it has a value that is countable and has no number that has a random decimal after the value. This can only be a whole number, therefore, E is the correct answer.",
+        "U1-L5-Q03": "I chose this answer because for starters, the values given are of numerical values. This would makes these data points, quantitative. Also, since there are gaps between these numbers and that they have a whole number that is countable, it makes it a discrete variable.",
+        "U1-L6-Q01": "I think that B is the correct answer because if there is a gap that is seen on a histogram between one area to the next, it is most likely that there was simply no data point to plot in that gap area.",
+        "U1-L6-Q02": "Answer A is the correct answer because if the interval has decreased in the histograph, mostly everything will change if there is more information to be added. However as the height doesn't relate to it, it will stay the same.",
+        "U1-L6-Q03": "Answer is E because by looking at the graph it can be seen that in the graph the data points start out low on the right but then has a higher data value on the left. Skewed right is when there is like a tail going to the right as it increases to decreases in number of data points plotted.",
+        "U1-L7-Q01": "They are likely to to change because a new value is being added into the data set, it will likely change that value the mean. The median is not affected as much as it depend on the amount of values and if it's an even number or an odd number",
+        "U1-L7-Q02": "This equation is correct because it is the only one that represents standard deviation as it includes the mean being subtracted by the data point and squared. Therefore, letter D is the correct answer.",
+        "U1-L7-Q03": "The answer to this problem is B. This is because as I ordered the data points from smallest to biggest, I tried to eliminate the values one by one to see if a median could be found like that. However, since they're even numbers, I had to add the remaining two and divide them by 2 to get the answer of 283,300.",
+        "U1-L7-Q04": "B is the correct answer. I did this by simply subtracting the standard deviation twice and I got 20.7 so I just did by the closest answer on there",
+        "U1-L7-Q05": "I think it's A because out of 1,000, 77th percentile is probably 77% or 770 participants. Out of all these answers A sounds like the better answer.",
+        "U1-L7-Q06": ""
+      },
+      "timestamps": {
+        "U1-L4-Q01": 1757699264908,
+        "U1-L4-Q02": 1757699682756,
+        "U1-L4-Q03": 1757700802934,
+        "U1-L3-Q01": 1757701302388,
+        "U1-L3-Q02": 1757902720680,
+        "U1-L3-Q03": 1757902982195,
+        "U1-L4-Q04": "2025-09-15T17:42:23.305Z",
+        "U1-L4-Q05": "2025-09-15T17:56:23.289Z",
+        "U1-L4-Q06": "2025-09-15T18:03:14.340Z",
+        "U1-L5-Q01": "2025-09-17T16:14:23.996Z",
+        "U1-L5-Q02": "2025-09-17T16:16:12.706Z",
+        "U1-L5-Q03": "2025-09-17T16:18:01.134Z",
+        "U1-L6-Q01": "2025-09-24T15:25:11.510Z",
+        "U1-L6-Q02": "2025-09-24T15:31:35.606Z",
+        "U1-L6-Q03": "2025-09-24T15:31:19.951Z",
+        "U1-L7-Q01": "2025-09-26T17:28:12.395Z",
+        "U1-L7-Q02": "2025-09-26T17:31:36.162Z",
+        "U1-L7-Q03": "2025-09-26T17:39:09.849Z",
+        "U1-L7-Q04": "2025-09-26T17:49:54.445Z",
+        "U1-L7-Q05": "2025-09-26T17:51:37.770Z",
+        "U1-L7-Q06": "2025-09-26T17:48:34.339Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 3,
+        "U1-L6-Q03": 3,
+        "U1-L7-Q01": 3,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 2,
+        "U1-L7-Q05": 2,
+        "U1-L7-Q06": 1
+      }
+    }
+  }
+}

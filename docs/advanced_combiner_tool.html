@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student File Combiner - Advanced Mode</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .mode-selector {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .mode-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: #666;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .mode-tab.active {
+            color: #667eea;
+        }
+        .mode-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #667eea;
+        }
+        .mode-content {
+            display: none;
+        }
+        .mode-content.active {
+            display: block;
+        }
+        .instructions {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .file-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .file-section h4 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .step-number {
+            display: inline-flex;
+            width: 28px;
+            height: 28px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .file-input-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            background: white;
+        }
+        .file-input-area.dragover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        .file-input-area.has-file {
+            border-color: #4caf50;
+            background: #f1f8f4;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .file-input-label:hover {
+            background: #764ba2;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.show {
+            display: block;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .file-list {
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: white;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .file-name {
+            color: #333;
+        }
+        .file-size {
+            color: #666;
+            font-size: 12px;
+        }
+        .merge-stats {
+            background: #f0f7ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #666;
+        }
+        .stat-value {
+            font-weight: bold;
+            color: #333;
+        }
+        .report-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .report-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .report-item.added {
+            background: #d4edda;
+            color: #155724;
+        }
+        .report-item.updated {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .report-item.kept {
+            background: #e7f3ff;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced Student File Combiner</h1>
+        <p class="subtitle">Create new or update existing master files</p>
+
+        <div class="mode-selector">
+            <button class="mode-tab active" onclick="switchMode('create')">
+                Create New Master File
+            </button>
+            <button class="mode-tab" onclick="switchMode('append')">
+                Append to Existing Master
+            </button>
+        </div>
+
+        <!-- Create Mode -->
+        <div id="create-mode" class="mode-content active">
+            <div class="instructions">
+                <h3>Create a New Master File</h3>
+                <p>Select multiple student JSON files to combine them into a new master file. 
+                   Duplicate students will be intelligently merged using timestamps.</p>
+            </div>
+
+            <div class="file-section">
+                <h4><span class="step-number">1</span> Select Student Files</h4>
+                <div class="file-input-area" id="createDropZone">
+                    <label for="createFileInput" class="file-input-label">
+                        Choose Files
+                    </label>
+                    <input type="file" id="createFileInput" multiple accept=".json">
+                    <p>or drag and drop JSON files here</p>
+                </div>
+                <div id="createFileList" class="file-list"></div>
+            </div>
+
+            <div class="button-group">
+                <button id="createBtn" disabled>Create Master File</button>
+                <button onclick="clearCreate()">Clear All</button>
+            </div>
+        </div>
+
+        <!-- Append Mode -->
+        <div id="append-mode" class="mode-content">
+            <div class="instructions">
+                <h3>Append to Existing Master File</h3>
+                <p>Load an existing master file and add/update student data from new files. 
+                   Perfect for adding new students or updating existing ones.</p>
+                <p><strong>How it works:</strong> New students are added, existing students are updated with newer answers based on timestamps.</p>
+            </div>
+
+            <div class="file-section">
+                <h4><span class="step-number">1</span> Load Existing Master File</h4>
+                <div class="file-input-area" id="masterDropZone">
+                    <label for="masterFileInput" class="file-input-label">
+                        Choose Master File
+                    </label>
+                    <input type="file" id="masterFileInput" accept=".json">
+                    <p>Select your current master_peer_data.json file</p>
+                </div>
+                <div id="masterFileInfo" class="file-list"></div>
+            </div>
+
+            <div class="file-section">
+                <h4><span class="step-number">2</span> Add New Student Files</h4>
+                <div class="file-input-area" id="appendDropZone">
+                    <label for="appendFileInput" class="file-input-label">
+                        Choose Files to Add
+                    </label>
+                    <input type="file" id="appendFileInput" multiple accept=".json">
+                    <p>Select new or updated student JSON files</p>
+                </div>
+                <div id="appendFileList" class="file-list"></div>
+            </div>
+
+            <div class="button-group">
+                <button id="appendBtn" disabled>Update Master File</button>
+                <button onclick="clearAppend()">Clear All</button>
+            </div>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="mergeStats" class="merge-stats" style="display: none;"></div>
+        <div id="report" class="report-section" style="display: none;"></div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // Global variables
+            let createFiles = [];
+            let masterFile = null;
+            let masterData = null;
+            let appendFiles = [];
+            let currentMode = 'create';
+
+            // Initialize
+            function init() {
+                setupEventListeners();
+            }
+
+            function setupEventListeners() {
+                // File inputs
+                document.getElementById('createFileInput').addEventListener('change', (e) => {
+                    handleCreateFiles(e.target.files);
+                });
+                document.getElementById('masterFileInput').addEventListener('change', (e) => {
+                    handleMasterFile(e.target.files[0]);
+                });
+                document.getElementById('appendFileInput').addEventListener('change', (e) => {
+                    handleAppendFiles(e.target.files);
+                });
+
+                // Drag and drop for all zones
+                setupDragDrop('createDropZone', handleCreateFiles);
+                setupDragDrop('masterDropZone', (files) => handleMasterFile(files[0]));
+                setupDragDrop('appendDropZone', handleAppendFiles);
+
+                // Buttons
+                document.getElementById('createBtn').addEventListener('click', createMasterFile);
+                document.getElementById('appendBtn').addEventListener('click', appendToMasterFile);
+            }
+
+            function setupDragDrop(zoneId, handler) {
+                const zone = document.getElementById(zoneId);
+                
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('dragover');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('dragover');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('dragover');
+                    handler(e.dataTransfer.files);
+                });
+            }
+
+            // Mode switching
+            window.switchMode = function(mode) {
+                currentMode = mode;
+                
+                // Update tabs
+                document.querySelectorAll('.mode-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                event.target.classList.add('active');
+
+                // Update content
+                document.querySelectorAll('.mode-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${mode}-mode`).classList.add('active');
+
+                // Clear status
+                hideStatus();
+            }
+
+            // File handlers
+            function handleCreateFiles(files) {
+                createFiles = Array.from(files).filter(f => f.name.endsWith('.json'));
+                updateCreateFileList();
+                document.getElementById('createBtn').disabled = createFiles.length === 0;
+            }
+
+            function handleMasterFile(file) {
+                if (!file || !file.name.endsWith('.json')) return;
+                
+                masterFile = file;
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    try {
+                        masterData = JSON.parse(e.target.result);
+                        
+                        // Validate it's a master file
+                        if (!masterData.students) {
+                            throw new Error('Invalid master file format - missing students field');
+                        }
+                        
+                        const studentCount = Object.keys(masterData.students || {}).length;
+                        
+                        document.getElementById('masterDropZone').classList.add('has-file');
+                        document.getElementById('masterFileInfo').innerHTML = `
+                            <div class="file-item">
+                                <span class="file-name">${file.name}</span>
+                                <span class="file-size">${studentCount} students</span>
+                            </div>
+                        `;
+                        
+                        updateAppendButton();
+                    } catch (error) {
+                        showStatus('Invalid master file format: ' + error.message, 'error');
+                        masterFile = null;
+                        masterData = null;
+                    }
+                };
+                
+                reader.readAsText(file);
+            }
+
+            function handleAppendFiles(files) {
+                appendFiles = Array.from(files).filter(f => f.name.endsWith('.json'));
+                updateAppendFileList();
+                updateAppendButton();
+            }
+
+            // UI updates
+            function updateCreateFileList() {
+                const list = document.getElementById('createFileList');
+                if (createFiles.length === 0) {
+                    list.innerHTML = '';
+                    return;
+                }
+
+                list.innerHTML = createFiles.map(f => `
+                    <div class="file-item">
+                        <span class="file-name">${f.name}</span>
+                        <span class="file-size">${(f.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                `).join('');
+            }
+
+            function updateAppendFileList() {
+                const list = document.getElementById('appendFileList');
+                if (appendFiles.length === 0) {
+                    list.innerHTML = '';
+                    return;
+                }
+
+                list.innerHTML = appendFiles.map(f => `
+                    <div class="file-item">
+                        <span class="file-name">${f.name}</span>
+                        <span class="file-size">${(f.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                `).join('');
+            }
+
+            function updateAppendButton() {
+                document.getElementById('appendBtn').disabled = !masterData || appendFiles.length === 0;
+            }
+
+            // Status display
+            function showStatus(message, type) {
+                const status = document.getElementById('status');
+                status.innerHTML = message;
+                status.className = `status ${type} show`;
+            }
+
+            function hideStatus() {
+                const status = document.getElementById('status');
+                status.className = 'status';
+                document.getElementById('mergeStats').style.display = 'none';
+                document.getElementById('report').style.display = 'none';
+            }
+
+            // Clear functions
+            window.clearCreate = function() {
+                createFiles = [];
+                document.getElementById('createFileInput').value = '';
+                updateCreateFileList();
+                document.getElementById('createBtn').disabled = true;
+                hideStatus();
+            }
+
+            window.clearAppend = function() {
+                masterFile = null;
+                masterData = null;
+                appendFiles = [];
+                document.getElementById('masterFileInput').value = '';
+                document.getElementById('appendFileInput').value = '';
+                document.getElementById('masterDropZone').classList.remove('has-file');
+                document.getElementById('masterFileInfo').innerHTML = '';
+                updateAppendFileList();
+                document.getElementById('appendBtn').disabled = true;
+                hideStatus();
+            }
+
+            // Timestamp parsing
+            function parseTimestamp(timestamp) {
+                if (!timestamp) return 0;
+                
+                if (typeof timestamp === 'string' && timestamp.includes('T')) {
+                    return new Date(timestamp).getTime();
+                }
+                
+                if (typeof timestamp === 'number') {
+                    return timestamp > 946684800000 ? timestamp : timestamp * 1000;
+                }
+                
+                try {
+                    const parsed = new Date(timestamp).getTime();
+                    if (!isNaN(parsed)) return parsed;
+                } catch (e) {}
+                
+                return 0;
+            }
+
+            // Smart merge function
+            function mergeStudentData(existing, incoming, username) {
+                const report = {
+                    username: username,
+                    added: [],
+                    updated: [],
+                    kept: []
+                };
+
+                if (!existing) {
+                    const questionCount = Object.keys(incoming.answers || {}).length;
+                    report.added = Object.keys(incoming.answers || {});
+                    return { data: incoming, report: report };
+                }
+
+                // Ensure all structures exist
+                ['answers', 'reasons', 'timestamps', 'attempts'].forEach(field => {
+                    if (!existing[field]) existing[field] = {};
+                    if (!incoming[field]) incoming[field] = {};
+                });
+
+                // Merge answers based on timestamps
+                Object.keys(incoming.answers).forEach(qId => {
+                    const newAnswer = incoming.answers[qId];
+                    const existingAnswer = existing.answers[qId];
+
+                    // Get timestamps
+                    let newTime = 0;
+                    let existingTime = 0;
+
+                    if (newAnswer?.timestamp) {
+                        newTime = parseTimestamp(newAnswer.timestamp);
+                    } else if (incoming.timestamps[qId]) {
+                        newTime = parseTimestamp(incoming.timestamps[qId]);
+                    }
+
+                    if (existingAnswer?.timestamp) {
+                        existingTime = parseTimestamp(existingAnswer.timestamp);
+                    } else if (existing.timestamps[qId]) {
+                        existingTime = parseTimestamp(existing.timestamps[qId]);
+                    }
+
+                    if (!existingAnswer) {
+                        // New question
+                        existing.answers[qId] = newAnswer;
+                        if (incoming.reasons[qId]) existing.reasons[qId] = incoming.reasons[qId];
+                        if (incoming.timestamps[qId]) existing.timestamps[qId] = incoming.timestamps[qId];
+                        if (incoming.attempts[qId]) existing.attempts[qId] = incoming.attempts[qId];
+                        report.added.push(qId);
+                    } else if (newTime > existingTime) {
+                        // Update with newer
+                        existing.answers[qId] = newAnswer;
+                        if (incoming.reasons[qId]) existing.reasons[qId] = incoming.reasons[qId];
+                        if (incoming.timestamps[qId]) existing.timestamps[qId] = incoming.timestamps[qId];
+                        if (incoming.attempts[qId]) existing.attempts[qId] = incoming.attempts[qId];
+                        report.updated.push(qId);
+                    } else {
+                        report.kept.push(qId);
+                    }
+                });
+
+                return { data: existing, report: report };
+            }
+
+            // Create master file
+            function createMasterFile() {
+                if (createFiles.length === 0) return;
+
+                showStatus('Processing files...', 'warning');
+                
+                const newMasterData = {
+                    exportTime: new Date().toISOString(),
+                    totalStudents: 0,
+                    students: {}
+                };
+
+                const reports = [];
+                let processed = 0;
+
+                createFiles.forEach(file => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            const { username, userData } = extractUserData(data);
+                            
+                            if (username && userData) {
+                                const mergeResult = mergeStudentData(
+                                    newMasterData.students[username],
+                                    userData,
+                                    username
+                                );
+                                
+                                newMasterData.students[username] = mergeResult.data;
+                                reports.push(mergeResult.report);
+                            }
+                        } catch (error) {
+                            console.error(`Error processing ${file.name}:`, error);
+                        }
+
+                        processed++;
+                        if (processed === createFiles.length) {
+                            finalizeMasterFile(newMasterData, reports, 'create');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }
+
+            // Append to master file
+            function appendToMasterFile() {
+                if (!masterData || appendFiles.length === 0) return;
+
+                showStatus('Processing new files...', 'warning');
+                
+                // Clone the master data to avoid modifying the original
+                const updatedMasterData = JSON.parse(JSON.stringify(masterData));
+                updatedMasterData.exportTime = new Date().toISOString();
+                
+                const reports = [];
+                let processed = 0;
+
+                appendFiles.forEach(file => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            const { username, userData } = extractUserData(data);
+                            
+                            if (username && userData) {
+                                const mergeResult = mergeStudentData(
+                                    updatedMasterData.students[username],
+                                    userData,
+                                    username
+                                );
+                                
+                                updatedMasterData.students[username] = mergeResult.data;
+                                reports.push(mergeResult.report);
+                            }
+                        } catch (error) {
+                            console.error(`Error processing ${file.name}:`, error);
+                        }
+
+                        processed++;
+                        if (processed === appendFiles.length) {
+                            finalizeMasterFile(updatedMasterData, reports, 'append');
+                        }
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }
+
+            // Extract user data from various formats
+            function extractUserData(data) {
+                let username = '';
+                let userData = null;
+
+                // Format 1: Individual export with username and users
+                if (data.username && data.users && data.users[data.username]) {
+                    username = data.username;
+                    userData = data.users[data.username];
+                } 
+                // Format 2: New format with metadata
+                else if (data.metadata?.username && data.personalData) {
+                    username = data.metadata.username;
+                    userData = {
+                        answers: data.personalData.answers || {},
+                        reasons: data.personalData.reasons || {},
+                        timestamps: data.personalData.timestamps || {},
+                        attempts: data.personalData.attempts || {}
+                    };
+                } 
+                // Format 3: Master file format
+                else if (data.students) {
+                    // Handle multiple students (useful for merging master files)
+                    return { username: null, userData: data.students };
+                }
+
+                return { username, userData };
+            }
+
+            // Finalize and download
+            function finalizeMasterFile(data, reports, mode) {
+                // Handle case where we're merging entire master files
+                if (reports.some(r => !r.username)) {
+                    // Reprocess to handle master file merging
+                    const actualReports = [];
+                    Object.keys(data.students).forEach(username => {
+                        const questions = Object.keys(data.students[username].answers || {});
+                        actualReports.push({
+                            username: username,
+                            added: questions,
+                            updated: [],
+                            kept: []
+                        });
+                    });
+                    reports = actualReports;
+                }
+
+                data.totalStudents = Object.keys(data.students).length;
+
+                // Create download
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `master_peer_data_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Show results
+                showMergeResults(data, reports, mode);
+            }
+
+            function showMergeResults(data, reports, mode) {
+                // Calculate totals
+                let totalAdded = 0;
+                let totalUpdated = 0;
+                let totalKept = 0;
+                let newStudents = 0;
+
+                reports.forEach(r => {
+                    totalAdded += r.added.length;
+                    totalUpdated += r.updated.length;
+                    totalKept += r.kept.length;
+                    if (r.added.length > 0 && r.updated.length === 0 && r.kept.length === 0) {
+                        newStudents++;
+                    }
+                });
+
+                // Show status
+                const action = mode === 'append' ? 'updated' : 'created';
+                showStatus(
+                    `Master file ${action} successfully with ${data.totalStudents} students!`,
+                    'success'
+                );
+
+                // Show stats
+                const statsHtml = `
+                    <h4>Merge Statistics</h4>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Students:</span>
+                        <span class="stat-value">${data.totalStudents}</span>
+                    </div>
+                    ${newStudents > 0 ? `
+                    <div class="stat-row">
+                        <span class="stat-label">New Students Added:</span>
+                        <span class="stat-value" style="color: #28a745;">${newStudents}</span>
+                    </div>` : ''}
+                    <div class="stat-row">
+                        <span class="stat-label">Questions Added:</span>
+                        <span class="stat-value" style="color: #28a745;">${totalAdded}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Questions Updated:</span>
+                        <span class="stat-value" style="color: #ffc107;">${totalUpdated}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Questions Preserved:</span>
+                        <span class="stat-value" style="color: #007bff;">${totalKept}</span>
+                    </div>
+                `;
+
+                document.getElementById('mergeStats').innerHTML = statsHtml;
+                document.getElementById('mergeStats').style.display = 'block';
+
+                // Show detailed report
+                if (totalAdded > 0 || totalUpdated > 0) {
+                    let reportHtml = '<h4>Detailed Report</h4>';
+                    
+                    reports.forEach(r => {
+                        if (r.added.length > 0 || r.updated.length > 0) {
+                            reportHtml += `<h5>${r.username}</h5>`;
+                            
+                            if (r.added.length > 0) {
+                                reportHtml += `
+                                    <div class="report-item added">
+                                        Added ${r.added.length} new questions
+                                    </div>
+                                `;
+                            }
+                            
+                            if (r.updated.length > 0) {
+                                reportHtml += `
+                                    <div class="report-item updated">
+                                        Updated ${r.updated.length} questions with newer data
+                                    </div>
+                                `;
+                            }
+                        }
+                    });
+
+                    document.getElementById('report').innerHTML = reportHtml;
+                    document.getElementById('report').style.display = 'block';
+                }
+            }
+
+            // Initialize on load
+            init();
+        })();
+    </script>
+</body>
+</html>

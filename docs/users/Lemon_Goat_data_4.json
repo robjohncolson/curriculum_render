@@ -1,0 +1,100 @@
+{
+  "exportTime": "2025-09-26T13:13:03.895Z",
+  "username": "Lemon_Goat",
+  "users": {
+    "Lemon_Goat": {
+      "answers": {
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-16T14:03:59.835Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-16T14:05:54.096Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:27:24.685Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:15:21.901Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:19:50.072Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:24:42.355Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:25:51.117Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:26:11.912Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:27:08.594Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:07:07.664Z"
+        },
+        "U1-L8-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:12:35.516Z"
+        },
+        "U1-L8-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:12:38.797Z"
+        }
+      },
+      "reasons": {
+        "U1-L5-Q01": "Continuous variable are about measurements.",
+        "U1-L5-Q02": "Discrete variable are finite or countable numbers of distinct values.",
+        "U1-L5-Q03": "mn jn bbj kj",
+        "U1-L7-Q01": "only the mean is likely to change greatly",
+        "U1-L7-Q02": "",
+        "U1-L7-Q03": "because 281,900-284,700/2 equals that",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q06": "hjj",
+        "U1-L8-Q01": "iuvjhvyufvuy",
+        "U1-L8-Q02": "hfcthctycjytcjccgthgv",
+        "U1-L8-Q03": "jhfdhjvdsbvadbvfmn"
+      },
+      "timestamps": {
+        "U1-L5-Q01": "2025-09-16T14:03:59.836Z",
+        "U1-L5-Q02": "2025-09-16T14:05:54.096Z",
+        "U1-L5-Q03": "2025-09-18T14:27:24.686Z",
+        "U1-L7-Q01": "2025-09-25T14:15:21.901Z",
+        "U1-L7-Q02": "2025-09-25T14:19:50.072Z",
+        "U1-L7-Q03": "2025-09-25T14:24:42.355Z",
+        "U1-L7-Q04": "2025-09-25T14:25:51.117Z",
+        "U1-L7-Q05": "2025-09-25T14:26:11.912Z",
+        "U1-L7-Q06": "2025-09-25T14:27:08.594Z",
+        "U1-L8-Q01": "2025-09-26T13:07:07.665Z",
+        "U1-L8-Q02": "2025-09-26T13:12:35.516Z",
+        "U1-L8-Q03": "2025-09-26T13:12:38.798Z"
+      },
+      "attempts": {
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    }
+  }
+}

@@ -51,30 +51,33 @@ git push origin main        # Push to main branch
 - **Data Storage**: Browser localStorage + JSON file import/export
 - **Styling**: Custom CSS with dark/light theme support
 
-### File Structure Analysis
+### File Structure
 ```
-/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/
-├── index.html              # Main application (5,344 lines) - contains ALL JavaScript
+curriculum_render/
+├── index.html              # Main application (5,856 lines) - contains ALL JavaScript
 ├── css/
 │   └── styles.css          # Complete styling with theme support
 ├── js/
-│   ├── charts.js          # Chart rendering logic (Chart.js wrappers)
-│   └── charthelper.js     # Chart utility functions (colors, themes)
+│   ├── charts.js          # Chart rendering logic (1,600+ lines)
+│   └── charthelper.js     # Chart utility functions (28 lines)
 ├── data/
 │   ├── curriculum.js      # Complete AP Stats curriculum data (1.7MB)
-│   └── units.js          # Unit structure and lesson organization
+│   └── units.js          # Unit structure and lesson organization (91KB)
 ├── docs/
-│   ├── FOUNDATION_DOCUMENT.md     # Architecture philosophy & data models
-│   ├── master_peer_data_*.json   # Peer data aggregation files
-│   ├── sample_users/             # Example student progress files
-│   └── *.html                    # Development utilities
+│   ├── FOUNDATION_DOCUMENT.md              # Architecture philosophy & data models
+│   ├── advanced_combiner_tool.html        # Data aggregation utility
+│   ├── master_database_*.json             # Aggregated class data
+│   ├── master_peer_data_*.json           # Peer data snapshots
+│   ├── student2username.csv              # Username mapping
+│   └── users/                            # Individual student JSON files
+├── CLAUDE.md                              # This development guide
 └── COMPREHENSIVE_FUNCTION_DOCUMENTATION.md  # Complete function reference
 ```
 
 ### Application Architecture Patterns
 
 #### 1. **Monolithic JavaScript Architecture**
-- **Single HTML file contains all application logic** (5,344 lines)
+- **Single HTML file contains all application logic** (5,856 lines)
 - No module system - all functions in global scope
 - Script execution starts with `DOMContentLoaded` event
 - 110+ functions organized by functional area
@@ -98,6 +101,14 @@ Static Data -> Curriculum (questions, units, lessons)
 - Enhanced with peer insights when available
 - Graceful degradation for missing curriculum data
 - Theme-aware rendering (dark/light modes)
+
+## Recent Development Focus
+
+### Active Development Areas (from git history)
+- **User Management**: Recent focus on username handling and data imports
+- **Peer Data Aggregation**: Advanced combining tools for class-wide data analysis
+- **Cloud Sync**: Modal adjustments and sync functionality improvements
+- **Data Loss Recovery**: Fixes for student data import after cache clearing
 
 ## Critical Development Information
 
@@ -179,6 +190,12 @@ Static Data -> Curriculum (questions, units, lessons)
 - `renderLessonSelector()` - Unit/lesson navigation
 - `detectUnitAndLessons()` - Curriculum structure analysis
 - Progress tracking across units and lessons
+
+### 7. **Data Aggregation Tools**
+**Files**: `docs/advanced_combiner_tool.html`, `docs/master_database_*.json`
+**Purpose**: Combine multiple student JSON files into master peer data
+**Usage**: Teacher/administrator tool for class-wide data analysis
+**Output**: Creates aggregated JSON files for peer learning features
 
 ## Data Models & Storage
 
@@ -273,7 +290,7 @@ Static Data -> Curriculum (questions, units, lessons)
 5. **Component Architecture**: Refactor to component-based structure
 
 ### Current Technical Debt
-- **Monolithic HTML**: 5,344 lines in single file needs modularization
+- **Monolithic HTML**: 5,856 lines in single file needs modularization
 - **Global Functions**: 110+ functions in global namespace
 - **No Dependency Management**: Manual CDN management for external libraries
 - **Manual Testing Only**: No automated test coverage
@@ -281,11 +298,11 @@ Static Data -> Curriculum (questions, units, lessons)
 ## Key Files for Future Development
 
 ### Critical Files to Understand First
-1. **`/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/index.html`** - Main application logic
-2. **`/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/docs/FOUNDATION_DOCUMENT.md`** - Architecture philosophy
-3. **`/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/COMPREHENSIVE_FUNCTION_DOCUMENTATION.md`** - Complete function reference
-4. **`/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/data/curriculum.js`** - Question database
-5. **`/mnt/c/Users/rober/OneDrive/Desktop/apstat_solid/js/charts.js`** - Visualization logic
+1. **`index.html`** - Main application logic (5,856 lines)
+2. **`docs/FOUNDATION_DOCUMENT.md`** - Architecture philosophy
+3. **`COMPREHENSIVE_FUNCTION_DOCUMENTATION.md`** - Complete function reference
+4. **`data/curriculum.js`** - Question database (1.7MB)
+5. **`js/charts.js`** - Visualization logic (1,600+ lines)
 
 ### Development Entry Points
 - **New Features**: Start with `index.html` function additions

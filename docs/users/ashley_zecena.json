@@ -1,0 +1,163 @@
+{
+  "exportTime": "2025-09-27T03:47:51.180Z",
+  "username": "Grape_Fox",
+  "users": {
+    "Grape_Fox": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699076408
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699129382
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699172806
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:34:14.841Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:34:28.917Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:36:23.731Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:41:38.522Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:57:50.148Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:00:09.590Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:59:39.191Z"
+        },
+        "U1-L5-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-17T15:59:41.567Z"
+        },
+        "U1-L5-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:59:43.018Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-19T17:35:00.259Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:36:53.701Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T17:46:32.090Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T17:05:14.938Z"
+        },
+        "U1-L7-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-26T17:21:08.824Z"
+        },
+        "U1-L7-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:24:36.599Z"
+        },
+        "U1-L7-Q04": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:44:05.437Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T18:13:14.299Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-27T03:45:36.664Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "Because 165 isn't one half of 300",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q02": "The reason as to why I picked this answer is partly due to the fact that all other answers were supported EXCEPT for this one.",
+        "U1-L4-Q01": "The reasoning being that there were more people who chose blue than black.",
+        "U1-L4-Q03": "The reason as to why I chose this answer is because 56% is greater than 38%",
+        "U1-L4-Q04": "The reasoning being that 70% is bigger than 30%.",
+        "U1-L4-Q05": "I picked C because both schools had the same value in that category.",
+        "U1-L4-Q06": "The reason as to why I chose D is because Region C isn't even close to having 25. It had about 10-11 days of rain.",
+        "U1-L5-Q03": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q01": "",
+        "U1-L6-Q02": "The reason being that it's only the bottom being impacted, not the height.",
+        "U1-L6-Q03": "The reason being, the tail is on the right meaning the distribution is skewed right.",
+        "U1-L6-Q01": "The reason why I chose this answer is due to the fact that gaps are usually there due to missing data or data that was never recorded.",
+        "U1-L7-Q01": "The mean is likely to change as a new number was added.",
+        "U1-L7-Q02": "It goes in order of the problem",
+        "U1-L7-Q03": "Because the average of both B and C is 290,600",
+        "U1-L7-Q04": "19.3 is the only outlier in this question",
+        "U1-L7-Q05": "77% of 1000 is 770",
+        "U1-L7-Q06": "The reason being 89 is greater than 43"
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699076408,
+        "U1-L3-Q02": 1757699129382,
+        "U1-L3-Q03": 1757699172806,
+        "U1-L4-Q02": "2025-09-15T17:34:14.841Z",
+        "U1-L4-Q01": "2025-09-15T17:34:28.917Z",
+        "U1-L4-Q03": "2025-09-15T17:36:23.731Z",
+        "U1-L4-Q04": "2025-09-15T17:41:38.522Z",
+        "U1-L4-Q05": "2025-09-15T17:57:50.148Z",
+        "U1-L4-Q06": "2025-09-15T18:00:09.590Z",
+        "U1-L5-Q03": "2025-09-17T15:59:39.192Z",
+        "U1-L5-Q02": "2025-09-17T15:59:41.567Z",
+        "U1-L5-Q01": "2025-09-17T15:59:43.018Z",
+        "U1-L6-Q02": "2025-09-19T17:35:00.259Z",
+        "U1-L6-Q03": "2025-09-19T17:36:53.701Z",
+        "U1-L6-Q01": "2025-09-19T17:46:32.091Z",
+        "U1-L7-Q01": "2025-09-24T17:05:14.938Z",
+        "U1-L7-Q02": "2025-09-26T17:21:08.824Z",
+        "U1-L7-Q03": "2025-09-26T17:24:36.599Z",
+        "U1-L7-Q04": "2025-09-26T17:44:05.437Z",
+        "U1-L7-Q05": "2025-09-26T18:13:14.299Z",
+        "U1-L7-Q06": "2025-09-27T03:45:36.664Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q02": 3,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q01": 2,
+        "U1-L7-Q01": 2,
+        "U1-L7-Q02": 3,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1
+      }
+    }
+  }
+}
