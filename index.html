@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="js/charts.js"></script>
 
 </head>
@@ -21,6 +22,7 @@
 
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button class="sync-button" onclick="showSyncModal()" title="Sync & Export Data">⚡</button>
+    <button class="share-button" onclick="showShareModal()" title="Share this app">📤</button>
 
     <!-- Global Sync Modal -->
     <div id="syncModal" class="modal" style="display: none;">
@@ -71,6 +73,79 @@
 
             <div class="sync-footer">
                 <small><i class="fas fa-keyboard"></i> Tip: Press Ctrl+S to quickly access sync options</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal" style="display: none;">
+        <div class="modal-content share-modal-content">
+            <span class="close-modal" onclick="closeShareModal()">&times;</span>
+            <h2>📤 Share AP Stats Consensus Quiz</h2>
+
+            <div class="share-description">
+                <p><strong>A collaborative learning platform for AP Statistics</strong></p>
+                <p>Share with your classmates to see consensus responses and learn together!</p>
+            </div>
+
+            <div class="share-sections">
+                <!-- Website Section -->
+                <div class="share-section">
+                    <h3>🌐 Visit the Website</h3>
+                    <div class="share-url-container">
+                        <input type="text" id="websiteUrl" class="share-url-input" value="https://robjohncolson.github.io/curriculum_render" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard('websiteUrl', 'Website URL')">📋 Copy</button>
+                    </div>
+                    <div class="qr-code-container" id="websiteQR"></div>
+                    <p class="share-instruction">Scan QR code or visit the URL to access the app</p>
+                </div>
+
+                <!-- GitHub Section -->
+                <div class="share-section">
+                    <h3>💻 View Source Code</h3>
+                    <div class="share-url-container">
+                        <input type="text" id="githubUrl" class="share-url-input" value="https://github.com/robjohncolson/curriculum_render" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard('githubUrl', 'GitHub URL')">📋 Copy</button>
+                    </div>
+                    <div class="qr-code-container" id="githubQR"></div>
+                    <p class="share-instruction">GitHub repository contains source code and documentation</p>
+                </div>
+            </div>
+
+            <!-- Local File Section (shown only when running locally) -->
+            <div id="localFileSection" style="display: none;">
+                <div class="share-section local-file-section">
+                    <h3>📁 Local File Location</h3>
+                    <div class="share-url-container">
+                        <input type="text" id="localPath" class="share-url-input" value="" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard('localPath', 'Local file path')">📋 Copy</button>
+                    </div>
+                    <p class="share-instruction">You're running this app from your local computer</p>
+                    <div class="local-file-info">
+                        <p><strong>Share with classmates:</strong></p>
+                        <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
+                            <li>Copy this entire folder to a USB drive</li>
+                            <li>Upload the folder to a shared drive</li>
+                            <li>Or use the GitHub repository above</li>
+                        </ul>
+                        <button onclick="openLocalFolder()" style="
+                            margin-top: 15px;
+                            background: white;
+                            color: #e67e22;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">📂 Open Folder Location</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="share-footer">
+                <small>💡 Teachers can export master databases for class-wide analysis</small>
+                <br>
+                <small>Version 2.0 | Created for AP Statistics Students</small>
             </div>
         </div>
     </div>
@@ -130,6 +205,155 @@
 
         // Add this to your global variables
         let allCurriculumData = {}; // Store all units' data
+        let qrCodesGenerated = false; // Track if QR codes have been generated
+
+
+        // Share Modal Functions
+        function showShareModal() {
+            const modal = document.getElementById('shareModal');
+            modal.style.display = 'block';
+
+            // Check if running locally and show local file path
+            detectLocalFile();
+
+            // Generate QR codes if not already generated
+            if (!qrCodesGenerated) {
+                generateQRCodes();
+                qrCodesGenerated = true;
+            }
+        }
+
+        function detectLocalFile() {
+            const localFileSection = document.getElementById('localFileSection');
+            const localPathInput = document.getElementById('localPath');
+
+            // Check if running from file:// protocol
+            if (window.location.protocol === 'file:') {
+                // Get the local file path
+                let localPath = window.location.href;
+
+                // Clean up the path for better display
+                // Remove file:/// prefix
+                localPath = localPath.replace('file:///', '');
+                // On Windows, fix the drive letter format
+                if (localPath.match(/^[A-Z]:/)) {
+                    localPath = localPath.replace(/\//g, '\\');
+                }
+                // Decode URL encoding (spaces, special characters)
+                localPath = decodeURIComponent(localPath);
+
+                // Get just the directory path (remove index.html)
+                const directoryPath = localPath.substring(0, localPath.lastIndexOf('/')) ||
+                                    localPath.substring(0, localPath.lastIndexOf('\\'));
+
+                // Display the local file section
+                localFileSection.style.display = 'block';
+                localPathInput.value = directoryPath || localPath;
+
+                // Also show a notice in the modal description
+                const shareDescription = document.querySelector('.share-description');
+                if (shareDescription && !shareDescription.querySelector('.local-notice')) {
+                    const notice = document.createElement('p');
+                    notice.className = 'local-notice';
+                    notice.style.cssText = 'background: #f39c12; color: white; padding: 10px; border-radius: 5px; margin-top: 10px;';
+                    notice.innerHTML = '📍 Running locally from your computer';
+                    shareDescription.appendChild(notice);
+                }
+            } else {
+                // Hide local file section if not running locally
+                localFileSection.style.display = 'none';
+            }
+        }
+
+        function closeShareModal() {
+            const modal = document.getElementById('shareModal');
+            modal.style.display = 'none';
+
+            // Remove the local notice when closing
+            const localNotice = document.querySelector('.local-notice');
+            if (localNotice) {
+                localNotice.remove();
+            }
+        }
+
+        function generateQRCodes() {
+            // Clear any existing QR codes
+            document.getElementById('websiteQR').innerHTML = '';
+            document.getElementById('githubQR').innerHTML = '';
+
+            // Generate website QR code
+            new QRCode(document.getElementById('websiteQR'), {
+                text: 'https://robjohncolson.github.io/curriculum_render',
+                width: 200,
+                height: 200,
+                colorDark: isDarkMode() ? '#ff69b4' : '#3498db',
+                colorLight: isDarkMode() ? '#2a2a2a' : '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Generate GitHub QR code
+            new QRCode(document.getElementById('githubQR'), {
+                text: 'https://github.com/robjohncolson/curriculum_render',
+                width: 200,
+                height: 200,
+                colorDark: isDarkMode() ? '#ff69b4' : '#3498db',
+                colorLight: isDarkMode() ? '#2a2a2a' : '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function copyToClipboard(elementId, label) {
+            const input = document.getElementById(elementId);
+            input.select();
+            input.setSelectionRange(0, 99999); // For mobile devices
+
+            try {
+                document.execCommand('copy');
+                showMessage(`${label} copied to clipboard!`, 'success');
+            } catch (err) {
+                // Fallback for newer browsers
+                navigator.clipboard.writeText(input.value).then(function() {
+                    showMessage(`${label} copied to clipboard!`, 'success');
+                }, function(err) {
+                    showMessage('Failed to copy URL', 'error');
+                });
+            }
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageArea = document.getElementById('messageArea');
+            if (messageArea) {
+                messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+                setTimeout(() => {
+                    messageArea.innerHTML = '';
+                }, 3000);
+            }
+        }
+
+        function openLocalFolder() {
+            const localPath = document.getElementById('localPath').value;
+
+            // Try to open the folder in the system's file explorer
+            // Note: This has limitations due to browser security
+            if (localPath) {
+                // For Windows, create a file:// URL with proper formatting
+                let folderUrl;
+                if (localPath.includes('\\')) {
+                    // Windows path
+                    folderUrl = 'file:///' + localPath.replace(/\\/g, '/');
+                } else {
+                    // Unix/Mac path
+                    folderUrl = 'file://' + localPath;
+                }
+
+                // Try to open in a new window (may be blocked by browser)
+                const opened = window.open(folderUrl, '_blank');
+
+                if (!opened) {
+                    showMessage('Cannot open folder directly. Please copy the path and open manually in your file explorer.', 'info');
+                }
+            }
+        }
 
 
         // Unit structure - defines lessons per unit
@@ -5848,6 +6072,57 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const syncBtn = document.getElementById('syncBtn');
             if (syncBtn) {
                 syncBtn.addEventListener('click', showSyncModal);
+            }
+
+            // Set up share modal event listeners
+            const shareModal = document.getElementById('shareModal');
+            if (shareModal) {
+                // Close modal when clicking outside
+                window.addEventListener('click', function(event) {
+                    if (event.target === shareModal) {
+                        closeShareModal();
+                    }
+                });
+
+                // Close modal with ESC key
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && shareModal.style.display === 'block') {
+                        closeShareModal();
+                    }
+                });
+            }
+
+            // Check for initial page load and add share info
+            const questionsContainer = document.getElementById('questionsContainer');
+            if (questionsContainer) {
+                // Check if we're on initial/username page
+                const currentUsername = localStorage.getItem('consensusUsername');
+                if (!currentUsername) {
+                    // Add share button to initial page
+                    const shareHtml = `
+                        <div style="text-align: center; margin: 30px 0;">
+                            <h2>Welcome to AP Stats Consensus Quiz!</h2>
+                            <p style="margin: 15px 0;">A collaborative learning platform for AP Statistics</p>
+                            <button onclick="showShareModal()" style="
+                                background: #9b59b6;
+                                color: white;
+                                border: none;
+                                padding: 15px 30px;
+                                border-radius: 8px;
+                                font-size: 18px;
+                                cursor: pointer;
+                                margin: 20px 10px;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='#8e44ad'" onmouseout="this.style.background='#9b59b6'">
+                                📤 Share This App
+                            </button>
+                            <p style="margin-top: 20px; color: #666;">
+                                <small>New to this app? Click the share button to learn more!</small>
+                            </p>
+                        </div>
+                    `;
+                    questionsContainer.innerHTML = shareHtml + questionsContainer.innerHTML;
+                }
             }
         });
 
