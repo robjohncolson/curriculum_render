@@ -3209,3 +3209,161 @@ body.dark-theme .local-notice {
         font-size: 10px;
     }
 }
+
+/* Current Location Section Styles */
+.current-location-wrapper {
+    margin-top: 30px;
+}
+
+.current-location-section {
+    width: 100%;
+    max-width: none;
+    transition: all 0.3s ease;
+}
+
+/* Web mode (green theme) */
+.current-location-section.web-mode {
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+    color: white;
+}
+
+.current-location-section.web-mode h3 {
+    color: white;
+}
+
+.current-location-section.web-mode .share-url-input {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+.current-location-section.web-mode .copy-btn {
+    background: white;
+    color: #27ae60;
+}
+
+.current-location-section.web-mode .copy-btn:hover {
+    background: #f0f0f0;
+}
+
+.current-location-section.web-mode .share-instruction {
+    color: white;
+    font-weight: 500;
+}
+
+/* Local mode (orange theme) */
+.current-location-section.local-mode {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+}
+
+.current-location-section.local-mode h3 {
+    color: white;
+}
+
+.current-location-section.local-mode .share-url-input {
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+}
+
+.current-location-section.local-mode .copy-btn {
+    background: white;
+    color: #e67e22;
+}
+
+.current-location-section.local-mode .copy-btn:hover {
+    background: #f0f0f0;
+}
+
+.current-location-section.local-mode .share-instruction {
+    color: white;
+    font-weight: 500;
+}
+
+/* Shared location info styles */
+.location-info {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.location-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+.location-info ul li {
+    padding: 5px 0;
+    padding-left: 20px;
+    position: relative;
+    color: white;
+}
+
+.location-info ul li:before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+.location-info p {
+    color: white;
+    margin: 10px 0;
+}
+
+/* Dark mode adjustments */
+body.dark-theme .current-location-section.web-mode {
+    background: linear-gradient(135deg, #16a085 0%, #27ae60 100%);
+}
+
+body.dark-theme .current-location-section.web-mode .share-url-input {
+    background: rgba(51, 51, 51, 0.9);
+    color: #e0e0e0;
+}
+
+body.dark-theme .current-location-section.web-mode .copy-btn {
+    background: #333;
+    color: #2ecc71;
+}
+
+body.dark-theme .current-location-section.web-mode .copy-btn:hover {
+    background: #444;
+}
+
+body.dark-theme .current-location-section.local-mode {
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+}
+
+body.dark-theme .current-location-section.local-mode .share-url-input {
+    background: rgba(51, 51, 51, 0.9);
+    color: #e0e0e0;
+}
+
+body.dark-theme .current-location-section.local-mode .copy-btn {
+    background: #333;
+    color: #f39c12;
+}
+
+body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+    background: #444;
+}
+
+/* Remove old local-file-section styles that are no longer needed */
+.local-file-section {
+    display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .current-location-wrapper {
+        margin-top: 20px;
+    }
+    
+    .current-location-section .share-url-input {
+        font-size: 10px;
+    }
+}

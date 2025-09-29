@@ -112,32 +112,17 @@
                 </div>
             </div>
 
-            <!-- Local File Section (shown only when running locally) -->
-            <div id="localFileSection" style="display: none;">
-                <div class="share-section local-file-section">
-                    <h3>📁 Local File Location</h3>
+            <!-- Current Location Section (always shown) -->
+            <div id="currentLocationSection" class="current-location-wrapper">
+                <div class="share-section current-location-section">
+                    <h3 id="locationTitle">📍 Current Location</h3>
                     <div class="share-url-container">
-                        <input type="text" id="localPath" class="share-url-input" value="" readonly>
-                        <button class="copy-btn" onclick="copyToClipboard('localPath', 'Local file path')">📋 Copy</button>
+                        <input type="text" id="currentLocation" class="share-url-input" value="" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard('currentLocation', 'Current location')">📋 Copy</button>
                     </div>
-                    <p class="share-instruction">You're running this app from your local computer</p>
-                    <div class="local-file-info">
-                        <p><strong>Share with classmates:</strong></p>
-                        <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
-                            <li>Copy this entire folder to a USB drive</li>
-                            <li>Upload the folder to a shared drive</li>
-                            <li>Or use the GitHub repository above</li>
-                        </ul>
-                        <button onclick="openLocalFolder()" style="
-                            margin-top: 15px;
-                            background: white;
-                            color: #e67e22;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 5px;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">📂 Open Folder Location</button>
+                    <p class="share-instruction" id="locationDescription">Loading location...</p>
+                    <div id="locationInfo" class="location-info" style="display: none;">
+                        <!-- Dynamic content will be added here -->
                     </div>
                 </div>
             </div>
@@ -224,16 +209,23 @@
         }
 
         function detectLocalFile() {
-            const localFileSection = document.getElementById('localFileSection');
-            const localPathInput = document.getElementById('localPath');
+            const locationSection = document.querySelector('.current-location-section');
+            const locationTitle = document.getElementById('locationTitle');
+            const locationInput = document.getElementById('currentLocation');
+            const locationDescription = document.getElementById('locationDescription');
+            const locationInfo = document.getElementById('locationInfo');
 
             // Check if running from file:// protocol
             if (window.location.protocol === 'file:') {
+                // RUNNING LOCALLY
+                locationSection.classList.add('local-mode');
+                locationSection.classList.remove('web-mode');
+                locationTitle.innerHTML = '📁 Local File Location';
+
                 // Get the local file path
                 let localPath = window.location.href;
 
                 // Clean up the path for better display
-                // Remove file:/// prefix
                 localPath = localPath.replace('file:///', '');
                 // On Windows, fix the drive letter format
                 if (localPath.match(/^[A-Z]:/)) {
@@ -246,34 +238,70 @@
                 const directoryPath = localPath.substring(0, localPath.lastIndexOf('/')) ||
                                     localPath.substring(0, localPath.lastIndexOf('\\'));
 
-                // Display the local file section
-                localFileSection.style.display = 'block';
-                localPathInput.value = directoryPath || localPath;
+                locationInput.value = directoryPath || localPath;
+                locationDescription.innerHTML = '🖥️ Running from your local computer';
 
-                // Also show a notice in the modal description
-                const shareDescription = document.querySelector('.share-description');
-                if (shareDescription && !shareDescription.querySelector('.local-notice')) {
-                    const notice = document.createElement('p');
-                    notice.className = 'local-notice';
-                    notice.style.cssText = 'background: #f39c12; color: white; padding: 10px; border-radius: 5px; margin-top: 10px;';
-                    notice.innerHTML = '📍 Running locally from your computer';
-                    shareDescription.appendChild(notice);
-                }
+                // Show local sharing instructions
+                locationInfo.innerHTML = `
+                    <p><strong>Share with classmates:</strong></p>
+                    <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
+                        <li>Copy this entire folder to a USB drive</li>
+                        <li>Upload the folder to a shared drive</li>
+                        <li>Or use the GitHub repository above</li>
+                    </ul>
+                    <button onclick="openLocalFolder()" style="
+                        margin-top: 15px;
+                        background: white;
+                        color: #e67e22;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">📂 Open Folder Location</button>
+                `;
+                locationInfo.style.display = 'block';
             } else {
-                // Hide local file section if not running locally
-                localFileSection.style.display = 'none';
+                // RUNNING FROM WEB
+                locationSection.classList.add('web-mode');
+                locationSection.classList.remove('local-mode');
+                locationTitle.innerHTML = '🌐 Current Web Location';
+
+                // Get the current URL
+                const currentUrl = window.location.href;
+                const hostname = window.location.hostname;
+
+                locationInput.value = currentUrl;
+
+                // Check if it's the official GitHub Pages site
+                if (hostname === 'robjohncolson.github.io') {
+                    locationDescription.innerHTML = '✅ Running from the official website';
+                    locationInfo.innerHTML = `
+                        <p><strong>You're using the live version!</strong></p>
+                        <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
+                            <li>Bookmark this page for easy access</li>
+                            <li>Share the URL with classmates</li>
+                            <li>No installation needed!</li>
+                        </ul>
+                    `;
+                } else {
+                    locationDescription.innerHTML = `🌍 Running from: ${hostname}`;
+                    locationInfo.innerHTML = `
+                        <p><strong>Custom deployment detected</strong></p>
+                        <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
+                            <li>This appears to be a custom deployment</li>
+                            <li>Make sure you trust this source</li>
+                            <li>Official site: robjohncolson.github.io</li>
+                        </ul>
+                    `;
+                }
+                locationInfo.style.display = 'block';
             }
         }
 
         function closeShareModal() {
             const modal = document.getElementById('shareModal');
             modal.style.display = 'none';
-
-            // Remove the local notice when closing
-            const localNotice = document.querySelector('.local-notice');
-            if (localNotice) {
-                localNotice.remove();
-            }
         }
 
         function generateQRCodes() {
@@ -331,7 +359,7 @@
         }
 
         function openLocalFolder() {
-            const localPath = document.getElementById('localPath').value;
+            const localPath = document.getElementById('currentLocation').value;
 
             // Try to open the folder in the system's file explorer
             // Note: This has limitations due to browser security
