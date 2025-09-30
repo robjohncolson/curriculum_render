@@ -1,0 +1,3716 @@
+{
+  "exportTime": "2025-09-30T03:57:38.542Z",
+  "totalStudents": 30,
+  "students": {
+    "Apple_Monkey": {
+      "answers": {
+        "U2-L2-Q01": {
+          "value": "E",
+          "timestamp": 1757683895063
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757684023766
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757684040958
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757684052880
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757684188382
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757684204269
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757684212610
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757814304913
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": 1757816164459
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757816170979
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757816181342
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": 1757816187593
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": 1757816194295
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": 1757816632685
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": 1757816638530
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": 1757816651849
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": 1757897551515
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": 1757897609049
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": 1757897697557
+        },
+        "U1-L7-Q06": {
+          "value": "C",
+          "timestamp": "2025-09-25T14:21:36.385Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:20:56.424Z"
+        },
+        "U1-L7-Q04": {
+          "value": "E",
+          "timestamp": "2025-09-25T14:21:04.196Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:15:37.018Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:15:39.325Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:15:48.412Z"
+        }
+      },
+      "reasons": {
+        "U2-L2-Q01": "it is true",
+        "U1-L2-Q01": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "I-got-the-answer-wrong-but-idk-why",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L6-Q03": "",
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L7-Q06": "I saw 43 as an outlier",
+        "U1-L7-Q05": "it made sense in my head",
+        "U1-L7-Q04": "i dont know why i picked that"
+      },
+      "timestamps": {
+        "U2-L2-Q01": 1757683895063,
+        "U1-L2-Q01": 1757684023766,
+        "U1-L2-Q02": 1757684040958,
+        "U1-L2-Q03": 1757684052880,
+        "U1-L3-Q03": 1757684188382,
+        "U1-L3-Q01": 1757684204269,
+        "U1-L3-Q02": 1757684212610,
+        "U1-L4-Q01": 1757814304913,
+        "U1-L4-Q02": 1757816164459,
+        "U1-L4-Q03": 1757816170979,
+        "U1-L4-Q04": 1757816181342,
+        "U1-L4-Q05": 1757816187593,
+        "U1-L4-Q06": 1757816194295,
+        "U1-L5-Q01": 1757816632685,
+        "U1-L5-Q02": 1757816638530,
+        "U1-L5-Q03": 1757816651849,
+        "U1-L6-Q03": 1757897551516,
+        "U1-L6-Q01": 1757897609049,
+        "U1-L6-Q02": 1757897697557,
+        "U1-L7-Q06": "2025-09-25T14:21:36.385Z",
+        "U1-L7-Q05": "2025-09-25T14:20:56.424Z",
+        "U1-L7-Q04": "2025-09-25T14:21:04.196Z",
+        "U1-L7-Q03": "2025-09-25T14:15:37.018Z",
+        "U1-L7-Q02": "2025-09-25T14:15:39.325Z",
+        "U1-L7-Q01": "2025-09-25T14:15:48.412Z"
+      },
+      "attempts": {
+        "U2-L2-Q01": 1,
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 3,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L7-Q06": 3,
+        "U1-L7-Q05": 2,
+        "U1-L7-Q04": 3,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q01": 1
+      }
+    },
+    "Apple_Rabbit": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757683639793
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757683678357
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757683740521
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757683800760
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757683806403
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757683809760
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:41.521Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T13:36:43.365Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T13:36:45.277Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T13:36:47.685Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:49.770Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T13:36:51.890Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:04:40.227Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:05:42.964Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:07:09.556Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T13:00:59.140Z"
+        },
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T13:01:04.964Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:01:08.273Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:02:52.449Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:04:47.651Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:08:24.319Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:09:17.377Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:15:46.705Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:24:18.882Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:08:19.657Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:10:28.485Z"
+        },
+        "U1-L8-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-26T13:13:55.413Z"
+        },
+        "U1-L9-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-29T13:40:31.550Z"
+        },
+        "U1-L9-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-29T17:18:39.697Z"
+        },
+        "U1-L9-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-29T17:26:14.776Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is not numerical and is rather focused on the \"label\"",
+        "U1-L2-Q02": "The colors of the cars in the lot is non-numerical and is focused on qualitative traits.",
+        "U1-L2-Q03": "The value of the coin can be collected numerically (based on price = money = numbers). This is the only one that is not a qualitative description of a coin.",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L5-Q01": "There is no possible way to have \"gaps\" in the diameters of tree trunks, the diameter is a continuous growth that never suddenly jumps from one measurement to the other.",
+        "U1-L5-Q02": "I don't honestly remember why I chose this one but I did so...",
+        "U1-L5-Q03": "First, this is numerical so it is quantitative and it also has gaps, therefore it is discrete. Duh.",
+        "U1-L7-Q01": "The median wouldn't change because it only depends on the total number of values, not the actual values, which means it might possibly shift over, but it shouldn't cause a great change. Unlike the mean which changes easily with outliers and gaps.",
+        "U1-L7-Q02": "It was the only one with squared values. :D",
+        "U1-L7-Q03": "Least to greatest: D, B, E, G, H, F, A, C\n(G + H) / 2 = median \nmedian = 283,300",
+        "U1-L7-Q05": "Based on process of elimination, only A is correct. Being in the 77th percentile, it means 77% of scores were less than or equal to that score. C, automatically contradicts that, D is missing the \"less than\" part, E is the exact opposite, and B is just incorrect because that is less than a half of all total entries (1,000) which makes it wrong.",
+        "U1-L7-Q06": "Using the Upper Bound formula, which is Q3 + 1.5 x IQR, it equals 47. And 43 is not greater than 47.",
+        "U1-L8-Q01": "well cause like the line is in the middle of 30 and 40, so the Q3 number is 35.",
+        "U1-L8-Q02": "I'd say 50 because the median line (which is the number directly in the middle, the very middle sample, splits the entire sample evenly, although they are most likely clustered around 48 - 58, the median reaches directly at 48. So around half are equal to or above that height.",
+        "U1-L8-Q03": "A, B, and D are incorrect, it is not skewed right or symmetric. That leaves C and E. I believe the mean is likely greater than the median because the average is a lot higher due to the cluster around the higher values whereas median is rarely affected by that.",
+        "U1-L9-Q01": "The IQR matches on both because the ends of the box (Q1 and Q3) are the exact same, so regardless of the numbers they would both have the same IQR.",
+        "U1-L9-Q02": "I'm choosing B because I was in between A and B and B seems more likely due to the range of Mining Distrubances being lower but higher in numbers, therefore possibly making its median higher.",
+        "U1-L9-Q03": "IQR = 2 < 4 \nRange = 12 < 17"
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757683639793,
+        "U1-L2-Q02": 1757683678357,
+        "U1-L2-Q03": 1757683740521,
+        "U1-L3-Q03": 1757683800760,
+        "U1-L3-Q01": 1757683806403,
+        "U1-L3-Q02": 1757683809760,
+        "U1-L4-Q06": "2025-09-15T13:36:41.521Z",
+        "U1-L4-Q05": "2025-09-15T13:36:43.365Z",
+        "U1-L4-Q04": "2025-09-15T13:36:45.277Z",
+        "U1-L4-Q03": "2025-09-15T13:36:47.685Z",
+        "U1-L4-Q02": "2025-09-15T13:36:49.770Z",
+        "U1-L4-Q01": "2025-09-15T13:36:51.890Z",
+        "U1-L5-Q01": "2025-09-18T14:04:40.227Z",
+        "U1-L5-Q02": "2025-09-18T14:05:42.964Z",
+        "U1-L5-Q03": "2025-09-18T14:07:09.556Z",
+        "U1-L6-Q01": "2025-09-19T13:00:59.140Z",
+        "U1-L6-Q02": "2025-09-19T13:01:04.964Z",
+        "U1-L6-Q03": "2025-09-19T13:01:08.273Z",
+        "U1-L7-Q01": "2025-09-25T14:02:52.449Z",
+        "U1-L7-Q02": "2025-09-25T14:04:47.651Z",
+        "U1-L7-Q03": "2025-09-25T14:08:24.319Z",
+        "U1-L7-Q04": "2025-09-25T14:09:17.377Z",
+        "U1-L7-Q05": "2025-09-25T14:15:46.705Z",
+        "U1-L7-Q06": "2025-09-25T14:24:18.882Z",
+        "U1-L8-Q01": "2025-09-26T13:08:19.657Z",
+        "U1-L8-Q02": "2025-09-26T13:10:28.486Z",
+        "U1-L8-Q03": "2025-09-26T13:13:55.413Z",
+        "U1-L9-Q01": "2025-09-29T13:40:31.550Z",
+        "U1-L9-Q02": "2025-09-29T17:18:39.698Z",
+        "U1-L9-Q03": "2025-09-29T17:26:14.778Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L4-Q06": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q01": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1,
+        "U1-L9-Q01": 1,
+        "U1-L9-Q02": 2,
+        "U1-L9-Q03": 1
+      }
+    },
+    "Apricot_Dog": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757684012225
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757684150046
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757684259295
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757942032798
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757942546149
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757942678152
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": 1757943309529
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": 1757943323112
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": 1757943436089
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757965978629
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757965992637
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757966000379
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-19T01:33:08.699Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T01:33:29.144Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T01:34:16.315Z"
+        },
+        "U1-L6-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-19T01:46:03.942Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-19T01:49:20.341Z"
+        },
+        "U1-L6-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-19T01:51:39.308Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:09:09.589Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:09:21.440Z"
+        },
+        "U1-L7-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-26T13:09:42.009Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:09:51.303Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T13:09:59.257Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:10:07.595Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:18:28.801Z"
+        },
+        "U1-L8-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-26T13:59:22.796Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:57:13.898Z"
+        },
+        "U1-L9-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-29T13:42:25.848Z"
+        },
+        "U1-L9-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-29T22:06:39.355Z"
+        },
+        "U1-L9-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-29T22:11:53.956Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "Half of the students would be 150, but the answer pertains to 165 students, which is more than half.",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q06": "",
+        "U1-L2-Q01": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L6-Q01": "Outliers are present when there is a large gap between values in the distribution.",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "It has two peaks where most values are located, being 60 and 70.",
+        "U1-L8-Q02": "SInce most people or all reacged the requirement of hieght for rides.",
+        "U1-L8-Q01": "Since it's the median, it's the most typical miles per gas.",
+        "U1-L9-Q02": "The earthquake disturbances are less than the mining disturbances in the center of the histograms."
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757684012225,
+        "U1-L3-Q02": 1757684150046,
+        "U1-L3-Q03": 1757684259295,
+        "U1-L4-Q01": 1757942032798,
+        "U1-L4-Q03": 1757942546149,
+        "U1-L4-Q04": 1757942678152,
+        "U1-L4-Q05": 1757943309529,
+        "U1-L4-Q02": 1757943323112,
+        "U1-L4-Q06": 1757943436089,
+        "U1-L2-Q01": 1757965978629,
+        "U1-L2-Q02": 1757965992637,
+        "U1-L2-Q03": 1757966000379,
+        "U1-L5-Q01": "2025-09-19T01:33:08.699Z",
+        "U1-L5-Q02": "2025-09-19T01:33:29.144Z",
+        "U1-L5-Q03": "2025-09-19T01:34:16.315Z",
+        "U1-L6-Q01": "2025-09-19T01:46:03.942Z",
+        "U1-L6-Q02": "2025-09-19T01:49:20.341Z",
+        "U1-L6-Q03": "2025-09-19T01:51:39.308Z",
+        "U1-L7-Q01": "2025-09-26T13:09:09.589Z",
+        "U1-L7-Q02": "2025-09-26T13:09:21.440Z",
+        "U1-L7-Q03": "2025-09-26T13:09:42.009Z",
+        "U1-L7-Q04": "2025-09-26T13:09:51.304Z",
+        "U1-L7-Q05": "2025-09-26T13:09:59.257Z",
+        "U1-L7-Q06": "2025-09-26T13:10:07.595Z",
+        "U1-L8-Q03": "2025-09-26T13:18:28.801Z",
+        "U1-L8-Q02": "2025-09-26T13:59:22.796Z",
+        "U1-L8-Q01": "2025-09-26T13:57:13.898Z",
+        "U1-L9-Q01": "2025-09-29T13:42:25.848Z",
+        "U1-L9-Q03": "2025-09-29T22:06:39.355Z",
+        "U1-L9-Q02": "2025-09-29T22:11:53.956Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q06": 1,
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q03": 1,
+        "U1-L8-Q02": 3,
+        "U1-L8-Q01": 1,
+        "U1-L9-Q01": 1,
+        "U1-L9-Q03": 1,
+        "U1-L9-Q02": 2
+      }
+    },
+    "Apricot_Fox": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757684456314
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757684459618
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757684465748
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757943008325
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": 1757943011671
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757943013583
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757943015483
+        },
+        "U1-L4-Q05": {
+          "value": "A",
+          "timestamp": 1757943017972
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": 1757943020140
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-16T16:02:43.391Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-16T16:02:45.838Z"
+        },
+        "U1-L5-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-16T16:02:48.865Z"
+        },
+        "U1-L6-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-18T17:10:03.999Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-18T17:10:06.934Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T17:10:42.133Z"
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-18T17:11:18.185Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T17:11:19.902Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-18T17:11:21.308Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:31:45.231Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:31:47.233Z"
+        },
+        "U1-L7-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:31:50.589Z"
+        },
+        "U1-L7-Q04": {
+          "value": "E",
+          "timestamp": "2025-09-25T14:31:54.599Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:31:57.007Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:31:59.803Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:19:35.125Z"
+        },
+        "U1-L8-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:19:38.140Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:19:40.198Z"
+        },
+        "U1-L9-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-29T13:46:23.535Z"
+        },
+        "U1-L9-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-29T13:46:25.896Z"
+        },
+        "U1-L9-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-29T13:46:28.871Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "I chose this answer because I divided the total of number of college students (300) by the students who picked vanilla and chocolate (100 + 65 = 165). I divided 165 by 300 and got ,55. .55 turned into a fraction is 11/20 not 1/2.",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L6-Q03": "Majority of the dots are to the left.",
+        "U1-L7-Q03": "Since the values are even I had to find the average between D and E."
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757684456315,
+        "U1-L3-Q02": 1757684459618,
+        "U1-L3-Q03": 1757684465748,
+        "U1-L4-Q01": 1757943008325,
+        "U1-L4-Q02": 1757943011671,
+        "U1-L4-Q03": 1757943013583,
+        "U1-L4-Q04": 1757943015483,
+        "U1-L4-Q05": 1757943017972,
+        "U1-L4-Q06": 1757943020140,
+        "U1-L5-Q01": "2025-09-16T16:02:43.411Z",
+        "U1-L5-Q02": "2025-09-16T16:02:45.838Z",
+        "U1-L5-Q03": "2025-09-16T16:02:48.865Z",
+        "U1-L6-Q01": "2025-09-18T17:10:04.001Z",
+        "U1-L6-Q02": "2025-09-18T17:10:06.934Z",
+        "U1-L6-Q03": "2025-09-18T17:10:42.133Z",
+        "U1-L2-Q03": "2025-09-18T17:11:18.185Z",
+        "U1-L2-Q02": "2025-09-18T17:11:19.902Z",
+        "U1-L2-Q01": "2025-09-18T17:11:21.308Z",
+        "U1-L7-Q01": "2025-09-25T14:31:45.231Z",
+        "U1-L7-Q02": "2025-09-25T14:31:47.233Z",
+        "U1-L7-Q03": "2025-09-25T14:31:50.589Z",
+        "U1-L7-Q04": "2025-09-25T14:31:54.599Z",
+        "U1-L7-Q05": "2025-09-25T14:31:57.007Z",
+        "U1-L7-Q06": "2025-09-25T14:31:59.803Z",
+        "U1-L8-Q03": "2025-09-26T13:19:35.125Z",
+        "U1-L8-Q02": "2025-09-26T13:19:38.140Z",
+        "U1-L8-Q01": "2025-09-26T13:19:40.198Z",
+        "U1-L9-Q03": "2025-09-29T13:46:23.535Z",
+        "U1-L9-Q02": "2025-09-29T13:46:25.896Z",
+        "U1-L9-Q01": "2025-09-29T13:46:28.871Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 3,
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q03": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q01": 1,
+        "U1-L9-Q03": 1,
+        "U1-L9-Q02": 1,
+        "U1-L9-Q01": 1
+      }
+    },
+    "Apricot_Horse": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757942286046
+        },
+        "U1-L4-Q02": {
+          "value": "B",
+          "timestamp": 1757942263726
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757942806116
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757943159611
+        },
+        "U1-L4-Q05": {
+          "value": "A",
+          "timestamp": 1757941984972
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": 1757942015440
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:15:43.644Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:25:25.864Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:10:13.326Z"
+        },
+        "U1-L6-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:10:14.856Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:10:20.013Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-19T13:10:22.549Z"
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-19T13:03:53.465Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-19T13:03:54.908Z"
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-19T13:03:57.477Z"
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-19T13:04:13.806Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T13:04:16.234Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T13:04:17.668Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:05:38.423Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:06:47.994Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:07:13.759Z"
+        },
+        "U1-L7-Q04": {
+          "value": "E",
+          "timestamp": "2025-09-25T14:07:53.314Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:08:12.955Z"
+        },
+        "U1-L7-Q06": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:09:14.140Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:07:16.979Z"
+        },
+        "U1-L8-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:07:32.673Z"
+        },
+        "U1-L8-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-26T13:08:07.217Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "Because it is the most obvious one.",
+        "U1-L4-Q03": "That's the right one i believe",
+        "U1-L4-Q04": "that's the most obvious one",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q02": "represented quantities that are counted rather than measured.",
+        "U1-L5-Q03": "jhgvjyhviyhvhyvjuhyv",
+        "U1-L5-Q01": "uergiuergriuhiur",
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L2-Q03": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q01": "",
+        "U1-L7-Q01": "The mean is likely to change greatly because if the number is a large outlier, then it would entirely shift the numerical value of what the average of all numbers are. Especially in a smaller data set. Take (0,1,2,10,3,4) for example. The number 10 is an outlier and therefore, it is significantly larger than the other numbers, so it is very likely to shift the average by a large amount.",
+        "U1-L7-Q03": "",
+        "U1-L7-Q02": "",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q06": ""
+      },
+      "timestamps": {
+        "U1-L4-Q01": 1757942286046,
+        "U1-L4-Q02": 1757942263726,
+        "U1-L4-Q03": 1757942806116,
+        "U1-L4-Q04": 1757943159611,
+        "U1-L4-Q05": 1757941984972,
+        "U1-L4-Q06": 1757942015440,
+        "U1-L5-Q02": "2025-09-18T14:15:43.645Z",
+        "U1-L5-Q03": "2025-09-18T14:25:25.864Z",
+        "U1-L5-Q01": "2025-09-18T14:10:13.326Z",
+        "U1-L6-Q01": "2025-09-19T13:10:14.857Z",
+        "U1-L6-Q02": "2025-09-19T13:10:20.013Z",
+        "U1-L6-Q03": "2025-09-19T13:10:22.549Z",
+        "U1-L3-Q02": "2025-09-19T13:03:53.465Z",
+        "U1-L3-Q03": "2025-09-19T13:03:54.908Z",
+        "U1-L3-Q01": "2025-09-19T13:03:57.477Z",
+        "U1-L2-Q03": "2025-09-19T13:04:13.806Z",
+        "U1-L2-Q02": "2025-09-19T13:04:16.234Z",
+        "U1-L2-Q01": "2025-09-19T13:04:17.668Z",
+        "U1-L7-Q01": "2025-09-25T14:05:38.423Z",
+        "U1-L7-Q03": "2025-09-25T14:06:47.994Z",
+        "U1-L7-Q02": "2025-09-25T14:07:13.760Z",
+        "U1-L7-Q04": "2025-09-25T14:07:53.314Z",
+        "U1-L7-Q05": "2025-09-25T14:08:12.955Z",
+        "U1-L7-Q06": "2025-09-25T14:09:14.140Z",
+        "U1-L8-Q01": "2025-09-26T13:07:16.979Z",
+        "U1-L8-Q02": "2025-09-26T13:07:32.673Z",
+        "U1-L8-Q03": "2025-09-26T13:08:07.217Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Grape_Fox": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699076408
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699129382
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699172806
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:34:14.841Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:34:28.917Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:36:23.731Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:41:38.522Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:57:50.148Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:00:09.590Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T16:14:54.669Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T16:12:42.114Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T16:12:09.068Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:28:35.079Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:28:42.650Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:28:27.012Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:24:47.434Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:24:55.789Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:25:40.787Z"
+        },
+        "U1-L7-Q04": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:44:05.437Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T18:13:14.299Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-27T03:45:36.664Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-30T02:12:55.145Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-30T02:13:17.055Z"
+        },
+        "U1-L8-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-30T02:14:16.929Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "Because 165 isn't one half of 300",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q02": "The reason as to why I picked this answer is partly due to the fact that all other answers were supported EXCEPT for this one.",
+        "U1-L4-Q01": "The reasoning being that there were more people who chose blue than black.",
+        "U1-L4-Q03": "The reason as to why I chose this answer is because 56% is greater than 38%",
+        "U1-L4-Q04": "The reasoning being that 70% is bigger than 30%.",
+        "U1-L4-Q05": "I picked C because both schools had the same value in that category.",
+        "U1-L4-Q06": "The reason as to why I chose D is because Region C isn't even close to having 25. It had about 10-11 days of rain.",
+        "U1-L5-Q03": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q01": "",
+        "U1-L6-Q02": "The reason being that it's only the bottom being impacted, not the height.",
+        "U1-L6-Q03": "The reason being, the tail is on the right meaning the distribution is skewed right.",
+        "U1-L6-Q01": "The reason why I chose this answer is due to the fact that gaps are usually there due to missing data or data that was never recorded.",
+        "U1-L7-Q01": "The mean is likely to change as a new number was added.",
+        "U1-L7-Q02": "It goes in order of the problem",
+        "U1-L7-Q03": "Because the average of both B and C is 290,600",
+        "U1-L7-Q04": "19.3 is the only outlier in this question",
+        "U1-L7-Q05": "77% of 1000 is 770",
+        "U1-L7-Q06": "The reason being 89 is greater than 43",
+        "U1-L8-Q01": "The reason as to why I believed it's 35 is because the other three answers are apart of the IQR and the last one is the max.",
+        "U1-L8-Q02": "The reasoning being that a huge chunk of the people there can attend. It's more than 25% and it's less than 75 and 100%",
+        "U1-L8-Q03": "The reason being that the graph IS skewed to the right meaning the mean was most likely increased while the median stayed the same"
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699076408,
+        "U1-L3-Q02": 1757699129382,
+        "U1-L3-Q03": 1757699172806,
+        "U1-L4-Q02": "2025-09-15T17:34:14.841Z",
+        "U1-L4-Q01": "2025-09-15T17:34:28.917Z",
+        "U1-L4-Q03": "2025-09-15T17:36:23.731Z",
+        "U1-L4-Q04": "2025-09-15T17:41:38.522Z",
+        "U1-L4-Q05": "2025-09-15T17:57:50.148Z",
+        "U1-L4-Q06": "2025-09-15T18:00:09.590Z",
+        "U1-L5-Q03": "2025-09-17T16:14:54.669Z",
+        "U1-L5-Q02": "2025-09-17T16:12:42.114Z",
+        "U1-L5-Q01": "2025-09-17T16:12:09.068Z",
+        "U1-L6-Q02": "2025-09-24T15:28:35.079Z",
+        "U1-L6-Q03": "2025-09-24T15:28:42.650Z",
+        "U1-L6-Q01": "2025-09-24T15:28:27.012Z",
+        "U1-L7-Q01": "2025-09-26T17:24:47.434Z",
+        "U1-L7-Q02": "2025-09-26T17:24:55.789Z",
+        "U1-L7-Q03": "2025-09-26T17:25:40.787Z",
+        "U1-L7-Q04": "2025-09-26T17:44:05.437Z",
+        "U1-L7-Q05": "2025-09-26T18:13:14.299Z",
+        "U1-L7-Q06": "2025-09-27T03:45:36.664Z",
+        "U1-L8-Q01": "2025-09-30T02:12:55.145Z",
+        "U1-L8-Q02": "2025-09-30T02:13:17.055Z",
+        "U1-L8-Q03": "2025-09-30T02:14:16.929Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q02": 3,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 2,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Banana_Goat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699196915
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699353190
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699467018
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:32:54.646Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:32:58.393Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:33:00.217Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:33:07.015Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:33:16.465Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:33:41.291Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:35:49.945Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T15:35:53.268Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T15:35:56.602Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:27:24.524Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:27:26.160Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T17:27:28.038Z"
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-22T15:50:02.221Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-22T15:50:04.318Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-22T15:50:06.174Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:27:21.839Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:29:21.514Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:31:54.154Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:36:24.991Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:43:55.608Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:48:19.529Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:02:31.766Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:05:54.522Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:10:26.476Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "We are looking for an answer that is NOT supported by the table data.\nA. is supported by the data. Since by adding all the values would add up to 300\nB. is supported by the data. Since there is 300 students and 100 of them enjoy vanilla, that means that with a ratio of 100/300 a 1/3 of the students DID choose vanilla\nC. is supported by the data. Adding both chocolate and strawberry gives you 100, which means that again, 1/3 of the students chose either chocolate or strawberry\nD. is supported by the data. Adding both mint chip and coffee ice cream together yields a value of 75, and dividing this by the total of 300 gives you 1/4\nE. is not supported by the data. Adding vanilla and chocolate together yields a value of 165, which while it IS more than half of the students, is not exactly 1/2 of them.",
+        "U1-L3-Q02": "B is the best answer choice here. The qualitative values given in the table represent relative frequencies, or the percentage that the categorical values show up. Multiplying 0.20 by the total sample population, 500, you get 100, which supports answer choice B.",
+        "U1-L3-Q03": "The total counts of each value add up to 90. Adding key lime pies and pumpkin pies sold equals 30, and dividing this value by the total yields a percentage less than 50%.",
+        "U1-L7-Q01": "The mean is an average of the data, so if an outlier is added it'll change the value of the values in total while also adding another variable to divide with.",
+        "U1-L7-Q02": "This follows the equation that helps to find the standard deviation of a data set",
+        "U1-L7-Q03": "It is an a data set with an even amount of data points, so we must take the average of the two middle values.",
+        "U1-L7-Q04": "To find an outlier using the mean and standard deviation, you would multiply the standard deviation by 2 and then both add and subtract from the mean. This will be the maximum and minimum value that a value can be without being considered an outlier.",
+        "U1-L7-Q05": "When dealing with a percentile, being in the 77th percentile means that you placed at that certain score and there were likely people that performed less than you.",
+        "U1-L7-Q06": "The IQR is 38-32, which = 6. 1.5 * 6 = 9, and seeing if a value is an outlier would be (Q1 - 1.5*IQR) or (Q3 - 1.5*IQR)",
+        "U1-L8-Q01": "Each section of a box plot represents 25% of data. If we're talking about the top 25%, it would be referencing the right most section of the box plot.",
+        "U1-L8-Q02": "Each section of a box plot represents 25% of data.  Since people have to be at least 48 inches, the portions above the median is what we're looking for.",
+        "U1-L8-Q03": "The data is evidently skewed left just by looking at the distribution. What makes C a better answer than E though is since there is so much data, the average will likely be lessened as a result. This means that the mean isn't very likely to stick around the 35-40 range, whereas the median will be."
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699196915,
+        "U1-L3-Q02": 1757699353190,
+        "U1-L3-Q03": 1757699467018,
+        "U1-L4-Q01": "2025-09-15T17:32:54.647Z",
+        "U1-L4-Q02": "2025-09-15T17:32:58.393Z",
+        "U1-L4-Q03": "2025-09-15T17:33:00.217Z",
+        "U1-L4-Q04": "2025-09-15T17:33:07.015Z",
+        "U1-L4-Q05": "2025-09-15T17:33:16.465Z",
+        "U1-L4-Q06": "2025-09-15T17:33:41.291Z",
+        "U1-L5-Q03": "2025-09-17T15:35:49.945Z",
+        "U1-L5-Q02": "2025-09-17T15:35:53.268Z",
+        "U1-L5-Q01": "2025-09-17T15:35:56.602Z",
+        "U1-L6-Q03": "2025-09-19T17:27:24.525Z",
+        "U1-L6-Q02": "2025-09-19T17:27:26.160Z",
+        "U1-L6-Q01": "2025-09-19T17:27:28.038Z",
+        "U1-L2-Q03": "2025-09-22T15:50:02.221Z",
+        "U1-L2-Q02": "2025-09-22T15:50:04.318Z",
+        "U1-L2-Q01": "2025-09-22T15:50:06.174Z",
+        "U1-L7-Q01": "2025-09-24T15:27:21.839Z",
+        "U1-L7-Q02": "2025-09-24T15:29:21.514Z",
+        "U1-L7-Q03": "2025-09-24T15:31:54.154Z",
+        "U1-L7-Q04": "2025-09-24T15:36:24.991Z",
+        "U1-L7-Q05": "2025-09-24T15:43:55.608Z",
+        "U1-L7-Q06": "2025-09-24T15:48:19.530Z",
+        "U1-L8-Q01": "2025-09-29T18:02:31.766Z",
+        "U1-L8-Q02": "2025-09-29T18:05:54.522Z",
+        "U1-L8-Q03": "2025-09-29T18:10:26.476Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q01": 1,
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 2
+      }
+    },
+    "Berry_Iguana": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:32:14.723Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:42:17.030Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:56:33.849Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:58:54.513Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T18:02:30.096Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:04:59.277Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T18:07:40.192Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:10:40.869Z"
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:11:32.684Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T17:02:16.509Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T16:56:44.288Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:03:39.899Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "This is because vanilla and chocolate, when combined, equal 165 votes by the students. Since 300 students voted, half of the votes would be 150. Knowing this, we also know that 165 is 15 more than half of the students, therefore answer E is the wrong statement.",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "C is the correct answer since it is the only statement that is false and therefore not supported by the table. We can see that answer C is false because it claims that more men chose a combination with black than a combination with blue, however the table shows the opposite as 44 men chose a combination with black and 56 men chose a combination with blue.",
+        "U1-L4-Q02": "Based on the table, it appears that answers A through D are all correct but not E. Due to only being able to choose one answer, I went with answer E despite the question asking which statements IS supported by the table.",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q03": "The numbers listed are the quantity of video games sold per each day of the week, therefore making them quantitative. They are also discrete because there are gaps between the quantities.",
+        "U1-L5-Q02": "Option E. is the right answer because it asks to count and the possible numbers counted can have gaps.",
+        "U1-L5-Q01": "Option C. is the best because it includes diameters which need to be measured and amongst the values of the diameters there may not be gaps."
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-15T17:32:14.723Z",
+        "U1-L3-Q03": "2025-09-15T17:42:17.030Z",
+        "U1-L4-Q01": "2025-09-15T17:56:33.849Z",
+        "U1-L4-Q02": "2025-09-15T17:58:54.513Z",
+        "U1-L4-Q03": "2025-09-15T18:02:30.096Z",
+        "U1-L4-Q04": "2025-09-15T18:04:59.277Z",
+        "U1-L4-Q05": "2025-09-15T18:07:40.192Z",
+        "U1-L4-Q06": "2025-09-15T18:10:40.869Z",
+        "U1-L3-Q02": "2025-09-15T18:11:32.684Z",
+        "U1-L5-Q03": "2025-09-17T17:02:16.509Z",
+        "U1-L5-Q02": "2025-09-17T16:56:44.288Z",
+        "U1-L5-Q01": "2025-09-17T17:03:39.899Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L3-Q02": 1,
+        "U1-L5-Q03": 2,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1
+      }
+    },
+    "Cherry_Monkey": {
+      "answers": {
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:21:10.635Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:21:14.642Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:21:17.563Z"
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-17T19:27:19.242Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:27:22.550Z"
+        },
+        "U1-L3-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:27:42.240Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:33:29.469Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:33:31.188Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-17T19:33:42.517Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:33:54.681Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:34:08.765Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:34:18.877Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:34:59.774Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:35:03.460Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:35:06.676Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:26:45.173Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:26:49.560Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:26:53.195Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:26:16.191Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:27:52.668Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:28:41.051Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:29:13.735Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:29:52.284Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:30:25.314Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:05:41.305Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:06:02.920Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:06:48.218Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q03": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L7-Q01": "The mean is not resistant to outliers, so it is likely to change. The median is resistant to outliers,\nso the addition of the outlier will not greatly (if at all) change the median’s value",
+        "U1-L7-Q02": "I guessed I dont know",
+        "U1-L7-Q03": "Correct. To find the median of the list of data, first order the data from least to greatest: 250,600;\n275,800; 275,800; 281,900; 284,700; 295,000; 302,100; 305,400. Since there are 8 values, an even\nnumber, the median is the average of the 2 values in the middle of the ordered list. The median selling price of the houses is $283,300",
+        "U1-L7-Q04": "This value is an outlier, because it is located more than 2 standard deviations below the mean.\nOf the five values that are listed in the options, this value is the greatest value that is an outlier.",
+        "U1-L7-Q05": ". This is a correct interpretation of the percentile of the distribution. 77% of the scores were\nless than or equal to 68, and 77% of 1,000 scores is 770 scores",
+        "U1-L7-Q06": "The is , which is 38 minus 34 or 4. An upper outlier exists if it is greater than\n, but the value 43 is not greater than .",
+        "U1-L8-Q01": "The value 35 is the third quartile, meaning at least 25% of the cars get 35 miles per gallon or\nmore.",
+        "U1-L8-Q02": "The median appears to be halfway between 46 and 50 at 48. So approximately 50% of the\npeople met the height requirement.",
+        "U1-L8-Q03": "The distribution is skewed to the left because the left tail is longer than the right tail. The mean\ntends to be less than the median in distributions that are skewed to the left"
+      },
+      "timestamps": {
+        "U1-L2-Q03": "2025-09-17T19:21:10.635Z",
+        "U1-L2-Q02": "2025-09-17T19:21:14.642Z",
+        "U1-L2-Q01": "2025-09-17T19:21:17.563Z",
+        "U1-L3-Q02": "2025-09-17T19:27:19.242Z",
+        "U1-L3-Q03": "2025-09-17T19:27:22.550Z",
+        "U1-L3-Q01": "2025-09-17T19:27:42.240Z",
+        "U1-L4-Q01": "2025-09-17T19:33:29.469Z",
+        "U1-L4-Q02": "2025-09-17T19:33:31.188Z",
+        "U1-L4-Q03": "2025-09-17T19:33:42.517Z",
+        "U1-L4-Q04": "2025-09-17T19:33:54.681Z",
+        "U1-L4-Q05": "2025-09-17T19:34:08.765Z",
+        "U1-L4-Q06": "2025-09-17T19:34:18.877Z",
+        "U1-L5-Q01": "2025-09-17T19:34:59.774Z",
+        "U1-L5-Q02": "2025-09-17T19:35:03.460Z",
+        "U1-L5-Q03": "2025-09-17T19:35:06.676Z",
+        "U1-L6-Q01": "2025-09-24T15:26:45.173Z",
+        "U1-L6-Q02": "2025-09-24T15:26:49.560Z",
+        "U1-L6-Q03": "2025-09-24T15:26:53.195Z",
+        "U1-L7-Q01": "2025-09-26T17:26:16.191Z",
+        "U1-L7-Q02": "2025-09-26T17:27:52.668Z",
+        "U1-L7-Q03": "2025-09-26T17:28:41.051Z",
+        "U1-L7-Q04": "2025-09-26T17:29:13.735Z",
+        "U1-L7-Q05": "2025-09-26T17:29:52.284Z",
+        "U1-L7-Q06": "2025-09-26T17:30:25.314Z",
+        "U1-L8-Q01": "2025-09-29T18:05:41.305Z",
+        "U1-L8-Q02": "2025-09-29T18:06:02.920Z",
+        "U1-L8-Q03": "2025-09-29T18:06:48.218Z"
+      },
+      "attempts": {
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Banana_Fox": {
+      "answers": {
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:27:07.698Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:32:02.131Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:34:28.273Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:34:50.527Z"
+        },
+        "U1-L7-Q06": {
+          "value": "C",
+          "timestamp": "2025-09-25T14:39:12.271Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:40:48.897Z"
+        }
+      },
+      "reasons": {
+        "U1-L7-Q03": "",
+        "U1-L7-Q04": "",
+        "U1-L7-Q01": "",
+        "U1-L7-Q02": "",
+        "U1-L7-Q06": "",
+        "U1-L7-Q05": ""
+      },
+      "timestamps": {
+        "U1-L7-Q03": "2025-09-25T14:27:07.698Z",
+        "U1-L7-Q04": "2025-09-25T14:32:02.131Z",
+        "U1-L7-Q01": "2025-09-25T14:34:28.273Z",
+        "U1-L7-Q02": "2025-09-25T14:34:50.527Z",
+        "U1-L7-Q06": "2025-09-25T14:39:12.271Z",
+        "U1-L7-Q05": "2025-09-25T14:40:48.897Z"
+      },
+      "attempts": {
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q06": 1,
+        "U1-L7-Q05": 1
+      }
+    },
+    "Coconut_Cat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:04:33.817Z"
+        },
+        "U1-L3-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:09:44.267Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:14:42.757Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:40:50.643Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:41:40.500Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:38:52.128Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:46:14.688Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:47:32.991Z"
+        },
+        "U1-L2-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:49:05.839Z"
+        },
+        "U1-L4-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:50:13.285Z"
+        },
+        "U1-L4-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:51:28.347Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:52:58.203Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:53:26.196Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-24T17:02:13.272Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-24T17:02:50.165Z"
+        },
+        "U1-L5-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-24T17:08:10.864Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T17:09:19.391Z"
+        },
+        "U1-L5-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-24T17:10:04.361Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "More people chose vanilla than half being both vanilla or chocolate.",
+        "U1-L3-Q02": "The percentage given proves that less than half of people were affiliated with Democrats and Republicans.",
+        "U1-L3-Q03": "",
+        "U1-L6-Q02": "Even if one more bar is added, the sum of all the frequencies should be the same.",
+        "U1-L6-Q03": "There's more data points directed towards the left.",
+        "U1-L6-Q01": "It didn't specify if the gap was empty or if there were less data presented in front of the point.",
+        "U1-L2-Q01": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": "Where the coin was minted would be quantitative because it gives a definitive number of where the coin was traced back to, which could be categorial.",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q01": "On the previous attempt, I forgot to mention the given continuous variable.",
+        "U1-L5-Q02": "Non discrete variable attempt before.",
+        "U1-L5-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-17T17:04:33.818Z",
+        "U1-L3-Q02": "2025-09-17T17:09:44.267Z",
+        "U1-L3-Q03": "2025-09-17T17:14:42.757Z",
+        "U1-L6-Q02": "2025-09-24T15:40:50.643Z",
+        "U1-L6-Q03": "2025-09-24T15:41:40.500Z",
+        "U1-L6-Q01": "2025-09-24T15:38:52.128Z",
+        "U1-L2-Q01": "2025-09-24T15:46:14.688Z",
+        "U1-L2-Q02": "2025-09-24T15:47:32.991Z",
+        "U1-L2-Q03": "2025-09-24T15:49:05.839Z",
+        "U1-L4-Q01": "2025-09-24T15:50:13.285Z",
+        "U1-L4-Q02": "2025-09-24T15:51:28.347Z",
+        "U1-L4-Q03": "2025-09-24T15:52:58.203Z",
+        "U1-L4-Q04": "2025-09-24T15:53:26.196Z",
+        "U1-L4-Q05": "2025-09-24T17:02:13.272Z",
+        "U1-L4-Q06": "2025-09-24T17:02:50.166Z",
+        "U1-L5-Q01": "2025-09-24T17:08:10.864Z",
+        "U1-L5-Q02": "2025-09-24T17:09:19.391Z",
+        "U1-L5-Q03": "2025-09-24T17:10:04.361Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L6-Q02": 2,
+        "U1-L6-Q03": 3,
+        "U1-L6-Q01": 3,
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 3,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 3,
+        "U1-L5-Q02": 2,
+        "U1-L5-Q03": 1
+      }
+    },
+    "Grape_Koala": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:35:07.132Z"
+        },
+        "U1-L4-Q06": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:42:43.264Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:42:45.451Z"
+        },
+        "U1-L4-Q04": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:43:51.569Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:45:37.574Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:45:44.804Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T17:02:10.143Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:02:12.157Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T17:02:13.607Z"
+        },
+        "U1-L6-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:24:25.931Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:24:28.610Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:24:47.544Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "",
+        "U1-L4-Q06": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": ""
+      },
+      "timestamps": {
+        "U1-L4-Q01": "2025-09-15T17:35:07.132Z",
+        "U1-L4-Q06": "2025-09-15T17:42:43.265Z",
+        "U1-L4-Q05": "2025-09-15T17:42:45.451Z",
+        "U1-L4-Q04": "2025-09-15T17:43:51.569Z",
+        "U1-L4-Q02": "2025-09-15T17:45:37.574Z",
+        "U1-L4-Q03": "2025-09-15T17:45:44.804Z",
+        "U1-L5-Q01": "2025-09-17T17:02:10.146Z",
+        "U1-L5-Q02": "2025-09-17T17:02:12.157Z",
+        "U1-L5-Q03": "2025-09-17T17:02:13.607Z",
+        "U1-L6-Q02": "2025-09-24T15:24:25.931Z",
+        "U1-L6-Q01": "2025-09-24T15:24:28.610Z",
+        "U1-L6-Q03": "2025-09-24T15:24:47.544Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q06": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q03": 1
+      }
+    },
+    "Grape_Newt": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "A",
+          "timestamp": 1757700503932
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": 1757700534007
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757700695762
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757700503932,
+        "U1-L3-Q02": 1757700534007,
+        "U1-L3-Q03": 1757700695762
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1
+      }
+    },
+    "Guava_Cat": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757683616691
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757683654977
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757683662926
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757683703934
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757683734289
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757683828224
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757683875484
+        },
+        "U1-L4-Q02": {
+          "value": "C",
+          "timestamp": 1757683914516
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757683992146
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": 1757684101157
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": 1757684261839
+        },
+        "U1-L4-Q06": {
+          "value": "A",
+          "timestamp": 1757684295319
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-16T13:59:13.808Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-16T13:59:57.334Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-16T14:00:18.573Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-16T14:00:53.118Z"
+        },
+        "U1-L6-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-16T14:01:12.438Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-16T14:01:16.204Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "categoricalvariablesusuallydonotincludenumbersandquantitiesmyspacebarwontworkhelp",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L6-Q01": "",
+        "U1-L6-Q03": "",
+        "U1-L6-Q02": ""
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757683616691,
+        "U1-L2-Q02": 1757683654977,
+        "U1-L2-Q03": 1757683662926,
+        "U1-L3-Q01": 1757683703934,
+        "U1-L3-Q02": 1757683734289,
+        "U1-L3-Q03": 1757683828224,
+        "U1-L4-Q01": 1757683875484,
+        "U1-L4-Q02": 1757683914516,
+        "U1-L4-Q03": 1757683992146,
+        "U1-L4-Q04": 1757684101157,
+        "U1-L4-Q05": 1757684261839,
+        "U1-L4-Q06": 1757684295319,
+        "U1-L5-Q01": "2025-09-16T13:59:13.808Z",
+        "U1-L5-Q02": "2025-09-16T13:59:57.334Z",
+        "U1-L5-Q03": "2025-09-16T14:00:18.573Z",
+        "U1-L6-Q01": "2025-09-16T14:00:53.118Z",
+        "U1-L6-Q03": "2025-09-16T14:01:12.438Z",
+        "U1-L6-Q02": "2025-09-16T14:01:16.204Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q02": 1
+      }
+    },
+    "Kiwi_Panda": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757699021157
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757699253475
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757699395922
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757700739917
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701142109
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757948539947
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-19T17:41:54.035Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T17:49:21.972Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-19T18:18:22.008Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-19T18:20:12.896Z"
+        },
+        "U1-L4-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-20T01:20:40.613Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-20T01:24:58.775Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-20T01:35:13.107Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-20T01:38:34.531Z"
+        },
+        "U1-L5-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-20T01:43:37.024Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-20T01:53:09.480Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:43:40.425Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-20T02:46:16.219Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:34:53.962Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:44:57.676Z"
+        },
+        "U1-L7-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:51:49.601Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-30T00:18:25.696Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-30T00:25:28.176Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:28:38.686Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:34:27.903Z"
+        },
+        "U1-L8-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:41:52.076Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-30T00:44:34.817Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is categorical because it is not a numerical value and it describes the features of different objects.",
+        "U1-L2-Q02": "It tells us the different colors of the cars in the parking lot, without give us a numerical value.",
+        "U1-L2-Q03": "Quantitative variable is related to numbers, therefore the values of these different types of coins would be quantitative.",
+        "U1-L3-Q02": "500 times the number of Independents, which is 0.2, and it gives us that 100 people are affiliated with the Independents.",
+        "U1-L3-Q01": "The number of students that chose vanilla or chocolate was 165, which is not one-half of the students vote.",
+        "U1-L3-Q03": "The combine total of key lime pies and pumpkin pies sold was 30, and 30 divided by 90 gave me 0.33, which turned into a percentage was less than 50%, giving me my answer.",
+        "U1-L4-Q01": "If you add the number of men that chose a design with black it would equal to 44, then dividing this number by 100 would make it equal to 0.44, then if you count the number of men that chose a design with blue it would equal to 56, then dividing this number by 100 would make it equal to 0.56. This means that the statement is wrong because the design color that was picked more was a design with blue.",
+        "U1-L4-Q02": "This statement is not true because grade 11's relative frequency is 0.5, but grade 9's relative frequency 0.55, making the statement of grade 11 not true, thus making it the answer.",
+        "U1-L4-Q03": "This statement is true because the total amount of five year old's that selected red or blue is 56, while the number of ten year old's that selected red or blue is 38, meaning that the five year old's have a grater amount selected. I got the number for the ten year old's by multiplying their survey answers by 2 since their original survey responses where half of the five year old's.",
+        "U1-L4-Q04": "This statement is true because the delays from weather is more than half of the pie chart, and if you combined all of the other reasons for delays, it would not come close to of the delays caused by weather.",
+        "U1-L4-Q05": "This statement is true because if you convert the frequency of the people that voted for a 4 year university, you get 30 and 20, and 30 is for Central High School. While the 20 is for Liberty High School, meaning that the number of students from central high school was 10 greater than the number of students from liberty high school.",
+        "U1-L4-Q06": "This statement is not true because if you convert the relative frequency of region c, it equals 10.5 days, which falsifies this statement of \"Region C had more than 25 days of rain.\"",
+        "U1-L5-Q01": "I chose this answer because the diameters of the tree trunks is a continuous variable because the diameters of trees vary, meaning that the number could have decimals in them, make it so that the diameters have no gaps.",
+        "U1-L5-Q02": "E can be considered discrete because the number of books that a person finished reading last month would have to be a whole number because it would only count a book if a person full finished it, it would not count half read books or 75% read books.",
+        "U1-L5-Q03": "B is correct because the number of video games sold is a numerical value for counted quantity and it also continuous because you can't sell 15.6 amount of video games, the number has to be a whole number (has to have gaps).",
+        "U1-L6-Q03": "The majority of the data plots are on the left side of the dot plot chart making is a distribution that is roughly skewed right.",
+        "U1-L6-Q02": "The sum of the frequencies will remain the same even through every other characteristic of the graph changes.",
+        "U1-L6-Q01": "I think B is correct because if you have a gap displayed in your histogram, then that mean that for the region that has the gap, there was no data to be collected or observed giving us that gap.",
+        "U1-L7-Q02": "It is D because the formula for getting the squared deviations of the scores is correct and it uses the mean score of 84 in the right place.",
+        "U1-L7-Q03": "If  you add all the numbers up and divide by total number of house, which is 8, you get B as your answer.",
+        "U1-L7-Q01": "Neither will change because the outlier, since its an outlier, will not be factored in the data set chart.",
+        "U1-L7-Q04": "The mean of 23.5mm with a deviation of 1.4, and the two standard deviation rule, means that 23.5mm minus doubled 1.4mm, gives us 23.5-2.8= 20.7. Meaning answer B is the closest.",
+        "U1-L7-Q05": "This answer tells us that the remaining 23% of the entries got a score that was higher than 68.",
+        "U1-L7-Q06": "This is true because the number you get from adding Q3 by 1.5 by the IQR, it would not the greater than 43.",
+        "U1-L8-Q01": "Based on the boxplot, 25 miles per gallon is the median of the data, but more of the data is at 35, making it the top 25%.",
+        "U1-L8-Q02": "100 divided by 5 different sections of the data gives us a total rough estimate that each section is 20%, this means that about 75% of people met the height requirement.",
+        "U1-L8-Q03": "This is true the median's value is skewed to the right and the mean is less than the median."
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757699021157,
+        "U1-L2-Q02": 1757699253476,
+        "U1-L2-Q03": 1757699395922,
+        "U1-L3-Q02": 1757700739917,
+        "U1-L3-Q01": 1757701142109,
+        "U1-L3-Q03": 1757948539947,
+        "U1-L4-Q01": "2025-09-19T17:41:54.036Z",
+        "U1-L4-Q02": "2025-09-19T17:49:21.972Z",
+        "U1-L4-Q03": "2025-09-19T18:18:22.008Z",
+        "U1-L4-Q04": "2025-09-19T18:20:12.896Z",
+        "U1-L4-Q05": "2025-09-20T01:20:40.613Z",
+        "U1-L4-Q06": "2025-09-20T01:24:58.775Z",
+        "U1-L5-Q01": "2025-09-20T01:35:13.107Z",
+        "U1-L5-Q02": "2025-09-20T01:38:34.531Z",
+        "U1-L5-Q03": "2025-09-20T01:43:37.024Z",
+        "U1-L6-Q03": "2025-09-20T01:53:09.480Z",
+        "U1-L6-Q02": "2025-09-24T15:43:40.425Z",
+        "U1-L6-Q01": "2025-09-20T02:46:16.219Z",
+        "U1-L7-Q02": "2025-09-26T17:34:53.963Z",
+        "U1-L7-Q03": "2025-09-26T17:44:57.676Z",
+        "U1-L7-Q01": "2025-09-26T17:51:49.601Z",
+        "U1-L7-Q04": "2025-09-30T00:18:25.696Z",
+        "U1-L7-Q05": "2025-09-30T00:25:28.176Z",
+        "U1-L7-Q06": "2025-09-30T00:28:38.686Z",
+        "U1-L8-Q01": "2025-09-30T00:34:27.903Z",
+        "U1-L8-Q02": "2025-09-30T00:41:52.076Z",
+        "U1-L8-Q03": "2025-09-30T00:44:34.817Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 3,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q03": 2,
+        "U1-L6-Q02": 2,
+        "U1-L6-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 2,
+        "U1-L7-Q01": 3,
+        "U1-L7-Q04": 3,
+        "U1-L7-Q05": 2,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 2,
+        "U1-L8-Q02": 3,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Guava_Wolf": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T18:23:48.906Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T18:23:56.504Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T18:24:03.802Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:24:10.829Z"
+        },
+        "U1-L4-Q05": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:24:18.166Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:24:24.907Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:35:30.690Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:36:14.568Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:40:43.167Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:43:56.866Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:44:26.902Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:49:26.998Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "i understand the question",
+        "U1-L4-Q02": "i understand",
+        "U1-L4-Q03": "i understand",
+        "U1-L4-Q04": "i understand",
+        "U1-L4-Q05": "i understand",
+        "U1-L4-Q06": "i understand",
+        "U1-L7-Q01": "GREAT",
+        "U1-L7-Q02": "GREAT",
+        "U1-L7-Q05": "great",
+        "U1-L7-Q04": "great",
+        "U1-L7-Q03": "great",
+        "U1-L7-Q06": "great"
+      },
+      "timestamps": {
+        "U1-L4-Q01": "2025-09-15T18:23:48.906Z",
+        "U1-L4-Q02": "2025-09-15T18:23:56.504Z",
+        "U1-L4-Q03": "2025-09-15T18:24:03.802Z",
+        "U1-L4-Q04": "2025-09-15T18:24:10.829Z",
+        "U1-L4-Q05": "2025-09-15T18:24:18.166Z",
+        "U1-L4-Q06": "2025-09-15T18:24:24.907Z",
+        "U1-L7-Q01": "2025-09-26T17:35:30.690Z",
+        "U1-L7-Q02": "2025-09-26T17:36:14.568Z",
+        "U1-L7-Q05": "2025-09-26T17:40:43.167Z",
+        "U1-L7-Q04": "2025-09-26T17:43:56.866Z",
+        "U1-L7-Q03": "2025-09-26T17:44:26.902Z",
+        "U1-L7-Q06": "2025-09-26T17:49:26.998Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q06": 1
+      }
+    },
+    "lemon_eagle": {
+      "answers": {
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:40:22.557Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:41:04.470Z"
+        },
+        "U1-L7-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:43:10.476Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:44:13.781Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:44:29.191Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:46:37.560Z"
+        }
+      },
+      "reasons": {
+        "U1-L7-Q01": "The mean changes based on the distribution, while the median is much more resistant.",
+        "U1-L7-Q02": "It says the \"sum of the squared deviations\" thus d is the answer.",
+        "U1-L7-Q03": "($275,800+$250,600)/2= $263,200",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q06": "Outliers are the numbers after the whisker"
+      },
+      "timestamps": {
+        "U1-L7-Q01": "2025-09-26T17:40:22.557Z",
+        "U1-L7-Q02": "2025-09-26T17:41:04.470Z",
+        "U1-L7-Q03": "2025-09-26T17:43:10.476Z",
+        "U1-L7-Q04": "2025-09-26T17:44:13.781Z",
+        "U1-L7-Q05": "2025-09-26T17:44:29.191Z",
+        "U1-L7-Q06": "2025-09-26T17:46:37.560Z"
+      },
+      "attempts": {
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1
+      }
+    },
+    "Mango_Dog": {
+      "answers": {
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": 1757699264908
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": 1757699682756
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": 1757700802934
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701302388
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757902720680
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757902982195
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:42:23.305Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:56:23.289Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:03:14.340Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T16:14:23.996Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T16:16:12.706Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T16:18:01.134Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:25:11.510Z"
+        },
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:31:35.606Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:31:19.951Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:28:12.395Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:31:36.162Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:39:09.849Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:49:54.445Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:51:37.770Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:48:34.339Z"
+        }
+      },
+      "reasons": {
+        "U1-L4-Q01": "Answer C is correct because when calculating the number of men who chose a combination that had black in it, it turned out that 44 men chose a design with black. However, when calculating the number of men that chose a design with blue, it turned out to be 56 men who chose that a design with blue, making answer C a false statement but the answer to this question.",
+        "U1-L4-Q02": "I think that the answer is choice D because in the bar chart above I observed that in grade 12, out of all the grades did in fact have the least frequency out of all the grades",
+        "U1-L4-Q03": "I chose answer A because when I was calculating the percentage of five years old who selected red, I got 21% and for blue I got  35%. Also, I calculated the percentage of ten year old who selected red and got 14% and for blue, it was 24%. This makes the statement true as I calculated the other answers and they were proven to be false.",
+        "U1-L3-Q01": "When I added the amount of students who chose vanilla and chocolate I got the value of 165. However, when I found out what would be 1/2 of the students who participated, it turned out to be 150, making letter E a false statement but the correct answer for this question.",
+        "U1-L3-Q02": "Answer B is the correct answer. This is because based on the bar graph, the numbers shown are showcased in percentages. This means that the number of independents out of the 500 people was 20%. So when I found out what 20% of 500 it was indeed 100, making answer B a correct statement.",
+        "U1-L3-Q03": "The answer is E because when I added up the number of key lime pies sold and pumpkin pies sold, it was 30 pies. Now, having that number I looked for the percentage that would be out of the total number of all the pies which was 90. Doing so, I got 33% which is less than 50%, making E correct.",
+        "U1-L4-Q04": "In total, the percentage of reasoning of delay by weather was 70%. When I added percentages of all the rest of the percentages, they were in total 30%. This means that this answer B is correct as 70 is greater than 30.",
+        "U1-L4-Q05": "Answer E is the correct answer in this problem. When I calculated the percentages for undecided people at Liberty High School and Central High School into the number of students I got 10 from LHS and 6 from CHS, making E a correct statement.",
+        "U1-L4-Q06": "This is the correct answer because as I calculated the percentage  into days for Region C, I found out that the number of days for Region C was 10.5 days. With this in mind, by looking at answer C, this statement is false but the correct answer to this question.",
+        "U1-L5-Q01": "Answer C is correct because out of all the answers that are listed above, answer C is the only one that can have values that are in between another with no gaps. It can be any value with a decimal while the other answers have a countable value with gaps.",
+        "U1-L5-Q02": "I think that letter E is the correct answer because it has a value that is countable and has no number that has a random decimal after the value. This can only be a whole number, therefore, E is the correct answer.",
+        "U1-L5-Q03": "I chose this answer because for starters, the values given are of numerical values. This would makes these data points, quantitative. Also, since there are gaps between these numbers and that they have a whole number that is countable, it makes it a discrete variable.",
+        "U1-L6-Q01": "I think that B is the correct answer because if there is a gap that is seen on a histogram between one area to the next, it is most likely that there was simply no data point to plot in that gap area.",
+        "U1-L6-Q02": "Answer A is the correct answer because if the interval has decreased in the histograph, mostly everything will change if there is more information to be added. However as the height doesn't relate to it, it will stay the same.",
+        "U1-L6-Q03": "Answer is E because by looking at the graph it can be seen that in the graph the data points start out low on the right but then has a higher data value on the left. Skewed right is when there is like a tail going to the right as it increases to decreases in number of data points plotted.",
+        "U1-L7-Q01": "They are likely to to change because a new value is being added into the data set, it will likely change that value the mean. The median is not affected as much as it depend on the amount of values and if it's an even number or an odd number",
+        "U1-L7-Q02": "This equation is correct because it is the only one that represents standard deviation as it includes the mean being subtracted by the data point and squared. Therefore, letter D is the correct answer.",
+        "U1-L7-Q03": "The answer to this problem is B. This is because as I ordered the data points from smallest to biggest, I tried to eliminate the values one by one to see if a median could be found like that. However, since they're even numbers, I had to add the remaining two and divide them by 2 to get the answer of 283,300.",
+        "U1-L7-Q04": "B is the correct answer. I did this by simply subtracting the standard deviation twice and I got 20.7 so I just did by the closest answer on there",
+        "U1-L7-Q05": "I think it's A because out of 1,000, 77th percentile is probably 77% or 770 participants. Out of all these answers A sounds like the better answer."
+      },
+      "timestamps": {
+        "U1-L4-Q01": 1757699264908,
+        "U1-L4-Q02": 1757699682756,
+        "U1-L4-Q03": 1757700802934,
+        "U1-L3-Q01": 1757701302388,
+        "U1-L3-Q02": 1757902720680,
+        "U1-L3-Q03": 1757902982195,
+        "U1-L4-Q04": "2025-09-15T17:42:23.305Z",
+        "U1-L4-Q05": "2025-09-15T17:56:23.289Z",
+        "U1-L4-Q06": "2025-09-15T18:03:14.340Z",
+        "U1-L5-Q01": "2025-09-17T16:14:23.996Z",
+        "U1-L5-Q02": "2025-09-17T16:16:12.706Z",
+        "U1-L5-Q03": "2025-09-17T16:18:01.134Z",
+        "U1-L6-Q01": "2025-09-24T15:25:11.510Z",
+        "U1-L6-Q02": "2025-09-24T15:31:35.606Z",
+        "U1-L6-Q03": "2025-09-24T15:31:19.951Z",
+        "U1-L7-Q01": "2025-09-26T17:28:12.395Z",
+        "U1-L7-Q02": "2025-09-26T17:31:36.162Z",
+        "U1-L7-Q03": "2025-09-26T17:39:09.849Z",
+        "U1-L7-Q04": "2025-09-26T17:49:54.445Z",
+        "U1-L7-Q05": "2025-09-26T17:51:37.770Z",
+        "U1-L7-Q06": "2025-09-26T17:48:34.339Z"
+      },
+      "attempts": {
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 3,
+        "U1-L6-Q03": 3,
+        "U1-L7-Q01": 3,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 2,
+        "U1-L7-Q05": 2,
+        "U1-L7-Q06": 1
+      }
+    },
+    "Lemon_Eagle": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:43:07.438Z"
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:43:23.146Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:45:08.792Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:55:13.606Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:55:18.443Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:59:30.557Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T18:01:52.227Z"
+        },
+        "U1-L4-Q05": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:07:05.955Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:13:18.270Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "44<56",
+        "U1-L4-Q02": "11 does not have the highest frequency.",
+        "U1-L4-Q03": "56>38",
+        "U1-L4-Q04": "Pink > all other colors",
+        "U1-L4-Q05": "4y = M",
+        "U1-L4-Q06": "83>25 ::::> C<83"
+      },
+      "timestamps": {
+        "U1-L3-Q01": "2025-09-15T17:43:07.438Z",
+        "U1-L3-Q02": "2025-09-15T17:43:23.146Z",
+        "U1-L3-Q03": "2025-09-15T17:45:08.792Z",
+        "U1-L4-Q01": "2025-09-15T17:55:13.606Z",
+        "U1-L4-Q02": "2025-09-15T17:55:18.443Z",
+        "U1-L4-Q03": "2025-09-15T17:59:30.557Z",
+        "U1-L4-Q04": "2025-09-15T18:01:52.227Z",
+        "U1-L4-Q05": "2025-09-15T18:07:05.955Z",
+        "U1-L4-Q06": "2025-09-15T18:13:18.270Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1
+      }
+    },
+    "Lemon_Goat": {
+      "answers": {
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-16T14:03:59.835Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-16T14:05:54.096Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:27:24.685Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:15:21.901Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:19:50.072Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:24:42.355Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:25:51.117Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:26:11.912Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:27:08.594Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:07:07.664Z"
+        },
+        "U1-L8-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:12:35.516Z"
+        },
+        "U1-L8-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:12:38.797Z"
+        }
+      },
+      "reasons": {
+        "U1-L5-Q01": "Continuous variable are about measurements.",
+        "U1-L5-Q02": "Discrete variable are finite or countable numbers of distinct values.",
+        "U1-L5-Q03": "mn jn bbj kj",
+        "U1-L7-Q01": "only the mean is likely to change greatly",
+        "U1-L7-Q02": "",
+        "U1-L7-Q03": "because 281,900-284,700/2 equals that",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q06": "hjj",
+        "U1-L8-Q01": "iuvjhvyufvuy",
+        "U1-L8-Q02": "hfcthctycjytcjccgthgv",
+        "U1-L8-Q03": "jhfdhjvdsbvadbvfmn"
+      },
+      "timestamps": {
+        "U1-L5-Q01": "2025-09-16T14:03:59.836Z",
+        "U1-L5-Q02": "2025-09-16T14:05:54.096Z",
+        "U1-L5-Q03": "2025-09-18T14:27:24.686Z",
+        "U1-L7-Q01": "2025-09-25T14:15:21.901Z",
+        "U1-L7-Q02": "2025-09-25T14:19:50.072Z",
+        "U1-L7-Q03": "2025-09-25T14:24:42.355Z",
+        "U1-L7-Q04": "2025-09-25T14:25:51.117Z",
+        "U1-L7-Q05": "2025-09-25T14:26:11.912Z",
+        "U1-L7-Q06": "2025-09-25T14:27:08.594Z",
+        "U1-L8-Q01": "2025-09-26T13:07:07.665Z",
+        "U1-L8-Q02": "2025-09-26T13:12:35.516Z",
+        "U1-L8-Q03": "2025-09-26T13:12:38.798Z"
+      },
+      "attempts": {
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Mango_Tiger": {
+      "answers": {
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:31:41.622Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:31:52.193Z"
+        },
+        "U1-L6-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:34:11.535Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:23:50.143Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:24:27.484Z"
+        },
+        "U1-L7-Q04": {
+          "value": "E",
+          "timestamp": "2025-09-26T17:29:35.638Z"
+        },
+        "U1-L7-Q06": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:35:22.896Z"
+        },
+        "U1-L7-Q05": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:36:13.065Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:39:10.091Z"
+        },
+        "U1-L8-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:01:31.661Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:04:25.716Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:06:26.553Z"
+        }
+      },
+      "reasons": {
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L6-Q01": ""
+      },
+      "timestamps": {
+        "U1-L6-Q02": "2025-09-24T15:31:41.622Z",
+        "U1-L6-Q03": "2025-09-24T15:31:52.193Z",
+        "U1-L6-Q01": "2025-09-24T15:34:11.535Z",
+        "U1-L7-Q01": "2025-09-26T17:23:50.143Z",
+        "U1-L7-Q02": "2025-09-26T17:24:27.484Z",
+        "U1-L7-Q04": "2025-09-26T17:29:35.638Z",
+        "U1-L7-Q06": "2025-09-26T17:35:22.896Z",
+        "U1-L7-Q05": "2025-09-26T17:36:13.065Z",
+        "U1-L7-Q03": "2025-09-26T17:39:10.091Z",
+        "U1-L8-Q02": "2025-09-29T18:01:31.661Z",
+        "U1-L8-Q01": "2025-09-29T18:04:25.716Z",
+        "U1-L8-Q03": "2025-09-29T18:06:26.553Z"
+      },
+      "attempts": {
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q06": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q03": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Lemon_Monkey": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757698959605
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699467562
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699489907
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q02": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757698959605,
+        "U1-L3-Q03": 1757699467562,
+        "U1-L3-Q02": 1757699489907
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q02": 1
+      }
+    },
+    "Papaya_Eagle": {
+      "answers": {
+        "U1-L6-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:04:34.807Z"
+        },
+        "U1-L6-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:04:37.622Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-25T14:04:40.747Z"
+        },
+        "U1-L7-Q06": {
+          "value": "C",
+          "timestamp": "2025-09-25T14:05:34.560Z"
+        },
+        "U1-L7-Q05": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:05:36.087Z"
+        },
+        "U1-L7-Q04": {
+          "value": "E",
+          "timestamp": "2025-09-25T14:05:38.520Z"
+        },
+        "U1-L7-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-25T14:05:40.108Z"
+        },
+        "U1-L7-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:05:41.900Z"
+        },
+        "U1-L7-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-25T14:05:43.714Z"
+        },
+        "U1-L8-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-26T13:08:01.120Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:08:02.444Z"
+        },
+        "U1-L8-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-26T13:09:07.607Z"
+        }
+      },
+      "reasons": {
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L7-Q06": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q04": "",
+        "U1-L7-Q03": "",
+        "U1-L7-Q02": "",
+        "U1-L7-Q01": ""
+      },
+      "timestamps": {
+        "U1-L6-Q01": "2025-09-25T14:04:34.807Z",
+        "U1-L6-Q02": "2025-09-25T14:04:37.622Z",
+        "U1-L6-Q03": "2025-09-25T14:04:40.747Z",
+        "U1-L7-Q06": "2025-09-25T14:05:34.560Z",
+        "U1-L7-Q05": "2025-09-25T14:05:36.087Z",
+        "U1-L7-Q04": "2025-09-25T14:05:38.520Z",
+        "U1-L7-Q03": "2025-09-25T14:05:40.108Z",
+        "U1-L7-Q02": "2025-09-25T14:05:41.900Z",
+        "U1-L7-Q01": "2025-09-25T14:05:43.714Z",
+        "U1-L8-Q02": "2025-09-26T13:08:01.120Z",
+        "U1-L8-Q01": "2025-09-26T13:08:02.445Z",
+        "U1-L8-Q03": "2025-09-26T13:09:07.607Z"
+      },
+      "attempts": {
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q06": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "mango_panda": {
+      "answers": {
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-18T14:07:18.885Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-18T14:07:21.226Z"
+        },
+        "U1-L6-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:07:22.435Z"
+        },
+        "U1-L7-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:09:13.422Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-18T14:09:33.718Z"
+        }
+      },
+      "reasons": {
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L7-Q01": "",
+        "U1-L7-Q03": ""
+      },
+      "timestamps": {
+        "U1-L6-Q01": "2025-09-18T14:07:18.885Z",
+        "U1-L6-Q02": "2025-09-18T14:07:21.226Z",
+        "U1-L6-Q03": "2025-09-18T14:07:22.435Z",
+        "U1-L7-Q01": "2025-09-18T14:09:13.422Z",
+        "U1-L7-Q03": "2025-09-18T14:09:33.718Z"
+      },
+      "attempts": {
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q03": 1
+      }
+    },
+    "Papaya_Fox": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699076408
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699129382
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757699172806
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-15T17:34:14.841Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:34:28.917Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:36:23.731Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:41:38.522Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:57:50.148Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T18:00:09.590Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:59:39.191Z"
+        },
+        "U1-L5-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-17T15:59:41.567Z"
+        },
+        "U1-L5-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-17T15:59:43.018Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-19T17:35:00.259Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T17:36:53.701Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T17:46:32.090Z"
+        },
+        "U1-L7-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-22T15:41:17.112Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "Because 165 isn't one half of 300",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L4-Q02": "The reason as to why I picked this answer is partly due to the fact that all other answers were supported EXCEPT for this one.",
+        "U1-L4-Q01": "The reasoning being that there were more people who chose blue than black.",
+        "U1-L4-Q03": "The reason as to why I chose this answer is because 56% is greater than 38%",
+        "U1-L4-Q04": "The reasoning being that 70% is bigger than 30%.",
+        "U1-L4-Q05": "I picked C because both schools had the same value in that category.",
+        "U1-L4-Q06": "The reason as to why I chose D is because Region C isn't even close to having 25. It had about 10-11 days of rain.",
+        "U1-L5-Q03": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q01": "",
+        "U1-L6-Q02": "The reason being that it's only the bottom being impacted, not the height.",
+        "U1-L6-Q03": "The reason being, the tail is on the right meaning the distribution is skewed right.",
+        "U1-L6-Q01": "The reason why I chose this answer is due to the fact that gaps are usually there due to missing data or data that was never recorded.",
+        "U1-L7-Q01": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699076408,
+        "U1-L3-Q02": 1757699129382,
+        "U1-L3-Q03": 1757699172806,
+        "U1-L4-Q02": "2025-09-15T17:34:14.841Z",
+        "U1-L4-Q01": "2025-09-15T17:34:28.917Z",
+        "U1-L4-Q03": "2025-09-15T17:36:23.731Z",
+        "U1-L4-Q04": "2025-09-15T17:41:38.522Z",
+        "U1-L4-Q05": "2025-09-15T17:57:50.148Z",
+        "U1-L4-Q06": "2025-09-15T18:00:09.590Z",
+        "U1-L5-Q03": "2025-09-17T15:59:39.192Z",
+        "U1-L5-Q02": "2025-09-17T15:59:41.567Z",
+        "U1-L5-Q01": "2025-09-17T15:59:43.018Z",
+        "U1-L6-Q02": "2025-09-19T17:35:00.259Z",
+        "U1-L6-Q03": "2025-09-19T17:36:53.701Z",
+        "U1-L6-Q01": "2025-09-19T17:46:32.091Z",
+        "U1-L7-Q01": "2025-09-22T15:41:17.112Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q02": 3,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q01": 2,
+        "U1-L7-Q01": 1
+      }
+    },
+    "Papaya_Iguana": {
+      "answers": {
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:27:20.127Z"
+        },
+        "U1-L6-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:27:45.687Z"
+        },
+        "U1-L6-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:27:56.629Z"
+        },
+        "U1-L5-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:28:09.276Z"
+        },
+        "U1-L5-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:28:39.254Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:28:47.759Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:29:28.318Z"
+        },
+        "U1-L4-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:29:40.086Z"
+        },
+        "U1-L4-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:30:10.038Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:30:25.228Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-24T15:30:34.509Z"
+        },
+        "U1-L4-Q06": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:30:59.592Z"
+        },
+        "U1-L3-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:31:14.841Z"
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:31:47.132Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:32:31.203Z"
+        },
+        "U1-L2-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-24T15:32:51.840Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:33:05.246Z"
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:33:19.949Z"
+        },
+        "U1-L7-Q01": {
+          "value": "E",
+          "timestamp": "2025-09-26T17:35:17.437Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:35:48.124Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:36:19.002Z"
+        },
+        "U1-L7-Q04": {
+          "value": "C",
+          "timestamp": "2025-09-26T17:39:50.989Z"
+        },
+        "U1-L7-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-26T17:46:20.360Z"
+        },
+        "U1-L7-Q06": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:46:31.404Z"
+        },
+        "U1-L8-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:03:10.524Z"
+        },
+        "U1-L8-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-29T18:03:51.177Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:04:29.350Z"
+        }
+      },
+      "reasons": {
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L2-Q01": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q03": ""
+      },
+      "timestamps": {
+        "U1-L6-Q01": "2025-09-24T15:27:20.127Z",
+        "U1-L6-Q02": "2025-09-24T15:27:45.687Z",
+        "U1-L6-Q03": "2025-09-24T15:27:56.629Z",
+        "U1-L5-Q01": "2025-09-24T15:28:09.276Z",
+        "U1-L5-Q02": "2025-09-24T15:28:39.254Z",
+        "U1-L5-Q03": "2025-09-24T15:28:47.759Z",
+        "U1-L4-Q01": "2025-09-24T15:29:28.318Z",
+        "U1-L4-Q02": "2025-09-24T15:29:40.086Z",
+        "U1-L4-Q03": "2025-09-24T15:30:10.038Z",
+        "U1-L4-Q04": "2025-09-24T15:30:25.228Z",
+        "U1-L4-Q05": "2025-09-24T15:30:34.509Z",
+        "U1-L4-Q06": "2025-09-24T15:30:59.592Z",
+        "U1-L3-Q01": "2025-09-24T15:31:14.841Z",
+        "U1-L3-Q02": "2025-09-24T15:31:47.132Z",
+        "U1-L3-Q03": "2025-09-24T15:32:31.203Z",
+        "U1-L2-Q01": "2025-09-24T15:32:51.840Z",
+        "U1-L2-Q02": "2025-09-24T15:33:05.246Z",
+        "U1-L2-Q03": "2025-09-24T15:33:19.949Z",
+        "U1-L7-Q01": "2025-09-26T17:35:17.437Z",
+        "U1-L7-Q02": "2025-09-26T17:35:48.124Z",
+        "U1-L7-Q03": "2025-09-26T17:36:19.002Z",
+        "U1-L7-Q04": "2025-09-26T17:39:50.990Z",
+        "U1-L7-Q05": "2025-09-26T17:46:20.360Z",
+        "U1-L7-Q06": "2025-09-26T17:46:31.404Z",
+        "U1-L8-Q01": "2025-09-29T18:03:10.524Z",
+        "U1-L8-Q02": "2025-09-29T18:03:51.177Z",
+        "U1-L8-Q03": "2025-09-29T18:04:29.350Z"
+      },
+      "attempts": {
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Plum_Iguana": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701156797
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": 1757701207441
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757701210915
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:46:26.209Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:46:29.801Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:46:31.659Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:46:35.012Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:46:38.140Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:46:39.889Z"
+        },
+        "U1-L5-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-17T17:18:08.489Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T17:18:11.386Z"
+        },
+        "U1-L5-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-17T17:18:13.704Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:28:07.188Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:28:47.673Z"
+        },
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-24T15:29:56.407Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:41:59.808Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:42:08.224Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:42:37.909Z"
+        },
+        "U1-L7-Q06": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:48:27.500Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:48:30.219Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:48:31.845Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:20:13.593Z"
+        },
+        "U1-L8-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:20:39.114Z"
+        },
+        "U1-L8-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-29T18:21:14.118Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757701156797,
+        "U1-L3-Q02": 1757701207441,
+        "U1-L3-Q03": 1757701210915,
+        "U1-L4-Q01": "2025-09-15T17:46:26.209Z",
+        "U1-L4-Q02": "2025-09-15T17:46:29.801Z",
+        "U1-L4-Q03": "2025-09-15T17:46:31.659Z",
+        "U1-L4-Q04": "2025-09-15T17:46:35.012Z",
+        "U1-L4-Q05": "2025-09-15T17:46:38.140Z",
+        "U1-L4-Q06": "2025-09-15T17:46:39.889Z",
+        "U1-L5-Q03": "2025-09-17T17:18:08.490Z",
+        "U1-L5-Q02": "2025-09-17T17:18:11.386Z",
+        "U1-L5-Q01": "2025-09-17T17:18:13.704Z",
+        "U1-L6-Q01": "2025-09-24T15:28:07.188Z",
+        "U1-L6-Q03": "2025-09-24T15:28:47.673Z",
+        "U1-L6-Q02": "2025-09-24T15:29:56.407Z",
+        "U1-L7-Q03": "2025-09-26T17:41:59.808Z",
+        "U1-L7-Q02": "2025-09-26T17:42:08.224Z",
+        "U1-L7-Q01": "2025-09-26T17:42:37.909Z",
+        "U1-L7-Q06": "2025-09-26T17:48:27.500Z",
+        "U1-L7-Q05": "2025-09-26T17:48:30.219Z",
+        "U1-L7-Q04": "2025-09-26T17:48:31.845Z",
+        "U1-L8-Q01": "2025-09-29T18:20:13.593Z",
+        "U1-L8-Q02": "2025-09-29T18:20:39.114Z",
+        "U1-L8-Q03": "2025-09-29T18:21:14.119Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q03": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q01": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q03": 1,
+        "U1-L6-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q06": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q04": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    },
+    "Papaya_Goat": {
+      "answers": {
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:27:11.155Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:33:26.643Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:34:26.790Z"
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699297305
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699839889
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757700126147
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:30:07.082Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:31:12.880Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:32:48.226Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:37:47.709Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:39:10.538Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:42:58.840Z"
+        }
+      },
+      "reasons": {
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L3-Q01": "One_half_of_students_=_150_and_the_combination_of_Vanilla_and_Chocolate=165...So_E_is_my_answer.",
+        "U1-L3-Q02": "0.20X500=100__Which_is_supported_by_the_table"
+      },
+      "timestamps": {
+        "U1-L6-Q01": "2025-09-24T15:27:11.156Z",
+        "U1-L6-Q02": "2025-09-24T15:33:26.643Z",
+        "U1-L6-Q03": "2025-09-24T15:34:26.790Z",
+        "U1-L3-Q01": 1757699297305,
+        "U1-L3-Q02": 1757699839890,
+        "U1-L3-Q03": 1757700126147,
+        "U1-L4-Q01": "2025-09-15T17:30:07.082Z",
+        "U1-L4-Q02": "2025-09-15T17:31:12.880Z",
+        "U1-L4-Q03": "2025-09-15T17:32:48.226Z",
+        "U1-L4-Q04": "2025-09-15T17:37:47.709Z",
+        "U1-L4-Q05": "2025-09-15T17:39:10.538Z",
+        "U1-L4-Q06": "2025-09-15T17:42:58.841Z"
+      },
+      "attempts": {
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1
+      }
+    },
+    "papaya_goat": {
+      "answers": {
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757699297305
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757699839889
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757700126147
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:30:07.082Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:31:12.880Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T17:32:48.226Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T17:37:47.709Z"
+        },
+        "U1-L4-Q05": {
+          "value": "C",
+          "timestamp": "2025-09-15T17:39:10.538Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T17:42:58.840Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:30:35.678Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:34:47.187Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:41:28.040Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:41:47.799Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:41:52.759Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:42:56.676Z"
+        }
+      },
+      "reasons": {
+        "U1-L3-Q01": "One_half_of_students_=_150_and_the_combination_of_Vanilla_and_Chocolate=165...So_E_is_my_answer.",
+        "U1-L3-Q02": "0.20X500=100__Which_is_supported_by_the_table",
+        "U1-L3-Q03": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L7-Q01": "",
+        "U1-L7-Q02": "",
+        "U1-L7-Q03": "",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "",
+        "U1-L7-Q06": ""
+      },
+      "timestamps": {
+        "U1-L3-Q01": 1757699297305,
+        "U1-L3-Q02": 1757699839890,
+        "U1-L3-Q03": 1757700126147,
+        "U1-L4-Q01": "2025-09-15T17:30:07.082Z",
+        "U1-L4-Q02": "2025-09-15T17:31:12.880Z",
+        "U1-L4-Q03": "2025-09-15T17:32:48.226Z",
+        "U1-L4-Q04": "2025-09-15T17:37:47.709Z",
+        "U1-L4-Q05": "2025-09-15T17:39:10.538Z",
+        "U1-L4-Q06": "2025-09-15T17:42:58.841Z",
+        "U1-L7-Q01": "2025-09-26T17:30:35.678Z",
+        "U1-L7-Q02": "2025-09-26T17:34:47.187Z",
+        "U1-L7-Q03": "2025-09-26T17:41:28.040Z",
+        "U1-L7-Q04": "2025-09-26T17:41:47.799Z",
+        "U1-L7-Q05": "2025-09-26T17:41:52.759Z",
+        "U1-L7-Q06": "2025-09-26T17:42:56.676Z"
+      },
+      "attempts": {
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1
+      }
+    },
+    "lemon-eagle": {
+      "answers": {
+        "U1-L8-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-29T18:11:48.285Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:11:41.754Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:14:56.234Z"
+        }
+      },
+      "reasons": {
+        "U1-L8-Q01": "50 - 35= 15",
+        "U1-L8-Q02": "From the median to the upper whisker, it is 50%",
+        "U1-L8-Q03": "when the data is skewed left, it pulls the mean to the left and when it goes to the left, it is most likely less."
+      },
+      "timestamps": {
+        "U1-L8-Q01": "2025-09-29T18:11:48.285Z",
+        "U1-L8-Q02": "2025-09-29T18:11:41.754Z",
+        "U1-L8-Q03": "2025-09-29T18:14:56.234Z"
+      },
+      "attempts": {
+        "U1-L8-Q01": 2,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "exportTime": "2025-09-29T18:12:28.708Z",
+  "username": "Cherry_Monkey",
+  "users": {
+    "Cherry_Monkey": {
+      "answers": {
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:21:10.635Z"
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:21:14.642Z"
+        },
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:21:17.563Z"
+        },
+        "U1-L3-Q02": {
+          "value": "A",
+          "timestamp": "2025-09-17T19:27:19.242Z"
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:27:22.550Z"
+        },
+        "U1-L3-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:27:42.240Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:33:29.469Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:33:31.188Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-17T19:33:42.517Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-17T19:33:54.681Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:34:08.765Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:34:18.877Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-17T19:34:59.774Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-17T19:35:03.460Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-17T19:35:06.676Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T15:26:45.173Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:26:49.560Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:26:53.195Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:26:16.191Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:27:52.668Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:28:41.051Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:29:13.735Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T17:29:52.284Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:30:25.314Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-29T18:05:41.305Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:06:02.920Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:06:48.218Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q03": "",
+        "U1-L2-Q02": "",
+        "U1-L2-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L4-Q01": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q06": "",
+        "U1-L5-Q01": "",
+        "U1-L5-Q02": "",
+        "U1-L5-Q03": "",
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L7-Q01": "The mean is not resistant to outliers, so it is likely to change. The median is resistant to outliers,\nso the addition of the outlier will not greatly (if at all) change the median’s value",
+        "U1-L7-Q02": "I guessed I dont know",
+        "U1-L7-Q03": "Correct. To find the median of the list of data, first order the data from least to greatest: 250,600;\n275,800; 275,800; 281,900; 284,700; 295,000; 302,100; 305,400. Since there are 8 values, an even\nnumber, the median is the average of the 2 values in the middle of the ordered list. The median selling price of the houses is $283,300",
+        "U1-L7-Q04": "This value is an outlier, because it is located more than 2 standard deviations below the mean.\nOf the five values that are listed in the options, this value is the greatest value that is an outlier.",
+        "U1-L7-Q05": ". This is a correct interpretation of the percentile of the distribution. 77% of the scores were\nless than or equal to 68, and 77% of 1,000 scores is 770 scores",
+        "U1-L7-Q06": "The is , which is 38 minus 34 or 4. An upper outlier exists if it is greater than\n, but the value 43 is not greater than .",
+        "U1-L8-Q01": "The value 35 is the third quartile, meaning at least 25% of the cars get 35 miles per gallon or\nmore.",
+        "U1-L8-Q02": "The median appears to be halfway between 46 and 50 at 48. So approximately 50% of the\npeople met the height requirement.",
+        "U1-L8-Q03": "The distribution is skewed to the left because the left tail is longer than the right tail. The mean\ntends to be less than the median in distributions that are skewed to the left"
+      },
+      "timestamps": {
+        "U1-L2-Q03": "2025-09-17T19:21:10.635Z",
+        "U1-L2-Q02": "2025-09-17T19:21:14.642Z",
+        "U1-L2-Q01": "2025-09-17T19:21:17.563Z",
+        "U1-L3-Q02": "2025-09-17T19:27:19.242Z",
+        "U1-L3-Q03": "2025-09-17T19:27:22.550Z",
+        "U1-L3-Q01": "2025-09-17T19:27:42.240Z",
+        "U1-L4-Q01": "2025-09-17T19:33:29.469Z",
+        "U1-L4-Q02": "2025-09-17T19:33:31.188Z",
+        "U1-L4-Q03": "2025-09-17T19:33:42.517Z",
+        "U1-L4-Q04": "2025-09-17T19:33:54.681Z",
+        "U1-L4-Q05": "2025-09-17T19:34:08.765Z",
+        "U1-L4-Q06": "2025-09-17T19:34:18.877Z",
+        "U1-L5-Q01": "2025-09-17T19:34:59.774Z",
+        "U1-L5-Q02": "2025-09-17T19:35:03.460Z",
+        "U1-L5-Q03": "2025-09-17T19:35:06.676Z",
+        "U1-L6-Q01": "2025-09-24T15:26:45.173Z",
+        "U1-L6-Q02": "2025-09-24T15:26:49.560Z",
+        "U1-L6-Q03": "2025-09-24T15:26:53.195Z",
+        "U1-L7-Q01": "2025-09-26T17:26:16.191Z",
+        "U1-L7-Q02": "2025-09-26T17:27:52.668Z",
+        "U1-L7-Q03": "2025-09-26T17:28:41.051Z",
+        "U1-L7-Q04": "2025-09-26T17:29:13.735Z",
+        "U1-L7-Q05": "2025-09-26T17:29:52.284Z",
+        "U1-L7-Q06": "2025-09-26T17:30:25.314Z",
+        "U1-L8-Q01": "2025-09-29T18:05:41.305Z",
+        "U1-L8-Q02": "2025-09-29T18:06:02.920Z",
+        "U1-L8-Q03": "2025-09-29T18:06:48.218Z"
+      },
+      "attempts": {
+        "U1-L2-Q03": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    }
+  }
+}

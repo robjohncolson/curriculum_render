@@ -1,9 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep:*)",
-      "Bash(python3:*)",
-      "Bash(curl:*)"
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

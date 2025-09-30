@@ -48,21 +48,22 @@ git push origin main        # Push to main branch
 - **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+)
 - **Charting**: Chart.js 3.9.1 with datalabels plugin
 - **Math Rendering**: MathJax 3
+- **QR Code Generation**: QRCode.js for sharing functionality
 - **Data Storage**: Browser localStorage + JSON file import/export
 - **Styling**: Custom CSS with dark/light theme support
 
 ### File Structure
 ```
-curriculum_render/
-├── index.html              # Main application (5,856 lines) - contains ALL JavaScript
+proto_curriculum_render/
+├── index.html              # Main application (6,159 lines) - contains ALL JavaScript
 ├── css/
-│   └── styles.css          # Complete styling with theme support
+│   └── styles.css          # Complete styling with theme support (3,369 lines)
 ├── js/
-│   ├── charts.js          # Chart rendering logic (1,600+ lines)
-│   └── charthelper.js     # Chart utility functions (28 lines)
+│   ├── charts.js          # Chart rendering logic (1,499 lines)
+│   └── charthelper.js     # Chart utility functions (27 lines)
 ├── data/
 │   ├── curriculum.js      # Complete AP Stats curriculum data (1.7MB)
-│   └── units.js          # Unit structure and lesson organization (91KB)
+│   └── units.js          # Unit structure and lesson organization (2,591 lines)
 ├── docs/
 │   ├── FOUNDATION_DOCUMENT.md              # Architecture philosophy & data models
 │   ├── advanced_combiner_tool.html        # Data aggregation utility
@@ -71,13 +72,14 @@ curriculum_render/
 │   ├── student2username.csv              # Username mapping
 │   └── users/                            # Individual student JSON files
 ├── CLAUDE.md                              # This development guide
-└── COMPREHENSIVE_FUNCTION_DOCUMENTATION.md  # Complete function reference
+├── COMPREHENSIVE_FUNCTION_DOCUMENTATION.md  # Complete function reference
+└── example_multi_player_game/             # Separate multiplayer game project (see its own CLAUDE.md)
 ```
 
 ### Application Architecture Patterns
 
 #### 1. **Monolithic JavaScript Architecture**
-- **Single HTML file contains all application logic** (5,856 lines)
+- **Single HTML file contains all application logic** (6,159 lines)
 - No module system - all functions in global scope
 - Script execution starts with `DOMContentLoaded` event
 - 110+ functions organized by functional area
@@ -290,7 +292,7 @@ Static Data -> Curriculum (questions, units, lessons)
 5. **Component Architecture**: Refactor to component-based structure
 
 ### Current Technical Debt
-- **Monolithic HTML**: 5,856 lines in single file needs modularization
+- **Monolithic HTML**: 6,159 lines in single file needs modularization
 - **Global Functions**: 110+ functions in global namespace
 - **No Dependency Management**: Manual CDN management for external libraries
 - **Manual Testing Only**: No automated test coverage
@@ -298,11 +300,11 @@ Static Data -> Curriculum (questions, units, lessons)
 ## Key Files for Future Development
 
 ### Critical Files to Understand First
-1. **`index.html`** - Main application logic (5,856 lines)
+1. **`index.html`** - Main application logic (6,159 lines)
 2. **`docs/FOUNDATION_DOCUMENT.md`** - Architecture philosophy
 3. **`COMPREHENSIVE_FUNCTION_DOCUMENTATION.md`** - Complete function reference
 4. **`data/curriculum.js`** - Question database (1.7MB)
-5. **`js/charts.js`** - Visualization logic (1,600+ lines)
+5. **`js/charts.js`** - Visualization logic (1,499 lines)
 
 ### Development Entry Points
 - **New Features**: Start with `index.html` function additions

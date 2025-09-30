@@ -1,5 +1,5 @@
 {
-  "exportTime": "2025-09-24T15:36:01.378Z",
+  "exportTime": "2025-09-30T02:14:26.230Z",
   "username": "Grape_Fox",
   "users": {
     "Grape_Fox": {
@@ -65,8 +65,40 @@
           "timestamp": "2025-09-19T17:46:32.090Z"
         },
         "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-24T17:05:14.938Z"
+        },
+        "U1-L7-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-26T17:21:08.824Z"
+        },
+        "U1-L7-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:24:36.599Z"
+        },
+        "U1-L7-Q04": {
           "value": "A",
-          "timestamp": "2025-09-22T15:41:17.112Z"
+          "timestamp": "2025-09-26T17:44:05.437Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-26T18:13:14.299Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-27T03:45:36.664Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-30T02:12:55.145Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-30T02:13:17.055Z"
+        },
+        "U1-L8-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-30T02:14:16.929Z"
         }
       },
       "reasons": {
@@ -85,7 +117,15 @@
         "U1-L6-Q02": "The reason being that it's only the bottom being impacted, not the height.",
         "U1-L6-Q03": "The reason being, the tail is on the right meaning the distribution is skewed right.",
         "U1-L6-Q01": "The reason why I chose this answer is due to the fact that gaps are usually there due to missing data or data that was never recorded.",
-        "U1-L7-Q01": ""
+        "U1-L7-Q01": "The mean is likely to change as a new number was added.",
+        "U1-L7-Q02": "It goes in order of the problem",
+        "U1-L7-Q03": "Because the average of both B and C is 290,600",
+        "U1-L7-Q04": "19.3 is the only outlier in this question",
+        "U1-L7-Q05": "77% of 1000 is 770",
+        "U1-L7-Q06": "The reason being 89 is greater than 43",
+        "U1-L8-Q01": "The reason as to why I believed it's 35 is because the other three answers are apart of the IQR and the last one is the max.",
+        "U1-L8-Q02": "The reasoning being that a huge chunk of the people there can attend. It's more than 25% and it's less than 75 and 100%",
+        "U1-L8-Q03": "The reason being that the graph IS skewed to the right meaning the mean was most likely increased while the median stayed the same"
       },
       "timestamps": {
         "U1-L3-Q01": 1757699076408,
@@ -103,7 +143,15 @@
         "U1-L6-Q02": "2025-09-19T17:35:00.259Z",
         "U1-L6-Q03": "2025-09-19T17:36:53.701Z",
         "U1-L6-Q01": "2025-09-19T17:46:32.091Z",
-        "U1-L7-Q01": "2025-09-22T15:41:17.112Z"
+        "U1-L7-Q01": "2025-09-24T17:05:14.938Z",
+        "U1-L7-Q02": "2025-09-26T17:21:08.824Z",
+        "U1-L7-Q03": "2025-09-26T17:24:36.599Z",
+        "U1-L7-Q04": "2025-09-26T17:44:05.437Z",
+        "U1-L7-Q05": "2025-09-26T18:13:14.299Z",
+        "U1-L7-Q06": "2025-09-27T03:45:36.664Z",
+        "U1-L8-Q01": "2025-09-30T02:12:55.145Z",
+        "U1-L8-Q02": "2025-09-30T02:13:17.055Z",
+        "U1-L8-Q03": "2025-09-30T02:14:16.929Z"
       },
       "attempts": {
         "U1-L3-Q01": 1,
@@ -121,7 +169,15 @@
         "U1-L6-Q02": 1,
         "U1-L6-Q03": 1,
         "U1-L6-Q01": 2,
-        "U1-L7-Q01": 1
+        "U1-L7-Q01": 2,
+        "U1-L7-Q02": 3,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 2,
+        "U1-L8-Q03": 1
       }
     }
   }

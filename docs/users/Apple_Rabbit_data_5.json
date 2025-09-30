@@ -1,0 +1,226 @@
+{
+  "exportTime": "2025-09-29T17:26:27.446Z",
+  "username": "Apple_Rabbit",
+  "users": {
+    "Apple_Rabbit": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757683639793
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757683678357
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757683740521
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757683800760
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757683806403
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757683809760
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:41.521Z"
+        },
+        "U1-L4-Q05": {
+          "value": "E",
+          "timestamp": "2025-09-15T13:36:43.365Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-15T13:36:45.277Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-15T13:36:47.685Z"
+        },
+        "U1-L4-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-15T13:36:49.770Z"
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-15T13:36:51.890Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-18T14:04:40.227Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-18T14:05:42.964Z"
+        },
+        "U1-L5-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-18T14:07:09.556Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-19T13:00:59.140Z"
+        },
+        "U1-L6-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T13:01:04.964Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-19T13:01:08.273Z"
+        },
+        "U1-L7-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:02:52.449Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:04:47.651Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:08:24.319Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-25T14:09:17.377Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-25T14:15:46.705Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-25T14:24:18.882Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-26T13:08:19.657Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-26T13:10:28.485Z"
+        },
+        "U1-L8-Q03": {
+          "value": "E",
+          "timestamp": "2025-09-26T13:13:55.413Z"
+        },
+        "U1-L9-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-29T13:40:31.550Z"
+        },
+        "U1-L9-Q02": {
+          "value": "B",
+          "timestamp": "2025-09-29T17:18:39.697Z"
+        },
+        "U1-L9-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-29T17:26:14.776Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is not numerical and is rather focused on the \"label\"",
+        "U1-L2-Q02": "The colors of the cars in the lot is non-numerical and is focused on qualitative traits.",
+        "U1-L2-Q03": "The value of the coin can be collected numerically (based on price = money = numbers). This is the only one that is not a qualitative description of a coin.",
+        "U1-L3-Q03": "",
+        "U1-L3-Q01": "",
+        "U1-L3-Q02": "",
+        "U1-L4-Q06": "",
+        "U1-L4-Q05": "",
+        "U1-L4-Q04": "",
+        "U1-L4-Q03": "",
+        "U1-L4-Q02": "",
+        "U1-L4-Q01": "",
+        "U1-L5-Q01": "There is no possible way to have \"gaps\" in the diameters of tree trunks, the diameter is a continuous growth that never suddenly jumps from one measurement to the other.",
+        "U1-L5-Q02": "I don't honestly remember why I chose this one but I did so...",
+        "U1-L5-Q03": "First, this is numerical so it is quantitative and it also has gaps, therefore it is discrete. Duh.",
+        "U1-L6-Q01": "",
+        "U1-L6-Q02": "",
+        "U1-L6-Q03": "",
+        "U1-L7-Q01": "The median wouldn't change because it only depends on the total number of values, not the actual values, which means it might possibly shift over, but it shouldn't cause a great change. Unlike the mean which changes easily with outliers and gaps.",
+        "U1-L7-Q02": "It was the only one with squared values. :D",
+        "U1-L7-Q03": "Least to greatest: D, B, E, G, H, F, A, C\n(G + H) / 2 = median \nmedian = 283,300",
+        "U1-L7-Q04": "",
+        "U1-L7-Q05": "Based on process of elimination, only A is correct. Being in the 77th percentile, it means 77% of scores were less than or equal to that score. C, automatically contradicts that, D is missing the \"less than\" part, E is the exact opposite, and B is just incorrect because that is less than a half of all total entries (1,000) which makes it wrong.",
+        "U1-L7-Q06": "Using the Upper Bound formula, which is Q3 + 1.5 x IQR, it equals 47. And 43 is not greater than 47.",
+        "U1-L8-Q01": "well cause like the line is in the middle of 30 and 40, so the Q3 number is 35.",
+        "U1-L8-Q02": "I'd say 50 because the median line (which is the number directly in the middle, the very middle sample, splits the entire sample evenly, although they are most likely clustered around 48 - 58, the median reaches directly at 48. So around half are equal to or above that height.",
+        "U1-L8-Q03": "A, B, and D are incorrect, it is not skewed right or symmetric. That leaves C and E. I believe the mean is likely greater than the median because the average is a lot higher due to the cluster around the higher values whereas median is rarely affected by that.",
+        "U1-L9-Q01": "The IQR matches on both because the ends of the box (Q1 and Q3) are the exact same, so regardless of the numbers they would both have the same IQR.",
+        "U1-L9-Q02": "I'm choosing B because I was in between A and B and B seems more likely due to the range of Mining Distrubances being lower but higher in numbers, therefore possibly making its median higher.",
+        "U1-L9-Q03": "IQR = 2 < 4 \nRange = 12 < 17"
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757683639793,
+        "U1-L2-Q02": 1757683678357,
+        "U1-L2-Q03": 1757683740521,
+        "U1-L3-Q03": 1757683800760,
+        "U1-L3-Q01": 1757683806403,
+        "U1-L3-Q02": 1757683809760,
+        "U1-L4-Q06": "2025-09-15T13:36:41.521Z",
+        "U1-L4-Q05": "2025-09-15T13:36:43.365Z",
+        "U1-L4-Q04": "2025-09-15T13:36:45.277Z",
+        "U1-L4-Q03": "2025-09-15T13:36:47.685Z",
+        "U1-L4-Q02": "2025-09-15T13:36:49.770Z",
+        "U1-L4-Q01": "2025-09-15T13:36:51.890Z",
+        "U1-L5-Q01": "2025-09-18T14:04:40.227Z",
+        "U1-L5-Q02": "2025-09-18T14:05:42.964Z",
+        "U1-L5-Q03": "2025-09-18T14:07:09.556Z",
+        "U1-L6-Q01": "2025-09-19T13:00:59.140Z",
+        "U1-L6-Q02": "2025-09-19T13:01:04.964Z",
+        "U1-L6-Q03": "2025-09-19T13:01:08.273Z",
+        "U1-L7-Q01": "2025-09-25T14:02:52.449Z",
+        "U1-L7-Q02": "2025-09-25T14:04:47.651Z",
+        "U1-L7-Q03": "2025-09-25T14:08:24.319Z",
+        "U1-L7-Q04": "2025-09-25T14:09:17.377Z",
+        "U1-L7-Q05": "2025-09-25T14:15:46.705Z",
+        "U1-L7-Q06": "2025-09-25T14:24:18.882Z",
+        "U1-L8-Q01": "2025-09-26T13:08:19.657Z",
+        "U1-L8-Q02": "2025-09-26T13:10:28.486Z",
+        "U1-L8-Q03": "2025-09-26T13:13:55.413Z",
+        "U1-L9-Q01": "2025-09-29T13:40:31.550Z",
+        "U1-L9-Q02": "2025-09-29T17:18:39.698Z",
+        "U1-L9-Q03": "2025-09-29T17:26:14.778Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q03": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q02": 1,
+        "U1-L4-Q06": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q01": 1,
+        "U1-L5-Q01": 1,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q01": 1,
+        "U1-L6-Q02": 1,
+        "U1-L6-Q03": 1,
+        "U1-L7-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 1,
+        "U1-L7-Q04": 1,
+        "U1-L7-Q05": 1,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 1,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1,
+        "U1-L9-Q01": 1,
+        "U1-L9-Q02": 2,
+        "U1-L9-Q03": 1
+      }
+    }
+  }
+}

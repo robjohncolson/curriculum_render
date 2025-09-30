@@ -1,0 +1,205 @@
+{
+  "exportTime": "2025-09-30T00:45:13.350Z",
+  "username": "Kiwi_Panda",
+  "users": {
+    "Kiwi_Panda": {
+      "answers": {
+        "U1-L2-Q01": {
+          "value": "B",
+          "timestamp": 1757699021157
+        },
+        "U1-L2-Q02": {
+          "value": "E",
+          "timestamp": 1757699253475
+        },
+        "U1-L2-Q03": {
+          "value": "B",
+          "timestamp": 1757699395922
+        },
+        "U1-L3-Q02": {
+          "value": "B",
+          "timestamp": 1757700739917
+        },
+        "U1-L3-Q01": {
+          "value": "E",
+          "timestamp": 1757701142109
+        },
+        "U1-L3-Q03": {
+          "value": "E",
+          "timestamp": 1757948539947
+        },
+        "U1-L4-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-19T17:41:54.035Z"
+        },
+        "U1-L4-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-19T17:49:21.972Z"
+        },
+        "U1-L4-Q03": {
+          "value": "A",
+          "timestamp": "2025-09-19T18:18:22.008Z"
+        },
+        "U1-L4-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-19T18:20:12.896Z"
+        },
+        "U1-L4-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-20T01:20:40.613Z"
+        },
+        "U1-L4-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-20T01:24:58.775Z"
+        },
+        "U1-L5-Q01": {
+          "value": "C",
+          "timestamp": "2025-09-20T01:35:13.107Z"
+        },
+        "U1-L5-Q02": {
+          "value": "E",
+          "timestamp": "2025-09-20T01:38:34.531Z"
+        },
+        "U1-L5-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-20T01:43:37.024Z"
+        },
+        "U1-L6-Q03": {
+          "value": "D",
+          "timestamp": "2025-09-20T01:53:09.480Z"
+        },
+        "U1-L6-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-24T15:43:40.425Z"
+        },
+        "U1-L6-Q01": {
+          "value": "B",
+          "timestamp": "2025-09-20T02:46:16.219Z"
+        },
+        "U1-L7-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:34:53.962Z"
+        },
+        "U1-L7-Q03": {
+          "value": "B",
+          "timestamp": "2025-09-26T17:44:57.676Z"
+        },
+        "U1-L7-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-26T17:51:49.601Z"
+        },
+        "U1-L7-Q04": {
+          "value": "B",
+          "timestamp": "2025-09-30T00:18:25.696Z"
+        },
+        "U1-L7-Q05": {
+          "value": "A",
+          "timestamp": "2025-09-30T00:25:28.176Z"
+        },
+        "U1-L7-Q06": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:28:38.686Z"
+        },
+        "U1-L8-Q01": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:34:27.903Z"
+        },
+        "U1-L8-Q02": {
+          "value": "D",
+          "timestamp": "2025-09-30T00:41:52.076Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-30T00:44:34.817Z"
+        }
+      },
+      "reasons": {
+        "U1-L2-Q01": "Type is categorical because it is not a numerical value and it describes the features of different objects.",
+        "U1-L2-Q02": "It tells us the different colors of the cars in the parking lot, without give us a numerical value.",
+        "U1-L2-Q03": "Quantitative variable is related to numbers, therefore the values of these different types of coins would be quantitative.",
+        "U1-L3-Q02": "500 times the number of Independents, which is 0.2, and it gives us that 100 people are affiliated with the Independents.",
+        "U1-L3-Q01": "The number of students that chose vanilla or chocolate was 165, which is not one-half of the students vote.",
+        "U1-L3-Q03": "The combine total of key lime pies and pumpkin pies sold was 30, and 30 divided by 90 gave me 0.33, which turned into a percentage was less than 50%, giving me my answer.",
+        "U1-L4-Q01": "If you add the number of men that chose a design with black it would equal to 44, then dividing this number by 100 would make it equal to 0.44, then if you count the number of men that chose a design with blue it would equal to 56, then dividing this number by 100 would make it equal to 0.56. This means that the statement is wrong because the design color that was picked more was a design with blue.",
+        "U1-L4-Q02": "This statement is not true because grade 11's relative frequency is 0.5, but grade 9's relative frequency 0.55, making the statement of grade 11 not true, thus making it the answer.",
+        "U1-L4-Q03": "This statement is true because the total amount of five year old's that selected red or blue is 56, while the number of ten year old's that selected red or blue is 38, meaning that the five year old's have a grater amount selected. I got the number for the ten year old's by multiplying their survey answers by 2 since their original survey responses where half of the five year old's.",
+        "U1-L4-Q04": "This statement is true because the delays from weather is more than half of the pie chart, and if you combined all of the other reasons for delays, it would not come close to of the delays caused by weather.",
+        "U1-L4-Q05": "This statement is true because if you convert the frequency of the people that voted for a 4 year university, you get 30 and 20, and 30 is for Central High School. While the 20 is for Liberty High School, meaning that the number of students from central high school was 10 greater than the number of students from liberty high school.",
+        "U1-L4-Q06": "This statement is not true because if you convert the relative frequency of region c, it equals 10.5 days, which falsifies this statement of \"Region C had more than 25 days of rain.\"",
+        "U1-L5-Q01": "I chose this answer because the diameters of the tree trunks is a continuous variable because the diameters of trees vary, meaning that the number could have decimals in them, make it so that the diameters have no gaps.",
+        "U1-L5-Q02": "E can be considered discrete because the number of books that a person finished reading last month would have to be a whole number because it would only count a book if a person full finished it, it would not count half read books or 75% read books.",
+        "U1-L5-Q03": "B is correct because the number of video games sold is a numerical value for counted quantity and it also continuous because you can't sell 15.6 amount of video games, the number has to be a whole number (has to have gaps).",
+        "U1-L6-Q03": "The majority of the data plots are on the left side of the dot plot chart making is a distribution that is roughly skewed right.",
+        "U1-L6-Q02": "The sum of the frequencies will remain the same even through every other characteristic of the graph changes.",
+        "U1-L6-Q01": "I think B is correct because if you have a gap displayed in your histogram, then that mean that for the region that has the gap, there was no data to be collected or observed giving us that gap.",
+        "U1-L7-Q02": "It is D because the formula for getting the squared deviations of the scores is correct and it uses the mean score of 84 in the right place.",
+        "U1-L7-Q03": "If  you add all the numbers up and divide by total number of house, which is 8, you get B as your answer.",
+        "U1-L7-Q01": "Neither will change because the outlier, since its an outlier, will not be factored in the data set chart.",
+        "U1-L7-Q04": "The mean of 23.5mm with a deviation of 1.4, and the two standard deviation rule, means that 23.5mm minus doubled 1.4mm, gives us 23.5-2.8= 20.7. Meaning answer B is the closest.",
+        "U1-L7-Q05": "This answer tells us that the remaining 23% of the entries got a score that was higher than 68.",
+        "U1-L7-Q06": "This is true because the number you get from adding Q3 by 1.5 by the IQR, it would not the greater than 43.",
+        "U1-L8-Q01": "Based on the boxplot, 25 miles per gallon is the median of the data, but more of the data is at 35, making it the top 25%.",
+        "U1-L8-Q02": "100 divided by 5 different sections of the data gives us a total rough estimate that each section is 20%, this means that about 75% of people met the height requirement.",
+        "U1-L8-Q03": "This is true the median's value is skewed to the right and the mean is less than the median."
+      },
+      "timestamps": {
+        "U1-L2-Q01": 1757699021157,
+        "U1-L2-Q02": 1757699253476,
+        "U1-L2-Q03": 1757699395922,
+        "U1-L3-Q02": 1757700739917,
+        "U1-L3-Q01": 1757701142109,
+        "U1-L3-Q03": 1757948539947,
+        "U1-L4-Q01": "2025-09-19T17:41:54.036Z",
+        "U1-L4-Q02": "2025-09-19T17:49:21.972Z",
+        "U1-L4-Q03": "2025-09-19T18:18:22.008Z",
+        "U1-L4-Q04": "2025-09-19T18:20:12.896Z",
+        "U1-L4-Q05": "2025-09-20T01:20:40.613Z",
+        "U1-L4-Q06": "2025-09-20T01:24:58.775Z",
+        "U1-L5-Q01": "2025-09-20T01:35:13.107Z",
+        "U1-L5-Q02": "2025-09-20T01:38:34.531Z",
+        "U1-L5-Q03": "2025-09-20T01:43:37.024Z",
+        "U1-L6-Q03": "2025-09-20T01:53:09.480Z",
+        "U1-L6-Q02": "2025-09-24T15:43:40.425Z",
+        "U1-L6-Q01": "2025-09-20T02:46:16.219Z",
+        "U1-L7-Q02": "2025-09-26T17:34:53.963Z",
+        "U1-L7-Q03": "2025-09-26T17:44:57.676Z",
+        "U1-L7-Q01": "2025-09-26T17:51:49.601Z",
+        "U1-L7-Q04": "2025-09-30T00:18:25.696Z",
+        "U1-L7-Q05": "2025-09-30T00:25:28.176Z",
+        "U1-L7-Q06": "2025-09-30T00:28:38.686Z",
+        "U1-L8-Q01": "2025-09-30T00:34:27.903Z",
+        "U1-L8-Q02": "2025-09-30T00:41:52.076Z",
+        "U1-L8-Q03": "2025-09-30T00:44:34.817Z"
+      },
+      "attempts": {
+        "U1-L2-Q01": 1,
+        "U1-L2-Q02": 1,
+        "U1-L2-Q03": 1,
+        "U1-L3-Q02": 1,
+        "U1-L3-Q01": 1,
+        "U1-L3-Q03": 1,
+        "U1-L4-Q01": 1,
+        "U1-L4-Q02": 1,
+        "U1-L4-Q03": 1,
+        "U1-L4-Q04": 1,
+        "U1-L4-Q05": 1,
+        "U1-L4-Q06": 1,
+        "U1-L5-Q01": 3,
+        "U1-L5-Q02": 1,
+        "U1-L5-Q03": 1,
+        "U1-L6-Q03": 2,
+        "U1-L6-Q02": 2,
+        "U1-L6-Q01": 1,
+        "U1-L7-Q02": 1,
+        "U1-L7-Q03": 2,
+        "U1-L7-Q01": 3,
+        "U1-L7-Q04": 3,
+        "U1-L7-Q05": 2,
+        "U1-L7-Q06": 1,
+        "U1-L8-Q01": 2,
+        "U1-L8-Q02": 3,
+        "U1-L8-Q03": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "exportTime": "2025-09-29T18:15:12.455Z",
+  "username": "lemon-eagle",
+  "users": {
+    "lemon-eagle": {
+      "answers": {
+        "U1-L8-Q01": {
+          "value": "A",
+          "timestamp": "2025-09-29T18:11:48.285Z"
+        },
+        "U1-L8-Q02": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:11:41.754Z"
+        },
+        "U1-L8-Q03": {
+          "value": "C",
+          "timestamp": "2025-09-29T18:14:56.234Z"
+        }
+      },
+      "reasons": {
+        "U1-L8-Q01": "50 - 35= 15",
+        "U1-L8-Q02": "From the median to the upper whisker, it is 50%",
+        "U1-L8-Q03": "when the data is skewed left, it pulls the mean to the left and when it goes to the left, it is most likely less."
+      },
+      "timestamps": {
+        "U1-L8-Q01": "2025-09-29T18:11:48.285Z",
+        "U1-L8-Q02": "2025-09-29T18:11:41.754Z",
+        "U1-L8-Q03": "2025-09-29T18:14:56.234Z"
+      },
+      "attempts": {
+        "U1-L8-Q01": 2,
+        "U1-L8-Q02": 1,
+        "U1-L8-Q03": 1
+      }
+    }
+  }
+}
