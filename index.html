@@ -28,6 +28,7 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button class="sync-button" onclick="showSyncModal()" title="Sync & Export Data">⚡</button>
     <button class="share-button" onclick="showShareModal()" title="Share this app">📤</button>
+    <!-- <button class="pigs-toggle" onclick="showSpriteSettingsModal()" title="Multiplayer sprite settings">🎮</button> -->
 
     <!-- Global Sync Modal -->
     <div id="syncModal" class="modal" style="display: none;">
@@ -38,19 +39,24 @@
 
             <div class="sync-section">
                 <h3><i class="fas fa-user"></i> Student Actions</h3>
+                <div id="turboModeNotice" class="turbo-mode-notice" style="display: none;">
+                    <i class="fas fa-sync-alt"></i>
+                    <strong>Live Sync Active!</strong>
+                    <p>Your answers are being automatically synced to the cloud. Manual backups are optional.</p>
+                </div>
                 <div class="sync-buttons">
                     <button id="saveBtn" class="modal-btn">
-                        <i class="fas fa-save"></i>
+                        <i class="fas fa-download"></i>
                         <span>
-                            <strong>Save</strong>
-                            <small>Export your personal data</small>
+                            <strong>Backup My Answers</strong>
+                            <small>Download your progress as a file</small>
                         </span>
                     </button>
                     <button id="openBtn" class="modal-btn">
-                        <i class="fas fa-folder-open"></i>
+                        <i class="fas fa-upload"></i>
                         <span>
-                            <strong>Open</strong>
-                            <small>Import any database file</small>
+                            <strong>Restore from File</strong>
+                            <small>Import answers from a backup file</small>
                         </span>
                     </button>
                 </div>
@@ -62,15 +68,15 @@
                     <button id="masterExportBtn" class="modal-btn">
                         <i class="fas fa-database"></i>
                         <span>
-                            <strong>Master Export</strong>
-                            <small>Export all users' data</small>
+                            <strong>Export Class Data</strong>
+                            <small>Combine all students into one file</small>
                         </span>
                     </button>
                     <button id="masterImportBtn" class="modal-btn">
-                        <i class="fas fa-cloud-download-alt"></i>
+                        <i class="fas fa-users"></i>
                         <span>
-                            <strong>Master Import</strong>
-                            <small>Import peer data from master database</small>
+                            <strong>Import Class Data</strong>
+                            <small>Load peer answers from teacher's file</small>
                         </span>
                     </button>
                 </div>
@@ -140,8 +146,27 @@
         </div>
     </div>
 
+    <!-- TASK 5.2: Sprite Settings Modal - DISABLED -->
+    <!-- <div id="spriteSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeSpriteSettingsModal()">&times;</span>
+            <h2>🚧 Sprite System Under Construction</h2>
+
+            <div class="sprite-settings-container" style="text-align: center; padding: 40px 20px;">
+                <p style="font-size: 18px; margin-bottom: 20px;">
+                    The multiplayer sprites are being rebuilt for better performance.
+                </p>
+                <p style="font-size: 16px; color: #666;">
+                    Check back soon!
+                </p>
+            </div>
+        </div>
+    </div> -->
+
 <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data_manager.js"></script>
     <script>
 
         // ========================================
@@ -153,6 +178,12 @@
         let turboModeActive = false;
         let syncCheckInterval = null;
         let lastPeerDataTimestamp = null;
+
+        // PHASE 2 OPTIMIZATION: Answer batching queue
+        let answerSyncQueue = [];
+        let syncTimer = null;
+        const BATCH_SIZE = 10;           // Flush after 10 answers
+        const BATCH_INTERVAL = 60000;    // Flush every 60 seconds
 
         // Initialize Supabase if credentials are provided
         if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' &&
@@ -173,6 +204,7 @@
             if (!supabase) {
                 turboModeActive = false;
                 console.log('No Supabase client available');
+                stopActivityRefresh(); // TASK 3.3: Stop activity refresh
                 return false;
             }
 
@@ -200,10 +232,18 @@
 
                 turboModeActive = true;
                 console.log('✅ Turbo mode active - Supabase connected');
+
+                // TASK 3.3: Start activity refresh when turbo mode is active
+                startActivityRefresh();
+
                 return true;
             } catch (error) {
                 turboModeActive = false;
                 console.log('🔌 Turbo mode inactive - Using offline mode:', error.message);
+
+                // TASK 3.3: Stop activity refresh when turbo mode fails
+                stopActivityRefresh();
+
                 return false;
             }
         }
@@ -267,7 +307,71 @@
             }
         }
 
-        // Pull peer data from Supabase
+        // PHASE 2 OPTIMIZATION: Queue management for batching answers
+        function queueAnswerForSync(username, questionId, answerValue, timestamp) {
+            // Add to queue
+            answerSyncQueue.push({
+                username: username,
+                question_id: questionId,
+                answer_value: answerValue,
+                timestamp: timestamp
+            });
+
+            console.log(`📝 Queued answer for ${questionId} (queue size: ${answerSyncQueue.length})`);
+
+            // Flush immediately if batch size reached
+            if (answerSyncQueue.length >= BATCH_SIZE) {
+                console.log(`🚀 Batch size reached (${BATCH_SIZE}), flushing queue now`);
+                flushAnswerQueue();
+            } else if (!syncTimer) {
+                // Start timer if this is the first item
+                syncTimer = setTimeout(() => {
+                    console.log(`⏰ Batch interval reached (${BATCH_INTERVAL}ms), flushing queue`);
+                    flushAnswerQueue();
+                }, BATCH_INTERVAL);
+            }
+        }
+
+        function flushAnswerQueue() {
+            if (answerSyncQueue.length === 0) return;
+
+            // Take a copy and clear the queue
+            const batch = [...answerSyncQueue];
+            answerSyncQueue = [];
+
+            // Clear the timer
+            if (syncTimer) {
+                clearTimeout(syncTimer);
+                syncTimer = null;
+            }
+
+            // Send batch to Supabase
+            console.log(`🔄 Flushing ${batch.length} answers from queue...`);
+            batchPushAnswersToSupabase(batch)
+                .then(count => {
+                    if (count > 0) {
+                        console.log(`✅ Successfully flushed ${count} answers`);
+                        updatePeerDataTimestamp();
+                    }
+                })
+                .catch(error => {
+                    console.error(`❌ Error flushing queue:`, error);
+                    // Re-queue failed items
+                    answerSyncQueue.push(...batch);
+                });
+        }
+
+        // Final flush on page unload
+        window.addEventListener('beforeunload', (e) => {
+            if (answerSyncQueue.length > 0) {
+                console.log(`🔄 Page unload: flushing ${answerSyncQueue.length} queued answers`);
+                flushAnswerQueue();
+                // Show message to user that we're saving
+                e.returnValue = 'Saving your answers...';
+            }
+        });
+
+        // Pull peer data from Supabase - OPTIMIZED for 40+ users
         async function pullPeerDataFromSupabase() {
             if (!turboModeActive || !supabase) return null;
 
@@ -275,39 +379,52 @@
                 const currentUser = localStorage.getItem('consensusUsername');
                 if (!currentUser) return null;
 
-                // Get all answers from all users
-                const { data, error } = await supabase
+                // OPTIMIZATION 1: Build query with server-side filtering
+                let query = supabase
                     .from('answers')
                     .select('*')
+                    .neq('username', currentUser) // Filter out own answers on server
                     .order('timestamp', { ascending: false });
 
+                // OPTIMIZATION 2: Incremental fetch - only get data newer than last sync
+                if (lastPeerDataTimestamp) {
+                    query = query.gt('timestamp', lastPeerDataTimestamp);
+                    console.log(`🔄 Incremental sync from timestamp: ${lastPeerDataTimestamp}`);
+                } else {
+                    console.log(`🔄 Initial full sync (no previous timestamp)`);
+                }
+
+                const { data, error } = await query;
+
                 if (error) throw error;
-                if (!data || data.length === 0) return null;
+
+                // OPTIMIZATION 3: Early return if no new data
+                if (!data || data.length === 0) {
+                    console.log('✅ No new peer data (already up to date)');
+                    return null;
+                }
 
                 // Convert to our local storage format
                 const peerData = {};
                 data.forEach(answer => {
-                    if (answer.username !== currentUser) {
-                        if (!peerData[answer.username]) {
-                            peerData[answer.username] = { answers: {} };
-                        }
-                        peerData[answer.username].answers[answer.question_id] = {
-                            value: answer.answer_value,
-                            timestamp: parseInt(answer.timestamp)
-                        };
+                    // No need to filter currentUser here - already done on server
+                    if (!peerData[answer.username]) {
+                        peerData[answer.username] = { answers: {} };
                     }
+                    peerData[answer.username].answers[answer.question_id] = {
+                        value: answer.answer_value,
+                        timestamp: parseInt(answer.timestamp)
+                    };
                 });
 
-                // Update last peer timestamp
-                const timestamps = data
-                    .filter(a => a.username !== currentUser)
-                    .map(a => parseInt(a.timestamp));
-
+                // Update last peer timestamp for next incremental fetch
+                const timestamps = data.map(a => parseInt(a.timestamp));
                 if (timestamps.length > 0) {
                     lastPeerDataTimestamp = Math.max(...timestamps);
+                    console.log(`✅ Updated last sync timestamp: ${lastPeerDataTimestamp}`);
                 }
 
-                console.log(`✅ Pulled peer data for ${Object.keys(peerData).length} users`);
+                console.log(`✅ Pulled ${data.length} NEW answers from ${Object.keys(peerData).length} users (incremental sync)`);
                 return peerData;
             } catch (error) {
                 console.log(`⚠️ Failed to pull peer data: ${error.message}`);
@@ -550,6 +667,9 @@
                     // TODO: Trigger re-render of current question's peer data if needed
                     // This would need to be integrated with your existing quiz rendering logic
                 }
+
+                // TASK 3.3: Pull peer activity data for pig system
+                await pullPeerActivityFromSupabase();
             }
         }
 
@@ -713,15 +833,7 @@
             return isDarkMode() ? '#5BC0EB' : '#36A2EB';
         }
 
-        // Username Generation
-        const fruits = ['Apple', 'Banana', 'Cherry', 'Grape', 'Lemon', 'Mango', 'Orange', 'Peach', 'Pear', 'Plum', 'Berry', 'Melon', 'Kiwi', 'Lime', 'Papaya', 'Guava', 'Apricot', 'Date', 'Fig', 'Coconut'];
-        const animals = ['Bear', 'Cat', 'Dog', 'Eagle', 'Fox', 'Goat', 'Horse', 'Iguana', 'Jaguar', 'Koala', 'Lion', 'Monkey', 'Newt', 'Owl', 'Panda', 'Quail', 'Rabbit', 'Snake', 'Tiger', 'Wolf'];
-
-        function generateRandomUsername() {
-            const fruit = fruits[Math.floor(Math.random() * fruits.length)];
-            const animal = animals[Math.floor(Math.random() * animals.length)];
-            return `${fruit}_${animal}`;
-        }
+        // Username Generation - moved to js/auth.js
 
         // Global variables
         let currentUsername = null;
@@ -736,6 +848,19 @@
         // Add this to your global variables
         let allCurriculumData = {}; // Store all units' data
         let qrCodesGenerated = false; // Track if QR codes have been generated
+
+        // TASK 4.1: Track activity listeners for cleanup (memory leak prevention)
+        let activityListeners = [];
+
+        // TASK 4.2: Sprite base64 image (extracted from PigSprite CSS)
+        // ========================================
+        // TASK 5.2: FEATURE FLAG - SPRITES DISABLED
+        // ========================================
+        // TEMPORARY: Sprites disabled pending Canvas refactor
+        // CSS sprite system has fundamental issues. Will rebuild with Canvas in Phase 5.
+        const SPRITES_ENABLED = false;
+
+        const SPRITE_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5gAAADECAYAAAD6bI6sAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAADmKADAAQAAAABAAAAxAAAAAD+OvF/AAAYa0lEQVR4Ae3d0XHcuLIA0PEtR6NctEHIIeyGsQ7BDsLORen4vVt1y1XTY7EHZIMEwbNfC4FsNA5aI6FIWJ9+vL39unX876/v3z91DJ+G3nt+e4+XAhRfMPv8irmGCzf7+s0+v+EKqjih2ddv9vkVl8Nw4WZfv9nnN1xBFSc0+/rtPb+9xysuhzRc7/n9J83ABQQIECBAgAABAgQIECBA4AkBG8wnkFxCgAABAgQIECBAgAABArmADWZu5AoCBAgQIECAAAECBAgQeELgc7zm9eUlfqmp/fP9ven6vS/ee357jzebZ+93xK92RjjWh/qMIvft7PNMfd57tbay7z/1uSyqPo/9NyTUp/pcEjj654P6XFqd2y37/Ix384wi9+3o6QnmvY8WAQIECBAgQIAAAQIECKwUsMFcCec2AgQIECBAgAABAgQIELgXsMG899AiQIAAAQIECBAgQIAAgZUCD2cwV8b58Lbe76B/OPCkHVf39A78cmHHd+CXr67vVZ/OsC9Vlfpc0unf5/Nz2Vh9Lvv07lWfy8Lqc9nnbL2z/77kCebZKlK+BAgQIECAAAECBAgQGFTABnPQhZEWAQIECBAgQIAAAQIEziZgg3m2FZMvAQIECBAgQIAAAQIEBhUoP4O59R36QZ0OS4tnX/rZ34Hvq3e7qc++wupzm6/63OaX3a0+M6HlfvW57LO1V31uE1Sf2/zi3Vfz9AQzVoA2AQIECBAgQIAAAQIECKwSsMFcxeYmAgQIECBAgAABAgQIEIgCNphRRJsAAQIECBAgQIAAAQIEVgmUn8FclYWbCOwkcLV34HdiNUyRgPosghSmi4D67MIqaJGA+iyCFIZAgYAnmAWIQhAgQIAAAQIECBAgQIDA7WaDqQoIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQ+FxN8OmffzaF/PXvv5vuz27emt+Pt7dsiE39Mb/okfVvGvwPN2fjZf1/COlLEwnE9W+dWqzv1vuz67fm1/v7Pctf/zaBreuvPrf5u3tZQH0u++g9VkB9Hut/9tE9wTz7CsqfAAECBAgQIECAAAECgwjYYA6yENIgQIAAAQIECBAgQIDA2QVsMM++gvInQIAAAQIECBAgQIDAIALlZzAHmddp04hnfuI78LG/90TjeEfns3W+Mf/WeNGj9f7s+q35OTOYCY/dv3X91efY63v27NTn2Vdw7vzV59zra3bnEvAE81zrJVsCBAgQIECAAAECBAgMK2CDOezSSIwAAQIECBAgQIAAAQLnErDBPNd6yZYAAQIECBAgQIAAAQLDCjiDOdjSxDME8UxV1l89nWy8rL86H/EIECBAgAABAgQInEkg/r7cmnvcD7Sen12/Nb/4b4B4gpmJ6ydAgAABAgQIECBAgACBpwRsMJ9ichEBAgQIECBAgAABAgQIZAI2mJmQfgIECBAgQIAAAQIECBB4SsAZzKeY9rsoe8c666/ONBsv66/ORzwCBAgQIECAAAECBMYV8ARz3LWRGQECBAgQIECAAAECBE4lYIN5quWSLAECBAgQIECAAAECBMYVsMEcd21kRoAAAQIECBAgQIAAgVMJlJ/BHP1M3tb8fr6/n2qBJUugp8DW76eeuf439tb8fL/3XqG+8beuf9/s1Gdv39Hjq8/RV+ja+anP2vW/mqcnmLX1IxoBAgQIECBAgAABAgQuK2CDedmlN3ECBAgQIECAAAECBAjUCthg1nqKRoAAAQIECBAgQIAAgcsKlJ/BvKykiZ9C4GrvwJ9iUST5W0B9/qbwPwMKqM8BF0VKvwXU528K/0PgcAFPMA9fAgkQIECAAAECBAgQIEBgDgEbzDnW0SwIECBAgAABAgQIECBwuIAN5uFLIAECBAgQIECAAAECBAjMIfBwBrP33357fXnZVa73fLLJ9B7/ap6Zt/42gbPXZ+/82zRdXS3Qe333/vy8/f33ItHPL18W+3WOJdC7PuNsd6/XmEBsJ/V8U89RbNe2+lz+vG2tz96ee39/956PJ5i7frsbjAABAgQIECBAgAABAvMK2GDOu7ZmRoAAAQIECBAgQIAAgV0FbDB35TYYAQIECBAgQIAAAQIE5hX4/Nf37596Tu/H29uvnvFbY/eeb+/4V/OM69v7nfHe78D3zj96xfbs9dl7ftEztnuvr/qM4m3t0T4/s+yr67l3fcb59K7XOF7a3nhmsHo9snzPVq/ZfLJ+9bntzKD6zCqsrb+352jf39Xz9QSzrd5cTYAAAQIECBAgQIAAAQIfCNhgfgDjywQIECBAgAABAgQIECDQJmCD2eblagIECBAgQIAAAQIECBD4QODh72B+cJ0vEzhEoPqd8DiJ2d+Bj/PVrhVQn7WeW6ON9v38cKZs578L2Ls+43qN5h/z014WeKjX5ctvrX9HMIZTn1FEe0lg7/pcykVfLuAJZm7kCgIECBAgQIAAAQIECBB4QsAG8wkklxAgQIAAAQIECBAgQIBALmCDmRu5ggABAgQIECBAgAABAgSeENj/DGb2d6i+fn0i7YVLYvydz7wsZPZUV/MZljjfOEqrZxYveGb57n3GIk5/tPbrt293Kf0MnnedGgR6C4Tv99cw3tnrM36/hendbq2fjw8Bar/g87LN05msNq/Wq9Vjq9j99erz3mPv1unqN/w8fvDa+vMqxu/8+6cnmA8r6AsECBAgQIAAAQIECBAgsEbABnONmnsIECBAgAABAgQIECBA4EHABvOBxBcIECBAgAABAgQIECBAYI3A/mcw12R54XteX16Gmn2WT/OZg6Fm9//JxHfUY35b34GP8a7e5n31Cph6/tN/Xg62eqc7czWYn3T6CqjPbb4+T7f57X23J5h7ixuPAAECBAgQIECAAAECkwrYYE66sKZFgAABAgQIECBAgACBvQVsMPcWNx4BAgQIECBAgAABAgQmFdj/DGbnM2xn/7ttzXVW7Vkdr3lCfW/I/m5n39Fvt8vVZ29Q8bcJhO/305+hDhrZ91t2pieE0wwCR3+ehnQ0CQwtEL9fRj+TGfMdGneG5MLP4+opZT8Pq8fzBLNaVDwCBAgQIECAAAECBAhcVMAG86ILb9oECBAgQIAAAQIECBCoFrDBrBYVjwABAgQIECBAgAABAhcV2P8MZgKdnQFqPTMz+jvuCcct88ju178s8FBP4R34Vv+HeMvD385en8n00vp9Dd4xXqt/vP9q7VavWK+x3RpvNO84n5jf2ecX53N0u9o7i3f0fPceP6vXzCu7f+/5jD5eq1f0j+3WeKP5xPnE/M4+vzif0dqZb7Y+cT69f//0BDOKaxMgQIAAAQIECBAgQIDAKgEbzFVsbiJAgAABAgQIECBAgACBKGCDGUW0CRAgQIAAAQIECBAgQGCVwHBnMFfNYqKber8TPRHVIVOJ6+PvRN0vQ/S5773dtnpl8eN4V29Hr63+s3tGr9nne/T8orf6vF+R6HPf6/M0evRux/VQr8vi0Wv5ar2zCXiCOduKmg8BAgQIECBAgAABAgQOErDBPAjesAQIECBAgAABAgQIEJhNwAZzthU1HwIECBAgQIAAAQIECBwksPsZzOzvuGQOW+/P4uu/lkB1PVXHm301eLWtcLVXdby22fS/evb59RdsG6Hauzpe22zOdzWvtjWr9qqO1zab/lfPPr/+gssjbPXdev9ydu29nmC2m7mDAAECBAgQIECAAAECBP4gYIP5BxRfIkCAAAECBAgQIECAAIF2ARvMdjN3ECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgACBpwQ+/Xh7+/XUlSsv+uv7908rby25be/57T1eCVJDkNnn10BxyktnX7/Z53fKomtIevb1m31+DUt9yktnX7/Z53fKomtIevb123t+e4/XsNQll/aen39FtmSZBCFAgAABAgQIECBAgAABG0w1QIAAAQIECBAgQIAAAQIlAjaYJYyCECBAgAABAgQIECBAgMDnSPD68hK/1NT++f7edP3eF+89v73Hm82z9zviVzsjHOtDfUaR+3b2eaY+771aW9n3n/pcFlWfx/4bEupTfS4JHP3zQX0urc7tln1+xrt5RpH7dvT0BPPeR4sAAQIECBAgQIAAAQIEVgrYYK6EcxsBAgQIECBAgAABAgQI3AvYYN57aBEgQIAAAQIECBAgQIDASoGHM5gr43x4W+930D8ceNKOq3t6B365sOM78MtX1/eqT2fYl6pKfS7p9O/z+blsrD6XfXr3qs9lYfW57HO23tl/X/IE82wVKV8CBAgQIECAAAECBAgMKmCDOejCSIsAAQIECBAgQIAAAQJnE7DBPNuKyZcAAQIECBAgQIAAAQKDCpSfwdz6Dv2gToelxbMv/ezvwPfVu93UZ19h9bnNV31u88vuVp+Z0HK/+lz22dqrPrcJqs9tfvHuq3l6ghkrQJsAAQIECBAgQIAAAQIEVgnYYK5icxMBAgQIECBAgAABAgQIRAEbzCiiTYAAAQIECBAgQIAAAQKrBMrPYK7Kwk0EdhK42jvwO7EapkhAfRZBCtNFQH12YRW0SEB9FkEKQ6BAwBPMAkQhCBAgQIAAAQIECBAgQOB2s8FUBQQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAh8jgSf/vknfqmp/evff5uub7149Pxa5xOvj/OLnll/jLe1nY2X9W8d3/19BeL6tY4W67P1/uz60fPL8te/TWD09R89v2367s4ERl//0fPLfPVvExh9/UfPb5u+uz3BVAMECBAgQIAAAQIECBAgUCJgg1nCKAgBAgQIECBAgAABAgQI2GCqAQIECBAgQIAAAQIECBAoEXg4g1kSVZDVAvFMW3xHPfavHujJG+N4R+cTx39yGr8vi/P53VH0P6PnVzRNYT4QGH39R8/vA1ZfLhIYff1Hz69oGYT5QGD09R89vw9YfZnAIQKeYB7CblACBAgQIECAAAECBAjMJ2CDOd+amhEBAgQIECBAgAABAgQOEbDBPITdoAQIECBAgAABAgQIEJhPwBnMwdY0vuMfzwxm/dXTycbL+qvzEY8AAQIECBAgQIDAngLx993WsePv8633Z9ePlp8nmNmK6SdAgAABAgQIECBAgACBpwRsMJ9ichEBAgQIECBAgAABAgQIZAI2mJmQfgIECBAgQIAAAQIECBB4SsAZzKeY9rsoe0c766/ONBsv66/ORzwCBAgQIECAAAECBMYV8ARz3LWRGQECBAgQIECAAAECBE4lYIN5quWSLAECBAgQIECAAAECBMYVsMEcd21kRoAAAQIECBAgQIAAgVMJPJzBHP1M3ej5nWr1JXt5gdG/n0bP7/IF1Blg9PUfPb/Oy3P58KOv/+j5Xb6AOgOMvv6j5xeXZ/R8R8vPE8xYQdoECBAgQIAAAQIECBAgsErABnMVm5sIECBAgAABAgQIECBAIArYYEYRbQIECBAgQIAAAQIECBBYJfBwBnNVFDcR2ElgtHfM47RHzy/mq10rMPr6j55f7WqIFgVGX//R84ue2rUCo6//6PnVroZoBLYJeIK5zc/dBAgQIECAAAECBAgQIPA/ARtMpUCAAAECBAgQIECAAAECJQI2mCWMghAgQIAAAQIECBAgQIDAwxnMn+/vpSqvLy+l8bJg1fln42X9vfO5um/mr39Z4Oz12Tv/ZT29vQVa1/f127fllL5+Xe4v7m3Nv3h44XoL/P338gg719tyMrebesyEJutXn6ULWv39M/vv755glpafYAQIECBAgAABAgQIELiugA3mddfezAkQIECAAAECBAgQIFAqYINZyikYAQIECBAgQIAAAQIErivw+a/v3z9VTv/H29uvynhbY1XPL8un93hX961+Bz6uZ+934nvnH+cT27PXZ+/5Rc/Y7r2+6vNefLTPw/vsHltH12f1+KP9vKqeXyxWTzCjiDYBAgQIECBAgAABAgQIrBKwwVzF5iYCBAgQIECAAAECBAgQiAI2mFFEmwABAgQIECBAgAABAgRWCTz8HcxVUdxEoJNA9TviV3sHvtOyCPs/AfU5Vin8/PKlKaHeZ1pjMtnnT3U9xfHP3h7Np7XeMv+96zHLR3+bgPps83L13AKeYM69vmZHgAABAgQIECBAgACB3QRsMHejNhABAgQIECBAgAABAgTmFrDBnHt9zY4AAQIECBAgQIAAAQK7CfQ/gxn/rtHXr9smF+PFaI1ncOLtR7ezMzoP+WUerd5ZvOCb5TvamYTo9/rt2/2XWr3u79YiUCrwUJ8x+sXrNX6+ZJ9Hka93O1u/6jN82Xyqx7vamcFYb5l31j9avWb59u5Xn9uEW+tT/W3z3nx3/H1768/zGC8mGH5/j93VbU8wq0XFI0CAAAECBAgQIECAwEUFbDAvuvCmTYAAAQIECBAgQIAAgWoBG8xqUfEIECBAgAABAgQIECBwUYH+ZzAvCls17dHOuGT5/Hx/r5r6OeMM9g788IiZ19YzCcMDSLCnQPZ51XPsEWK3nsnKcnZmKxPS3yKgPlu0+l979c/L/sLXGsETzGutt9kSIECAAAECBAgQIECgm4ANZjdagQkQIECAAAECBAgQIHAtARvMa6232RIgQIAAAQIECBAgQKCbQPczmPHvGm1+x9uZrPtiqPaojnef7XCt8vpsnGE801R9JqUxHZcPJnB0fQ7Gcbp04vqdbgKDJuzzcrAFOTidWA8Hp2P4YoFsfc/++1L8+TDb/sgTzOJvCOEIECBAgAABAgQIECBwVQEbzKuuvHkTIECAAAECBAgQIECgWMAGsxhUOAIECBAgQIAAAQIECFxVoPwMZnwnOnuHOsJnf0dx8zvKccDB25nH4OkPl17v+rx9+XI351ivsT37+mbze03O/Gb332FP2Ij1EqfY6pPFi/HP3m71qZ5v5n10ftXzjfFa5xe9Yrs1Xsxn9HY2v+gR55PdH6+frV3tk8Wbze/o+sm8j85v63r3/v0z89uaf+v9nmC2irmeAAECBAgQIECAAAECBP4oYIP5RxZfJECAAAECBAgQIECAAIFWARvMVjHXEyBAgAABAgQIECBAgMAfBcrPYP5xFF98WiC+o/30jS48RCCuV+uZ40OS7jho9IhDbfXJ4sfxrtaOPlu9z+YX5793/lfzbvWN63N1r+gRPbf6ZPHjeFdrR5+t3mfzi/PfO/+ree/te/R4nmAevQLGJ0CAAAECBAgQIECAwCQCNpiTLKRpECBAgAABAgQIECBA4GgBG8yjV8D4BAgQIECAAAECBAgQmERg9zOYW/+Ozdb7J1k30+gkUF1f1fE6TfuwsHyW6at9quMtZ693du/q+VXHm60C+SyvaLVPdbzl7PVe3Xvr/LfeX12BnmBWi4pHgAABAgQIECBAgACBiwrYYF504U2bAAECBAgQIECAAAEC1QI2mNWi4hEgQIAAAQIECBAgQOCiAv8HukM8fBoMw90AAAAASUVORK5CYII=';
 
 
         // Share Modal Functions
@@ -942,31 +1067,7 @@
             9: { name: 'Inference for Slopes', lessons: 2 }
         };
 
-        // Initialize class data
-        function initClassData() {
-            let classDataStr = localStorage.getItem('classData');
-            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
-
-            if (!classData.users[currentUsername]) {
-                classData.users[currentUsername] = {
-                    answers: {},
-                    reasons: {},
-                    timestamps: {},
-                    attempts: {}
-                };
-            }
-
-            saveClassData();
-        }
-
-        function saveClassData() {
-            try {
-                localStorage.setItem('classData', JSON.stringify(classData));
-            } catch(e) {
-                console.log("Storage quota exceeded");
-                showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
-            }
-        }
+        // Initialize class data - moved to js/data_manager.js
 
         // Student Performance Badges
         function calculateBadges(username) {
@@ -1099,155 +1200,7 @@
 
 
         // Username management
-        function promptUsername() {
-            const savedUsername = localStorage.getItem('consensusUsername');
-            if (savedUsername) {
-                currentUsername = savedUsername;
-                initClassData();
-                initializeProgressTracking(); // Initialize progress tracking for returning user
-                showUsernameWelcome();
-                initializeFromEmbeddedData(); // Initialize from embedded data
-                updateCurrentUsernameDisplay();
-            } else {
-                showUsernamePrompt();
-            }
-        }
-
-        function showUsernamePrompt() {
-            const suggestedName = generateRandomUsername();
-            const questionsContainer = document.getElementById('questionsContainer');
-            questionsContainer.innerHTML = `
-                <div class="username-prompt-enhanced">
-                    <div class="welcome-header">
-                        <h1>📊 AP Statistics Consensus Quiz</h1>
-                        <p class="subtitle">Collaborative Learning Platform</p>
-                    </div>
-
-                    <!-- Returning User Section -->
-                    <div class="user-section returning-user">
-                        <h2>🔄 Returning Student?</h2>
-                        <p>Restore your data from a master database file:</p>
-
-                        <div class="recovery-options">
-                            <!-- CSV Import - renamed to Restore -->
-                            <div class="recovery-option">
-                                <div class="option-icon">🔄</div>
-                                <h3>Restore</h3>
-                                <p class="option-description">Import master data using CSV student roster</p>
-                                <button onclick="showRestoreOptionsModal()"
-                                        class="action-button primary">
-                                    Restore Data
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Recently Used Usernames (if any in localStorage) -->
-                        <div id="recentUsernames" style="display: none;">
-                            <h3>📝 Recently Used on This Device:</h3>
-                            <div id="recentUsernamesList"></div>
-                        </div>
-                    </div>
-
-                    <!-- New User Section -->
-                    <div class="user-section new-user">
-                        <h2>🆕 New Student?</h2>
-                        <p>Generate a unique username to get started:</p>
-
-                        <div class="name-generator">
-                            <div class="generated-name-display">
-                                <span class="name-label">Your Username:</span>
-                                <span class="generated-name" id="generatedName">${suggestedName}</span>
-                            </div>
-
-                            <div class="generator-buttons">
-                                <button onclick="acceptUsername('${suggestedName}')" class="action-button primary large">
-                                    <span class="button-icon">✅</span>
-                                    Accept & Start
-                                </button>
-                                <button onclick="rerollUsername()" class="action-button secondary">
-                                    <span class="button-icon">🎲</span>
-                                    Generate New
-                                </button>
-                            </div>
-
-                            <div class="name-explanation">
-                                <small>💡 Tip: Write down your username or export it for future use!</small>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            `;
-
-            // Check for recently used usernames
-            loadRecentUsernames();
-        }
-
-        window.rerollUsername = function() {
-            const newName = generateRandomUsername();
-            const generatedNameElement = document.getElementById('generatedName');
-            if (generatedNameElement) {
-                generatedNameElement.textContent = newName;
-                // Update the accept button to use the new name
-                const acceptButton = generatedNameElement.closest('.name-generator').querySelector('.action-button.primary.large');
-                if (acceptButton) {
-                    acceptButton.onclick = () => acceptUsername(newName);
-                }
-            } else {
-                // Fallback to full refresh if element not found
-                showUsernamePrompt();
-            }
-        }
-
-        window.acceptUsername = function(name) {
-            currentUsername = name;
-            localStorage.setItem('consensusUsername', currentUsername);
-            initClassData();
-            initializeProgressTracking(); // Initialize progress tracking for new session
-            showUsernameWelcome();
-            initializeFromEmbeddedData();
-            updateCurrentUsernameDisplay();
-        }
-
-        // Function to recover username from manual input
-        window.recoverUsername = function() {
-            const input = document.getElementById('manualUsername');
-            const username = input.value.trim();
-
-            if (!username) {
-                showMessage('Please enter a username', 'error');
-                return;
-            }
-
-            // Validate username format (optional)
-            if (!username.match(/^[A-Za-z]+_[A-Za-z]+$/)) {
-                if (!confirm('This username doesn\'t match the standard format (Fruit_Animal). Use it anyway?')) {
-                    return;
-                }
-            }
-
-            // Check if this username has existing data
-            checkExistingData(username);
-        }
-
-        // Function to check for existing data
-        function checkExistingData(username) {
-            const existingData = localStorage.getItem(`answers_${username}`);
-            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-            const hasData = existingData || (classData.users && classData.users[username]);
-
-            if (hasData) {
-                if (confirm(`Found existing data for ${username}. Would you like to continue with this username and restore your progress?`)) {
-                    acceptUsername(username);
-                    showMessage('Welcome back! Your progress has been restored.', 'success');
-                }
-            } else {
-                if (confirm(`No existing data found for ${username}. Would you like to start fresh with this username?`)) {
-                    acceptUsername(username);
-                    showMessage('Username set! Starting fresh.', 'info');
-                }
-            }
-        }
+        // Username prompting and session management - moved to js/auth.js
 
         // Function to import username from file
         window.importUsernameFromFile = function(event) {
@@ -2307,140 +2260,9 @@ if (continueBtn) {
 
 
         // Call this function whenever currentUsername changes
-        function updateCurrentUsernameDisplay() {
-            // Reinitialize pig sprite with user's saved color
-            if (typeof initializePigSprite === 'function') {
-                initializePigSprite();
-            }
-        }
+        // Username display functions - moved to js/auth.js
 
-        // Function to load recently used usernames
-        function loadRecentUsernames() {
-            const recentUsers = [];
-
-            // Check localStorage for any stored usernames
-            for (let key in localStorage) {
-                if (key.startsWith('answers_')) {
-                    const username = key.replace('answers_', '');
-                    if (username && username !== 'undefined') {
-                        recentUsers.push(username);
-                    }
-                }
-            }
-
-            // Also check class data
-            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-            if (classData.users) {
-                Object.keys(classData.users).forEach(u => {
-                    if (!recentUsers.includes(u)) {
-                        recentUsers.push(u);
-                    }
-                });
-            }
-
-            // Display recent usernames if any found
-            if (recentUsers.length > 0) {
-                const container = document.getElementById('recentUsernames');
-                const list = document.getElementById('recentUsernamesList');
-
-                container.style.display = 'block';
-                list.innerHTML = recentUsers.map(u => `
-                    <button onclick="checkExistingData('${u}')" class="recent-username-btn">
-                        ${u}
-                    </button>
-                `).join('');
-            }
-        }
-
-
-        // Enhanced acceptUsername to save to recent list
-        const originalAcceptUsername = window.acceptUsername;
-        window.acceptUsername = function(name) {
-            // Save to recent usernames list
-            let recentUsernames = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
-            if (!recentUsernames.includes(name)) {
-                recentUsernames.unshift(name);
-                // Keep only last 5 usernames
-                recentUsernames = recentUsernames.slice(0, 5);
-                localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
-            }
-
-            // Call original function
-            originalAcceptUsername(name);
-        }
-
-        // Function to export username with a simple format
-        window.exportUsername = function() {
-            if (!currentUsername) {
-                showMessage('No username to export', 'error');
-                return;
-            }
-
-            const exportData = {
-                username: currentUsername,
-                exportDate: new Date().toISOString(),
-                version: '1.0'
-            };
-
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentUsername}_identity.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            showMessage('Username exported successfully!', 'success');
-        }
-
-        function showUsernameWelcome() {
-            const container = document.querySelector('.container');
-            if (!container) return;
-            const existingWelcome = document.querySelector('.username-welcome');
-            if (existingWelcome) existingWelcome.remove();
-
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'username-welcome';
-            welcomeDiv.textContent = `Welcome ${currentUsername}!`;
-            container.insertBefore(welcomeDiv, container.firstChild.nextSibling);
-        }
-
-        function initializeFromEmbeddedData() {
-            // Parse embedded curriculum
-            allCurriculumData = {};
-            const allQuestions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM;
-
-            // Group by units
-            const unitGroups = {};
-            allQuestions.forEach(question => {
-                const unitMatch = question.id.match(/U(\d+)/i);
-                if (unitMatch) {
-                    const unitNum = parseInt(unitMatch[1]);
-                    if (!unitGroups[unitNum]) {
-                        unitGroups[unitNum] = [];
-                    }
-                    unitGroups[unitNum].push(question);
-                }
-            });
-
-            // Process each unit
-            Object.keys(unitGroups).forEach(unitNum => {
-                const unitQuestions = unitGroups[unitNum];
-                const unitInfo = detectUnitAndLessons(unitQuestions);
-                if (unitInfo) {
-                    allCurriculumData[unitNum] = {
-                        questions: unitQuestions,
-                        unitInfo: unitInfo,
-                        fileName: `Unit ${unitNum}`
-                    };
-                }
-            });
-
-            // Go straight to unit menu
-            renderUnitMenu();
-        }
+        // Curriculum initialization - moved to js/data_manager.js
 
         // Unit selector - REMOVED: No longer needed due to CORS issues
         // function renderUnitSelector() {
@@ -2590,6 +2412,9 @@ function renderLessonSelector(unitInfo) {
         window.loadLesson = function(lessonNumber) {
             currentLesson = lessonNumber;
 
+            // TASK 4.1: Clean up activity listeners before loading new lesson
+            cleanupActivityTracking();
+
             // Handle both numeric lessons and 'PC'
             if (lessonNumber === 'PC') {
                 currentQuestions = allUnitQuestions.filter(q => q.id.includes('-PC-'));
@@ -2613,6 +2438,9 @@ function renderLessonSelector(unitInfo) {
 
         // Back to units
         window.backToUnits = function() {
+            // TASK 4.1: Clean up activity listeners before returning to units
+            cleanupActivityTracking();
+
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -2688,7 +2516,94 @@ function renderLessonSelector(unitInfo) {
                 
                 // Render charts for visible questions
                 setTimeout(renderVisibleCharts, 100);
+
+                // TASK 3.3: Set up activity tracking for question interactions
+                setTimeout(setupQuestionActivityTracking, 150);
             }, 100);
+        }
+
+        /**
+         * TASK 3.3: Sets up event listeners for tracking user activity on questions
+         * TASK 4.1: Now tracks listeners for cleanup (memory leak prevention)
+         */
+        function setupQuestionActivityTracking() {
+            if (!currentQuestions || currentQuestions.length === 0) return;
+
+            // TASK 4.1: Clean up old listeners first
+            cleanupActivityTracking();
+
+            currentQuestions.forEach(question => {
+                const questionId = question.id;
+
+                // Track radio button clicks (MC questions)
+                const radios = document.querySelectorAll(`input[name="choice-${questionId}"]`);
+                radios.forEach(radio => {
+                    const listener = () => updateUserActivity('answering', questionId);
+                    radio.addEventListener('change', listener);
+                    // TASK 4.1: Track for cleanup
+                    activityListeners.push({ element: radio, type: 'change', listener });
+                });
+
+                // Track textarea focus (FRQ questions) - debounced
+                const frqTextarea = document.getElementById(`frq-${questionId}`);
+                if (frqTextarea) {
+                    let focusTimeout = null;
+                    const focusListener = () => {
+                        if (focusTimeout) clearTimeout(focusTimeout);
+                        focusTimeout = setTimeout(() => {
+                            updateUserActivity('answering', questionId);
+                        }, 1000);
+                    };
+                    const blurListener = () => {
+                        if (focusTimeout) clearTimeout(focusTimeout);
+                    };
+
+                    frqTextarea.addEventListener('focus', focusListener);
+                    frqTextarea.addEventListener('blur', blurListener);
+
+                    // TASK 4.1: Track for cleanup
+                    activityListeners.push({ element: frqTextarea, type: 'focus', listener: focusListener });
+                    activityListeners.push({ element: frqTextarea, type: 'blur', listener: blurListener });
+                }
+
+                // Track reasoning textarea focus - debounced
+                const reasonTextarea = document.getElementById(`reason-${questionId}`);
+                if (reasonTextarea) {
+                    let focusTimeout = null;
+                    const focusListener = () => {
+                        if (focusTimeout) clearTimeout(focusTimeout);
+                        focusTimeout = setTimeout(() => {
+                            updateUserActivity('answering', questionId);
+                        }, 1000);
+                    };
+                    const blurListener = () => {
+                        if (focusTimeout) clearTimeout(focusTimeout);
+                    };
+
+                    reasonTextarea.addEventListener('focus', focusListener);
+                    reasonTextarea.addEventListener('blur', blurListener);
+
+                    // TASK 4.1: Track for cleanup
+                    activityListeners.push({ element: reasonTextarea, type: 'focus', listener: focusListener });
+                    activityListeners.push({ element: reasonTextarea, type: 'blur', listener: blurListener });
+                }
+            });
+
+            console.log(`🐷 Activity tracking set up for ${currentQuestions.length} questions (${activityListeners.length} listeners)`);
+        }
+
+        /**
+         * TASK 4.1: Cleanup function to remove all activity tracking listeners
+         * Prevents memory leaks when switching lessons/units
+         */
+        function cleanupActivityTracking() {
+            activityListeners.forEach(({ element, type, listener }) => {
+                if (element) {
+                    element.removeEventListener(type, listener);
+                }
+            });
+            activityListeners = [];
+            console.log('🐷 Activity tracking listeners cleaned up');
         }
 
         // Render question
@@ -2886,14 +2801,28 @@ function renderLessonSelector(unitInfo) {
                 return;
             }
 
-            // Sort responses - those with reasoning first
+            // Calculate vote scores for each response (only "helpful" votes count for ranking)
+            peerResponses.forEach(peer => {
+                peer.helpfulVotes = getVoteCount(questionId, peer.username, 'helpful');
+                peer.unclearVotes = getVoteCount(questionId, peer.username, 'unclear');
+                peer.contradictsVotes = getVoteCount(questionId, peer.username, 'contradicts');
+                peer.totalVotes = peer.helpfulVotes + peer.unclearVotes + peer.contradictsVotes;
+                peer.voteScore = peer.helpfulVotes; // Use helpful votes for ranking
+            });
+
+            // Sort responses by helpful votes (highest first), then by reasoning
             peerResponses.sort((a, b) => {
+                if (b.voteScore !== a.voteScore) return b.voteScore - a.voteScore;
                 const aHasReason = a.reason && a.reason.trim().length > 0;
                 const bHasReason = b.reason && b.reason.trim().length > 0;
                 if (aHasReason && !bHasReason) return -1;
                 if (!aHasReason && bHasReason) return 1;
                 return 0;
             });
+
+            // Calculate max votes for percentage bars
+            const maxVotes = Math.max(...peerResponses.map(p => p.helpfulVotes), 1);
+            const totalHelpfulVotes = peerResponses.reduce((sum, p) => sum + p.helpfulVotes, 0);
 
             // Check if answer key has been revealed for this question
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
@@ -2905,7 +2834,7 @@ function renderLessonSelector(unitInfo) {
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeyRevealed: ${answerKeyRevealed}`);
 
             let html = '';
-            peerResponses.forEach(peer => {
+            peerResponses.forEach((peer, index) => {
                 const hasReason = peer.reason && peer.reason.trim().length > 0;
 
                 // Determine if this peer's answer is correct (only if answer key is revealed)
@@ -2920,10 +2849,37 @@ function renderLessonSelector(unitInfo) {
                     }
                 }
 
+                // Determine ranking badge and consensus level
+                let rankBadge = '';
+                let consensusLevel = '';
+                if (peer.helpfulVotes > 0 && !isCollegeBoard) {
+                    if (index === 0 && peer.helpfulVotes >= 3) {
+                        rankBadge = '🥇 #1';
+                        consensusLevel = 'high';
+                    } else if (index === 1 && peer.helpfulVotes >= 2) {
+                        rankBadge = '🥈 #2';
+                        consensusLevel = 'medium';
+                    } else if (index === 2 && peer.helpfulVotes >= 1) {
+                        rankBadge = '🥉 #3';
+                        consensusLevel = 'low';
+                    }
+                }
+
+                // Calculate vote percentage
+                const votePercentage = totalHelpfulVotes > 0 ? (peer.helpfulVotes / totalHelpfulVotes * 100).toFixed(0) : 0;
+                const barWidth = maxVotes > 0 ? (peer.helpfulVotes / maxVotes * 100) : 0;
+
+                // Check if current user voted on this response
+                const userVote = classData.users[currentUsername]?.votes?.[questionId]?.[peer.username];
+                const votedHelpful = userVote?.type === 'helpful';
+                const votedUnclear = userVote?.type === 'unclear';
+                const votedContradicts = userVote?.type === 'contradicts';
+
                 console.log(`DEBUG: Peer ${peer.username} - answer: ${peer.choice || peer.response}, isCorrect: ${isCorrect}, answerKeyRevealed: ${answerKeyRevealed}`);
 
                 html += `
-                    <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'} ${isCollegeBoard ? 'college-board-official' : ''}">
+                    <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'} ${isCollegeBoard ? 'college-board-official' : ''}" data-consensus="${consensusLevel}">
+                        ${rankBadge ? `<div class="answer-rank">${rankBadge}</div>` : ''}
                         <div class="peer-name">
                             ${isCollegeBoard ? '🏛️ College Board (Official)' : peer.username}
                             ${isCorrect || isCollegeBoard ? '✓' : ''}
@@ -2933,17 +2889,30 @@ function renderLessonSelector(unitInfo) {
                             <div class="peer-reasoning-text ${isCollegeBoard ? 'official-explanation' : ''}">${peer.reason}</div>
                         ` : '<div class="peer-reasoning-text" style="color: #999; font-style: italic;">No explanation provided</div>'}
 
+                        ${peer.helpfulVotes > 0 ? `
+                            <div class="vote-bar-container">
+                                <div class="vote-bar" style="width: ${barWidth}%"></div>
+                            </div>
+                        ` : ''}
+
                         ${peer.response && !isCollegeBoard ? `
-                            <div class="peer-voting-buttons" style="margin-top: 10px;">
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'helpful')" class="vote-btn helpful">
-                                    💡 Helpful (${getVoteCount(questionId, peer.username, 'helpful')})
+                            <div class="peer-voting-buttons">
+                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'helpful')" class="vote-btn helpful ${votedHelpful ? 'voted' : ''}">
+                                    <i class="fas fa-thumbs-up"></i>
+                                    <span class="vote-count">${peer.helpfulVotes}</span>
+                                    ${peer.helpfulVotes > 0 ? `<span class="vote-percentage">(${votePercentage}%)</span>` : ''}
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'unclear')" class="vote-btn unclear">
-                                    🤔 Unclear (${getVoteCount(questionId, peer.username, 'unclear')})
+                                ${votedHelpful ? '<span class="your-vote-badge">Your vote!</span>' : ''}
+                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'unclear')" class="vote-btn unclear ${votedUnclear ? 'voted' : ''}">
+                                    <i class="fas fa-question-circle"></i>
+                                    <span class="vote-count">${peer.unclearVotes}</span>
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'contradicts')" class="vote-btn contradicts">
-                                    ⚔️ Contradicts (${getVoteCount(questionId, peer.username, 'contradicts')})
+                                ${votedUnclear ? '<span class="your-vote-badge unclear">Your vote</span>' : ''}
+                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'contradicts')" class="vote-btn contradicts ${votedContradicts ? 'voted' : ''}">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span class="vote-count">${peer.contradictsVotes}</span>
                                 </button>
+                                ${votedContradicts ? '<span class="your-vote-badge contradicts">Your vote</span>' : ''}
                             </div>
                         ` : ''}
                     </div>
@@ -2977,6 +2946,11 @@ function renderLessonSelector(unitInfo) {
                             response: response,
                             reason: reason
                         });
+                    }
+
+                    // Add peer pig if not already present
+                    if (window.pigManager && username !== currentUsername) {
+                        window.pigManager.addPeerPig(username);
                     }
                 }
             }
@@ -3622,26 +3596,45 @@ function renderAttachments(attachments, questionId) {
 
             // Sync to Supabase if turbo mode is active
             if (turboModeActive) {
-                // Use Railway if available, otherwise direct Supabase
-                const syncFunction = window.submitAnswerViaRailway || pushAnswerToSupabase;
-
-                syncFunction(currentUsername, questionId, value, timestampNow)
-                    .then(success => {
-                        if (success) {
-                            console.log(`✅ Answer synced to cloud for ${questionId}`);
-                            // Update peer data timestamp after successful sync
-                            updatePeerDataTimestamp();
-                        }
-                    })
-                    .catch(error => {
-                        console.log(`⚠️ Failed to sync answer: ${error.message}`);
-                    });
+                // PHASE 2 OPTIMIZATION: Use batching queue instead of immediate sync
+                if (window.submitAnswerViaRailway) {
+                    // Railway has its own batching, use it directly
+                    window.submitAnswerViaRailway(currentUsername, questionId, value, timestampNow)
+                        .then(success => {
+                            if (success) {
+                                console.log(`✅ Answer synced via Railway for ${questionId}`);
+                                updatePeerDataTimestamp();
+                            }
+                        })
+                        .catch(error => {
+                            console.log(`⚠️ Failed to sync answer via Railway: ${error.message}`);
+                        });
+                } else {
+                    // Use batching queue for Supabase
+                    queueAnswerForSync(currentUsername, questionId, value, timestampNow);
+                    console.log(`✅ Answer queued for batch sync: ${questionId}`);
+                }
             }
+
+            // Broadcast pig activity
+            if (window.pigManager) {
+                // Trigger celebration for current user's pig (if it exists)
+                if (window.pigSprite) {
+                    window.pigSprite.jump();
+                }
+
+                // Broadcast activity to peer pigs system
+                // This will be picked up when peers sync data
+                console.log(`🐷 Activity: ${currentUsername} submitted answer to ${questionId}`);
+            }
+
+            // TASK 3.3: Track activity state for real-time sync
+            updateUserActivity('submitted', questionId);
 
             // Update UI
             const submitBtn = document.getElementById(`submit-${questionId}`);
             const qContainer = document.querySelector(`[data-question-id="${questionId}"]`);
-            
+
             // Update button
             if (submitBtn) {
                 if (!canRetry(questionId)) {
@@ -4546,83 +4539,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Export personal data
-        window.exportPersonal = function() {
-            const personalData = {
-                exportTime: new Date().toISOString(),
-                username: currentUsername,
-                users: {
-                    [currentUsername]: classData.users[currentUsername]
-                }
-            };
-            
-            const blob = new Blob([JSON.stringify(personalData, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentUsername}_data.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showMessage('Personal data exported successfully!', 'success');
-        }
-
-        // Export master database with all data
-        window.exportMasterData = function() {
-            // Get ALL data from localStorage, not filtered by user
-            const masterData = {
-                timestamp: new Date().toISOString(),
-                exportType: 'master_database',
-                allUsers: Object.keys(localStorage)
-                    .filter(key => key.includes('_username') || key.includes('answers_'))
-                    .map(key => key.split('_')[1])
-                    .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
-
-                // Get all class data without filtering
-                classData: JSON.parse(localStorage.getItem('classData') || '{}'),
-
-                // Get all answers from all users
-                allAnswers: {},
-
-                // Get all progress from all users
-                allProgress: {},
-
-                // Get any other data structures you have
-                consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}'),
-
-                // Include raw localStorage for complete backup
-                rawLocalStorage: {}
-            };
-
-            // Collect all answers for all users
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('answers_')) {
-                    const username = key.replace('answers_', '');
-                    masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
-                }
-                if (key.startsWith('progress_')) {
-                    const username = key.replace('progress_', '');
-                    masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
-                }
-
-                // Store everything in raw format too
-                masterData.rawLocalStorage[key] = localStorage.getItem(key);
-            });
-
-            // Create and download the file
-            const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `master_database_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            showMessage('Master database exported successfully!', 'success');
-        }
+        // Export functions - moved to js/data_manager.js
 
 
         // Import class data
@@ -4844,6 +4761,64 @@ if (chartInstances[`dotplot-${questionId}`]) {
             applyTheme(newTheme);
         }
 
+        // Toggle multiplayer pigs
+        /**
+         * TASK 4.1: Updates pig system status indicator
+         * @param {string} status - 'active', 'syncing', 'error', or 'offline'
+         */
+        function updatePigSystemStatus(status) {
+            const button = document.querySelector('.pigs-toggle');
+            if (!button) return;
+
+            // Remove existing status dot
+            const existing = button.querySelector('.pig-status');
+            if (existing) existing.remove();
+
+            // Add new status dot
+            const statusDot = document.createElement('span');
+            statusDot.className = 'pig-status';
+
+            const colors = {
+                'active': '#4caf50',     // Green - syncing successfully
+                'syncing': '#ffc107',    // Yellow - currently syncing
+                'error': '#f44336',      // Red - error occurred
+                'offline': '#9e9e9e'     // Gray - offline mode
+            };
+
+            statusDot.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: ${colors[status] || colors['offline']};
+                box-shadow: 0 0 4px ${colors[status] || colors['offline']};
+                pointer-events: none;
+            `;
+
+            button.appendChild(statusDot);
+        }
+
+        window.togglePigs = function() {
+            if (!window.pigManager) {
+                // Initialize if not exists
+                window.pigManager = new PigManager();
+                showMessage('Multiplayer pigs enabled! 🐷', 'success');
+                updatePigSystemStatus(turboModeActive ? 'active' : 'offline');
+            } else {
+                const enabled = window.pigManager.toggle();
+                showMessage(enabled ? 'Multiplayer pigs enabled! 🐷' : 'Multiplayer pigs disabled', 'info');
+                updatePigSystemStatus(enabled && turboModeActive ? 'active' : 'offline');
+            }
+
+            // Update button appearance
+            const button = document.querySelector('.pigs-toggle');
+            if (button) {
+                button.style.opacity = window.pigManager?.enabled ? '1' : '0.5';
+            }
+        }
+
         // Initialize on load
         window.onload = function() {
             initTheme();
@@ -4893,7 +4868,722 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Pig Sprite Controller
+        // ========================================
+        // MULTIPLAYER PIG SYSTEM
+        // ========================================
+
+        // Simplified peer pig class for multiplayer visualization
+        // TASK 4.2: Complete sprite-based PeerPig class replacement
+        // TASK 5.1: Unified color system - respects localStorage for current player
+        class PeerPig {
+            constructor(username, isPlayer = false) {
+                this.username = username;
+                this.isPlayer = isPlayer || (username === currentUsername);
+                this.x = 0; // Will be set by position update
+                this.y = 20;
+                this.color = this.generateColorFromUsername(username);
+                this.activityState = 'idle';
+                this.currentQuestion = null;
+                this.lastActivity = Date.now();
+                this.fadeTimeout = null;
+                this.walkInterval = null;
+                this.element = this.createElement();
+                this.setupFading();
+            }
+
+            generateColorFromUsername(username) {
+                // TASK 5.1: Use saved color for current player, hash for peers
+                if (this.isPlayer || username === currentUsername) {
+                    const savedHue = localStorage.getItem('spriteColorHue');
+                    if (savedHue) {
+                        return `hsl(${savedHue}, 70%, 60%)`;
+                    }
+                }
+
+                // Generate consistent color from username hash for peers
+                let hash = 0;
+                for (let i = 0; i < username.length; i++) {
+                    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                const hue = Math.abs(hash) % 360;
+                return `hsl(${hue}, 70%, 60%)`;
+            }
+
+            getHueRotation() {
+                // TASK 5.1: Use saved hue for current player, hash for peers
+                if (this.isPlayer || this.username === currentUsername) {
+                    const savedHue = localStorage.getItem('spriteColorHue');
+                    if (savedHue) {
+                        return parseInt(savedHue);
+                    }
+                }
+
+                // Calculate hue rotation for sprite filter from hash
+                let hash = 0;
+                for (let i = 0; i < this.username.length; i++) {
+                    hash = this.username.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return Math.abs(hash) % 360;
+            }
+
+            createElement() {
+                const container = document.createElement('div');
+                container.className = 'peer-sprite-container';
+                container.style.cssText = `
+                    position: absolute;
+                    width: 30px;
+                    height: 30px;
+                    bottom: ${this.y}px;
+                    left: ${this.x}px;
+                    opacity: 0.7;
+                    transition: all 0.3s ease;
+                    z-index: 50;
+                `;
+
+                // Sprite element
+                const sprite = document.createElement('div');
+                sprite.className = 'peer-sprite';
+                sprite.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    background-image: url(${SPRITE_BASE64});
+                    background-size: 400% 100%;
+                    background-position: 0 0;
+                    filter: hue-rotate(${this.getHueRotation()}deg);
+                    image-rendering: pixelated;
+                `;
+
+                // Username label
+                const label = document.createElement('div');
+                label.className = 'peer-username-label';
+                label.textContent = this.username;
+                label.style.cssText = `
+                    position: absolute;
+                    bottom: 35px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0, 0, 0, 0.7);
+                    color: white;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    font-size: 10px;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    font-family: monospace;
+                `;
+
+                container.appendChild(sprite);
+                container.appendChild(label);
+
+                this.spriteElement = sprite;
+                this.labelElement = label;
+                return container;
+            }
+
+            setActivity(state, questionId = null) {
+                this.activityState = state;
+                this.currentQuestion = questionId;
+                this.lastActivity = Date.now();
+                this.updateVisualState();
+                this.resetFading();
+            }
+
+            updateVisualState() {
+                // Clear existing intervals
+                if (this.walkInterval) {
+                    clearInterval(this.walkInterval);
+                    this.walkInterval = null;
+                }
+
+                // Remove all state classes
+                this.element.classList.remove('walking', 'jumping', 'idle', 'thinking');
+
+                switch(this.activityState) {
+                    case 'viewing':
+                        // Walking animation when viewing lessons
+                        this.element.classList.add('walking');
+                        this.animateWalking();
+                        break;
+
+                    case 'answering':
+                        // Subtle thinking animation
+                        this.element.classList.add('thinking');
+                        this.setIdleFrame();
+                        break;
+
+                    case 'submitted':
+                        // Jump and turn gold briefly
+                        this.jumpAndCelebrate();
+                        break;
+
+                    default:
+                        // Idle state
+                        this.element.classList.add('idle');
+                        this.setIdleFrame();
+                        break;
+                }
+            }
+
+            animateWalking() {
+                // Cycle through walking frames
+                let frame = 0;
+                this.walkInterval = setInterval(() => {
+                    if (this.activityState !== 'viewing') {
+                        clearInterval(this.walkInterval);
+                        this.walkInterval = null;
+                        return;
+                    }
+                    // TASK 5.1: Fixed for 4-frame sprite sheet
+                    const x = (frame % 4) * 33.33; // 4 frames = 33.33% per frame
+                    this.spriteElement.style.backgroundPosition = `-${x}% 0`;
+                    frame++;
+                }, 200);
+            }
+
+            jumpAndCelebrate() {
+                // Save original filter
+                const originalFilter = this.spriteElement.style.filter;
+
+                // Turn gold
+                this.spriteElement.style.filter = 'hue-rotate(45deg) brightness(1.5) saturate(2)';
+
+                // Jump animation
+                this.element.style.transition = 'all 0.3s ease';
+                this.element.style.transform = 'translateY(-20px)';
+
+                setTimeout(() => {
+                    this.element.style.transform = 'translateY(0)';
+
+                    // Revert to original color after landing
+                    setTimeout(() => {
+                        this.spriteElement.style.filter = originalFilter;
+                    }, 500);
+                }, 300);
+
+                // Auto-transition to idle after 3 seconds
+                setTimeout(() => {
+                    if (this.activityState === 'submitted') {
+                        this.setActivity('idle', null);
+                    }
+                }, 3000);
+            }
+
+            setIdleFrame() {
+                // Set to idle frame (first frame of sprite sheet)
+                this.spriteElement.style.backgroundPosition = '0 0';
+            }
+
+            setupFading() {
+                // Start checking for inactivity
+                this.resetFading();
+            }
+
+            resetFading() {
+                if (this.fadeTimeout) clearTimeout(this.fadeTimeout);
+
+                // Reset opacity
+                this.element.style.opacity = '0.7';
+
+                // Set timeout for fading (5 minutes)
+                this.fadeTimeout = setTimeout(() => {
+                    this.startFading();
+                }, 300000); // 5 minutes
+            }
+
+            startFading() {
+                // Gradually fade out
+                this.element.style.transition = 'opacity 2s ease';
+                this.element.style.opacity = '0.2';
+
+                // Remove completely after fade
+                setTimeout(() => {
+                    if (Date.now() - this.lastActivity > 300000) {
+                        this.remove();
+                    }
+                }, 2000);
+            }
+
+            updatePosition(x, y, animate = true) {
+                this.x = x;
+                this.y = y;
+                if (animate) {
+                    this.element.style.transition = 'all 0.3s ease';
+                }
+                this.element.style.left = x + 'px';
+                this.element.style.bottom = y + 'px';
+            }
+
+            remove() {
+                if (this.walkInterval) clearInterval(this.walkInterval);
+                if (this.fadeTimeout) clearTimeout(this.fadeTimeout);
+                this.element.style.transition = 'opacity 0.5s ease';
+                this.element.style.opacity = '0';
+                setTimeout(() => {
+                    this.element.remove();
+                }, 500);
+            }
+        }
+
+        // Pig Manager - Manages all peer pigs in the classroom
+        class PigManager {
+            constructor() {
+                this.pigs = new Map();
+                this.container = null;
+                this.enabled = localStorage.getItem('pigsEnabled') !== 'false';
+                // TASK 4.1: Debounce map to prevent duplicate pig creation
+                this.pigCreationDebounce = new Map();
+                // TASK 4.2: Periodic cleanup interval
+                this.cleanupInterval = null;
+                if (this.enabled) {
+                    this.init();
+                }
+            }
+
+            init() {
+                // Create container for all peer pigs
+                this.container = document.createElement('div');
+                this.container.id = 'peer-pig-container';
+                this.container.className = 'peer-pig-container';
+                document.body.appendChild(this.container);
+
+                // Load existing peer pigs from classData
+                this.loadExistingPeers();
+
+                // TASK 4.2: Start periodic cleanup for inactive sprites
+                this.startPeriodicCleanup();
+            }
+
+            // TASK 4.2: Periodic cleanup - check every 60 seconds for inactive sprites
+            startPeriodicCleanup() {
+                if (this.cleanupInterval) {
+                    clearInterval(this.cleanupInterval);
+                }
+
+                this.cleanupInterval = setInterval(() => {
+                    this.cleanupInactiveSprites();
+                }, 60000); // Check every 60 seconds
+
+                console.log('🧹 Started periodic sprite cleanup (60s interval)');
+            }
+
+            cleanupInactiveSprites() {
+                if (!this.enabled || this.pigs.size === 0) return;
+
+                const fiveMinutesAgo = Date.now() - 300000;
+                const spritesToRemove = [];
+
+                // Check each sprite for inactivity
+                this.pigs.forEach((pig, username) => {
+                    if (pig.lastActivity < fiveMinutesAgo) {
+                        spritesToRemove.push(username);
+                    }
+                });
+
+                // Remove inactive sprites
+                if (spritesToRemove.length > 0) {
+                    console.log(`🧹 Cleaning up ${spritesToRemove.length} inactive sprite(s)`);
+                    spritesToRemove.forEach(username => {
+                        this.removePig(username);
+                    });
+                }
+            }
+
+            stopPeriodicCleanup() {
+                if (this.cleanupInterval) {
+                    clearInterval(this.cleanupInterval);
+                    this.cleanupInterval = null;
+                    console.log('🧹 Stopped periodic sprite cleanup');
+                }
+            }
+
+            loadExistingPeers() {
+                if (!classData || !classData.users) return;
+
+                // TASK 4.2: CRITICAL BUG FIX - Only load users active in last 5 minutes
+                const fiveMinutesAgo = Date.now() - 300000;
+
+                for (let username in classData.users) {
+                    if (username === currentUsername) continue;
+
+                    // Only load if active in last 5 minutes
+                    const lastUpdate = classData.users[username]?.currentActivity?.lastUpdate;
+                    if (lastUpdate && lastUpdate > fiveMinutesAgo) {
+                        this.addPeerPig(username);
+
+                        // Set their current activity state
+                        const activity = classData.users[username].currentActivity;
+                        if (activity) {
+                            // Activity will be set after debounce in addPeerPig
+                            // Store it temporarily for application after creation
+                            if (!this.pendingActivities) this.pendingActivities = new Map();
+                            this.pendingActivities.set(username, activity);
+                        }
+                    }
+                }
+            }
+
+            addPeerPig(username, position = null) {
+                if (!this.enabled || !this.container) return;
+                if (username === currentUsername) return; // Don't create pig for current user
+
+                // TASK 4.1: Debounce pig creation to prevent duplicates
+                if (this.pigCreationDebounce.has(username)) {
+                    clearTimeout(this.pigCreationDebounce.get(username));
+                }
+
+                const timeout = setTimeout(() => {
+                    // Check again after debounce
+                    if (!this.pigs.has(username)) {
+                        const pig = new PeerPig(username);
+                        if (position) {
+                            pig.updatePosition(position.x, position.y, false);
+                        }
+
+                        this.pigs.set(username, pig);
+                        this.container.appendChild(pig.element);
+
+                        // Entrance animation
+                        pig.element.classList.add('peer-pig-enter');
+                        setTimeout(() => pig.element.classList.remove('peer-pig-enter'), 500);
+
+                        console.log(`🐷 Added peer pig for ${username}`);
+                    }
+                    this.pigCreationDebounce.delete(username);
+                }, 100); // 100ms debounce
+
+                this.pigCreationDebounce.set(username, timeout);
+            }
+
+            removePig(username) {
+                if (!this.enabled) return;
+                const pig = this.pigs.get(username);
+                if (pig) {
+                    pig.remove();
+                    this.pigs.delete(username);
+                    console.log(`🐷 Removed peer pig for ${username}`);
+                }
+            }
+
+            updatePeerPosition(username, x, y) {
+                if (!this.enabled) return;
+                const pig = this.pigs.get(username);
+                if (pig) {
+                    pig.updatePosition(x, y);
+                }
+            }
+
+            celebratePeer(username) {
+                if (!this.enabled) return;
+                const pig = this.pigs.get(username);
+                if (pig) {
+                    pig.celebrate();
+                }
+            }
+
+            updatePigPositions() {
+                if (!this.enabled || this.pigs.size === 0) return;
+
+                // TASK 5.0: Fixed positioning - left side, higher up to avoid UI
+                const spacing = 40; // 40px between sprites
+                const startX = 50;  // Starting X position (left side)
+                const baseY = 80;   // Base Y position (higher up to clear bottom UI)
+
+                let index = 0;
+                this.pigs.forEach(pig => {
+                    const x = startX + (index * spacing);
+                    pig.updatePosition(x, baseY, true);
+                    index++;
+                });
+            }
+
+            updateActivity(username, state, questionId = null) {
+                if (!this.enabled) return;
+                const pig = this.pigs.get(username);
+                if (pig) {
+                    pig.setActivity(state, questionId);
+                    // Update positions to regroup
+                    this.updatePigPositions();
+                }
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                localStorage.setItem('pigsEnabled', this.enabled);
+
+                if (this.enabled) {
+                    this.init();
+                } else {
+                    // TASK 4.2: Stop cleanup when disabled
+                    this.stopPeriodicCleanup();
+                    if (this.container) {
+                        this.container.remove();
+                        this.container = null;
+                    }
+                    this.pigs.clear();
+                }
+
+                console.log(`🐷 Peer pigs ${this.enabled ? 'enabled' : 'disabled'}`);
+                return this.enabled;
+            }
+
+            destroy() {
+                // TASK 4.2: Stop cleanup when destroyed
+                this.stopPeriodicCleanup();
+                if (this.container) {
+                    this.container.remove();
+                }
+                this.pigs.clear();
+            }
+        }
+
+        // Initialize global pig manager
+        window.pigManager = null;
+
+        // ========================================
+        // TASK 3.3: Activity Tracking Functions
+        // ========================================
+
+        /**
+         * Updates user's current activity state and syncs to cloud
+         * @param {string} state - Activity state: 'idle', 'viewing', 'answering', 'submitted'
+         * @param {string|null} questionId - Current question ID or null for idle
+         */
+        function updateUserActivity(state, questionId = null) {
+            if (!currentUsername || !classData) return;
+
+            // TASK 4.1: Initialize if needed (race condition fix)
+            if (!classData.users) {
+                classData = { users: {} };
+            }
+            if (!classData.users[currentUsername]) {
+                console.warn('User data not initialized for activity tracking, initializing...');
+                initClassData();
+                // Double-check after init
+                if (!classData.users[currentUsername]) {
+                    console.error('Failed to initialize user data for activity tracking');
+                    return;
+                }
+            }
+
+            const previousState = classData.users[currentUsername].currentActivity?.state;
+            const previousQuestion = classData.users[currentUsername].currentActivity?.questionId;
+
+            // Update activity state
+            classData.users[currentUsername].currentActivity = {
+                state: state,
+                questionId: questionId,
+                lastUpdate: Date.now()
+            };
+
+            // Save to localStorage
+            saveClassData();
+
+            // Log activity change
+            console.log(`🐷 Activity: ${currentUsername} ${state} ${questionId || ''}`);
+
+            // Update local pig sprite if exists
+            if (window.pigManager) {
+                const localPig = window.pigManager.pigs.get(currentUsername);
+                if (localPig) {
+                    localPig.setActivity(state, questionId);
+                }
+            }
+
+            // Queue for cloud sync if turbo mode active
+            if (turboModeActive && typeof queueActivityForSync === 'function') {
+                queueActivityForSync(currentUsername, state, questionId);
+            }
+
+            // Auto-transition: submitted → idle after 3 seconds
+            if (state === 'submitted') {
+                setTimeout(() => {
+                    // Only transition if still in submitted state
+                    if (classData.users[currentUsername]?.currentActivity?.state === 'submitted') {
+                        updateUserActivity('idle', null);
+                    }
+                }, 3000);
+            }
+        }
+
+        /**
+         * Queues activity update for batch syncing to cloud
+         * @param {string} username - Username
+         * @param {string} state - Activity state
+         * @param {string|null} questionId - Question ID
+         */
+        function queueActivityForSync(username, state, questionId) {
+            if (!turboModeActive || !supabase) return;
+
+            // Activity updates are sent immediately (not batched) for real-time feel
+            // But we use a debounced approach to prevent spam
+            if (window.activitySyncDebounce) {
+                clearTimeout(window.activitySyncDebounce);
+            }
+
+            window.activitySyncDebounce = setTimeout(() => {
+                pushActivityToSupabase(username, state, questionId);
+            }, 500); // 500ms debounce
+        }
+
+        /**
+         * Pushes activity update to Supabase
+         * @param {string} username - Username
+         * @param {string} state - Activity state
+         * @param {string|null} questionId - Question ID
+         */
+        async function pushActivityToSupabase(username, state, questionId) {
+            if (!turboModeActive || !supabase) return;
+
+            try {
+                const activityData = {
+                    username: username,
+                    activity_state: state,
+                    question_id: questionId,
+                    timestamp: Date.now()
+                };
+
+                const { error } = await supabase
+                    .from('user_activity')
+                    .upsert(activityData, { onConflict: 'username' });
+
+                if (error) {
+                    // TASK 4.1: Handle missing table gracefully
+                    if (error.code === '42P01') { // PostgreSQL: relation does not exist
+                        console.warn('⚠️ user_activity table not found. Activity sync disabled.');
+                        console.log('To enable activity sync, create the table with:');
+                        console.log('CREATE TABLE user_activity (username TEXT PRIMARY KEY, activity_state TEXT, question_id TEXT, timestamp BIGINT);');
+                        stopActivityRefresh();
+                        return;
+                    }
+                    throw error;
+                }
+                console.log(`✅ Activity synced: ${username} ${state}`);
+            } catch (error) {
+                console.error('❌ Error syncing activity:', error);
+            }
+        }
+
+        /**
+         * Pulls peer activity data from Supabase and updates pig states
+         */
+        async function pullPeerActivityFromSupabase() {
+            if (!turboModeActive || !supabase) return;
+
+            // TASK 4.1: Update status indicator
+            updatePigSystemStatus('syncing');
+
+            try {
+                const currentUser = localStorage.getItem('consensusUsername');
+                if (!currentUser) return;
+
+                const { data, error } = await supabase
+                    .from('user_activity')
+                    .select('*')
+                    .neq('username', currentUser)
+                    .gt('timestamp', Date.now() - 300000); // Only last 5 minutes
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    // TASK 4.1: Success even if no data
+                    updatePigSystemStatus('active');
+                    return;
+                }
+
+                // Process activity updates
+                data.forEach(activity => {
+                    const username = activity.username;
+                    const state = activity.activity_state;
+                    const questionId = activity.question_id;
+
+                    // Update classData with peer activity
+                    if (classData.users[username]) {
+                        classData.users[username].currentActivity = {
+                            state: state,
+                            questionId: questionId,
+                            lastUpdate: activity.timestamp
+                        };
+                    } else {
+                        // Create minimal user entry for new peer
+                        classData.users[username] = {
+                            answers: {},
+                            reasons: {},
+                            timestamps: {},
+                            attempts: {},
+                            currentActivity: {
+                                state: state,
+                                questionId: questionId,
+                                lastUpdate: activity.timestamp
+                            }
+                        };
+                    }
+
+                    // Update pig visual state
+                    if (window.pigManager) {
+                        const pig = window.pigManager.pigs.get(username);
+                        if (pig) {
+                            pig.setActivity(state, questionId);
+                        } else {
+                            // Create pig for new peer
+                            window.pigManager.addPeerPig(username);
+                            const newPig = window.pigManager.pigs.get(username);
+                            if (newPig) {
+                                newPig.setActivity(state, questionId);
+                            }
+                        }
+                    }
+                });
+
+                console.log(`✅ Pulled activity for ${data.length} peers`);
+
+                // Update pig positions based on activity grouping
+                if (window.pigManager) {
+                    window.pigManager.updatePigPositions();
+                }
+
+                // TASK 4.1: Update status indicator to active after success
+                updatePigSystemStatus('active');
+
+            } catch (error) {
+                console.error('❌ Error pulling peer activity:', error);
+                // TASK 4.1: Update status indicator to error
+                updatePigSystemStatus('error');
+            }
+        }
+
+        /**
+         * Starts periodic activity refresh (every 30 seconds)
+         */
+        function startActivityRefresh() {
+            if (!turboModeActive) return;
+
+            // Clear existing interval if any
+            if (window.activityRefreshInterval) {
+                clearInterval(window.activityRefreshInterval);
+            }
+
+            // Pull immediately
+            pullPeerActivityFromSupabase();
+
+            // Set up periodic refresh
+            window.activityRefreshInterval = setInterval(() => {
+                pullPeerActivityFromSupabase();
+            }, 30000); // Every 30 seconds
+
+            console.log('🐷 Activity refresh started (30s interval)');
+        }
+
+        /**
+         * Stops periodic activity refresh
+         */
+        function stopActivityRefresh() {
+            if (window.activityRefreshInterval) {
+                clearInterval(window.activityRefreshInterval);
+                window.activityRefreshInterval = null;
+                console.log('🐷 Activity refresh stopped');
+            }
+        }
+
+        // Pig Sprite Controller (Local player's pig)
         class PigSprite {
             constructor(color = 'pink') {
                 this.x = window.innerWidth / 2;
@@ -6563,6 +7253,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 currentUserDisplay.textContent = localStorage.getItem('consensusUsername') || 'Unknown';
             }
 
+            // Show/hide turbo mode notice based on sync status
+            const turboModeNotice = document.getElementById('turboModeNotice');
+            if (turboModeNotice) {
+                turboModeNotice.style.display = turboModeActive ? 'block' : 'none';
+            }
+
             // Ensure Master Import button exists (add dynamically if missing)
             const masterExportBtn = document.getElementById('masterExportBtn');
             if (masterExportBtn && !document.getElementById('masterImportBtn')) {
@@ -6571,10 +7267,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 masterImportBtn.id = 'masterImportBtn';
                 masterImportBtn.className = 'modal-btn';
                 masterImportBtn.innerHTML = `
-                    <i class="fas fa-cloud-download-alt"></i>
+                    <i class="fas fa-users"></i>
                     <span>
-                        <strong>Master Import</strong>
-                        <small>Import peer data from master database</small>
+                        <strong>Import Class Data</strong>
+                        <small>Load peer answers from teacher's file</small>
                     </span>
                 `;
                 masterExportBtn.parentNode.appendChild(masterImportBtn);
@@ -6625,6 +7321,200 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Fallback: try to find any modal with sync-related content
                 const allModals = document.querySelectorAll('.modal');
                 console.log('Available modals:', allModals);
+            }
+        }
+
+        // ========================================
+        // TASK 5.0: SPRITE SETTINGS MODAL FUNCTIONS
+        // ========================================
+
+        /**
+         * Show the sprite settings modal
+         * TASK 5.2: Disabled - shows "Under Construction" message only
+         */
+        function showSpriteSettingsModal() {
+            // TASK 5.2: Sprites disabled pending Canvas refactor
+            if (!SPRITES_ENABLED) {
+                const modal = document.getElementById('spriteSettingsModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                }
+                return;
+            }
+
+            // Legacy code - will be removed in Phase 5
+            const modal = document.getElementById('spriteSettingsModal');
+            if (modal) {
+                // Load current settings
+                const spritesEnabled = localStorage.getItem('pigsEnabled') !== 'false';
+                const savedColor = localStorage.getItem('spriteColor') || '0';
+
+                document.getElementById('spritesEnabled').checked = spritesEnabled;
+
+                // Generate color grid
+                generateColorGrid();
+
+                // Set selected color
+                selectColor(parseInt(savedColor));
+
+                // Update preview
+                updateSpritePreview();
+
+                modal.style.display = 'block';
+            }
+        }
+
+        /**
+         * Close the sprite settings modal
+         */
+        function closeSpriteSettingsModal() {
+            const modal = document.getElementById('spriteSettingsModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        /**
+         * Generate the color grid with selectable colors
+         */
+        function generateColorGrid() {
+            const colorGrid = document.getElementById('colorGrid');
+            if (!colorGrid) return;
+
+            // Define color options (hue values)
+            const colors = [
+                { hue: 0, name: 'Red' },
+                { hue: 30, name: 'Orange' },
+                { hue: 60, name: 'Yellow' },
+                { hue: 120, name: 'Green' },
+                { hue: 180, name: 'Cyan' },
+                { hue: 210, name: 'Blue' },
+                { hue: 270, name: 'Purple' },
+                { hue: 330, name: 'Pink' }
+            ];
+
+            colorGrid.innerHTML = colors.map((color, index) => `
+                <div class="color-option" data-hue="${color.hue}" data-index="${index}"
+                     onclick="selectColor(${index})"
+                     style="background: hsl(${color.hue}, 70%, 50%);"
+                     title="${color.name}">
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Select a color option
+         */
+        function selectColor(index) {
+            // Remove previous selection
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+
+            // Add selection to clicked color
+            const colorOptions = document.querySelectorAll('.color-option');
+            if (colorOptions[index]) {
+                colorOptions[index].classList.add('selected');
+
+                // Store selection temporarily
+                window.tempSpriteColorIndex = index;
+                window.tempSpriteColorHue = colorOptions[index].dataset.hue;
+
+                // Update preview
+                updateSpritePreview();
+            }
+        }
+
+        /**
+         * Update the sprite preview with current settings
+         */
+        function updateSpritePreview() {
+            const previewContainer = document.getElementById('spritePreview');
+            const usernameLabel = document.getElementById('previewUsername');
+
+            if (!previewContainer || !usernameLabel) return;
+
+            const hue = window.tempSpriteColorHue || localStorage.getItem('spriteColorHue') || '0';
+            const username = currentUsername || 'Preview';
+
+            previewContainer.innerHTML = `
+                <div class="preview-sprite" style="
+                    width: 60px;
+                    height: 60px;
+                    background-image: url(${SPRITE_BASE64});
+                    background-size: 1200%;
+                    background-position: 0 0;
+                    filter: hue-rotate(${hue}deg);
+                    image-rendering: pixelated;
+                    margin: 0 auto;
+                "></div>
+            `;
+
+            usernameLabel.textContent = username;
+        }
+
+        /**
+         * Handle sprite toggle checkbox change
+         */
+        function handleSpriteToggle() {
+            const checkbox = document.getElementById('spritesEnabled');
+            // Just update the UI, actual toggle happens on save
+            console.log('Sprite toggle:', checkbox.checked);
+        }
+
+        /**
+         * Save sprite settings and apply them
+         * TASK 5.2: Disabled - no functionality when SPRITES_ENABLED is false
+         */
+        function saveSpriteSettings() {
+            // TASK 5.2: Sprites disabled pending Canvas refactor
+            if (!SPRITES_ENABLED) {
+                closeSpriteSettingsModal();
+                console.log('🎮 Sprites temporarily disabled pending Canvas refactor');
+                return;
+            }
+
+            // Legacy code - will be removed in Phase 5
+            const spritesEnabled = document.getElementById('spritesEnabled').checked;
+            const colorIndex = window.tempSpriteColorIndex !== undefined ?
+                              window.tempSpriteColorIndex :
+                              parseInt(localStorage.getItem('spriteColor') || '0');
+            const colorHue = window.tempSpriteColorHue ||
+                            localStorage.getItem('spriteColorHue') || '0';
+
+            // Save to localStorage
+            localStorage.setItem('pigsEnabled', spritesEnabled);
+            localStorage.setItem('spriteColor', colorIndex.toString());
+            localStorage.setItem('spriteColorHue', colorHue);
+
+            console.log('Sprite settings saved:', { spritesEnabled, colorIndex, colorHue });
+
+            // Apply settings
+            if (!window.pigManager && spritesEnabled) {
+                // Initialize pig manager if not exists
+                window.pigManager = new PigManager();
+            } else if (window.pigManager) {
+                // Toggle existing manager
+                if (window.pigManager.enabled !== spritesEnabled) {
+                    window.pigManager.toggle();
+                }
+            }
+
+            // Update user's own sprite color if they have one
+            // (This would apply to their PigSprite, not PeerPig)
+
+            // Close modal
+            closeSpriteSettingsModal();
+
+            // Show success message
+            showMessage('✅ Sprite settings saved!', 'success');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const spriteModal = document.getElementById('spriteSettingsModal');
+            if (event.target === spriteModal) {
+                closeSpriteSettingsModal();
             }
         }
 
