@@ -764,7 +764,89 @@
             }
         }
 
-        // Initialize turbo mode on page load
+// --- START: NEW Real-Time Update Handling System ---
+
+/**
+ * Ensures the global classData object and its user structure are initialized.
+ */
+function ensureClassDataInitialized() {
+    if (!classData || typeof classData !== 'object') classData = { users: {} };
+    if (!classData.users || typeof classData.users !== 'object') classData.users = {};
+}
+
+/**
+ * Merges a new peer answer into all relevant state stores (in-memory, localStorage).
+ * This acts as the single source of truth for state mutation from real-time events.
+ * @param {object} detail - The event detail containing the new answer data.
+ * @returns {boolean} - True if the state was updated, false otherwise.
+ */
+function mergePeerAnswer(detail) {
+    const { username, question_id, answer_value, timestamp } = detail;
+    ensureClassDataInitialized();
+
+    if (!classData.users[username]) {
+        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+    }
+
+    const existingAnswer = classData.users[username].answers[question_id];
+    const existingTimestamp = classData.users[username].timestamps[question_id] || existingAnswer?.timestamp || 0;
+
+    if (timestamp > existingTimestamp) {
+        // 1. Update in-memory `classData`
+        classData.users[username].answers[question_id] = { value: answer_value, timestamp: timestamp };
+        classData.users[username].timestamps[question_id] = timestamp;
+        saveClassData(); // Persists the whole classData object
+
+        // 2. Update legacy `answers_[username]` key for backward compatibility
+        const legacyKey = `answers_${username}`;
+        const legacyAnswers = JSON.parse(localStorage.getItem(legacyKey) || '{}');
+        legacyAnswers[question_id] = { value: answer_value, timestamp: timestamp };
+        localStorage.setItem(legacyKey, JSON.stringify(legacyAnswers));
+
+        console.log(`[State Update] Merged new answer for ${username} on ${question_id}`);
+        return true;
+    }
+
+    console.log(`[State Update] Ignored stale answer for ${username} on ${question_id}`);
+    return false;
+}
+
+/**
+ * Refreshes the UI for a specific question ID, but only if it's currently rendered.
+ * @param {string} questionId The ID of the question to potentially refresh.
+ */
+function refreshQuestionIfVisible(questionId) {
+    const question = (currentQuestions || []).find(q => q && q.id === questionId);
+    if (!question) return;
+
+    console.log(`[UI Refresh] Question ${questionId} is visible. Refreshing...`);
+    try {
+        if (question.type === 'multiple-choice' && typeof renderMCQDistribution === 'function') {
+            renderMCQDistribution(questionId);
+        } else if (question.type === 'free-response' && typeof renderFRQResponses === 'function') {
+            renderFRQResponses(questionId);
+        } else if (typeof populatePeerResponses === 'function') {
+            populatePeerResponses(questionId, question.type);
+        }
+    } catch (error) {
+        console.error(`[UI Refresh] Error during refresh for question ${questionId}:`, error);
+    }
+}
+
+// --- Main Event Listener for Real-Time Updates ---
+window.addEventListener('peer:answer', (event) => {
+    const stateWasUpdated = mergePeerAnswer(event.detail);
+    if (stateWasUpdated) {
+        requestAnimationFrame(() => {
+            refreshQuestionIfVisible(event.detail.question_id);
+            if (typeof updatePeerDataTimestamp === 'function') {
+                updatePeerDataTimestamp();
+            }
+        });
+    }
+});
+// --- END: NEW Real-Time Update Handling System ---
+
         async function initializeTurboMode() {
             // Test connection
             if (await testSupabaseConnection()) {
