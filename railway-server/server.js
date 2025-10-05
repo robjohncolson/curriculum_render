@@ -34,6 +34,11 @@ const cache = {
 // Track connected WebSocket clients
 const wsClients = new Set();
 
+// Presence tracking (in-memory)
+const presence = new Map(); // username -> { lastSeen: number, connections: Set<WebSocket> }
+const wsToUser = new Map(); // ws -> username
+const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
+
 // Helper to check cache validity
 function isCacheValid(lastUpdate, ttl = cache.TTL) {
   return Date.now() - lastUpdate < ttl;
@@ -333,6 +338,9 @@ wss.on('connection', (ws) => {
     clients: wsClients.size
   }));
 
+  // Send initial presence snapshot
+  sendPresenceSnapshot(ws);
+
   // Handle client messages
   ws.on('message', async (message) => {
     try {
@@ -342,6 +350,34 @@ wss.on('connection', (ws) => {
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
           break;
+
+        case 'identify': {
+          const username = (data.username || '').trim();
+          if (!username) break;
+          wsToUser.set(ws, username);
+          let info = presence.get(username);
+          if (!info) {
+            info = { lastSeen: Date.now(), connections: new Set() };
+            presence.set(username, info);
+          }
+          info.connections.add(ws);
+          info.lastSeen = Date.now();
+          // Broadcast user online
+          broadcastToClients({ type: 'user_online', username, timestamp: Date.now() });
+          break;
+        }
+
+        case 'heartbeat': {
+          const username = (data.username || wsToUser.get(ws) || '').trim();
+          if (!username) break;
+          let info = presence.get(username);
+          if (!info) {
+            info = { lastSeen: Date.now(), connections: new Set([ws]) };
+            presence.set(username, info);
+          }
+          info.lastSeen = Date.now();
+          break;
+        }
 
         case 'subscribe':
           // Client wants to subscribe to a specific question
@@ -364,11 +400,25 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('WebSocket client disconnected');
     wsClients.delete(ws);
+    // Remove from presence map
+    const username = wsToUser.get(ws);
+    if (username) {
+      const info = presence.get(username);
+      if (info) {
+        info.connections.delete(ws);
+        if (info.connections.size === 0) {
+          // Defer offline broadcast to allow quick reconnects; rely on TTL cleanup
+          info.lastSeen = Date.now();
+        }
+      }
+      wsToUser.delete(ws);
+    }
   });
 
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
     wsClients.delete(ws);
+    wsToUser.delete(ws);
   });
 });
 
@@ -385,6 +435,27 @@ function broadcastToClients(data) {
       }
     }
   });
+}
+
+// Presence helpers
+function getOnlineUsernames() {
+  const now = Date.now();
+  const users = [];
+  presence.forEach((info, username) => {
+    if (info.connections && info.connections.size > 0 && (now - info.lastSeen) < PRESENCE_TTL_MS) {
+      users.push(username);
+    }
+  });
+  return users;
+}
+
+function sendPresenceSnapshot(ws) {
+  try {
+    const users = getOnlineUsernames();
+    ws.send(JSON.stringify({ type: 'presence_snapshot', users, timestamp: Date.now() }));
+  } catch (e) {
+    console.error('Failed to send presence snapshot:', e);
+  }
 }
 
 // Set up Supabase real-time subscription
@@ -410,6 +481,22 @@ const subscription = supabase
   .subscribe();
 
 console.log('📊 Subscribed to Supabase real-time updates');
+
+// Periodic presence cleanup and offline broadcast
+setInterval(() => {
+  const now = Date.now();
+  const toOffline = [];
+  presence.forEach((info, username) => {
+    const isConnected = info.connections && info.connections.size > 0;
+    if (!isConnected && (now - info.lastSeen) > PRESENCE_TTL_MS) {
+      toOffline.push(username);
+    }
+  });
+  toOffline.forEach((username) => {
+    presence.delete(username);
+    broadcastToClients({ type: 'user_offline', username, timestamp: Date.now() });
+  });
+}, Math.max(5000, Math.floor(PRESENCE_TTL_MS / 3)));
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

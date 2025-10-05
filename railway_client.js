@@ -48,6 +48,12 @@
               console.log('🔌 WebSocket connected to Railway server');
               wsConnected = true;
 
+              // Enable turbo mode when WebSocket connects
+              window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                  detail: { enabled: true }
+              }));
+              console.log('🏁 Turbo mode enabled via Railway connection');
+
               // Clear any reconnect timer
               if (wsReconnectTimer) {
                   clearTimeout(wsReconnectTimer);
@@ -58,9 +64,21 @@
               if (wsPingInterval) clearInterval(wsPingInterval);
               wsPingInterval = setInterval(() => {
                   if (ws.readyState === WebSocket.OPEN) {
-                      ws.send(JSON.stringify({ type: 'ping' }));
+              const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+              // Regular ping for latency
+              ws.send(JSON.stringify({ type: 'ping' }));
+              // Presence heartbeat
+              if (username) {
+                ws.send(JSON.stringify({ type: 'heartbeat', username }));
+              }
                   }
               }, 30000);
+
+          // Identify with current username as soon as connected
+          const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+          if (username) {
+            ws.send(JSON.stringify({ type: 'identify', username }));
+          }
           };
 
           ws.onmessage = (event) => {
@@ -75,6 +93,12 @@
           ws.onclose = () => {
               console.log('WebSocket disconnected');
               wsConnected = false;
+
+              // Disable turbo mode when WebSocket disconnects
+              window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                  detail: { enabled: false }
+              }));
+              console.log('🛑 Turbo mode disabled due to WebSocket disconnect');
 
               if (wsPingInterval) {
                   clearInterval(wsPingInterval);
@@ -91,6 +115,12 @@
           ws.onerror = (error) => {
               console.error('WebSocket error:', error);
               wsConnected = false;
+
+              // Disable turbo mode when WebSocket errors
+              window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                  detail: { enabled: false }
+              }));
+              console.log('🛑 Turbo mode disabled due to WebSocket error');
           };
 
       } catch (error) {
@@ -104,7 +134,33 @@
       switch (data.type) {
           case 'connected':
               console.log('✅ WebSocket:', data.message);
+              // Also enable turbo mode when receiving connected message
+              window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                  detail: { enabled: true }
+              }));
               break;
+
+      case 'presence_snapshot': {
+        // Initialize online set
+        window.onlineUsers = new Set(data.users || []);
+        // Inform UI/sprite system
+        window.dispatchEvent(new CustomEvent('presenceChanged', { detail: { users: Array.from(window.onlineUsers) } }));
+        break;
+      }
+
+      case 'user_online': {
+        if (!window.onlineUsers) window.onlineUsers = new Set();
+        window.onlineUsers.add(data.username);
+        window.dispatchEvent(new CustomEvent('presenceChanged', { detail: { users: Array.from(window.onlineUsers) } }));
+        break;
+      }
+
+      case 'user_offline': {
+        if (!window.onlineUsers) window.onlineUsers = new Set();
+        window.onlineUsers.delete(data.username);
+        window.dispatchEvent(new CustomEvent('presenceChanged', { detail: { users: Array.from(window.onlineUsers) } }));
+        break;
+      }
 
           case 'answer_submitted':
               if (!data?.username || !data?.question_id || data.answer_value === undefined || data.timestamp === undefined) {

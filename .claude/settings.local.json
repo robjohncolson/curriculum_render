@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(tree:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Read(///**)",
+      "Bash(awk:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -622,6 +622,42 @@ body.dark-theme .sync-button:hover {
     color: #2d2d2d;
 }
 
+/* Pigs toggle button */
+.pigs-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 210px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid #e91e63;
+    background: white;
+    color: #e91e63;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.pigs-toggle:hover {
+    transform: scale(1.1) rotate(10deg);
+    box-shadow: 0 4px 12px rgba(233, 30, 99, 0.3);
+}
+
+body.dark-theme .pigs-toggle {
+    background: #2d2d2d;
+    color: #ff69b4;
+    border-color: #ff69b4;
+}
+
+body.dark-theme .pigs-toggle:hover {
+    background: #ff69b4;
+    color: #2d2d2d;
+}
 
 /* User button */
 .user-button {
@@ -699,6 +735,274 @@ border-color: #bbb;
 background: #e3f2fd;
 border-color: #2196F3;
 color: #1976D2;
+}
+
+/* Pig Sprite Styles */
+.pig-sprite {
+position: fixed;
+width: 32px;
+height: 32px;
+image-rendering: pixelated;
+image-rendering: -moz-crisp-edges;
+image-rendering: crisp-edges;
+background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5gAAADECAYAAAD6bI6sAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAADmKADAAQAAAABAAAAxAAAAAD+OvF/AAAYa0lEQVR4Ae3d0XHcuLIA0PEtR6NctEHIIeyGsQ7BDsLORen4vVt1y1XTY7EHZIMEwbNfC4FsNA5aI6FIWJ9+vL39unX876/v3z91DJ+G3nt+e4+XAhRfMPv8irmGCzf7+s0+v+EKqjih2ddv9vkVl8Nw4WZfv9nnN1xBFSc0+/rtPb+9xysuhzRc7/n9J83ABQQIECBAgAABAgQIECBA4AkBG8wnkFxCgAABAgQIECBAgAABArmADWZu5AoCBAgQIECAAAECBAgQeELgc7zm9eUlfqmp/fP9ven6vS/ee357jzebZ+93xK92RjjWh/qMIvft7PNMfd57tbay7z/1uSyqPo/9NyTUp/pcEjj654P6XFqd2y37/Ix384wi9+3o6QnmvY8WAQIECBAgQIAAAQIECKwUsMFcCec2AgQIECBAgAABAgQIELgXsMG899AiQIAAAQIECBAgQIAAgZUCD2cwV8b58Lbe76B/OPCkHVf39A78cmHHd+CXr67vVZ/OsC9Vlfpc0unf5/Nz2Vh9Lvv07lWfy8Lqc9nnbL2z/77kCebZKlK+BAgQIECAAAECBAgQGFTABnPQhZEWAQIECBAgQIAAAQIEziZgg3m2FZMvAQIECBAgQIAAAQIEBhUoP4O59R36QZ0OS4tnX/rZ34Hvq3e7qc++wupzm6/63OaX3a0+M6HlfvW57LO1V31uE1Sf2/zi3Vfz9AQzVoA2AQIECBAgQIAAAQIECKwSsMFcxeYmAgQIECBAgAABAgQIEIgCNphRRJsAAQIECBAgQIAAAQIEVgmUn8FclYWbCOwkcLV34HdiNUyRgPosghSmi4D67MIqaJGA+iyCFIZAgYAnmAWIQhAgQIAAAQIECBAgQIDA7WaDqQoIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQ+FxN8OmffzaF/PXvv5vuz27emt+Pt7dsiE39Mb/okfVvGvwPN2fjZf1/COlLEwnE9W+dWqzv1vuz67fm1/v7Pctf/zaBreuvPrf5u3tZQH0u++g9VkB9Hut/9tE9wTz7CsqfAAECBAgQIECAAAECgwjYYA6yENIgQIAAAQIECBAgQIDA2QVsMM++gvInQIAAAQIECBAgQIDAIALlZzAHmddp04hnfuI78LG/90TjeEfns3W+Mf/WeNGj9f7s+q35OTOYCY/dv3X91efY63v27NTn2Vdw7vzV59zra3bnEvAE81zrJVsCBAgQIECAAAECBAgMK2CDOezSSIwAAQIECBAgQIAAAQLnErDBPNd6yZYAAQIECBAgQIAAAQLDCjiDOdjSxDME8UxV1l89nWy8rL86H/EIECBAgAABAgQInEkg/r7cmnvcD7Ten12/Nb/4b4B4gpmJ6ydAgAABAgQIECBAgACBpwRsMJ9ichEBAgQIECBAgAABAgQIZAI2mJmQfgIECBAgQIAAAQIECBB4SsAZzKeY9rsoe8c666/ONBsv66/ORzwCBAgQIECAAAECBMYV8ARz3LWRGQECBAgQIECAAAECBE4lYIN5quWSLAECBAgQIECAAAECBMYVsMEcd21kRoAAAQIECBAgQIAAgVMJlJ/BHP1M3tb8fr6/n2qBJUugp8DW76eeuf039tb8fL/3XqG+8beuf9/s1Gdv39Hjq8/RV+ja+anP2vW/mqcnmLX1IxoBAgQIECBAgAABAgQuK2CDedmlN3ECBAgQIECAAAECBAjUCthg1nqKRoAAAQIECBAgQIAAgcsKlJ/BvKykiZ9C4GrvwJ9iUST5W0B9/qbwPwMKqM8BF0VKvwXU528K/0PgcAFPMA9fAgkQIECAAAECBAgQIEBgDgEbzDnW0SwIECBAgAABAgQIECBwuIAN5uFLIAECBAgQIECAAAECBAjMIfBwBrP33317fXnZVa73fLLJ9B7/ap6Zt/42gbPXZ+/82zRdXS3Qe333/vy8/f33ItHPL18W+3WOJdC7PuNsd6/XmEBsJ/V8U89RbNe2+lz+vG2tz96ee39/956PJ5i7frsbjAABAgQIECBAgAABAvMK2GDOu7ZmRoAAAQIECBAgQIAAgV0FbDB35TYYAQIECBAgQIAAAQIE5hX4/Nf37596Tu/H29uvnvFbY/eeb+/4V/OM69v7nfHe78D3zj96xfbs9dl7ftEztnuvr/qM4m3t0T4/s+yr67l3fcb59K7XOF7a3nhmsHo9snzPVq/ZfLJ+9bntzKD6zCqsrb+352jf39Xz9QSzrd5cTYAAAQIECBAgQIAAAQIfCNhgfgDjywQIECBAgAABAgQIECDQJmCD2eblagIECBAgQIAAAQIECBD4QODh72B+cJ0vEzhEoPqd8DiJ2d+Bj/PVrhVQn7WeW6ON9v38cKZs578L2Ls+43qN5h/z014WeKjX5ctvrX9HMIZTn1FEe0lg7/pcykVfLuAJZm7kCgIECBAgQIAAAQIECBB4QsAG8wkklxAgQIAAAQIECBAgQIBALmCDmRu5ggABAgQIECBAgAABAgSeENj/DGb2d6i+fn0i7YVLYvydz7wsZPZUV/MZljjfOEqrZxYveGb57n3GIk5/tPbrt293Kf0MnnedGgR6C4Tv99cw3tnrM36/hendbq2fjw8Bar/g87LN05msNq/Wq9Vjq9j99erz3mPv1unqN/w8fvDa+vMqxu/8+6cnmA8r6AsECBAgQIAAAQIECBAgsEbABnONmnsIECBAgAABAgQIECBA4EHABvOBxBcIECBAgAABAgQIECBAYI3A/mcw12R54XteX16Gmn2WT/OZg6Fm9//JxHfUY35b34GP8a7e5n31Cph6/tN/Xg62eqc7czWYn3T6CqjPbb4+T7f57X23J5h7ixuPAAECBAgQIECAAAECkwrYYE66sKZFgAABAgQIECBAgACBvQVsMPcWNx4BAgQIECBAgAABAgQmFdj/DGbnM2xn/7ttzXVW7Vkdr3lCfW/I/m5n39Fvt8vVZ29Q8bcJhO/305+hDhrZ91t2pieE0wwCR3+ehnQ0CQwtEL9fRj+TGfMdGneG5MLP4+opZT8Pq8fzBLNaVDwCBAgQIECAAAECBAhcVMAG86ILb9oECBAgQIAAAQIECBCoFrDBrBYVjwABAgQIECBAgAABAhcV2P8MZgKdnQFqPTMz+jvuCcct88ju178s8FBP4R34Vv+HeMvD385en8n00vp9Dd4xXqt/vP9q7VavWK+x3RpvNO84n5jf2ecX53N0u9o7i3f0fPceP6vXzCu7f+/5jD5eq1f0j+3WeKP5xPnE/M4+vzif0dqZb7Y+cT69f//0BDOKaxMgQIAAAQIECBAgQIDAKgEbzFVsbiJAgAABAgQIECBAgACBKGCDGUW0CRAgQIAAAQIECBAgQGCVwHBnMFfNYqKber8TPRHVIVOJ6+PvRN0vQ/S5773dtnpl8eN4V29Hr63+s3tGr9nne/T8orf6vF+R6HPf6/M0evRux/VQr8vi0Wv5ar2zCXiCOduKmg8BAgQIECBAgAABAgQOErDBPAjesAQIECBAgAABAgQIEJhNwAZzthU1HwIECBAgQIAAAQIECBwksPsZzOzvuGQOW+/P4uu/lkB1PVXHm301eLWtcLVXdby22fS/evb59RdsG6Hauzpe22zOdzWvtjWr9qqO1zab/lfPPr/+gssjbPXdev9ydu29nmC2m7mDAAECBAgQIECAAAECBP4gYIP5BxRfIkCAAAECBAgQIECAAIF2ARvMdjN3ECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgACBpwQ+/Xh7+/XUlSsv+uv7908rby25be/57T1eCVJDkNnn10BxyktnX7/Z53fKomtIevb1m31+DUt9yktnX7/Z53fKomtIevb123t+e4/XsNQll/aen39FtmSZBCFAgAABAgQIECBAgAABG0w1QIAAAQIECBAgQIAAAQIlAjaYJYyCECBAgAABAgQIECBAgMDnSPD68hK/1NT++f7edP3eF+89v73Hm82z9zviVzsjHOtDfUaR+3b2eaY+771aW9n3n/pcFlWfx/4bEupTfS4JHP3zQX0urc7tln1+xrt5RpH7dvT0BPPeR4sAAQIECBAgQIAAAQIEVgrYYK6EcxsBAgQIECBAgAABAgQI3AvYYN57aBEgQIAAAQIECBAgQIDASoGHM5gr43x4W+930D8ceNKOq3t6B365sOM78MtX1/eqT2fYl6pKfS7p9O/z+blsrD6XfXr3qs9lYfW57HO23tl/X/IE82wVKV8CBAgQIECAAAECBAgMKmCDOejCSIsAAQIECBAgQIAAAQJnE7DBPNuKyZcAAQIECBAgQIAAAQKDCpSfwdz6Dv2gToelxbMv/ezvwPfVu93UZ19h9bnNV31u88vuVp+Z0HK/+lz22dqrPrcJqs9tfvHuq3l6ghkrQJsAAQIECBAgQIAAAQIEVgnYYK5icxMBAgQIECBAgAABAgQIRAEbzCiiTYAAAQIECBAgQIAAAQKrBMrPYK7Kwk0EdhK42jvwO7EapkhAfRZBCtNFQH12YRW0SEB9FkEKQ6BAwBPMAkQhCBAgQIAAAQIECBAgQOB2s8FUBQQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAjYYKoBAgQIECBAgAABAgQIECgRsMEsYRSEAAECBAgQIECAAAECBGww1QABAgQIECBAgAABAgQIlAjYYJYwCkKAAAECBAgQIECAAAECNphqgAABAgQIECBAgAABAgRKBGwwSxgFIUCAAAECBAgQIECAAAEbTDVAgAABAgQIECBAgAABAiUCNpgljIIQIECAAAECBAgQIECAgA2mGiBAgAABAgQIECBAgACBEgEbzBJGQQgQIECAAAECBAgQIEDABlMNECBAgAABAgQIECBAgECJgA1mCaMgBAgQIECAAAECBAgQIGCDqQYIECBAgAABAgQIECBAoETABrOEURACBAgQIECAAAECBAgQsMFUAwQIECBAgAABAgQIECBQImCDWcIoCAECBAgQIECAAAECBAh8jgSf/vknfqmp/evff5uub7149Pxa5xOvj/OLnll/jLe1nY2X9W8d3/19BeL6tY4W67P1/uz60fPL8te/TWD09R89v2367s4ERl//0fPLfPVvExh9/UfPb5u+uz3BVAMECBAgQIAAAQIECBAgUCJgg1nCKAgBAgQIECBAgAABAgQI2GCqAQIECBAgQIAAAQIECBAoEXg4g1kSVZDVAvFMW3xHPfavHujJG+N4R+cTx39yGr8vi/P53VH0P6PnVzRNYT4QGH39R8/vA1ZfLhIYff1Hz69oGYT5QGD09R89vw9YfZnAIQKeYB7CblAC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');
+background-size: 352px 64px; /* 11 frames x 32px, 2 rows */
+z-index: 9999;
+transition: left 0.1s, bottom 0.1s;
+}
+
+.pig-sprite.facing-left {
+transform: scaleX(-1);
+}
+
+.pig-sprite.jumping {
+animation: jump 0.5s ease-out;
+}
+
+@keyframes jump {
+0%, 100% { transform: translateY(0); }
+50% { transform: translateY(-50px); }
+}
+
+/* ========================================
+   MULTIPLAYER PIG SYSTEM STYLES
+   ======================================== */
+
+/* Container for all peer pigs */
+.peer-pig-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    pointer-events: none;
+    z-index: 99;
+}
+
+/* Individual peer pig sprite */
+.peer-pig-sprite {
+    position: absolute;
+    width: 50px;
+    height: 70px;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.3s ease, left 0.3s ease, bottom 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.peer-pig-body {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: peer-pig-bounce 2s ease-in-out infinite;
+    position: relative;
+}
+
+.peer-pig-emoji {
+    font-size: 24px;
+    animation: peer-pig-wiggle 3s ease-in-out infinite;
+}
+
+.peer-pig-username {
+    position: absolute;
+    bottom: -18px;
+    font-size: 9px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    font-weight: 500;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Animations */
+@keyframes peer-pig-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes peer-pig-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+}
+
+/* Entrance animation */
+.peer-pig-enter {
+    animation: peer-pig-enter 0.5s ease-out;
+}
+
+@keyframes peer-pig-enter {
+    from {
+        opacity: 0;
+        transform: scale(0) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Exit animation */
+.peer-pig-exit {
+    animation: peer-pig-exit 0.5s ease-in forwards;
+}
+
+@keyframes peer-pig-exit {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0) translateY(20px);
+    }
+}
+
+/* Celebration animation */
+.peer-pig-sprite.celebrating .peer-pig-emoji {
+    animation: peer-pig-celebrate 0.5s ease-in-out;
+}
+
+@keyframes peer-pig-celebrate {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(360deg) scale(1.3); }
+    100% { transform: rotate(720deg) scale(1); }
+}
+
+/* Hover effect */
+.peer-pig-sprite:hover {
+    transform: scale(1.1);
+    z-index: 100;
+}
+
+.peer-pig-sprite:hover .peer-pig-body {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Activity states */
+.pig-answering .peer-pig-body {
+    animation: pig-thinking 1s ease-in-out infinite;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+    border: 2px solid #ffc107;
+}
+
+@keyframes pig-thinking {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.pig-submitted .peer-pig-body {
+    animation: pig-success 0.5s ease-out;
+    filter: brightness(1.3);
+}
+
+@keyframes pig-success {
+    0% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.pig-viewing .peer-pig-body {
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.4);
+    border: 2px solid #2196f3;
+}
+
+.pig-inactive {
+    opacity: 0.4;
+    filter: grayscale(50%);
+}
+
+/* Thought bubble */
+.pig-thought-bubble {
+    position: absolute;
+    top: -30px;
+    right: -10px;
+    font-size: 24px;
+    animation: bubble-float 3s ease-in-out;
+    pointer-events: none;
+}
+
+@keyframes bubble-float {
+    0% { opacity: 0; transform: translateY(10px); }
+    50% { opacity: 1; transform: translateY(-5px); }
+    100% { opacity: 0; transform: translateY(-20px); }
+}
+
+/* Question tooltip */
+.pig-tooltip {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1000;
+    animation: tooltip-appear 0.2s ease-out;
+}
+
+@keyframes tooltip-appear {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.pig-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-style: solid;
+    border-width: 8px 8px 0 8px;
+    border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+}
+
+.pig-tooltip-content {
+    font-weight: 500;
+}
+
+/* Dark mode support */
+body.dark-mode .peer-pig-username {
+    background: rgba(255,255,255,0.15);
+    color: #ecf0f1;
+}
+
+body.dark-mode .pig-tooltip {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+body.dark-mode .pig-tooltip::after {
+    border-color: rgba(255, 255, 255, 0.1) transparent transparent transparent;
+}
+
+body.dark-mode .pig-answering .peer-pig-body {
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.7);
+}
+
+body.dark-mode .pig-viewing .peer-pig-body {
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.6);
 }
 
 .curriculum-overview {
@@ -3061,6 +3365,384 @@ body.dark-mode .sync-info {
 .username-btn.current:hover {
     background: #219a52;
     border-color: #219a52;
+}
+
+/* ========================================
+   TASK 4.2: SPRITE SYSTEM CSS ANIMATIONS
+   ======================================== */
+
+/* Peer sprite container base styles */
+.peer-sprite-container {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    z-index: 50;
+}
+
+/* Sprite element with pixel-perfect rendering */
+.peer-sprite {
+    width: 100%;
+    height: 100%;
+    background-size: 400% 100%; /* TASK 5.1: Fixed sprite clipping - 4 frames horizontal */
+    background-position: 0 0;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    transition: filter 0.3s ease;
+}
+
+/* Username label floating above sprite */
+.peer-username-label {
+    position: absolute;
+    bottom: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: monospace;
+    z-index: 51;
+}
+
+/* Dark theme support for username labels */
+.dark-theme .peer-username-label {
+    background: rgba(255, 255, 255, 0.8);
+    color: #222;
+}
+
+/* Walking animation - cycle through sprite frames */
+.peer-sprite-container.walking .peer-sprite {
+    animation: sprite-walk 0.8s steps(4) infinite;
+}
+
+@keyframes sprite-walk {
+    0% { background-position: 0% 0; }
+    25% { background-position: -33.33% 0; }
+    50% { background-position: -66.66% 0; }
+    75% { background-position: -100% 0; }
+    100% { background-position: 0% 0; }
+}
+
+/* Thinking animation - subtle scale pulse */
+.peer-sprite-container.thinking {
+    animation: sprite-think 2s ease-in-out infinite;
+}
+
+@keyframes sprite-think {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Jump animation for celebration */
+.peer-sprite-container.jumping {
+    animation: sprite-jump 0.6s ease-in-out;
+}
+
+@keyframes sprite-jump {
+    0% { transform: translateY(0); }
+    40% { transform: translateY(-20px); }
+    100% { transform: translateY(0); }
+}
+
+/* Gold flash on answer submission */
+.peer-sprite-container.gold .peer-sprite {
+    filter: hue-rotate(45deg) brightness(1.5) saturate(2);
+}
+
+/* Entrance animation when sprite first appears */
+.peer-sprite-container.peer-pig-enter {
+    animation: sprite-enter 0.5s ease-out;
+}
+
+@keyframes sprite-enter {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.5);
+    }
+    100% {
+        opacity: 0.7;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Fade animation for inactive sprites */
+.peer-sprite-container.fading {
+    transition: opacity 2s ease;
+    opacity: 0.2;
+}
+
+/* Container for all peer sprites */
+.peer-pig-container {
+    position: fixed;
+    bottom: 100px; /* TASK 5.0: Higher up to clear bottom UI */
+    left: 0;
+    right: 0;
+    height: 150px; /* TASK 5.0: Increased height for better visibility */
+    pointer-events: none;
+    z-index: 100; /* TASK 5.0: Above content but below modals */
+}
+
+/* Sprite hover effect for interactivity */
+.peer-sprite-container:hover {
+    opacity: 0.9 !important;
+    transform: scale(1.1);
+    z-index: 52;
+}
+
+.peer-sprite-container:hover .peer-username-label {
+    background: rgba(0, 0, 0, 0.9);
+    padding: 3px 7px;
+    font-size: 11px;
+}
+
+.dark-theme .peer-sprite-container:hover .peer-username-label {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* Activity state indicators */
+.peer-sprite-container[data-state="viewing"] {
+    filter: brightness(1.1);
+}
+
+.peer-sprite-container[data-state="answering"] {
+    animation: sprite-think 2s ease-in-out infinite;
+}
+
+.peer-sprite-container[data-state="submitted"] .peer-sprite {
+    filter: hue-rotate(45deg) brightness(1.5) saturate(2);
+}
+
+/* Smooth position transitions for sprite movement */
+.peer-sprite-container {
+    transition: left 0.3s ease, bottom 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Prevent layout shift when sprites appear */
+.peer-pig-container::before {
+    content: '';
+    display: block;
+    height: 1px;
+}
+
+/* ========================================
+   TASK 5.0: SPRITE SETTINGS MODAL STYLING
+   ======================================== */
+
+.sprite-settings-container {
+    padding: 20px 0;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.setting-row label {
+    font-weight: 600;
+    color: #333;
+}
+
+.setting-row input[type="checkbox"] {
+    width: 40px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.color-selection-row {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.color-option {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid transparent;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.color-option.selected {
+    border-color: #fff;
+    box-shadow: 0 0 0 3px #4CAF50, 0 4px 8px rgba(0,0,0,0.3);
+    transform: scale(1.15);
+}
+
+.sprite-preview-section {
+    text-align: center;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.sprite-preview-section h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.sprite-preview {
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    display: inline-block;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.preview-username {
+    margin-top: 10px;
+    font-weight: 600;
+    color: #555;
+    font-family: monospace;
+}
+
+.sprite-info {
+    background: #e3f2fd;
+    border-left: 4px solid #2196F3;
+    padding: 15px;
+    border-radius: 4px;
+    margin: 20px 0;
+}
+
+.sprite-info p {
+    margin: 0 0 10px 0;
+    color: #1976D2;
+    font-weight: 600;
+}
+
+.sprite-info ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #333;
+}
+
+.sprite-info li {
+    margin: 5px 0;
+}
+
+.save-sprite-settings-btn {
+    width: 100%;
+    padding: 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.save-sprite-settings-btn:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.save-sprite-settings-btn:active {
+    transform: translateY(0);
+}
+
+/* Dark theme support for sprite settings modal */
+.dark-theme .setting-row {
+    background: #333;
+}
+
+.dark-theme .setting-row label {
+    color: #e0e0e0;
+}
+
+.dark-theme .sprite-preview-section {
+    background: #2a2a2a;
+}
+
+.dark-theme .sprite-preview-section h3 {
+    color: #e0e0e0;
+}
+
+.dark-theme .sprite-preview {
+    background: #1a1a1a;
+}
+
+.dark-theme .preview-username {
+    color: #bbb;
+}
+
+.dark-theme .sprite-info {
+    background: #1e3a5f;
+    border-left-color: #64B5F6;
+}
+
+.dark-theme .sprite-info p {
+    color: #90CAF9;
+}
+
+.dark-theme .sprite-info ul {
+    color: #e0e0e0;
+}
+
+.user-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.action-btn.primary {
+    background: #3498db;
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.action-btn.secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.action-btn.secondary:hover {
+    background: #7f8c8d;
+    transform: translateY(-1px);
 }
 
 /* Dark mode styles for user management */

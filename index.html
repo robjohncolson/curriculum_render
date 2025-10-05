@@ -19,6 +19,7 @@
 
 </head>
 <body>
+    <canvas id="spriteCanvas"></canvas>
     <div class="container">
         <h1>🧮 AP Statistics Consensus Quiz</h1>
         <div id="messageArea"></div>
@@ -28,7 +29,7 @@
     <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button class="sync-button" onclick="showSyncModal()" title="Sync & Export Data">⚡</button>
     <button class="share-button" onclick="showShareModal()" title="Share this app">📤</button>
-    <!-- <button class="pigs-toggle" onclick="showSpriteSettingsModal()" title="Multiplayer sprite settings">🎮</button> -->
+    <button class="sprite-config-toggle" onclick="showSpriteConfigModal()" title="Sprite settings">🎮</button>
 
     <!-- Global Sync Modal -->
     <div id="syncModal" class="modal" style="display: none;">
@@ -146,22 +147,6 @@
         </div>
     </div>
 
-    <!-- TASK 5.2: Sprite Settings Modal - DISABLED -->
-    <!-- <div id="spriteSettingsModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeSpriteSettingsModal()">&times;</span>
-            <h2>🚧 Sprite System Under Construction</h2>
-
-            <div class="sprite-settings-container" style="text-align: center; padding: 40px 20px;">
-                <p style="font-size: 18px; margin-bottom: 20px;">
-                    The multiplayer sprites are being rebuilt for better performance.
-                </p>
-                <p style="font-size: 16px; color: #666;">
-                    Check back soon!
-                </p>
-            </div>
-        </div>
-    </div> -->
 
 <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
@@ -203,8 +188,8 @@
         async function testSupabaseConnection() {
             if (!supabase) {
                 turboModeActive = false;
+                window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                 console.log('No Supabase client available');
-                stopActivityRefresh(); // TASK 3.3: Stop activity refresh
                 return false;
             }
 
@@ -227,22 +212,19 @@
                 if (result.error) {
                     console.log('Supabase test query error:', result.error);
                     turboModeActive = false;
+                    window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                     return false;
                 }
 
                 turboModeActive = true;
+                window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                 console.log('✅ Turbo mode active - Supabase connected');
-
-                // TASK 3.3: Start activity refresh when turbo mode is active
-                startActivityRefresh();
 
                 return true;
             } catch (error) {
                 turboModeActive = false;
+                window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                 console.log('🔌 Turbo mode inactive - Using offline mode:', error.message);
-
-                // TASK 3.3: Stop activity refresh when turbo mode fails
-                stopActivityRefresh();
 
                 return false;
             }
@@ -667,9 +649,6 @@
                     // TODO: Trigger re-render of current question's peer data if needed
                     // This would need to be integrated with your existing quiz rendering logic
                 }
-
-                // TASK 3.3: Pull peer activity data for pig system
-                await pullPeerActivityFromSupabase();
             }
         }
 
@@ -833,18 +812,6 @@ function refreshQuestionIfVisible(questionId) {
     }
 }
 
-// --- Main Event Listener for Real-Time Updates ---
-window.addEventListener('peer:answer', (event) => {
-    const stateWasUpdated = mergePeerAnswer(event.detail);
-    if (stateWasUpdated) {
-        requestAnimationFrame(() => {
-            refreshQuestionIfVisible(event.detail.question_id);
-            if (typeof updatePeerDataTimestamp === 'function') {
-                updatePeerDataTimestamp();
-            }
-        });
-    }
-});
 // --- END: NEW Real-Time Update Handling System ---
 
         async function initializeTurboMode() {
@@ -2619,7 +2586,7 @@ function renderLessonSelector(unitInfo) {
                 // Track radio button clicks (MC questions)
                 const radios = document.querySelectorAll(`input[name="choice-${questionId}"]`);
                 radios.forEach(radio => {
-                    const listener = () => updateUserActivity('answering', questionId);
+                    const listener = () => { if (typeof updateUserActivity === 'function') { updateUserActivity('answering', questionId); } };
                     radio.addEventListener('change', listener);
                     // TASK 4.1: Track for cleanup
                     activityListeners.push({ element: radio, type: 'change', listener });
@@ -2632,7 +2599,7 @@ function renderLessonSelector(unitInfo) {
                     const focusListener = () => {
                         if (focusTimeout) clearTimeout(focusTimeout);
                         focusTimeout = setTimeout(() => {
-                            updateUserActivity('answering', questionId);
+                            if (typeof updateUserActivity === 'function') { updateUserActivity('answering', questionId); }
                         }, 1000);
                     };
                     const blurListener = () => {
@@ -2654,7 +2621,7 @@ function renderLessonSelector(unitInfo) {
                     const focusListener = () => {
                         if (focusTimeout) clearTimeout(focusTimeout);
                         focusTimeout = setTimeout(() => {
-                            updateUserActivity('answering', questionId);
+                            if (typeof updateUserActivity === 'function') { updateUserActivity('answering', questionId); }
                         }, 1000);
                     };
                     const blurListener = () => {
@@ -3709,8 +3676,10 @@ function renderAttachments(attachments, questionId) {
                 console.log(`🐷 Activity: ${currentUsername} submitted answer to ${questionId}`);
             }
 
-            // TASK 3.3: Track activity state for real-time sync
-            updateUserActivity('submitted', questionId);
+            // TASK 3.3: Track activity state for real-time sync (guarded)
+            if (typeof updateUserActivity === 'function') {
+                updateUserActivity('submitted', questionId);
+            }
 
             // Update UI
             const submitBtn = document.getElementById(`submit-${questionId}`);
@@ -4842,63 +4811,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             applyTheme(newTheme);
         }
 
-        // Toggle multiplayer pigs
-        /**
-         * TASK 4.1: Updates pig system status indicator
-         * @param {string} status - 'active', 'syncing', 'error', or 'offline'
-         */
-        function updatePigSystemStatus(status) {
-            const button = document.querySelector('.pigs-toggle');
-            if (!button) return;
-
-            // Remove existing status dot
-            const existing = button.querySelector('.pig-status');
-            if (existing) existing.remove();
-
-            // Add new status dot
-            const statusDot = document.createElement('span');
-            statusDot.className = 'pig-status';
-
-            const colors = {
-                'active': '#4caf50',     // Green - syncing successfully
-                'syncing': '#ffc107',    // Yellow - currently syncing
-                'error': '#f44336',      // Red - error occurred
-                'offline': '#9e9e9e'     // Gray - offline mode
-            };
-
-            statusDot.style.cssText = `
-                position: absolute;
-                top: 5px;
-                right: 5px;
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: ${colors[status] || colors['offline']};
-                box-shadow: 0 0 4px ${colors[status] || colors['offline']};
-                pointer-events: none;
-            `;
-
-            button.appendChild(statusDot);
-        }
-
-        window.togglePigs = function() {
-            if (!window.pigManager) {
-                // Initialize if not exists
-                window.pigManager = new PigManager();
-                showMessage('Multiplayer pigs enabled! 🐷', 'success');
-                updatePigSystemStatus(turboModeActive ? 'active' : 'offline');
-            } else {
-                const enabled = window.pigManager.toggle();
-                showMessage(enabled ? 'Multiplayer pigs enabled! 🐷' : 'Multiplayer pigs disabled', 'info');
-                updatePigSystemStatus(enabled && turboModeActive ? 'active' : 'offline');
-            }
-
-            // Update button appearance
-            const button = document.querySelector('.pigs-toggle');
-            if (button) {
-                button.style.opacity = window.pigManager?.enabled ? '1' : '0.5';
-            }
-        }
 
         // Initialize on load
         window.onload = function() {
@@ -4949,1174 +4861,29 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // ========================================
-        // MULTIPLAYER PIG SYSTEM
-        // ========================================
-
-        // Simplified peer pig class for multiplayer visualization
-        // TASK 4.2: Complete sprite-based PeerPig class replacement
-        // TASK 5.1: Unified color system - respects localStorage for current player
-        class PeerPig {
-            constructor(username, isPlayer = false) {
-                this.username = username;
-                this.isPlayer = isPlayer || (username === currentUsername);
-                this.x = 0; // Will be set by position update
-                this.y = 20;
-                this.color = this.generateColorFromUsername(username);
-                this.activityState = 'idle';
-                this.currentQuestion = null;
-                this.lastActivity = Date.now();
-                this.fadeTimeout = null;
-                this.walkInterval = null;
-                this.element = this.createElement();
-                this.setupFading();
-            }
-
-            generateColorFromUsername(username) {
-                // TASK 5.1: Use saved color for current player, hash for peers
-                if (this.isPlayer || username === currentUsername) {
-                    const savedHue = localStorage.getItem('spriteColorHue');
-                    if (savedHue) {
-                        return `hsl(${savedHue}, 70%, 60%)`;
-                    }
-                }
-
-                // Generate consistent color from username hash for peers
-                let hash = 0;
-                for (let i = 0; i < username.length; i++) {
-                    hash = username.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                const hue = Math.abs(hash) % 360;
-                return `hsl(${hue}, 70%, 60%)`;
-            }
-
-            getHueRotation() {
-                // TASK 5.1: Use saved hue for current player, hash for peers
-                if (this.isPlayer || this.username === currentUsername) {
-                    const savedHue = localStorage.getItem('spriteColorHue');
-                    if (savedHue) {
-                        return parseInt(savedHue);
-                    }
-                }
-
-                // Calculate hue rotation for sprite filter from hash
-                let hash = 0;
-                for (let i = 0; i < this.username.length; i++) {
-                    hash = this.username.charCodeAt(i) + ((hash << 5) - hash);
-                }
-                return Math.abs(hash) % 360;
-            }
-
-            createElement() {
-                const container = document.createElement('div');
-                container.className = 'peer-sprite-container';
-                container.style.cssText = `
-                    position: absolute;
-                    width: 30px;
-                    height: 30px;
-                    bottom: ${this.y}px;
-                    left: ${this.x}px;
-                    opacity: 0.7;
-                    transition: all 0.3s ease;
-                    z-index: 50;
-                `;
-
-                // Sprite element
-                const sprite = document.createElement('div');
-                sprite.className = 'peer-sprite';
-                sprite.style.cssText = `
-                    width: 100%;
-                    height: 100%;
-                    background-image: url('sprite.png');
-                    background-size: 400% 100%;
-                    background-position: 0 0;
-                    filter: hue-rotate(${this.getHueRotation()}deg);
-                    image-rendering: pixelated;
-                `;
-
-                // Username label
-                const label = document.createElement('div');
-                label.className = 'peer-username-label';
-                label.textContent = this.username;
-                label.style.cssText = `
-                    position: absolute;
-                    bottom: 35px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: rgba(0, 0, 0, 0.7);
-                    color: white;
-                    padding: 2px 5px;
-                    border-radius: 3px;
-                    font-size: 10px;
-                    white-space: nowrap;
-                    pointer-events: none;
-                    font-family: monospace;
-                `;
-
-                container.appendChild(sprite);
-                container.appendChild(label);
-
-                this.spriteElement = sprite;
-                this.labelElement = label;
-                return container;
-            }
-
-            setActivity(state, questionId = null) {
-                this.activityState = state;
-                this.currentQuestion = questionId;
-                this.lastActivity = Date.now();
-                this.updateVisualState();
-                this.resetFading();
-            }
-
-            updateVisualState() {
-                // Clear existing intervals
-                if (this.walkInterval) {
-                    clearInterval(this.walkInterval);
-                    this.walkInterval = null;
-                }
-
-                // Remove all state classes
-                this.element.classList.remove('walking', 'jumping', 'idle', 'thinking');
-
-                switch(this.activityState) {
-                    case 'viewing':
-                        // Walking animation when viewing lessons
-                        this.element.classList.add('walking');
-                        this.animateWalking();
-                        break;
-
-                    case 'answering':
-                        // Subtle thinking animation
-                        this.element.classList.add('thinking');
-                        this.setIdleFrame();
-                        break;
-
-                    case 'submitted':
-                        // Jump and turn gold briefly
-                        this.jumpAndCelebrate();
-                        break;
-
-                    default:
-                        // Idle state
-                        this.element.classList.add('idle');
-                        this.setIdleFrame();
-                        break;
-                }
-            }
-
-            animateWalking() {
-                // Cycle through walking frames
-                let frame = 0;
-                this.walkInterval = setInterval(() => {
-                    if (this.activityState !== 'viewing') {
-                        clearInterval(this.walkInterval);
-                        this.walkInterval = null;
-                        return;
-                    }
-                    // TASK 5.1: Fixed for 4-frame sprite sheet
-                    const x = (frame % 4) * 33.33; // 4 frames = 33.33% per frame
-                    this.spriteElement.style.backgroundPosition = `-${x}% 0`;
-                    frame++;
-                }, 200);
-            }
-
-            jumpAndCelebrate() {
-                // Save original filter
-                const originalFilter = this.spriteElement.style.filter;
-
-                // Turn gold
-                this.spriteElement.style.filter = 'hue-rotate(45deg) brightness(1.5) saturate(2)';
-
-                // Jump animation
-                this.element.style.transition = 'all 0.3s ease';
-                this.element.style.transform = 'translateY(-20px)';
-
-                setTimeout(() => {
-                    this.element.style.transform = 'translateY(0)';
-
-                    // Revert to original color after landing
-                    setTimeout(() => {
-                        this.spriteElement.style.filter = originalFilter;
-                    }, 500);
-                }, 300);
-
-                // Auto-transition to idle after 3 seconds
-                setTimeout(() => {
-                    if (this.activityState === 'submitted') {
-                        this.setActivity('idle', null);
-                    }
-                }, 3000);
-            }
-
-            setIdleFrame() {
-                // Set to idle frame (first frame of sprite sheet)
-                this.spriteElement.style.backgroundPosition = '0 0';
-            }
-
-            setupFading() {
-                // Start checking for inactivity
-                this.resetFading();
-            }
-
-            resetFading() {
-                if (this.fadeTimeout) clearTimeout(this.fadeTimeout);
-
-                // Reset opacity
-                this.element.style.opacity = '0.7';
-
-                // Set timeout for fading (5 minutes)
-                this.fadeTimeout = setTimeout(() => {
-                    this.startFading();
-                }, 300000); // 5 minutes
-            }
-
-            startFading() {
-                // Gradually fade out
-                this.element.style.transition = 'opacity 2s ease';
-                this.element.style.opacity = '0.2';
-
-                // Remove completely after fade
-                setTimeout(() => {
-                    if (Date.now() - this.lastActivity > 300000) {
-                        this.remove();
-                    }
-                }, 2000);
-            }
-
-            updatePosition(x, y, animate = true) {
-                this.x = x;
-                this.y = y;
-                if (animate) {
-                    this.element.style.transition = 'all 0.3s ease';
-                }
-                this.element.style.left = x + 'px';
-                this.element.style.bottom = y + 'px';
-            }
-
-            remove() {
-                if (this.walkInterval) clearInterval(this.walkInterval);
-                if (this.fadeTimeout) clearTimeout(this.fadeTimeout);
-                this.element.style.transition = 'opacity 0.5s ease';
-                this.element.style.opacity = '0';
-                setTimeout(() => {
-                    this.element.remove();
-                }, 500);
-            }
-        }
-
-        // Pig Manager - Manages all peer pigs in the classroom
-        class PigManager {
-            constructor() {
-                this.pigs = new Map();
-                this.container = null;
-                this.enabled = localStorage.getItem('pigsEnabled') !== 'false';
-                // TASK 4.1: Debounce map to prevent duplicate pig creation
-                this.pigCreationDebounce = new Map();
-                // TASK 4.2: Periodic cleanup interval
-                this.cleanupInterval = null;
-                if (this.enabled) {
-                    this.init();
-                }
-            }
-
-            init() {
-                // Create container for all peer pigs
-                this.container = document.createElement('div');
-                this.container.id = 'peer-pig-container';
-                this.container.className = 'peer-pig-container';
-                document.body.appendChild(this.container);
-
-                // Load existing peer pigs from classData
-                this.loadExistingPeers();
-
-                // TASK 4.2: Start periodic cleanup for inactive sprites
-                this.startPeriodicCleanup();
-            }
-
-            // TASK 4.2: Periodic cleanup - check every 60 seconds for inactive sprites
-            startPeriodicCleanup() {
-                if (this.cleanupInterval) {
-                    clearInterval(this.cleanupInterval);
-                }
-
-                this.cleanupInterval = setInterval(() => {
-                    this.cleanupInactiveSprites();
-                }, 60000); // Check every 60 seconds
-
-                console.log('🧹 Started periodic sprite cleanup (60s interval)');
-            }
-
-            cleanupInactiveSprites() {
-                if (!this.enabled || this.pigs.size === 0) return;
-
-                const fiveMinutesAgo = Date.now() - 300000;
-                const spritesToRemove = [];
-
-                // Check each sprite for inactivity
-                this.pigs.forEach((pig, username) => {
-                    if (pig.lastActivity < fiveMinutesAgo) {
-                        spritesToRemove.push(username);
-                    }
-                });
-
-                // Remove inactive sprites
-                if (spritesToRemove.length > 0) {
-                    console.log(`🧹 Cleaning up ${spritesToRemove.length} inactive sprite(s)`);
-                    spritesToRemove.forEach(username => {
-                        this.removePig(username);
-                    });
-                }
-            }
-
-            stopPeriodicCleanup() {
-                if (this.cleanupInterval) {
-                    clearInterval(this.cleanupInterval);
-                    this.cleanupInterval = null;
-                    console.log('🧹 Stopped periodic sprite cleanup');
-                }
-            }
-
-            loadExistingPeers() {
-                if (!classData || !classData.users) return;
-
-                // TASK 4.2: CRITICAL BUG FIX - Only load users active in last 5 minutes
-                const fiveMinutesAgo = Date.now() - 300000;
-
-                for (let username in classData.users) {
-                    if (username === currentUsername) continue;
-
-                    // Only load if active in last 5 minutes
-                    const lastUpdate = classData.users[username]?.currentActivity?.lastUpdate;
-                    if (lastUpdate && lastUpdate > fiveMinutesAgo) {
-                        this.addPeerPig(username);
-
-                        // Set their current activity state
-                        const activity = classData.users[username].currentActivity;
-                        if (activity) {
-                            // Activity will be set after debounce in addPeerPig
-                            // Store it temporarily for application after creation
-                            if (!this.pendingActivities) this.pendingActivities = new Map();
-                            this.pendingActivities.set(username, activity);
-                        }
-                    }
-                }
-            }
-
-            addPeerPig(username, position = null) {
-                if (!this.enabled || !this.container) return;
-                if (username === currentUsername) return; // Don't create pig for current user
-
-                // TASK 4.1: Debounce pig creation to prevent duplicates
-                if (this.pigCreationDebounce.has(username)) {
-                    clearTimeout(this.pigCreationDebounce.get(username));
-                }
-
-                const timeout = setTimeout(() => {
-                    // Check again after debounce
-                    if (!this.pigs.has(username)) {
-                        const pig = new PeerPig(username);
-                        if (position) {
-                            pig.updatePosition(position.x, position.y, false);
-                        }
-
-                        this.pigs.set(username, pig);
-                        this.container.appendChild(pig.element);
-
-                        // Entrance animation
-                        pig.element.classList.add('peer-pig-enter');
-                        setTimeout(() => pig.element.classList.remove('peer-pig-enter'), 500);
-
-                        console.log(`🐷 Added peer pig for ${username}`);
-                    }
-                    this.pigCreationDebounce.delete(username);
-                }, 100); // 100ms debounce
-
-                this.pigCreationDebounce.set(username, timeout);
-            }
-
-            removePig(username) {
-                if (!this.enabled) return;
-                const pig = this.pigs.get(username);
-                if (pig) {
-                    pig.remove();
-                    this.pigs.delete(username);
-                    console.log(`🐷 Removed peer pig for ${username}`);
-                }
-            }
-
-            updatePeerPosition(username, x, y) {
-                if (!this.enabled) return;
-                const pig = this.pigs.get(username);
-                if (pig) {
-                    pig.updatePosition(x, y);
-                }
-            }
-
-            celebratePeer(username) {
-                if (!this.enabled) return;
-                const pig = this.pigs.get(username);
-                if (pig) {
-                    pig.celebrate();
-                }
-            }
-
-            updatePigPositions() {
-                if (!this.enabled || this.pigs.size === 0) return;
-
-                // TASK 5.0: Fixed positioning - left side, higher up to avoid UI
-                const spacing = 40; // 40px between sprites
-                const startX = 50;  // Starting X position (left side)
-                const baseY = 80;   // Base Y position (higher up to clear bottom UI)
-
-                let index = 0;
-                this.pigs.forEach(pig => {
-                    const x = startX + (index * spacing);
-                    pig.updatePosition(x, baseY, true);
-                    index++;
-                });
-            }
-
-            updateActivity(username, state, questionId = null) {
-                if (!this.enabled) return;
-                const pig = this.pigs.get(username);
-                if (pig) {
-                    pig.setActivity(state, questionId);
-                    // Update positions to regroup
-                    this.updatePigPositions();
-                }
-            }
-
-            toggle() {
-                this.enabled = !this.enabled;
-                localStorage.setItem('pigsEnabled', this.enabled);
-
-                if (this.enabled) {
-                    this.init();
-                } else {
-                    // TASK 4.2: Stop cleanup when disabled
-                    this.stopPeriodicCleanup();
-                    if (this.container) {
-                        this.container.remove();
-                        this.container = null;
-                    }
-                    this.pigs.clear();
-                }
-
-                console.log(`🐷 Peer pigs ${this.enabled ? 'enabled' : 'disabled'}`);
-                return this.enabled;
-            }
-
-            destroy() {
-                // TASK 4.2: Stop cleanup when destroyed
-                this.stopPeriodicCleanup();
-                if (this.container) {
-                    this.container.remove();
-                }
-                this.pigs.clear();
-            }
-        }
-
-        // Initialize global pig manager
-        window.pigManager = null;
-
-        // ========================================
-        // TASK 3.3: Activity Tracking Functions
-        // ========================================
-
-        /**
-         * Updates user's current activity state and syncs to cloud
-         * @param {string} state - Activity state: 'idle', 'viewing', 'answering', 'submitted'
-         * @param {string|null} questionId - Current question ID or null for idle
-         */
-        function updateUserActivity(state, questionId = null) {
-            if (!currentUsername || !classData) return;
-
-            // TASK 4.1: Initialize if needed (race condition fix)
-            if (!classData.users) {
-                classData = { users: {} };
-            }
-            if (!classData.users[currentUsername]) {
-                console.warn('User data not initialized for activity tracking, initializing...');
-                initClassData();
-                // Double-check after init
-                if (!classData.users[currentUsername]) {
-                    console.error('Failed to initialize user data for activity tracking');
-                    return;
-                }
-            }
-
-            const previousState = classData.users[currentUsername].currentActivity?.state;
-            const previousQuestion = classData.users[currentUsername].currentActivity?.questionId;
-
-            // Update activity state
-            classData.users[currentUsername].currentActivity = {
-                state: state,
-                questionId: questionId,
-                lastUpdate: Date.now()
-            };
-
-            // Save to localStorage
-            saveClassData();
-
-            // Log activity change
-            console.log(`🐷 Activity: ${currentUsername} ${state} ${questionId || ''}`);
-
-            // Update local pig sprite if exists
-            if (window.pigManager) {
-                const localPig = window.pigManager.pigs.get(currentUsername);
-                if (localPig) {
-                    localPig.setActivity(state, questionId);
-                }
-            }
-
-            // Queue for cloud sync if turbo mode active
-            if (turboModeActive && typeof queueActivityForSync === 'function') {
-                queueActivityForSync(currentUsername, state, questionId);
-            }
-
-            // Auto-transition: submitted → idle after 3 seconds
-            if (state === 'submitted') {
-                setTimeout(() => {
-                    // Only transition if still in submitted state
-                    if (classData.users[currentUsername]?.currentActivity?.state === 'submitted') {
-                        updateUserActivity('idle', null);
-                    }
-                }, 3000);
-            }
-        }
-
-        /**
-         * Queues activity update for batch syncing to cloud
-         * @param {string} username - Username
-         * @param {string} state - Activity state
-         * @param {string|null} questionId - Question ID
-         */
-        function queueActivityForSync(username, state, questionId) {
-            if (!turboModeActive || !supabase) return;
-
-            // Activity updates are sent immediately (not batched) for real-time feel
-            // But we use a debounced approach to prevent spam
-            if (window.activitySyncDebounce) {
-                clearTimeout(window.activitySyncDebounce);
-            }
-
-            window.activitySyncDebounce = setTimeout(() => {
-                pushActivityToSupabase(username, state, questionId);
-            }, 500); // 500ms debounce
-        }
-
-        /**
-         * Pushes activity update to Supabase
-         * @param {string} username - Username
-         * @param {string} state - Activity state
-         * @param {string|null} questionId - Question ID
-         */
-        async function pushActivityToSupabase(username, state, questionId) {
-            if (!turboModeActive || !supabase) return;
-
+        // Helper function to check if an answer is correct
+        function checkIfAnswerCorrect(questionId, peerAnswerValue) {
             try {
-                const activityData = {
-                    username: username,
-                    activity_state: state,
-                    question_id: questionId,
-                    timestamp: Date.now()
-                };
-
-                const { error } = await supabase
-                    .from('user_activity')
-                    .upsert(activityData, { onConflict: 'username' });
-
-                if (error) {
-                    // TASK 4.1: Handle missing table gracefully
-                    if (error.code === '42P01') { // PostgreSQL: relation does not exist
-                        console.warn('⚠️ user_activity table not found. Activity sync disabled.');
-                        console.log('To enable activity sync, create the table with:');
-                        console.log('CREATE TABLE user_activity (username TEXT PRIMARY KEY, activity_state TEXT, question_id TEXT, timestamp BIGINT);');
-                        stopActivityRefresh();
-                        return;
-                    }
-                    throw error;
+                if (typeof getCorrectAnswer === 'function') {
+                    const correct = getCorrectAnswer(questionId);
+                    if (correct == null || peerAnswerValue == null) return false;
+                    return String(peerAnswerValue).trim().toLowerCase() === String(correct).trim().toLowerCase();
                 }
-                console.log(`✅ Activity synced: ${username} ${state}`);
-            } catch (error) {
-                console.error('❌ Error syncing activity:', error);
-            }
-        }
-
-        /**
-         * Pulls peer activity data from Supabase and updates pig states
-         */
-        async function pullPeerActivityFromSupabase() {
-            if (!turboModeActive || !supabase) return;
-
-            // TASK 4.1: Update status indicator
-            updatePigSystemStatus('syncing');
-
-            try {
-                const currentUser = localStorage.getItem('consensusUsername');
-                if (!currentUser) return;
-
-                const { data, error } = await supabase
-                    .from('user_activity')
-                    .select('*')
-                    .neq('username', currentUser)
-                    .gt('timestamp', Date.now() - 300000); // Only last 5 minutes
-
-                if (error) throw error;
-                if (!data || data.length === 0) {
-                    // TASK 4.1: Success even if no data
-                    updatePigSystemStatus('active');
-                    return;
-                }
-
-                // Process activity updates
-                data.forEach(activity => {
-                    const username = activity.username;
-                    const state = activity.activity_state;
-                    const questionId = activity.question_id;
-
-                    // Update classData with peer activity
-                    if (classData.users[username]) {
-                        classData.users[username].currentActivity = {
-                            state: state,
-                            questionId: questionId,
-                            lastUpdate: activity.timestamp
-                        };
-                    } else {
-                        // Create minimal user entry for new peer
-                        classData.users[username] = {
-                            answers: {},
-                            reasons: {},
-                            timestamps: {},
-                            attempts: {},
-                            currentActivity: {
-                                state: state,
-                                questionId: questionId,
-                                lastUpdate: activity.timestamp
-                            }
-                        };
-                    }
-
-                    // Update pig visual state
-                    if (window.pigManager) {
-                        const pig = window.pigManager.pigs.get(username);
-                        if (pig) {
-                            pig.setActivity(state, questionId);
-                        } else {
-                            // Create pig for new peer
-                            window.pigManager.addPeerPig(username);
-                            const newPig = window.pigManager.pigs.get(username);
-                            if (newPig) {
-                                newPig.setActivity(state, questionId);
-                            }
-                        }
-                    }
-                });
-
-                console.log(`✅ Pulled activity for ${data.length} peers`);
-
-                // Update pig positions based on activity grouping
-                if (window.pigManager) {
-                    window.pigManager.updatePigPositions();
-                }
-
-                // TASK 4.1: Update status indicator to active after success
-                updatePigSystemStatus('active');
-
-            } catch (error) {
-                console.error('❌ Error pulling peer activity:', error);
-                // TASK 4.1: Update status indicator to error
-                updatePigSystemStatus('error');
-            }
-        }
-
-        /**
-         * Starts periodic activity refresh (every 30 seconds)
-         */
-        function startActivityRefresh() {
-            if (!turboModeActive) return;
-
-            // Clear existing interval if any
-            if (window.activityRefreshInterval) {
-                clearInterval(window.activityRefreshInterval);
-            }
-
-            // Pull immediately
-            pullPeerActivityFromSupabase();
-
-            // Set up periodic refresh
-            window.activityRefreshInterval = setInterval(() => {
-                pullPeerActivityFromSupabase();
-            }, 30000); // Every 30 seconds
-
-            console.log('🐷 Activity refresh started (30s interval)');
-        }
-
-        /**
-         * Stops periodic activity refresh
-         */
-        function stopActivityRefresh() {
-            if (window.activityRefreshInterval) {
-                clearInterval(window.activityRefreshInterval);
-                window.activityRefreshInterval = null;
-                console.log('🐷 Activity refresh stopped');
-            }
-        }
-
-        // Pig Sprite Controller (Local player's pig)
-        class PigSprite {
-            constructor(color = 'pink') {
-                this.x = window.innerWidth / 2;
-                this.y = 100;
-                this.frame = 0;
-                this.animationRow = 0; // 0 for top row, 1 for bottom row
-                this.facingRight = true;
-                this.isJumping = false;
-                this.velocity = { x: 0, y: 0 };
-                this.color = color;
-
-                // Collision detection properties
-                this.headerCollisions = 0;
-                this.bounceThreshold = 3; // Number of bounces before triggering action
-
-                // Button physics properties
-                this.buttons = []; // Registry of button elements for collision
-                this.onPlatform = false; // Whether sprite is standing on a button
-                this.platformElement = null; // Current platform button
-
-                this.createElement();
-                this.updateButtonRegistry(); // Initialize button detection
-                this.bindControls();
-                this.startAnimation();
-            }
-
-            createElement() {
-                this.element = document.createElement('div');
-                this.element.className = 'pig-sprite';
-                this.element.style.left = this.x + 'px';
-                this.element.style.bottom = this.y + 'px';
-
-                // Apply color filter if needed
-                if (this.color !== 'pink') {
-                    this.element.style.filter = this.getColorFilter(this.color);
-                }
-
-                document.body.appendChild(this.element);
-            }
-
-            getColorFilter(color) {
-                // CSS filters to change pig color
-                const filters = {
-                    'blue': 'hue-rotate(200deg)',
-                    'green': 'hue-rotate(90deg)',
-                    'purple': 'hue-rotate(270deg)',
-                    'yellow': 'hue-rotate(45deg) saturate(1.5)',
-                    'red': 'hue-rotate(-10deg) saturate(1.5)',
-                    'gray': 'grayscale(100%)'
-                };
-                return filters[color] || '';
-            }
-
-            bindControls() {
-                document.addEventListener('keydown', (e) => {
-                    // Add this check before the switch statement
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (
-                        activeElement.tagName === 'TEXTAREA' ||
-                        activeElement.tagName === 'INPUT' ||
-                        activeElement.contentEditable === 'true' ||
-                        activeElement.classList.contains('frq-textarea') ||
-                        activeElement.classList.contains('reason-textarea')
-                    );
-
-                    // Don't capture keys if user is typing
-                    if (isTyping) {
-                        return;
-                    }
-
-                    switch(e.key) {
-                        case 'ArrowLeft':
-                            this.moveLeft();
-                            e.preventDefault();
-                            break;
-                        case 'ArrowRight':
-                            this.moveRight();
-                            e.preventDefault();
-                            break;
-                        case 'ArrowUp':
-                        case ' ':
-                            this.jump();
-                            e.preventDefault();
-                            break;
-                        case 'ArrowDown':
-                            this.animationRow = this.animationRow === 0 ? 1 : 0;
-                            e.preventDefault();
-                            break;
-                    }
-                });
-
-                document.addEventListener('keyup', (e) => {
-                    // Add the same check here too
-                    const activeElement = document.activeElement;
-                    const isTyping = activeElement && (
-                        activeElement.tagName === 'TEXTAREA' ||
-                        activeElement.tagName === 'INPUT' ||
-                        activeElement.contentEditable === 'true' ||
-                        activeElement.classList.contains('frq-textarea') ||
-                        activeElement.classList.contains('reason-textarea')
-                    );
-
-                    if (isTyping) {
-                        return;
-                    }
-
-                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                        this.velocity.x = 0;
-                    }
-                });
-            }
-
-            moveLeft() {
-                this.velocity.x = -5;
-                this.facingRight = false;
-                this.element.classList.add('facing-left');
-            }
-
-            moveRight() {
-                this.velocity.x = 5;
-                this.facingRight = true;
-                this.element.classList.remove('facing-left');
-            }
-
-            jump() {
-                if (!this.isJumping) {
-                    this.isJumping = true;
-                    this.velocity.y = 15;
-
-                    setTimeout(() => {
-                        this.isJumping = false;
-                    }, 500);
-                }
-            }
-
-            updatePosition() {
-                // Update horizontal position
-                if (this.velocity.x !== 0) {
-                    this.x += this.velocity.x;
-                    this.x = Math.max(0, Math.min(window.innerWidth - 32, this.x));
-                    this.element.style.left = this.x + 'px';
-                }
-
-                // Update vertical position (gravity simulation)
-                if (this.velocity.y > 0 || this.y > 100) {
-                    this.y += this.velocity.y;
-                    this.velocity.y -= 0.8; // gravity
-
-                    // Check for welcome element collision
-                    const welcomeElement = document.querySelector('.username-welcome');
-                    if (welcomeElement && this.velocity.y > 0) {
-                        const welcomeRect = welcomeElement.getBoundingClientRect();
-                        const spriteRect = this.element.getBoundingClientRect();
-
-                        // Check if sprite intersects with welcome element
-                        if (this.checkCollision(spriteRect, welcomeRect)) {
-                            // Collision with welcome element
-                            this.headerCollisions++;
-                            this.velocity.y = -Math.abs(this.velocity.y); // Bounce down
-
-                            // Visual feedback for collision
-                            this.element.style.filter = 'brightness(150%) ' + this.getColorFilter(this.color);
-                            setTimeout(() => {
-                                this.element.style.filter = this.getColorFilter(this.color);
-                            }, 200);
-
-                            // Check if we've reached the bounce threshold
-                            if (this.headerCollisions >= this.bounceThreshold) {
-                                this.triggerUsernameManagement();
-                                this.headerCollisions = 0; // Reset counter
-                            }
-
-                            console.log(`Welcome element collision #${this.headerCollisions}`);
-                        }
-                    }
-
-                    // Check button collisions
-                    // Update button registry periodically for dynamic content
-                    if (Math.random() < 0.1) { // 10% chance each frame
-                        this.updateButtonRegistry();
-                    }
-
-                    if (this.onPlatform) {
-                        // When on platform, maintain position and check for edge fall
-                        if (this.platformElement) {
-                            const platformRect = this.platformElement.element.getBoundingClientRect();
-                            const spriteRect = this.element.getBoundingClientRect();
-
-                            // Check if walked off edge
-                            if (spriteRect.right < platformRect.left || spriteRect.left > platformRect.right) {
-                                this.fallOffPlatform();
-                            } else {
-                                // Stay on platform - maintain y position ONLY if not jumping
-                                if (this.velocity.y > 0) {
-                                    // Jumping off platform - leave platform state
-                                    this.onPlatform = false;
-                                    this.platformElement = null;
-                                } else {
-                                    // Not jumping - maintain platform position
-                                    this.y = window.innerHeight - platformRect.top;
-                                    this.velocity.y = 0;
-                                }
-                            }
-                        }
-                    }
-
-                    // Always check for button collisions (whether on platform or not)
-                    if (this.checkButtonCollisions()) {
-                        // Button collision handled, don't check ground
-                        this.element.style.bottom = this.y + 'px';
-                        return;
-                    }
-
-                    // Ground collision (only if not on platform)
-                    if (!this.onPlatform && this.y <= 100) {
-                        this.y = 100;
-                        this.velocity.y = 0;
-                    }
-
-                    this.element.style.bottom = this.y + 'px';
-                }
-            }
-
-            animate() {
-                // Cycle through frames when moving
-                if (this.velocity.x !== 0 || this.isJumping) {
-                    this.frame = (this.frame + 1) % 11;
-                } else {
-                    this.frame = 0; // idle frame
-                }
-
-                // Update sprite background position
-                const xOffset = -this.frame * 32;
-                const yOffset = -this.animationRow * 32;
-                this.element.style.backgroundPosition = `${xOffset}px ${yOffset}px`;
-            }
-
-            startAnimation() {
-                setInterval(() => {
-                    this.updatePosition();
-                    this.animate();
-                }, 50);
-            }
-
-            setColor(newColor) {
-                this.color = newColor;
-                this.element.style.filter = this.getColorFilter(newColor);
-
-                // Save to localStorage with username
-                if (currentUsername) {
-                    localStorage.setItem(`pigColor_${currentUsername}`, newColor);
-                }
-            }
-
-            checkCollision(spriteRect, welcomeRect) {
-                // Check if two rectangles overlap
-                return !(spriteRect.right < welcomeRect.left ||
-                        spriteRect.left > welcomeRect.right ||
-                        spriteRect.bottom < welcomeRect.top ||
-                        spriteRect.top > welcomeRect.bottom);
-            }
-
-            updateButtonRegistry() {
-                // Find all visible button elements
-                this.buttons = [];
-                const allButtons = document.querySelectorAll('button');
-
-                allButtons.forEach(button => {
-                    const rect = button.getBoundingClientRect();
-                    // Only include visible buttons with reasonable size
-                    if (rect.width > 20 && rect.height > 20 &&
-                        rect.top < window.innerHeight && rect.bottom > 0) {
-                        this.buttons.push({
-                            element: button,
-                            rect: rect
-                        });
-                    }
-                });
-            }
-
-            checkButtonCollisions() {
-                const spriteRect = this.element.getBoundingClientRect();
-
-                for (const buttonData of this.buttons) {
-                    const buttonRect = buttonData.rect;
-
-                    // Create expanded collision area above button for easier landing
-                    const expandedRect = {
-                        left: buttonRect.left,
-                        right: buttonRect.right,
-                        top: buttonRect.top - 25, // Expand 25px above button
-                        bottom: buttonRect.bottom,
-                        width: buttonRect.width,
-                        height: buttonRect.height + 25
-                    };
-
-                    // Check for collision with expanded area
-                    if (this.checkCollision(spriteRect, expandedRect)) {
-                        const spriteCenterX = spriteRect.left + spriteRect.width / 2;
-                        const spriteCenterY = spriteRect.top + spriteRect.height / 2;
-                        const buttonCenterY = buttonRect.top + buttonRect.height / 2;
-
-                        // Platform collision (sprite falling onto or near button top)
-                        if (this.velocity.y >= 0) {
-                            // Skip if already on this exact platform to prevent spam
-                            if (this.onPlatform && this.platformElement === buttonData) {
-                                continue;
-                            }
-
-                            // Calculate overlap percentage for horizontal overlap
-                            const overlapLeft = Math.max(spriteRect.left, buttonRect.left);
-                            const overlapRight = Math.min(spriteRect.right, buttonRect.right);
-                            const overlapWidth = Math.max(0, overlapRight - overlapLeft);
-                            const spriteWidth = spriteRect.width;
-                            const overlapPercentage = (overlapWidth / spriteWidth) * 100;
-
-                            // Check if pig is above or near button top and has sufficient overlap
-                            if (spriteRect.bottom >= buttonRect.top - 5 &&
-                                spriteRect.bottom <= buttonRect.top + 30 &&
-                                overlapPercentage >= 50) {
-                                this.landOnPlatform(buttonData, buttonRect);
-                                return true;
-                            }
-                        }
-
-                        // Bottom collision (sprite hitting button from below)
-                        if (this.velocity.y < 0 && spriteCenterY > buttonCenterY) {
-                            this.bounceOffBottom(buttonRect);
-                            return true;
-                        }
-                    }
-                }
-
-                // Check if sprite has walked off platform edge
-                if (this.onPlatform && this.platformElement) {
-                    // Get current platform position (not cached)
-                    const platformRect = this.platformElement.element.getBoundingClientRect();
-                    if (spriteRect.right < platformRect.left || spriteRect.left > platformRect.right) {
-                        this.fallOffPlatform();
-                    }
-                }
-
+                return false;
+            } catch {
                 return false;
             }
+        }
 
-            landOnPlatform(buttonData, buttonRect) {
-                // Stop falling and land on button
-                // Calculate correct y position: pig bottom should touch button top
-                this.y = window.innerHeight - buttonRect.top;
-                this.velocity.y = 0;
-                this.onPlatform = true;
-                this.platformElement = buttonData;
 
-                console.log(`Pig landed on button platform at y=${this.y}, button top=${buttonRect.top}, screen height=${window.innerHeight}`);
-            }
-
-            bounceOffBottom(buttonRect) {
-                // Bounce off button bottom (like welcome element)
-                this.velocity.y = -Math.abs(this.velocity.y);
-
-                // Visual feedback
-                this.element.style.filter = 'brightness(120%) ' + this.getColorFilter(this.color);
-                setTimeout(() => {
-                    this.element.style.filter = this.getColorFilter(this.color);
-                }, 200);
-
-                console.log('Pig bounced off button bottom');
-            }
-
-            fallOffPlatform() {
-                // Fall off platform edge
-                this.onPlatform = false;
-                this.platformElement = null;
-                console.log('Pig fell off platform edge');
-            }
-
-            triggerUsernameManagement() {
-                // Add fun visual effect when triggering
-                this.element.style.transform = 'scale(1.5) rotate(360deg)';
-                this.element.style.transition = 'transform 0.5s ease';
-
-                setTimeout(() => {
-                    this.element.style.transform = '';
-                    this.element.style.transition = '';
-                }, 500);
-
-                // Show message and trigger username prompt
-                showMessage('🐷 Oink! Three bounces - returning to username screen!', 'info');
-
-                setTimeout(() => {
-                    this.showUsernameScreenWithWarning();
-                }, 600);
-            }
-
-            showUsernameScreenWithWarning() {
-                // Check if there's unsaved progress
-                const hasUnsavedProgress = this.checkForUnsavedProgress();
-
-                if (hasUnsavedProgress) {
-                    const shouldContinue = confirm(
-                        'Warning: You have unsaved progress that will be lost if you return to the username screen.\n\n' +
-                        'Do you want to continue? (Your current progress will be lost)'
-                    );
-
-                    if (!shouldContinue) {
-                        showMessage('Returning to current session - progress preserved!', 'success');
-                        return;
-                    }
+        // Add this if it doesn't already exist
+        if(!window.turboModeListenerAttached) {
+            window.addEventListener('turboModeChanged', (e) => {
+                if (!e.detail.enabled && window.spriteManager) {
+                    window.spriteManager.clearAllPeerSprites();
                 }
-
-                // Clear current user and show username prompt
-                localStorage.removeItem('consensusUsername');
-
-                // Show username prompt
-                if (typeof showUsernamePrompt === 'function') {
-                    showUsernamePrompt();
-                } else {
-                    // Fallback to reload page
-                    location.reload();
-                }
-            }
-
-            checkForUnsavedProgress() {
-                if (!currentUsername) return false;
-
-                try {
-                    // Check for any temporary progress markers
-                    const tempProgress = localStorage.getItem(`tempProgress_${currentUsername}`);
-                    if (tempProgress) return true;
-
-                    // Check if user has answered any questions in current session that aren't saved
-                    const sessionStart = localStorage.getItem(`sessionStart_${currentUsername}`);
-                    if (!sessionStart) return false;
-
-                    const sessionStartTime = new Date(sessionStart);
-                    const userAnswers = JSON.parse(localStorage.getItem(`answers_${currentUsername}`) || '{}');
-
-                    // Check if any answers were modified since session start
-                    for (const [questionId, answerData] of Object.entries(userAnswers)) {
-                        if (answerData.timestamp && new Date(answerData.timestamp) > sessionStartTime) {
-                            // Mark unsaved progress if recent activity found
-                            localStorage.setItem(`tempProgress_${currentUsername}`, 'true');
-                            return true;
-                        }
-                    }
-
-                    return false;
-                } catch (error) {
-                    console.error('Error checking unsaved progress:', error);
-                    return false;
-                }
-            }
+            });
+            window.turboModeListenerAttached = true;
         }
 
         // Progress Tracking System
@@ -6224,57 +4991,41 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }, 30000); // 30 seconds delay
         }
 
-        // Initialize the sprite when the page loads
-        window.addEventListener('load', () => {
-            // Initialize sprite immediately
-            initializePigSprite();
-        });
-
-        // Function to initialize pig sprite based on current user
-        function initializePigSprite() {
-            // Remove existing sprite if present
-            if (window.pigSprite && window.pigSprite.element) {
-                window.pigSprite.element.remove();
-            }
-
-            // Load saved color for current user, or use default
-            const savedColor = currentUsername ?
-                localStorage.getItem(`pigColor_${currentUsername}`) || 'pink' :
-                'pink';
-
-            window.pigSprite = new PigSprite(savedColor);
-        }
-
-        // Add color picker to the UI
-        function addColorPicker() {
-            const colorPicker = document.createElement('div');
-            colorPicker.innerHTML = `
-                <div style="position: fixed; bottom: 20px; left: 20px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000;">
-                    <label>Pig Color: </label>
-                    <select id="pigColorSelect" onchange="if(window.pigSprite) window.pigSprite.setColor(this.value)">
-                        <option value="pink">Pink</option>
-                        <option value="blue">Blue</option>
-                        <option value="green">Green</option>
-                        <option value="purple">Purple</option>
-                        <option value="yellow">Yellow</option>
-                        <option value="red">Red</option>
-                        <option value="gray">Gray</option>
-                    </select>
-                </div>
-            `;
-            document.body.appendChild(colorPicker);
-        }
-
-        // Add this to your window.onload
-        window.addEventListener('load', () => {
-            addColorPicker();
-        });
 
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
+
+
+
+
+        // --- Main Event Listener for Real-Time Updates ---
+        window.addEventListener('peer:answer', (event) => {
+            const detail = event?.detail || {};
+
+            // 1. Update the application's core state
+            const stateWasUpdated = mergePeerAnswer(detail);
+
+            if (stateWasUpdated) {
+                // 2. If state was updated, handle sprite animation
+                // (SpriteManager has its own internal turbo check via this.isTurboActive)
+                if (window.spriteManager) {
+                    const isCorrect = checkIfAnswerCorrect(detail.question_id, detail.answer_value);
+                    window.spriteManager.handlePeerAnswer(detail.username, isCorrect);
+                }
+
+                // 3. Schedule the UI refresh for the quiz content
+                requestAnimationFrame(() => {
+                    refreshQuestionIfVisible(detail.question_id);
+                    if (typeof updatePeerDataTimestamp === 'function') {
+                        updatePeerDataTimestamp();
+                    }
+                });
+            }
+        });
+
         // New function to render unit selection menu
         function renderUnitMenu() {
             const questionsContainer = document.getElementById('questionsContainer');
@@ -7405,199 +6156,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // ========================================
-        // TASK 5.0: SPRITE SETTINGS MODAL FUNCTIONS
-        // ========================================
-
-        /**
-         * Show the sprite settings modal
-         * TASK 5.2: Disabled - shows "Under Construction" message only
-         */
-        function showSpriteSettingsModal() {
-            // TASK 5.2: Sprites disabled pending Canvas refactor
-            if (!SPRITES_ENABLED) {
-                const modal = document.getElementById('spriteSettingsModal');
-                if (modal) {
-                    modal.style.display = 'block';
-                }
-                return;
-            }
-
-            // Legacy code - will be removed in Phase 5
-            const modal = document.getElementById('spriteSettingsModal');
-            if (modal) {
-                // Load current settings
-                const spritesEnabled = localStorage.getItem('pigsEnabled') !== 'false';
-                const savedColor = localStorage.getItem('spriteColor') || '0';
-
-                document.getElementById('spritesEnabled').checked = spritesEnabled;
-
-                // Generate color grid
-                generateColorGrid();
-
-                // Set selected color
-                selectColor(parseInt(savedColor));
-
-                // Update preview
-                updateSpritePreview();
-
-                modal.style.display = 'block';
-            }
-        }
-
-        /**
-         * Close the sprite settings modal
-         */
-        function closeSpriteSettingsModal() {
-            const modal = document.getElementById('spriteSettingsModal');
-            if (modal) {
-                modal.style.display = 'none';
-            }
-        }
-
-        /**
-         * Generate the color grid with selectable colors
-         */
-        function generateColorGrid() {
-            const colorGrid = document.getElementById('colorGrid');
-            if (!colorGrid) return;
-
-            // Define color options (hue values)
-            const colors = [
-                { hue: 0, name: 'Red' },
-                { hue: 30, name: 'Orange' },
-                { hue: 60, name: 'Yellow' },
-                { hue: 120, name: 'Green' },
-                { hue: 180, name: 'Cyan' },
-                { hue: 210, name: 'Blue' },
-                { hue: 270, name: 'Purple' },
-                { hue: 330, name: 'Pink' }
-            ];
-
-            colorGrid.innerHTML = colors.map((color, index) => `
-                <div class="color-option" data-hue="${color.hue}" data-index="${index}"
-                     onclick="selectColor(${index})"
-                     style="background: hsl(${color.hue}, 70%, 50%);"
-                     title="${color.name}">
-                </div>
-            `).join('');
-        }
-
-        /**
-         * Select a color option
-         */
-        function selectColor(index) {
-            // Remove previous selection
-            document.querySelectorAll('.color-option').forEach(opt => {
-                opt.classList.remove('selected');
-            });
-
-            // Add selection to clicked color
-            const colorOptions = document.querySelectorAll('.color-option');
-            if (colorOptions[index]) {
-                colorOptions[index].classList.add('selected');
-
-                // Store selection temporarily
-                window.tempSpriteColorIndex = index;
-                window.tempSpriteColorHue = colorOptions[index].dataset.hue;
-
-                // Update preview
-                updateSpritePreview();
-            }
-        }
-
-        /**
-         * Update the sprite preview with current settings
-         */
-        function updateSpritePreview() {
-            const previewContainer = document.getElementById('spritePreview');
-            const usernameLabel = document.getElementById('previewUsername');
-
-            if (!previewContainer || !usernameLabel) return;
-
-            const hue = window.tempSpriteColorHue || localStorage.getItem('spriteColorHue') || '0';
-            const username = currentUsername || 'Preview';
-
-            previewContainer.innerHTML = `
-                <div class="preview-sprite" style="
-                    width: 60px;
-                    height: 60px;
-                    background-image: url('sprite.png');
-                    background-size: 1200%;
-                    background-position: 0 0;
-                    filter: hue-rotate(${hue}deg);
-                    image-rendering: pixelated;
-                    margin: 0 auto;
-                "></div>
-            `;
-
-            usernameLabel.textContent = username;
-        }
-
-        /**
-         * Handle sprite toggle checkbox change
-         */
-        function handleSpriteToggle() {
-            const checkbox = document.getElementById('spritesEnabled');
-            // Just update the UI, actual toggle happens on save
-            console.log('Sprite toggle:', checkbox.checked);
-        }
-
-        /**
-         * Save sprite settings and apply them
-         * TASK 5.2: Disabled - no functionality when SPRITES_ENABLED is false
-         */
-        function saveSpriteSettings() {
-            // TASK 5.2: Sprites disabled pending Canvas refactor
-            if (!SPRITES_ENABLED) {
-                closeSpriteSettingsModal();
-                console.log('🎮 Sprites temporarily disabled pending Canvas refactor');
-                return;
-            }
-
-            // Legacy code - will be removed in Phase 5
-            const spritesEnabled = document.getElementById('spritesEnabled').checked;
-            const colorIndex = window.tempSpriteColorIndex !== undefined ?
-                              window.tempSpriteColorIndex :
-                              parseInt(localStorage.getItem('spriteColor') || '0');
-            const colorHue = window.tempSpriteColorHue ||
-                            localStorage.getItem('spriteColorHue') || '0';
-
-            // Save to localStorage
-            localStorage.setItem('pigsEnabled', spritesEnabled);
-            localStorage.setItem('spriteColor', colorIndex.toString());
-            localStorage.setItem('spriteColorHue', colorHue);
-
-            console.log('Sprite settings saved:', { spritesEnabled, colorIndex, colorHue });
-
-            // Apply settings
-            if (!window.pigManager && spritesEnabled) {
-                // Initialize pig manager if not exists
-                window.pigManager = new PigManager();
-            } else if (window.pigManager) {
-                // Toggle existing manager
-                if (window.pigManager.enabled !== spritesEnabled) {
-                    window.pigManager.toggle();
-                }
-            }
-
-            // Update user's own sprite color if they have one
-            // (This would apply to their PigSprite, not PeerPig)
-
-            // Close modal
-            closeSpriteSettingsModal();
-
-            // Show success message
-            showMessage('✅ Sprite settings saved!', 'success');
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const spriteModal = document.getElementById('spriteSettingsModal');
-            if (event.target === spriteModal) {
-                closeSpriteSettingsModal();
-            }
-        }
 
         // Runtime migration function to update existing localStorage data
         function migrateExistingAnswersData() {
@@ -7704,6 +6262,166 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     `;
                     questionsContainer.innerHTML = shareHtml + questionsContainer.innerHTML;
                 }
+            }
+        });
+
+    </script>
+
+    <!-- Sprite Configuration Modal -->
+    <div id="spriteConfigModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeSpriteConfigModal()">&times;</span>
+            <h2>🎮 Sprite Configuration</h2>
+
+            <div class="sprite-config-section">
+                <h3>Enable Sprites</h3>
+                <label class="switch">
+                    <input type="checkbox" id="spritesEnabledToggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="sprite-config-section">
+                <h3>Sprite Color</h3>
+                <div class="color-picker">
+                    <label for="spriteHueSlider">Hue: <span id="hueValue">0</span>°</label>
+                    <input type="range" id="spriteHueSlider" min="0" max="360" value="0" step="1">
+                    <div class="color-preview">
+                        <div id="spriteColorPreview" style="width: 50px; height: 50px; border-radius: 5px; margin: 10px 0;"></div>
+                    </div>
+                </div>
+
+                <div class="sprite-preview-section">
+                    <h4>Preview</h4>
+                    <canvas id="spritePreviewCanvas" width="100" height="100" style="border: 1px solid #ccc; border-radius: 5px;"></canvas>
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn save-btn" onclick="saveSpriteConfig()">Save Settings</button>
+                <button class="modal-btn cancel-btn" onclick="closeSpriteConfigModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas System Scripts -->
+    <script src="js/sprite_sheet.js"></script>
+    <script src="js/canvas_engine.js"></script>
+    <script src="js/entities/player_sprite.js"></script>
+    <script src="js/entities/peer_sprite.js"></script>
+    <script src="js/sprite_manager.js"></script>
+
+    <script>
+        // Sprite system globals
+        let canvasEngine, playerSprite, spriteSheet, spriteManager;
+
+        // Initialize sprite system
+        document.addEventListener('DOMContentLoaded', () => {
+            canvasEngine = new CanvasEngine('spriteCanvas');
+
+            // Load sprite sheet with correct dimensions (80x96 pixels per frame)
+            spriteSheet = new SpriteSheet('sprite.png', 80, 96, {
+                columns: 11,
+                rows: 2,
+                paddingX: 4,
+                paddingY: 4
+            });
+
+            // Create player sprite
+            playerSprite = new PlayerSprite(spriteSheet, 100, canvasEngine.groundY - 96);
+            canvasEngine.addEntity('player', playerSprite);
+
+            // Create sprite manager
+            spriteManager = new SpriteManager(canvasEngine, spriteSheet);
+            window.spriteManager = spriteManager; // Expose globally for early listeners
+
+            // Check if sprites are enabled
+            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
+            if (spritesEnabled) {
+                canvasEngine.start();
+            }
+        });
+
+        // Sprite configuration modal functions
+        function showSpriteConfigModal() {
+            const modal = document.getElementById('spriteConfigModal');
+            if (!modal) return;
+
+            modal.style.display = 'block';
+
+            // Load current settings
+            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
+            const hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+
+            document.getElementById('spritesEnabledToggle').checked = spritesEnabled;
+            document.getElementById('spriteHueSlider').value = hue;
+
+            updateSpriteConfigPreview();
+        }
+
+        function closeSpriteConfigModal() {
+            const modal = document.getElementById('spriteConfigModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function updateSpriteConfigPreview() {
+            const hue = document.getElementById('spriteHueSlider').value;
+            document.getElementById('hueValue').textContent = hue;
+
+            const preview = document.getElementById('spriteColorPreview');
+            preview.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+
+            const canvas = document.getElementById('spritePreviewCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (spriteSheet && spriteSheet.loaded) {
+                ctx.save();
+                ctx.filter = `hue-rotate(${hue}deg)`;
+                // Draw frame 0 centered in preview canvas
+                spriteSheet.drawFrame(ctx, 0, 10, 2, 1, 0);
+                ctx.restore();
+            }
+        }
+
+        function saveSpriteConfig() {
+            const spritesEnabled = document.getElementById('spritesEnabledToggle').checked;
+            const hue = parseInt(document.getElementById('spriteHueSlider').value, 10);
+
+            localStorage.setItem('spritesEnabled', spritesEnabled.toString());
+            localStorage.setItem('spriteColorHue', hue.toString());
+
+            // Apply settings
+            if (playerSprite) {
+                playerSprite.setHue(hue);
+            }
+
+            if (spritesEnabled) {
+                if (canvasEngine && !canvasEngine.running) {
+                    canvasEngine.start();
+                }
+            } else {
+                if (canvasEngine && canvasEngine.running) {
+                    canvasEngine.stop();
+                }
+            }
+
+            closeSpriteConfigModal();
+        }
+
+        // Listen for hue slider changes
+        document.addEventListener('DOMContentLoaded', () => {
+            const slider = document.getElementById('spriteHueSlider');
+            if (slider) {
+                slider.addEventListener('input', updateSpriteConfigPreview);
+            }
+        });
+
+
+        // Clear peer sprites when turbo mode is disabled
+        window.addEventListener('turboModeChanged', (e) => {
+            if (!e.detail.enabled && spriteManager) {
+                spriteManager.clearAllPeerSprites();
             }
         });
 
