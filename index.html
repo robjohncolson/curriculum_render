@@ -626,28 +626,7 @@
                 // Pull latest peer data
                 const peerData = await pullPeerDataFromSupabase();
                 if (peerData) {
-                    // Merge into localStorage
-                    for (const [username, userData] of Object.entries(peerData)) {
-                        const key = `answers_${username}`;
-                        const existing = JSON.parse(localStorage.getItem(key) || '{}');
-
-                        // Merge answers, keeping the most recent
-                        for (const [questionId, answerData] of Object.entries(userData.answers)) {
-                            if (!existing[questionId] ||
-                                answerData.timestamp > (existing[questionId].timestamp || 0)) {
-                                existing[questionId] = answerData;
-                            }
-                        }
-
-                        localStorage.setItem(key, JSON.stringify(existing));
-                    }
-
-                    // Update timestamp display
-                    updatePeerDataTimestamp();
-
-                    // If we're currently viewing a question, update the peer responses
-                    // TODO: Trigger re-render of current question's peer data if needed
-                    // This would need to be integrated with your existing quiz rendering logic
+                    mergePeerDataIntoStores(peerData);
                 }
             }
         }
@@ -665,68 +644,120 @@
             return null;
         }
 
-        // Smart sync - only sync new or updated answers
+        // Merge pulled peer data into localStorage and classData, then refresh UI
+        function mergePeerDataIntoStores(peerData) {
+            if (!peerData) return;
+
+            ensureClassDataInitialized();
+
+            const currentUser = localStorage.getItem('consensusUsername');
+
+            // Merge into localStorage (keep most recent)
+            for (const [username, userData] of Object.entries(peerData)) {
+                const key = `answers_${username}`;
+                const existing = JSON.parse(localStorage.getItem(key) || '{}');
+
+                for (const [questionId, answerData] of Object.entries(userData.answers)) {
+                    if (!existing[questionId] || answerData.timestamp > (existing[questionId].timestamp || 0)) {
+                        existing[questionId] = answerData;
+                    }
+                }
+
+                localStorage.setItem(key, JSON.stringify(existing));
+            }
+
+            // Merge into classData for peer rendering
+            for (const [username, userData] of Object.entries(peerData)) {
+                if (username === currentUser) continue; // skip self
+                if (!classData.users[username]) {
+                    classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                }
+                for (const [questionId, answerData] of Object.entries(userData.answers)) {
+                    const existingAnswer = classData.users[username].answers[questionId];
+                    const existingTimestamp = classData.users[username].timestamps[questionId] || existingAnswer?.timestamp || 0;
+                    if (!existingAnswer || (answerData.timestamp || 0) > existingTimestamp) {
+                        classData.users[username].answers[questionId] = { value: answerData.value, timestamp: answerData.timestamp };
+                        classData.users[username].timestamps[questionId] = answerData.timestamp;
+                    }
+                }
+            }
+
+            // Persist and refresh
+            if (typeof saveClassData === 'function') {
+                saveClassData();
+            }
+            updatePeerDataTimestamp();
+            const qid = getCurrentQuestionId();
+            if (qid && typeof refreshQuestionIfVisible === 'function') {
+                refreshQuestionIfVisible(qid);
+            }
+        }
+
+        // Smart sync - only sync new or updated answers (current user only)
         async function smartSyncWithSupabase() {
             if (!turboModeActive || !supabase) return false;
 
             try {
                 console.log('🔄 Starting smart sync with Supabase...');
 
-                // First, get all existing data from Supabase
+                const currentUser = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+                if (!currentUser) {
+                    console.log('⚠️ No current user detected - skipping smart sync');
+                    return true;
+                }
+
+                // Detect new user with no local answers
+                const localKey = `answers_${currentUser}`;
+                const localAnswersObj = JSON.parse(localStorage.getItem(localKey) || '{}');
+                if (Object.keys(localAnswersObj).length === 0) {
+                    console.log('🆕 New user detected (no local answers) - skipping smart sync');
+                    return true;
+                }
+
+                // Fetch only the current user's existing rows from Supabase (lightweight projection)
                 const { data: supabaseData, error } = await supabase
                     .from('answers')
-                    .select('*');
+                    .select('username,question_id,timestamp')
+                    .eq('username', currentUser);
 
                 if (error) throw error;
 
                 // Create a map of existing Supabase data for quick lookup
                 const supabaseMap = {};
-                supabaseData.forEach(answer => {
+                (supabaseData || []).forEach(answer => {
                     const key = `${answer.username}_${answer.question_id}`;
                     supabaseMap[key] = answer;
                 });
-
-                // Now sync all local data, checking for updates
-                const allKeys = Object.keys(localStorage);
-                const answerKeys = allKeys.filter(key => key.startsWith('answers_'));
 
                 let newCount = 0;
                 let updateCount = 0;
                 let skipCount = 0;
                 let totalCount = 0;
 
-                for (const answerKey of answerKeys) {
-                    const username = answerKey.replace('answers_', '');
-                    const answers = JSON.parse(localStorage.getItem(answerKey) || '{}');
+                // Sync only the current user's local answers
+                for (const [questionId, answerData] of Object.entries(localAnswersObj)) {
+                    totalCount++;
+                    const value = answerData.value || answerData;
 
-                    for (const [questionId, answerData] of Object.entries(answers)) {
-                        totalCount++;
-                        const value = answerData.value || answerData;
+                    // Normalize timestamp to Unix ms
+                    let timestamp = answerData.timestamp || Date.now();
+                    if (typeof timestamp === 'string') {
+                        timestamp = new Date(timestamp).getTime();
+                    }
 
-                        // Convert timestamp to Unix milliseconds if it's a date string
-                        let timestamp = answerData.timestamp || Date.now();
-                        if (typeof timestamp === 'string') {
-                            timestamp = new Date(timestamp).getTime();
+                    const key = `${currentUser}_${questionId}`;
+                    const existingAnswer = supabaseMap[key];
+
+                    if (!existingAnswer) {
+                        if (await pushAnswerToSupabase(currentUser, questionId, value, timestamp)) {
+                            newCount++;
                         }
-
-                        const key = `${username}_${questionId}`;
-                        const existingAnswer = supabaseMap[key];
-
-                        // Check if we need to sync this answer
-                        if (!existingAnswer) {
-                            // New answer - sync it
-                            if (await pushAnswerToSupabase(username, questionId, value, timestamp)) {
-                                newCount++;
-                            }
-                        } else if (existingAnswer.timestamp < timestamp) {
-                            // Local is newer - update Supabase
-                            if (await pushAnswerToSupabase(username, questionId, value, timestamp)) {
-                                updateCount++;
-                            }
-                        } else {
-                            // Supabase is current or newer - skip
-                            skipCount++;
+                    } else if (existingAnswer.timestamp < timestamp) {
+                        if (await pushAnswerToSupabase(currentUser, questionId, value, timestamp)) {
+                            updateCount++;
                         }
+                    } else {
+                        skipCount++;
                     }
                 }
 
@@ -734,7 +765,7 @@
                 console.log(`   - ${newCount} new answers added`);
                 console.log(`   - ${updateCount} answers updated`);
                 console.log(`   - ${skipCount} answers already current`);
-                console.log(`   - ${totalCount} total answers processed`);
+                console.log(`   - ${totalCount} total answers processed (current user)`);
 
                 return true;
             } catch (error) {
@@ -820,8 +851,11 @@ function refreshQuestionIfVisible(questionId) {
                 // Do a smart sync (only sync what's needed)
                 await smartSyncWithSupabase();
 
-                // Pull initial peer data
-                await pullPeerDataFromSupabase();
+                // Pull initial peer data and merge into stores for display
+                const initialPeerData = await pullPeerDataFromSupabase();
+                if (initialPeerData) {
+                    mergePeerDataIntoStores(initialPeerData);
+                }
 
                 // Update timestamp display
                 updatePeerDataTimestamp();

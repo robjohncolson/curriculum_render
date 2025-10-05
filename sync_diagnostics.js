@@ -179,9 +179,134 @@ window.manualSyncAllPeers = manualSyncAllPeers;
 window.compareLocalVsSupabase = compareLocalVsSupabase;
 window.pullAllPeerData = pullAllPeerData;
 
+// Audit: Compare a specific user's local answers vs Supabase
+async function auditUserUploads(username) {
+    const user = (username || '').trim();
+    if (!user) {
+        console.log('Usage: auditUserUploads("student_username")');
+        return;
+    }
+    if (!supabase) {
+        console.log('❌ Supabase not initialized');
+        return;
+    }
+
+    const localKey = `answers_${user}`;
+    const local = JSON.parse(localStorage.getItem(localKey) || '{}');
+    const localCount = Object.keys(local).length;
+
+    const { data: remote, error } = await supabase
+        .from('answers')
+        .select('question_id, answer_value, timestamp')
+        .eq('username', user);
+    if (error) {
+        console.error('Failed to fetch from Supabase:', error);
+        return;
+    }
+
+    const remoteMap = new Map(remote.map(r => [r.question_id, r]));
+
+    const missingOnCloud = [];
+    const olderOnCloud = [];
+    const upToDate = [];
+
+    Object.entries(local).forEach(([qid, localAns]) => {
+        const localTs = typeof localAns?.timestamp === 'string' ? new Date(localAns.timestamp).getTime() : (localAns?.timestamp || 0);
+        const remoteAns = remoteMap.get(qid);
+        if (!remoteAns) {
+            missingOnCloud.push(qid);
+            return;
+        }
+        const remoteTs = typeof remoteAns.timestamp === 'string' ? new Date(remoteAns.timestamp).getTime() : (remoteAns.timestamp || 0);
+        if (remoteTs < localTs) {
+            olderOnCloud.push({ question_id: qid, localTs, remoteTs });
+        } else {
+            upToDate.push(qid);
+        }
+    });
+
+    console.log(`\n=== Audit for ${user} ===`);
+    console.log(`Local answers: ${localCount}`);
+    console.log(`Cloud answers: ${remote.length}`);
+    if (missingOnCloud.length) {
+        console.log(`❗ Missing on cloud (${missingOnCloud.length}):`, missingOnCloud.slice(0, 20), missingOnCloud.length > 20 ? '...(truncated)' : '');
+    }
+    if (olderOnCloud.length) {
+        console.log(`⚠️ Cloud older than local (${olderOnCloud.length}) - consider re-sync:`, olderOnCloud.slice(0, 10));
+    }
+    console.log(`✅ Up-to-date (${upToDate.length})`);
+
+    return { missingOnCloud, olderOnCloud, upToDate, localCount, cloudCount: remote.length };
+}
+
+// Verify last N locally saved answers exist on Supabase with >= timestamps
+async function verifyLastNAnswers(username, n = 10) {
+    const user = (username || '').trim();
+    if (!user) {
+        console.log('Usage: verifyLastNAnswers("student_username", N)');
+        return;
+    }
+    if (!supabase) {
+        console.log('❌ Supabase not initialized');
+        return;
+    }
+
+    const localKey = `answers_${user}`;
+    const local = JSON.parse(localStorage.getItem(localKey) || '{}');
+    const entries = Object.entries(local)
+        .map(([qid, ans]) => ({
+            question_id: qid,
+            timestamp: typeof ans?.timestamp === 'string' ? new Date(ans.timestamp).getTime() : (ans?.timestamp || 0)
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, Math.max(0, n));
+
+    if (entries.length === 0) {
+        console.log(`No local answers for ${user}`);
+        return { verified: [], failures: [] };
+    }
+
+    // Fetch those question IDs from cloud
+    const qids = entries.map(e => e.question_id);
+    const { data: remote, error } = await supabase
+        .from('answers')
+        .select('question_id, timestamp')
+        .eq('username', user)
+        .in('question_id', qids);
+    if (error) {
+        console.error('Failed to fetch from Supabase:', error);
+        return;
+    }
+    const remoteMap = new Map(remote.map(r => [r.question_id, r]));
+
+    const verified = [];
+    const failures = [];
+    entries.forEach(e => {
+        const r = remoteMap.get(e.question_id);
+        const rTs = r ? (typeof r.timestamp === 'string' ? new Date(r.timestamp).getTime() : (r.timestamp || 0)) : -1;
+        if (r && rTs >= e.timestamp) {
+            verified.push(e.question_id);
+        } else {
+            failures.push({ question_id: e.question_id, localTs: e.timestamp, cloudTs: rTs });
+        }
+    });
+
+    console.log(`\n=== Verify last ${entries.length} for ${user} ===`);
+    console.log(`Verified (${verified.length}):`, verified);
+    if (failures.length) console.log(`❌ Failures (${failures.length}):`, failures);
+
+    return { verified, failures };
+}
+
+// Export audit helpers
+window.auditUserUploads = auditUserUploads;
+window.verifyLastNAnswers = verifyLastNAnswers;
+
 console.log('🔧 Sync diagnostic functions loaded. Available commands:');
 console.log('  checkLocalPeerData() - See all local peer data');
 console.log('  checkClassData() - See classData structure');
 console.log('  manualSyncAllPeers() - Sync all local data to Supabase');
 console.log('  compareLocalVsSupabase() - Compare local vs cloud data');
 console.log('  pullAllPeerData() - Pull all peer data from Supabase');
+console.log('  auditUserUploads(username) - Audit one user\'s local vs cloud');
+console.log('  verifyLastNAnswers(username, n) - Verify last N uploads reached cloud');
