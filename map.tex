@@ -1,0 +1,1075 @@
+\documentclass[11pt,letterpaper]{article}
+
+% Page geometry - 0.5" margins on all sides
+\usepackage[letterpaper, margin=0.5in]{geometry}
+
+% Packages
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+% Formatting
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% Title formatting
+\titleformat{\section}
+  {\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Reduce spacing
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{4pt}
+
+% Custom list formatting
+\setlist[itemize]{leftmargin=*, topsep=2pt, itemsep=1pt}
+
+\begin{document}
+
+\title{\textbf{AP Statistics Consensus Quiz\\Function Manifest}}
+\author{Architecture Documentation}
+\date{\today}
+\maketitle
+
+\tableofcontents
+\newpage
+
+% ========================================
+\section{File: \texttt{railway\_client.js}}
+% ========================================
+
+\subsection{WebSocket and Server Connection}
+
+\subsubsection{\texttt{initializeRailwayConnection()}}
+\begin{itemize}
+    \item \textbf{Summary:} Verifies Railway mode, pings \texttt{/health}, and starts WebSocket.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{connectWebSocket()}
+        \item Dispatches Events: \texttt{turboModeChanged}
+        \item Mutates State: \texttt{wsConnected}, timers
+        \item Network: \texttt{fetch('/health')}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{connectWebSocket()}}
+\begin{itemize}
+    \item \textbf{Summary:} Creates WebSocket, sets handlers, identifies user, sends heartbeat/pings.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{handleWebSocketMessage()}
+        \item Dispatches Events: \texttt{turboModeChanged}
+        \item Mutates State: \texttt{ws}, \texttt{wsConnected}, \texttt{wsReconnectTimer}, \texttt{wsPingInterval}
+        \item Network: \texttt{new WebSocket(...)}, \texttt{ws.send('identify'|'ping'|'heartbeat')}
+        \item Note: \texttt{presenceChanged} is dispatched from \texttt{handleWebSocketMessage()}, not on connect
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{handleWebSocketMessage(data)}}
+\begin{itemize}
+    \item \textbf{Summary:} Routes server messages to app events and actions.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Dispatches Events: \texttt{turboModeChanged}, \texttt{presenceChanged}, \texttt{peer:answer}
+        \item Calls: \texttt{pullPeerDataFromRailway()}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Railway-enhanced Data APIs}
+
+\subsubsection{\texttt{submitAnswerViaRailway(username, questionId, answerValue, timestamp)}}
+\begin{itemize}
+    \item \textbf{Summary:} Submits a single answer via Railway; falls back to Supabase push.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{window.originalPushAnswer()}
+        \item Network: \texttt{POST /api/submit-answer}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{pullPeerDataFromRailway(since = 0)}}
+\begin{itemize}
+    \item \textbf{Summary:} Pulls peer answers from Railway and merges into local stores.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{pullPeerDataFromSupabase()}, \texttt{updatePeerDataTimestamp()}
+        \item Mutates State: \texttt{localStorage answers\_*} for peers
+        \item Network: \texttt{GET /api/peer-data?since=...}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getQuestionStats(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Retrieves question stats from Railway.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Network: \texttt{GET /api/question-stats/:questionId}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{batchSubmitViaRailway(answers)}}
+\begin{itemize}
+    \item \textbf{Summary:} Batch submits multiple answers; falls back to Supabase batch push.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{batchPushAnswersToSupabase()}
+        \item Network: \texttt{POST /api/batch-submit}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Override Wiring and Public API}
+
+\subsubsection{Railway overrides (conditional on \texttt{USE\_RAILWAY})}
+\begin{itemize}
+    \item \textbf{Summary:} Overrides Supabase functions with Railway equivalents and initializes connection.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{window.pushAnswerToSupabase}, \texttt{window.pullPeerDataFromSupabase}, \texttt{window.originalPushAnswer}
+        \item Dispatches Events: \texttt{DOMContentLoaded} handler calling \texttt{initializeRailwayConnection()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.railwayClient}}
+\begin{itemize}
+    \item \textbf{Summary:} Public facade for Railway client methods.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Exposes: \texttt{initialize}, \texttt{connectWebSocket}, \texttt{submitAnswer}, \texttt{pullPeerData}, \texttt{getStats}, \texttt{batchSubmit}, \texttt{isConnected}
+    \end{itemize}
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{js/data\_manager.js}}
+% ========================================
+
+\subsection{Core Data Management}
+
+\subsubsection{\texttt{initClassData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads \texttt{classData} from localStorage; ensures current user structure.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{classData}
+        \item Calls: \texttt{saveClassData()}
+        \item Reads State: \texttt{currentUsername}, \texttt{localStorage.classData}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{saveClassData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Persists \texttt{classData} to localStorage with quota guard.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{localStorage.classData}
+        \item Calls: \texttt{showMessage(...)} on quota error
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{initializeProgressTracking()}}
+\begin{itemize}
+    \item \textbf{Summary:} Starts user session tracking and processes pending imports post-refresh.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{localStorage.sessionStart\_*}, \texttt{localStorage.tempProgress\_*}
+        \item Calls: \texttt{importMasterData()}, \texttt{importPersonalData()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{initializeFromEmbeddedData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Builds \texttt{allCurriculumData} from \texttt{EMBEDDED\_CURRICULUM}, groups by unit, renders units.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{detectUnitAndLessons()}, \texttt{renderUnitMenu()}
+        \item Mutates State: \texttt{allCurriculumData}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Data Export}
+
+\subsubsection{\texttt{window.exportPersonal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Exports current user's data to JSON.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{classData.users[currentUsername]}
+        \item Network: none (download blob)
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.exportMasterData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Exports a master backup with all local users and storage snapshot.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{localStorage.*}, \texttt{classData}
+        \item Network: none (download blob)
+    \end{itemize}
+\end{itemize}
+
+\subsection{Data Merging \& Migration}
+
+\subsubsection{\texttt{migrateAnswersToStandardFormat(answers)}}
+\begin{itemize}
+    \item \textbf{Summary:} Converts legacy string answers to \texttt{\{value, timestamp\}} objects.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure function; used by import paths
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{mergePersonalData(existingUserData, newUserData)}}
+\begin{itemize}
+    \item \textbf{Summary:} Timestamp-based merge of answers, attempts, progress, badges, preferences.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure merge; logs per-field decisions
+    \end{itemize}
+\end{itemize}
+
+\subsection{Data Import}
+
+\subsubsection{\texttt{importPersonalData(data)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports personal data for current user with standardization; refreshes UI.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{migrateAnswersToStandardFormat()}, \texttt{initClassData()}, \texttt{renderUnitMenu()}
+        \item Mutates State: \texttt{localStorage.answers\_*}, \texttt{localStorage.progress\_*}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importMasterData(data, targetUsername = null)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports master backup; supports single-user restoration or multi-user peer import.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{mergeMasterData()} if present; otherwise merges per-user
+        \item Mutates State: \texttt{localStorage.answers\_*}, \texttt{progress\_*}, \texttt{reasons\_*}, \texttt{timestamps\_*}, \texttt{attempts\_*}, \texttt{classData}
+        \item Calls: \texttt{initClassData()}, \texttt{renderUnitMenu()}
+    \end{itemize}
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{js/auth.js}}
+% ========================================
+
+\subsection{Username Generation}
+
+\subsubsection{\texttt{generateRandomUsername()}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns a random \texttt{Fruit\_Animal} username.
+\end{itemize}
+
+\subsection{Username Flow}
+
+\subsubsection{\texttt{promptUsername()}}
+\begin{itemize}
+    \item \textbf{Summary:} Entry point; uses saved username or shows welcome prompt.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{initClassData()}, \texttt{initializeProgressTracking()}, \texttt{showUsernameWelcome()}, \texttt{initializeFromEmbeddedData()}, \texttt{updateCurrentUsernameDisplay()}, \texttt{showUsernamePrompt()}
+        \item Reads State: \texttt{localStorage.consensusUsername}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showUsernamePrompt()}}
+\begin{itemize}
+    \item \textbf{Summary:} Legacy redirect to \texttt{showWelcomeScreen()}.
+\end{itemize}
+
+\subsubsection{\texttt{showWelcomeScreen()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders welcome wizard and shows recent usernames.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{loadRecentUsernamesOnWelcome()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.showNewStudentFlow()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders the new-student username reveal and actions.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{generateRandomUsername()}, \texttt{acceptUsername()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.showReturningStudentFlow()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders return flow with restore options and recent usernames.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showRestoreOptionsModal()}, \texttt{loadRecentUsernamesForReturning()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.rerollUsernameInFlow()}}
+\begin{itemize}
+    \item \textbf{Summary:} Rerolls displayed username in-flow and updates accept handler.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{generateRandomUsername()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadRecentUsernamesOnWelcome()}, \texttt{loadRecentUsernamesForReturning()}, \texttt{getRecentUsernames()}}
+\begin{itemize}
+    \item \textbf{Summary:} Surface recent usernames from \texttt{localStorage} and \texttt{classData}.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{localStorage.answers\_*}, \texttt{localStorage.classData}
+        \item Dispatches Events: attaches click handlers to call \texttt{checkExistingData()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.rerollUsername()}}
+\begin{itemize}
+    \item \textbf{Summary:} Rerolls username on the generator view.
+\end{itemize}
+
+\subsubsection{\texttt{window.acceptUsername(name)}}
+\begin{itemize}
+    \item \textbf{Summary:} Accepts username, saves session, initializes data and UI, starts pig system.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{currentUsername}, \texttt{localStorage.consensusUsername}, \texttt{recentUsernames}
+        \item Calls: \texttt{initClassData()}, \texttt{initializeProgressTracking()}, \texttt{showUsernameWelcome()}, \texttt{initializeFromEmbeddedData()}, \texttt{updateCurrentUsernameDisplay()}
+        \item Initializes: \texttt{window.pigManager = new PigManager()} if available
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{window.recoverUsername()}}
+\begin{itemize}
+    \item \textbf{Summary:} Manual username input and validation; proceeds to \texttt{checkExistingData()}.
+\end{itemize}
+
+\subsubsection{\texttt{checkExistingData(username)}}
+\begin{itemize}
+    \item \textbf{Summary:} Detects existing data for a username and prompts to continue or start fresh.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{acceptUsername()}, \texttt{showMessage()}
+        \item Reads State: \texttt{localStorage.answers\_*}, \texttt{localStorage.classData}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Username Display and Export}
+
+\subsubsection{\texttt{updateCurrentUsernameDisplay()}}
+\begin{itemize}
+    \item \textbf{Summary:} Updates UI and reinitializes pig sprite with saved color.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{initializePigSprite()} if present
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadRecentUsernames()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders recently used usernames list using \texttt{checkExistingData()}.
+\end{itemize}
+
+\subsubsection{\texttt{showUsernameWelcome()}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays a transient welcome banner.
+\end{itemize}
+
+\subsubsection{\texttt{window.exportUsername()}}
+\begin{itemize}
+    \item \textbf{Summary:} Exports a small identity JSON for recovery.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{currentUsername}
+        \item Network: none (download blob)
+    \end{itemize}
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{js/charts.js}}
+% ========================================
+
+\subsection{Chart Rendering}
+
+\subsubsection{\texttt{renderChart(chartData, questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns HTML and asynchronously renders one of several chart types in a canvas.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{generateChartColors()}, \texttt{getTextColor()}, \texttt{getGridColor()}, \texttt{isDarkMode()}
+        \item Mutates State: \texttt{chartInstances[chartId]}
+        \item Network: none
+    \end{itemize}
+    \item Internal helpers within \texttt{renderChart} scope:
+    \begin{itemize}
+        \item \texttt{gamma(z)}, \texttt{chiSquarePdf(x,k)} for chi-square curves
+        \item Inline plugins to draw number lines, boxplots
+    \end{itemize}
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{js/sprite\_manager.js}}
+% ========================================
+
+\subsection{Sprite Management and Presence}
+
+\subsubsection{\texttt{class SpriteManager}}
+\begin{itemize}
+    \item \textbf{Summary:} Manages canvas peer sprites; listens to turbo mode and presence, animates on answers.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Listens for Events: \texttt{turboModeChanged}, \texttt{presenceChanged}
+        \item Calls: \texttt{preloadKnownPeers()}, \texttt{clearAllPeerSprites()}, \texttt{updateOnlinePeers()}
+        \item Mutates State: \texttt{peerSprites}, \texttt{positionedUsernames}, \texttt{isTurboActive}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{ensurePeerSprite(username)}}
+\begin{itemize}
+    \item \textbf{Summary:} Ensures a peer sprite exists and is attached to the engine; positions peers.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{resolvePeerHue()}, \texttt{repositionPeers()}, \texttt{engine.addEntity(...)}
+        \item Mutates State: \texttt{peerSprites}, \texttt{positionedUsernames}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{preloadPeers(usernames)}, \texttt{getKnownPeerUsernames()}, \texttt{preloadKnownPeers()}}
+\begin{itemize}
+    \item \textbf{Summary:} Pre-create sprites for users; derive known usernames; preload current online peers.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{classData.users}, \texttt{localStorage.answers\_*}, \texttt{progress\_*}, \texttt{window.onlineUsers}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{updateOnlinePeers(onlineUsernames)}}
+\begin{itemize}
+    \item \textbf{Summary:} Adds/removes peer sprites to match online presence.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{ensurePeerSprite()}, \texttt{removePeerSprite()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{repositionPeers()}, \texttt{computeSlots(count, spriteWidth)}}
+\begin{itemize}
+    \item \textbf{Summary:} Calculates and assigns positions for a peer row.
+\end{itemize}
+
+\subsubsection{\texttt{handlePeerAnswer(username, isCorrect)}}
+\begin{itemize}
+    \item \textbf{Summary:} Animates the peer sprite on correct/incorrect submission.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{ensurePeerSprite()}, peer methods \texttt{celebrate()}/\texttt{jump()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{removePeerSprite(username)}, \texttt{clearAllPeerSprites()}}
+\begin{itemize}
+    \item \textbf{Summary:} Removes one or all peer sprites from the engine and maps.
+\end{itemize}
+
+\subsubsection{\texttt{resolvePeerHue(username)}, \texttt{hashStringToHue(input)}}
+\begin{itemize}
+    \item \textbf{Summary:} Chooses a consistent hue per username from storage or hash.
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{js/canvas\_engine.js}}
+% ========================================
+
+\subsection{Canvas Engine}
+
+\subsubsection{\texttt{class CanvasEngine}}
+\begin{itemize}
+    \item \textbf{Summary:} Manages canvas sizing, entity lifecycle, game loop, and label rendering.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Listens for Events: \texttt{resize}
+        \item Calls: entity hooks \texttt{onAdded}/\texttt{onRemoved}/\texttt{update}/\texttt{render}/\texttt{getLabelSpec}
+        \item Mutates State: \texttt{entities}, \texttt{canvas}, \texttt{ctx}, loop state
+    \end{itemize}
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{index.html} (selected significant functions)}
+% ========================================
+
+\subsection{Turbo Mode and Supabase Sync}
+
+\subsubsection{\texttt{testSupabaseConnection()}}
+\begin{itemize}
+    \item \textbf{Summary:} Probes Supabase connectivity with a 2s timeout and toggles turbo mode.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Dispatches Events: \texttt{turboModeChanged}
+        \item Mutates State: \texttt{turboModeActive}, \texttt{supabase}
+        \item Network: Supabase \texttt{.select(...).limit(1)}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{pushAnswerToSupabase(username, questionId, answerValue, timestamp)}}
+\begin{itemize}
+    \item \textbf{Summary:} Upserts a single answer to Supabase.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Network: Supabase \texttt{.from('answers').upsert(...)}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{batchPushAnswersToSupabase(answerBatch)}}
+\begin{itemize}
+    \item \textbf{Summary:} Batch upserts multiple answers.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Network: Supabase \texttt{.upsert([...])}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{queueAnswerForSync(...)}, \texttt{flushAnswerQueue()}}
+\begin{itemize}
+    \item \textbf{Summary:} Manage a batching queue and timed flush to Supabase; updates timestamp UI on success.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{batchPushAnswersToSupabase()}, \texttt{updatePeerDataTimestamp()}
+        \item Mutates State: \texttt{answerSyncQueue}, timers
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{pullPeerDataFromSupabase()}}
+\begin{itemize}
+    \item \textbf{Summary:} Incrementally fetches peer answers excluding current user and returns normalized map.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{lastPeerDataTimestamp}
+        \item Network: Supabase \texttt{.select('*').neq('username', currentUser).gt('timestamp', ...)}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{syncAllLocalAnswersToSupabase()}, \texttt{syncClassDataToSupabase()}}
+\begin{itemize}
+    \item \textbf{Summary:} Full sync paths to push local and \texttt{classData} answers to Supabase.
+\end{itemize}
+
+\subsubsection{\texttt{updatePeerDataTimestamp()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows last peer data freshness in the UI, scanning \texttt{localStorage} for latest timestamps.
+\end{itemize}
+
+\subsubsection{\texttt{performSyncCheck()}}
+\begin{itemize}
+    \item \textbf{Summary:} Reconnects if offline; pulls delta peer data and merges results.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{testSupabaseConnection()}, \texttt{syncAllLocalAnswersToSupabase()}, \texttt{pullPeerDataFromSupabase()}, \texttt{mergePeerDataIntoStores()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{mergePeerDataIntoStores(peerData)}}
+\begin{itemize}
+    \item \textbf{Summary:} Merges pulled peer answers into \texttt{classData} and legacy \texttt{answers\_*}, then refreshes UI.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{saveClassData()}, \texttt{updatePeerDataTimestamp()}, \texttt{refreshQuestionIfVisible()}
+        \item Mutates State: \texttt{classData}, \texttt{localStorage.answers\_*}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{smartSyncWithSupabase()}}
+\begin{itemize}
+    \item \textbf{Summary:} For current user, syncs only new/updated answers by comparing Supabase timestamps.
+\end{itemize}
+
+\subsubsection{\texttt{initializeTurboMode()}}
+\begin{itemize}
+    \item \textbf{Summary:} Orchestrates connectivity test, smart sync, initial peer pull, realtime subscription, and intervals.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: previous sync functions; subscribes to Supabase realtime \texttt{answers\_changes}
+        \item Dispatches Events: relies on Supabase real-time callback to trigger \texttt{performSyncCheck()}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Real-time Event Handling}
+
+\subsubsection{\texttt{ensureClassDataInitialized()}}
+\begin{itemize}
+    \item \textbf{Summary:} Guard initializer for \texttt{classData}.
+\end{itemize}
+
+\subsubsection{\texttt{mergePeerAnswer(detail)}}
+\begin{itemize}
+    \item \textbf{Summary:} Single-source-of-truth state update when a \texttt{'peer:answer'} is received.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{classData}, \texttt{localStorage.answers\_*}
+        \item Calls: \texttt{saveClassData()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{refreshQuestionIfVisible(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Conditional UI refresh for active question.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderMCQDistribution()}, \texttt{renderFRQResponses()}, or \texttt{populatePeerResponses()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Event listeners}
+\begin{itemize}
+    \item \textbf{Summary:} Listens: \texttt{window.addEventListener('peer:answer', ...)} to call \texttt{mergePeerAnswer()}, trigger sprite animation via \texttt{spriteManager}, and refresh.
+\end{itemize}
+
+\subsection{UI/Interaction and Submission}
+
+\subsubsection{\texttt{window.submitAnswer(questionId, questionType)}}
+\begin{itemize}
+    \item \textbf{Summary:} Validates input, saves answer and reason, updates attempts, syncs via Railway or batch queue, triggers pig activity.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getAttemptCount()}, \texttt{canRetry()}, \texttt{saveClassData()}, \texttt{window.submitAnswerViaRailway()}, \texttt{queueAnswerForSync()}, \texttt{checkIfAnswerCorrect()}, \texttt{refreshQuestionIfVisible()}
+        \item Mutates State: \texttt{classData}, \texttt{localStorage.answers\_*}
+        \item Dispatches Events: none directly
+    \end{itemize}
+\end{itemize}
+
+\subsection{UI Rendering Functions}
+
+\subsubsection{\texttt{renderLessonSelector()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders the lesson selection interface for a unit, displaying lessons with completion status and question counts.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{unitStructure[currentUnit]}, \texttt{allUnitQuestions}
+        \item Calls: \texttt{isQuestionAnswered()}
+        \item Creates onclick handlers: \texttt{loadLesson()}, \texttt{backToUnits()}
+        \item Mutates State: DOM element \texttt{questionsContainer}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderLessonSelectorWithResources()}}
+\begin{itemize}
+    \item \textbf{Summary:} Enhanced version of renderLessonSelector that displays video resources for each lesson.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{loadUnitResources()}
+        \item Displays video count indicators for lessons
+        \item Similar DOM manipulation as \texttt{renderLessonSelector}
+        \item Integrates with resource management system
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderQuiz()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders all questions for the current lesson in a quiz format.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderQuestion()} for each question in \texttt{currentQuestions}
+        \item Calls: \texttt{loadProgress()}, \texttt{MathJax.typesetPromise()}
+        \item Calls: \texttt{renderVisibleCharts()}, \texttt{setupQuestionActivityTracking()}
+        \item Creates onclick handler: \texttt{backToLessons()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderQuestion(question, currentQuestionIndex, totalQuestions)}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders a single question with its prompt, choices/textarea, and reasoning section.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getAttemptCount()}, \texttt{canRetry()}, \texttt{getCorrectAnswer()}
+        \item Calls: \texttt{renderAttachments()} for charts/tables/images
+        \item Reads State: \texttt{classData.users[currentUsername].answers}
+        \item Displays correctness status with visual indicators
+        \item Renders MCQ choices or FRQ textarea based on question type
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderVisibleCharts()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders charts that are currently visible in the DOM, optimizing performance.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Queries DOM for \texttt{[data-chart-id]} elements
+        \item Calls: \texttt{renderChartNow()} for each pending chart
+        \item Accesses: \texttt{window.pendingCharts}
+        \item Manages: \texttt{chartInstances} for cleanup
+    \end{itemize}
+\end{itemize}
+
+\subsection{Peer View Functions}
+
+\subsubsection{\texttt{populatePeerReasoning(contributors, questionId, answerKey)}}
+\begin{itemize}
+    \item \textbf{Summary:} Populates peer reasoning section with sorted peer responses and voting.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Filters out current user from contributors
+        \item Calls: \texttt{getVoteCount()} for helpful/unclear/contradicts votes
+        \item Sorts responses by helpful votes (descending)
+        \item Creates voting interface with visual indicators
+        \item Checks if answer key is revealed to conditionally display correct answers
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{populatePeerResponses(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Gathers all user responses for a question and passes to populatePeerReasoning.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Iterates through \texttt{classData.users} to collect answers and reasons
+        \item Calls: \texttt{window.pigManager.addPeerPig()} for sprite system
+        \item Differentiates between MCQ and FRQ response formats
+        \item Calls: \texttt{populatePeerReasoning()} with gathered data
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderMCQDistribution(questionId, userAnswer)}}
+\begin{itemize}
+    \item \textbf{Summary:} Creates a bar chart showing relative frequency distribution of MCQ choices.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Aggregates responses from \texttt{classData.users}
+        \item Creates Chart.js bar chart instance
+        \item Highlights current user's choice in different color (\#4CAF50 vs \#36A2EB)
+        \item Destroys existing chart before creating new one
+        \item Displays percentages using Chart.js datalabels plugin
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderFRQResponses(questionId, userResponse)}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays all free-response question answers with voting buttons.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Collects responses from \texttt{classData.users}
+        \item Calls: \texttt{getVoteCount()} to display vote counts
+        \item Creates onclick handlers for \texttt{voteFRQ()} function
+        \item Updates consensus message based on response count
+        \item Displays peer reasoning and voting interface
+    \end{itemize}
+\end{itemize}
+
+\subsection{Answer Validation and Display Functions}
+
+\subsubsection{\texttt{getAttemptCount(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns number of attempts for a question.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Accesses: \texttt{classData.users[currentUsername].attempts[questionId]}
+        \item Returns 0 if no attempts recorded
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{canRetry(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Determines if user can retry a question (max 3 attempts, requires reasoning).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getAttemptCount()} to check attempt limit
+        \item Checks: \texttt{classData.users[currentUsername].reasons[questionId]}
+        \item Returns boolean based on attempts < 3 and presence of reasoning
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{checkIfAnswerCorrect(questionId, peerAnswer)}}
+\begin{itemize}
+    \item \textbf{Summary:} Validates if a peer's answer matches the correct answer.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getCorrectAnswer()} to retrieve correct answer
+        \item Performs case-insensitive string comparison
+        \item Returns boolean, handles null values safely
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getCorrectAnswer(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Retrieves the correct answer from question data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Searches \texttt{currentQuestions} array for question by ID
+        \item Checks multiple field names: \texttt{answerKey}, \texttt{correct\_answer}, \texttt{answer}
+        \item Returns null if no correct answer found
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{displayAnswerKey(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows answer key with timing logic based on correctness and explanation.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getCorrectAnswer()}, \texttt{getOfficialExplanation()}
+        \item Manages: \texttt{window.answerKeyTimers} for delayed reveals
+        \item 15-minute timer for correct answers without explanation
+        \item Immediately shows for correct + explanation
+        \item Calls: \texttt{displayCollegeBoardExplanation()} when appropriate
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{toggleAnswerKey(questionId, show)}}
+\begin{itemize}
+    \item \textbf{Summary:} Simple toggle for showing/hiding answer key section.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Updates display style of \texttt{answer-key-\$\{questionId\}} element
+        \item Takes boolean parameter for show/hide
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getVoteCount(questionId, username, voteType)}}
+\begin{itemize}
+    \item \textbf{Summary:} Counts votes of a specific type for a user's response.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Iterates through all users in \texttt{classData.users}
+        \item Accesses: \texttt{classData.users[username].votes[questionId][targetUser]}
+        \item Filters by vote type: 'helpful', 'unclear', or 'contradicts'
+        \item Returns integer count
+    \end{itemize}
+\end{itemize}
+
+\subsection{Import/Restore Functions}
+
+\subsubsection{\texttt{showRestoreOptionsModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays modal for choosing classroom or personal restore method.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Creates modal DOM element dynamically
+        \item Sets up onclick handlers: \texttt{showCSVImportModal()}, \texttt{closeRestoreOptionsModal()}
+        \item Captures username input for personal restore
+        \item Calls: \texttt{acceptUsername()}, \texttt{showMessage()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importAndMergePersonalData(importData)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports and merges personal backup data for current user.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Validates \texttt{currentUsername} is set
+        \item Loads \texttt{classData} from localStorage
+        \item Handles multiple import formats (master, personal, direct)
+        \item Calls: \texttt{migrateAnswersToStandardFormat()}, \texttt{mergePersonalData()}
+        \item Calls: \texttt{showMessage()} for feedback
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importDataForUser(importData, username)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports data for a specific user from various file formats.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Sets \texttt{currentUsername} and localStorage \texttt{consensusUsername}
+        \item Calls: \texttt{initClassData()}
+        \item Detects 3 formats: master with students, legacy with users, master database
+        \item Case-insensitive username matching
+        \item Calls: \texttt{migrateAnswersToStandardFormat()}
+        \item Updates: \texttt{localStorage} keys for answers, progress, classData
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{mergeMasterData(data)}}
+\begin{itemize}
+    \item \textbf{Summary:} Merges master class data while preserving current user's progress.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Loads current user data from localStorage
+        \item Calls: \texttt{migrateAnswersToStandardFormat()} multiple times
+        \item Imports all other users' data completely
+        \item Intelligently merges current user's data based on:
+        \begin{itemize}
+            \item Attempt count (keeps higher)
+            \item Timestamps (keeps newer)
+            \item Correctness (keeps correct answer)
+        \end{itemize}
+        \item Updates: \texttt{classData}, \texttt{consensusResponses} in localStorage
+        \item Returns counts of updated and preserved answers
+    \end{itemize}
+\end{itemize}
+
+\subsection{Modal Management Functions}
+
+\subsubsection{\texttt{initializeSyncModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Initializes the sync modal with current user info and turbo mode status.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Updates \texttt{currentUserDisplay} with username from localStorage
+        \item Shows/hides \texttt{turboModeNotice} based on \texttt{turboModeActive} state
+        \item Dynamically adds Master Import button if missing
+        \item Checks for \texttt{masterExportBtn} and \texttt{masterImportBtn} elements
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showSyncModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays the sync/data management modal.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{initializeSyncModal()} first
+        \item Sets display style of \texttt{syncModal} element to 'block'
+        \item Uses setTimeout for DOM element checking
+    \end{itemize}
+\end{itemize}
+
+\subsection{Sprite Configuration Functions}
+
+\subsubsection{\texttt{showSpriteConfigModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Opens the sprite customization modal.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Loads settings from localStorage: \texttt{spritesEnabled}, \texttt{spriteColorHue}
+        \item Updates checkbox \texttt{spritesEnabledToggle} and slider \texttt{spriteHueSlider}
+        \item Calls: \texttt{updateSpriteConfigPreview()}
+        \item Sets \texttt{spriteConfigModal} display to 'block'
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeSpriteConfigModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the sprite configuration modal.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Sets \texttt{spriteConfigModal} display to 'none'
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{updateSpriteConfigPreview()}}
+\begin{itemize}
+    \item \textbf{Summary:} Updates the sprite color preview in real-time as user adjusts hue.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads value from \texttt{spriteHueSlider}
+        \item Updates \texttt{hueValue} text display
+        \item Updates \texttt{spriteColorPreview} background with HSL color
+        \item Renders sprite preview on canvas using \texttt{spriteSheet.drawFrame()}
+        \item Applies CSS filter \texttt{hue-rotate()} for color shift
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{saveSpriteConfig()}}
+\begin{itemize}
+    \item \textbf{Summary:} Saves sprite configuration to localStorage and applies changes.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads from \texttt{spritesEnabledToggle} and \texttt{spriteHueSlider}
+        \item Updates localStorage: \texttt{spritesEnabled}, \texttt{spriteColorHue}
+        \item Calls: \texttt{playerSprite.setHue()} to update player sprite
+        \item Calls: \texttt{canvasEngine.start()} or \texttt{canvasEngine.stop()} based on enabled state
+        \item Calls: \texttt{closeSpriteConfigModal()}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Misc Utilities}
+\begin{itemize}
+    \item Visualization helpers \texttt{generateChartColors()}, \texttt{isDarkMode()}, etc., support \texttt{js/charts.js} and are not central state mutators.
+\end{itemize}
+
+% ========================================
+\section{File: \texttt{railway-server/server.js}}
+% ========================================
+
+\subsection{REST API}
+
+\subsubsection{\texttt{GET /health}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns server health and cache status.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: cache, wsClients
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{GET /api/peer-data?since=...}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns peer answers, served from cache or Supabase, optionally filtered by timestamp.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: cache
+        \item Network: Supabase select
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{GET /api/question-stats/:questionId}}
+\begin{itemize}
+    \item \textbf{Summary:} Computes distribution, consensus, and counts for a question.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{cache.questionStats}
+        \item Network: Supabase select
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{POST /api/submit-answer}}
+\begin{itemize}
+    \item \textbf{Summary:} Upserts a single answer; invalidates cache; broadcasts \texttt{'answer\_submitted'}.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{broadcastToClients(...)}
+        \item Mutates State: cache
+        \item Network: Supabase upsert; WebSocket broadcast
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{POST /api/batch-submit}}
+\begin{itemize}
+    \item \textbf{Summary:} Batch upsert of multiple answers; invalidates cache; broadcasts \texttt{'batch\_submitted'}.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{broadcastToClients(...)}
+        \item Mutates State: cache
+        \item Network: Supabase upsert
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{GET /api/stats}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns aggregate counts and server metrics.
+\end{itemize}
+
+\subsection{WebSocket Server}
+
+\subsubsection{Connection lifecycle}
+\begin{itemize}
+    \item \textbf{Summary:} On connect, sends \texttt{'connected'} and a presence snapshot; tracks client and username mapping.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{sendPresenceSnapshot(ws)}
+        \item Mutates State: \texttt{wsClients}, presence maps
+        \item Dispatches: Broadcasts \texttt{user\_online}/\texttt{user\_offline}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Message handlers}
+\begin{itemize}
+    \item \textbf{Summary:} Handles \texttt{'ping'}, \texttt{'identify'}, \texttt{'heartbeat'}, and \texttt{'subscribe'}.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: presence maps
+        \item Sends: \texttt{'pong'}, \texttt{'subscribed'}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Real-time from Supabase}
+\begin{itemize}
+    \item \textbf{Summary:} Subscribes to Supabase changes, invalidates cache, and broadcasts \texttt{'realtime\_update'}.
+\end{itemize}
+
+\subsubsection{Presence maintenance}
+\begin{itemize}
+    \item \textbf{Summary:} Periodic cleanup removes expired users and broadcasts \texttt{user\_offline}.
+\end{itemize}
+
+\end{document}
