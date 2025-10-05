@@ -9,7 +9,12 @@
       "Bash(find:*)",
       "Bash(python:*)",
       "Bash(python3:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Read(//tmp/**)",
+      "Bash(for func in addExplanationToRetry applyTheme backToLessons backToUnits calculateBadges checkCSVImportReady checkLessonCompleted cleanupActivityTracking closeCSVImportModal closeRestoreOptionsModal closeShareModal closeSyncModal closeUsernameSelection copyToClipboard detectLocalFile detectUnitAndLessons)",
+      "Bash(do grep -n \"window\\.$func = function\" /mnt/c/Users/rober/OneDrive/Desktop/curriculum_render/index.html)",
+      "Bash(done)",
+      "Bash(pdflatex:*)"
     ],
     "deny": [],
     "ask": []

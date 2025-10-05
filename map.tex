@@ -1072,4 +1072,724 @@
     \item \textbf{Summary:} Periodic cleanup removes expired users and broadcasts \texttt{user\_offline}.
 \end{itemize}
 
+% ========================================
+\section{Appendix: Utilities and UI Helpers (index.html)}
+% ========================================
+
+\subsection{UI/DOM Utilities}
+
+\subsubsection{\texttt{addExplanationToRetry(questionId)}}
+\begin{itemize}
+    \item \textbf{Summary:} Adds explanation text to enable answer retry after incorrect attempt.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{saveClassData()}
+        \item Mutates State: \texttt{classData}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeCSVImportModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the CSV import modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#csvImportModal}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeRestoreOptionsModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the restore options modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#restoreOptionsModal}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeShareModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the share modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#shareModal}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeSyncModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the sync/data management modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#syncModal}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{closeUsernameSelection()}}
+\begin{itemize}
+    \item \textbf{Summary:} Closes the username selection modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#usernameSelectionModal}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{copyToClipboard()}}
+\begin{itemize}
+    \item \textbf{Summary:} Copies text from input element to clipboard and shows confirmation message.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{flashGreenScreen()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows brief green flash overlay animation on screen.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#flashOverlay}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showDotplot()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows dotplot visualization modal for answer distribution.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderMCQDistribution()}, \texttt{renderFRQResponses()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showMessage()}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays temporary message notification to user.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#messageArea}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{toggleFabMenu()}}
+\begin{itemize}
+    \item \textbf{Summary:} Toggles floating action button menu open/closed.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#fabMenu}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{voteFRQ(questionId, targetUser, voteType)}}
+\begin{itemize}
+    \item \textbf{Summary:} Records upvote/downvote on free response question answer.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{saveClassData()}, \texttt{renderFRQResponses()}
+        \item Mutates State: \texttt{classData}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Share and QR Helpers}
+
+\subsubsection{\texttt{detectLocalFile()}}
+\begin{itemize}
+    \item \textbf{Summary:} Detects if app is running from local file system and displays file path.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{openLocalFolder()}
+        \item Mutates State: \texttt{DOM \#currentLocation}, \texttt{DOM \#locationTitle}, \texttt{DOM \#locationDescription}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{generateQRCodes()}}
+\begin{itemize}
+    \item \textbf{Summary:} Generates QR codes for website and GitHub links in share modal.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isDarkMode()}
+        \item Mutates State: \texttt{DOM \#websiteQR}, \texttt{DOM \#githubQR}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{openLocalFolder()}}
+\begin{itemize}
+    \item \textbf{Summary:} Attempts to open local folder in file explorer (browser security limited).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showShareModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows share modal with QR codes and sharing options.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{detectLocalFile()}, \texttt{generateQRCodes()}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Theme and Progress Helpers}
+
+\subsubsection{\texttt{applyTheme()}}
+\begin{itemize}
+    \item \textbf{Summary:} Applies light or dark theme to the page by toggling CSS classes.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{localStorage.quizTheme}, \texttt{DOM document.body classes}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{generateChartColors()}}
+\begin{itemize}
+    \item \textbf{Summary:} Generates color array for chart visualizations.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure color generation function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getGridColor()}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns appropriate grid line color based on current theme (light/dark).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isDarkMode()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getProgressStatus()}}
+\begin{itemize}
+    \item \textbf{Summary:} Gets saved/unsaved progress status from localStorage.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{localStorage.unsavedProgress}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getScatterPointColor()}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns appropriate scatter plot point color based on current theme.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isDarkMode()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getTextColor()}}
+\begin{itemize}
+    \item \textbf{Summary:} Returns appropriate text color based on current theme (light/dark).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isDarkMode()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{initTheme()}}
+\begin{itemize}
+    \item \textbf{Summary:} Initializes theme on page load from localStorage preference.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{applyTheme()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{initializeProgressTracking()}}
+\begin{itemize}
+    \item \textbf{Summary:} Initializes progress tracking system and processes pending imports.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{importMasterData()}, \texttt{importPersonalData()}
+        \item Mutates State: \texttt{localStorage.import\_debug}, \texttt{localStorage.pending\_master\_import}, \texttt{localStorage.pending\_personal\_import}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{isDarkMode()}}
+\begin{itemize}
+    \item \textbf{Summary:} Checks if dark theme is currently active.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{DOM document.body.classList}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{markProgressAsSaved()}}
+\begin{itemize}
+    \item \textbf{Summary:} Marks progress as saved in localStorage by removing unsaved flag.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{localStorage.unsavedProgress}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{markProgressAsUnsaved()}}
+\begin{itemize}
+    \item \textbf{Summary:} Marks progress as unsaved in localStorage with timestamp.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{localStorage.unsavedProgress}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{saveAnswerWithTracking()}}
+\begin{itemize}
+    \item \textbf{Summary:} Saves answer and tracks unsaved/saved progress status.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{markProgressAsUnsaved()}, \texttt{markProgressAsSaved()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{toggleTheme()}}
+\begin{itemize}
+    \item \textbf{Summary:} Toggles between light and dark theme.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{applyTheme()}
+    \end{itemize}
+\end{itemize}
+
+\subsection{CSV/Import Helper Utilities}
+
+\subsubsection{\texttt{checkCSVImportReady()}}
+\begin{itemize}
+    \item \textbf{Summary:} Checks if all required CSV import files are loaded and enables import button.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#importAllBtn}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{findUserData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Searches for user data in classData by username.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{classData.users}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{handleSmartImport()}}
+\begin{itemize}
+    \item \textbf{Summary:} Intelligently detects file type and routes to appropriate import handler.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isPersonalDataFile()}, \texttt{isMasterDataFile()}, \texttt{importMasterData()}, \texttt{showMessage()}
+        \item Mutates State: \texttt{localStorage.import\_debug}, \texttt{localStorage.pending\_master\_import}, \texttt{localStorage.pending\_personal\_import}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importAllPeerData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports all peer response data from master file via CSV import.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}, \texttt{importMasterData()}, \texttt{closeCSVImportModal()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importClassData(event)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports class data from uploaded JSON file.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isMasterDataFile()}, \texttt{importMasterData()}, \texttt{showMessage()}, \texttt{mergeMasterData()}, \texttt{mergeRegularClassData()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importMasterData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports master data file containing all student responses.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{mergeMasterData()}, \texttt{migrateAnswersToStandardFormat()}, \texttt{initClassData()}, \texttt{renderUnitMenu()}
+        \item Mutates State: \texttt{localStorage.classData}, \texttt{classData}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importPersonalData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports personal student data file and merges with existing data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}, \texttt{migrateAnswersToStandardFormat()}, \texttt{initClassData()}, \texttt{renderUnitMenu()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{importUsernameFromFile(event)}}
+\begin{itemize}
+    \item \textbf{Summary:} Imports username from uploaded file and shows username selection.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showUsernameSelection()}, \texttt{importDataForUser()}, \texttt{showMessage()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{isMasterDataFile()}}
+\begin{itemize}
+    \item \textbf{Summary:} Validates if JSON object is master data file format.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure validation function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{isPersonalDataFile()}}
+\begin{itemize}
+    \item \textbf{Summary:} Validates if JSON object is personal data file format.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure validation function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadCSVMappingFile(event)}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads CSV mapping file for student name to username conversion.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{parseCSVMapping()}, \texttt{populateStudentSelect()}, \texttt{checkCSVImportReady()}
+        \item Mutates State: \texttt{DOM \#csvMappingStatus}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadMasterDataFile(event)}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads master data JSON file for CSV import process.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{checkCSVImportReady()}
+        \item Mutates State: \texttt{DOM \#masterDataStatus}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{mergePersonalData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Merges personal data file with existing classData using timestamp priority.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure merge function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{mergeRegularClassData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Merges regular class data export with existing localStorage data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}
+        \item Mutates State: \texttt{localStorage.classData}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{migrateAnswersToStandardFormat()}}
+\begin{itemize}
+    \item \textbf{Summary:} Migrates old answer format to standardized format with timestamps.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure transformation function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{migrateExistingAnswersData()}}
+\begin{itemize}
+    \item \textbf{Summary:} Migrates all existing answers in localStorage to standard format.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{migrateAnswersToStandardFormat()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{parseCSVMapping()}}
+\begin{itemize}
+    \item \textbf{Summary:} Parses CSV mapping text to extract student name to username mappings.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure parsing function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{populateStudentSelect()}}
+\begin{itemize}
+    \item \textbf{Summary:} Populates student name dropdown from parsed CSV mapping.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#studentNameSelect}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{processCSVImport()}}
+\begin{itemize}
+    \item \textbf{Summary:} Processes CSV import by mapping student name to username and importing data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showMessage()}, \texttt{closeCSVImportModal()}, \texttt{importDataForUser()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{selectUsername(username)}}
+\begin{itemize}
+    \item \textbf{Summary:} Handles username selection from modal and imports data for that user.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{importDataForUser()}, \texttt{checkExistingData()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showCSVImportModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows CSV import modal for bulk student data import.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{closeCSVImportModal()}, \texttt{loadMasterDataFile()}, \texttt{loadCSVMappingFile()}, \texttt{processCSVImport()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{showUsernameSelection()}}
+\begin{itemize}
+    \item \textbf{Summary:} Shows username selection modal when multiple users found in file.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{closeUsernameSelection()}
+        \item Mutates State: \texttt{DOM \#usernameSelectionModal}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Rendering Helpers (Tables/Attachments/Charts glue)}
+
+\subsubsection{\texttt{displayCollegeBoardExplanation()}}
+\begin{itemize}
+    \item \textbf{Summary:} Displays official College Board explanation for a question.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getCorrectAnswer()}, \texttt{getOfficialExplanation()}, \texttt{populatePeerResponses()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getOfficialExplanation()}}
+\begin{itemize}
+    \item \textbf{Summary:} Retrieves official explanation text for a question from curriculum data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{currentQuestions}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{observeChartContainers()}}
+\begin{itemize}
+    \item \textbf{Summary:} Sets up Intersection Observer to render charts when visible.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderVisibleCharts()}
+        \item Creates: \texttt{IntersectionObserver} instance
+        \item Observes DOM elements with chart containers
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{refreshAllVisualizations()}}
+\begin{itemize}
+    \item \textbf{Summary:} Refreshes all chart and visualization displays with current data.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isQuestionAnswered()}, \texttt{renderMCQDistribution()}, \texttt{renderFRQResponses()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderAttachments()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders question attachments (charts, tables) in question view.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderChart()}, \texttt{renderTable()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderAttachmentsForSidebar()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders question attachments in sidebar explanation view.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderChart()}, \texttt{renderTable()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderChartNow()}}
+\begin{itemize}
+    \item \textbf{Summary:} Immediately renders a chart visualization with given configuration.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderChart()}
+        \item Mutates State: \texttt{window.pendingCharts}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderTable()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders data table from attachment configuration.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Returns HTML string
+    \end{itemize}
+\end{itemize}
+
+\subsection{Navigation/Flow Helpers (unit/lesson/page)}
+
+\subsubsection{\texttt{backToLessons()}}
+\begin{itemize}
+    \item \textbf{Summary:} Navigates back to lesson selector view from quiz view.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{detectUnitAndLessons()}, \texttt{renderLessonSelector()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{backToUnits()}}
+\begin{itemize}
+    \item \textbf{Summary:} Navigates back to unit menu from lesson view.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{cleanupActivityTracking()}, \texttt{renderUnitMenu()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{checkLessonCompleted()}}
+\begin{itemize}
+    \item \textbf{Summary:} Checks if all questions in current lesson have been answered.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isQuestionAnswered()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{cleanupActivityTracking()}}
+\begin{itemize}
+    \item \textbf{Summary:} Removes event listeners for question activity tracking when leaving a view.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: Removes event listeners from DOM elements
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{detectUnitAndLessons()}}
+\begin{itemize}
+    \item \textbf{Summary:} Analyzes question data to detect unit and lesson structure.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{unitStructure}, \texttt{allUnitQuestions}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadLesson(lessonNumber)}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads specific lesson and renders quiz questions.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{cleanupActivityTracking()}, \texttt{showMessage()}, \texttt{renderQuiz()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadProgress()}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads saved progress and updates UI to reflect answered questions.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isQuestionAnswered()}, \texttt{renderMCQDistribution()}, \texttt{renderFRQResponses()}, \texttt{canRetry()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{loadUnitResources()}}
+\begin{itemize}
+    \item \textbf{Summary:} Loads and displays unit-specific resources (videos, links, etc).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: Unit resource data
+        \item Mutates State: \texttt{DOM resource container}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderUnitMenu()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders main unit menu with progress indicators.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{isQuestionAnswered()}
+        \item Mutates State: \texttt{DOM \#questionsContainer}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{renderUnitSelector()}}
+\begin{itemize}
+    \item \textbf{Summary:} Renders unit selector dropdown interface.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Mutates State: \texttt{DOM \#questionsContainer}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{selectUnit(unitNumber)}}
+\begin{itemize}
+    \item \textbf{Summary:} Handles unit selection and navigates to lesson selector.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{renderLessonSelector()}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{setupQuestionActivityTracking()}}
+\begin{itemize}
+    \item \textbf{Summary:} Sets up event listeners to track user activity on questions.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{cleanupActivityTracking()}
+        \item Listens for Events: \texttt{focus}, \texttt{change}, \texttt{blur}
+    \end{itemize}
+\end{itemize}
+
+\subsection{Miscellaneous Utilities}
+
+\subsubsection{\texttt{calculateBadges()}}
+\begin{itemize}
+    \item \textbf{Summary:} Calculates user achievement badges based on answer patterns (Outlier, Conformist, Explorer, etc).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{getMostFrequent()}
+        \item Mutates State: \texttt{classData}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getCurrentQuestionId()}}
+\begin{itemize}
+    \item \textbf{Summary:} Gets current question ID from URL query parameters.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{URLSearchParams} from \texttt{window.location.search}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{getMostFrequent()}}
+\begin{itemize}
+    \item \textbf{Summary:} Finds most frequent value in array (mode calculation).
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Pure calculation function
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{isQuestionAnswered()}}
+\begin{itemize}
+    \item \textbf{Summary:} Checks if specific question has been answered by current user.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Reads State: \texttt{classData.users[currentUsername].answers}
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{\texttt{openSyncModal()}}
+\begin{itemize}
+    \item \textbf{Summary:} Opens the sync/data management modal dialog.
+    \item \textbf{Key Interactions:}
+    \begin{itemize}
+        \item Calls: \texttt{showSyncModal()}
+    \end{itemize}
+\end{itemize}
+
 \end{document}
