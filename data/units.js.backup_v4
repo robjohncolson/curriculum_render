@@ -93,12 +93,6 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1_LYoOie55jPT2tM-o3spuiqbVxga9VPv/view?usp=drive_link"
             }
         ],
-        blookets: [
-            {
-                url: "https://dashboard.blooket.com/set/68d41c5fc13a43c242c08c25",
-                title: "u1l7blooket"
-            }
-        ]
     },
     {
         id: "1-8",
@@ -110,12 +104,6 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1sKc6XpjX5RUjGv5wbjUl7R1QEYLXG6W8/view?usp=drive_link"
             }
         ],
-        blookets: [
-            {
-                url: "https://dashboard.blooket.com/set/68db421b2deaa0c87caf624c",
-                title: "U1l8blooket"
-            }
-        ]
     },
     {
         id: "1-9",
@@ -127,12 +115,6 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1zUev1tHzgJLMi337FjuxY49siAJJf_w8/view?usp=drive_link"
             }
         ],
-        blookets: [
-            {
-                url: "https://dashboard.blooket.com/set/68dd4d2369501f061a91dbf2",
-                title: "u1l9blooket"
-            }
-        ]
     },
     {
         id: "1-10",
@@ -152,12 +134,6 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1aYbhplXukoDHOpWYCNG5OOTGVYZOcyCV/view?usp=drive_link"
             }
         ],
-        blookets: [
-            {
-                url: "https://dashboard.blooket.com/set/68df31925f508849b0b4ae7c",
-                title: "u1l10blooket_1"
-            }
-        ]
     },
     {
         id: "1-capstone",
