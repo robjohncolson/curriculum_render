@@ -5335,32 +5335,52 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     const topic = unitResources.topics.find(t => t.id === topicId);
 
                     if (topic) {
-                        videoSection = `
-                            <div class="resources-section">
-                                <h3>📚 Lesson Resources: ${topic.description}</h3>
-                        `;
+                        const hasVideos = Array.isArray(topic.videos) && topic.videos.length > 0;
+                        const hasBlookets = Array.isArray(topic.blookets) && topic.blookets.length > 0;
 
-                        if (topic.videos && topic.videos.length > 0) {
-                            videoSection += '<div class="video-resources">';
-                            topic.videos.forEach((video, index) => {
-                                videoSection += `
-                                    <div class="video-item">
-                                        <span class="video-number">Video ${index + 1}:</span>
-                                        <a href="${video.url}" target="_blank" class="video-link">
-                                            AP Classroom Video 📹
-                                        </a>
-                                        ${video.altUrl ? `
-                                            <a href="${video.altUrl}" target="_blank" class="video-link alt">
-                                                Alternative Link 🔗
+                        if (hasVideos || hasBlookets) {
+                            videoSection = `
+                                <div class="resources-section">
+                                    <h3>📚 Lesson Resources: ${topic.description}</h3>
+                            `;
+
+                            if (hasVideos) {
+                                videoSection += '<div class="video-resources">';
+                                topic.videos.forEach((video, index) => {
+                                    videoSection += `
+                                        <div class="video-item">
+                                            <span class="video-number">Video ${index + 1}:</span>
+                                            <a href="${video.url}" target="_blank" class="video-link">
+                                                AP Classroom Video 📹
                                             </a>
-                                        ` : ''}
-                                    </div>
-                                `;
-                            });
+                                            ${video.altUrl ? `
+                                                <a href="${video.altUrl}" target="_blank" class="video-link alt">
+                                                    Alternative Link 🔗
+                                                </a>
+                                            ` : ''}
+                                        </div>
+                                    `;
+                                });
+                                videoSection += '</div>';
+                            }
+
+                            if (hasBlookets) {
+                                videoSection += '<div class="blooket-resources">';
+                                topic.blookets.forEach((blooket, index) => {
+                                    videoSection += `
+                                        <div class="blooket-item">
+                                            <span class="blooket-number">Game ${index + 1}:</span>
+                                            <a href="${blooket.url}" target="_blank" rel="noopener noreferrer" class="blooket-link">
+                                                🎮 ${blooket.title}
+                                            </a>
+                                        </div>
+                                    `;
+                                });
+                                videoSection += '</div>';
+                            }
+
                             videoSection += '</div>';
                         }
-
-                        videoSection += '</div>';
                     }
                 }
             }
@@ -5460,6 +5480,43 @@ if (chartInstances[`dotplot-${questionId}`]) {
             background: #f57c00;
         }
 
+        .blooket-resources {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .blooket-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .blooket-number {
+            font-weight: bold;
+            color: #666;
+            min-width: 70px;
+        }
+
+        .blooket-link {
+            padding: 6px 12px;
+            background: #7E57C2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .blooket-link:hover {
+            background: #6D4CBE;
+        }
+
         body.dark-theme .resources-section {
             background: #1e3a5f;
             border-color: #5BC0EB;
@@ -5472,6 +5529,20 @@ if (chartInstances[`dotplot-${questionId}`]) {
         body.dark-theme .video-item {
             background: #2d2d2d;
             border-color: #444;
+        }
+
+        body.dark-theme .blooket-item {
+            background: #2d2d2d;
+            border-color: #444;
+        }
+
+        body.dark-theme .blooket-link {
+            background: #B39DDB;
+            color: #1a1a1a !important;
+        }
+
+        body.dark-theme .blooket-link:hover {
+            background: #C5B6E4;
         }
 
         /* Modal button styles */
