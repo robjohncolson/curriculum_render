@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Changes Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .test-container {
+            padding: 20px;
+            margin: 20px;
+        }
+        .test-card {
+            background: var(--bg-secondary);
+            padding: 20px;
+            margin: 10px;
+            border: 1px solid var(--border-secondary);
+            border-radius: 8px;
+        }
+        .test-button {
+            background: var(--accent-primary);
+            color: var(--text-inverse);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: var(--accent-primary-hover);
+        }
+        .color-preview {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin: 0 10px;
+            border: 2px solid var(--border-primary);
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>UI Theme Test Page</h1>
+
+        <div class="test-card">
+            <h2>Theme Variables Test</h2>
+            <p>Primary Text: <span style="color: var(--text-primary);">This text uses --text-primary</span></p>
+            <p>Secondary Text: <span style="color: var(--text-secondary);">This text uses --text-secondary</span></p>
+            <p>Primary Accent: <span class="color-preview" style="background: var(--accent-primary);"></span></p>
+            <p>Success Accent: <span class="color-preview" style="background: var(--accent-success);"></span></p>
+            <p>Danger Accent: <span class="color-preview" style="background: var(--accent-danger);"></span></p>
+        </div>
+
+        <div class="test-card">
+            <h2>Button Tests</h2>
+            <button class="test-button">Primary Button</button>
+            <button class="test-button" style="background: var(--accent-success);">Success Button</button>
+            <button class="test-button" style="background: var(--accent-danger);">Danger Button</button>
+        </div>
+
+        <div class="test-card">
+            <h2>FAB Menu Test</h2>
+            <p>Check the bottom-right corner for the unified menu button (☰)</p>
+            <p>Click it to see: Theme (🌙/☀️), Sync (💾), Share (📤), Sprite (🎮)</p>
+        </div>
+    </div>
+
+    <!-- Unified Floating Action Button -->
+    <div class="fab-container">
+        <button class="fab-main" onclick="toggleFabMenu()" title="Menu">
+            <span class="fab-icon">☰</span>
+            <span class="fab-icon-close" style="display: none;">✕</span>
+        </button>
+        <div class="fab-menu" style="display: none;">
+            <button class="fab-item theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <span class="fab-item-icon">🌙</span>
+                <span class="fab-item-label">Theme</span>
+            </button>
+            <button class="fab-item sync-button" onclick="alert('Sync clicked')" title="Sync & Export Data">
+                <span class="fab-item-icon">💾</span>
+                <span class="fab-item-label">Sync</span>
+            </button>
+            <button class="fab-item share-button" onclick="alert('Share clicked')" title="Share this app">
+                <span class="fab-item-icon">📤</span>
+                <span class="fab-item-label">Share</span>
+            </button>
+            <button class="fab-item sprite-config-toggle" onclick="alert('Sprite clicked')" title="Sprite settings">
+                <span class="fab-item-icon">🎮</span>
+                <span class="fab-item-label">Sprite</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // FAB Menu Management
+        function toggleFabMenu() {
+            const fabMenu = document.querySelector('.fab-menu');
+            const fabMain = document.querySelector('.fab-main');
+            const fabIcon = document.querySelector('.fab-icon');
+            const fabIconClose = document.querySelector('.fab-icon-close');
+
+            if (fabMenu.style.display === 'none' || !fabMenu.style.display) {
+                fabMenu.style.display = 'flex';
+                fabIcon.style.display = 'none';
+                fabIconClose.style.display = 'block';
+                fabMain.classList.add('active');
+            } else {
+                fabMenu.style.display = 'none';
+                fabIcon.style.display = 'block';
+                fabIconClose.style.display = 'none';
+                fabMain.classList.remove('active');
+            }
+        }
+
+        // Close FAB menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const fabContainer = document.querySelector('.fab-container');
+            if (fabContainer && !fabContainer.contains(event.target)) {
+                const fabMenu = document.querySelector('.fab-menu');
+                const fabMain = document.querySelector('.fab-main');
+                const fabIcon = document.querySelector('.fab-icon');
+                const fabIconClose = document.querySelector('.fab-icon-close');
+
+                if (fabMenu && fabMenu.style.display === 'flex') {
+                    fabMenu.style.display = 'none';
+                    fabIcon.style.display = 'block';
+                    fabIconClose.style.display = 'none';
+                    fabMain.classList.remove('active');
+                }
+            }
+        });
+
+        // Theme management
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.querySelector('.theme-toggle .fab-item-icon');
+
+            if (body.classList.contains('dark-theme')) {
+                body.classList.remove('dark-theme');
+                if (themeIcon) themeIcon.textContent = '🌙';
+                localStorage.setItem('testTheme', 'light');
+            } else {
+                body.classList.add('dark-theme');
+                if (themeIcon) themeIcon.textContent = '☀️';
+                localStorage.setItem('testTheme', 'dark');
+            }
+        }
+
+        // Initialize theme on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('testTheme') || 'light';
+            const themeIcon = document.querySelector('.theme-toggle .fab-item-icon');
+
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                if (themeIcon) themeIcon.textContent = '☀️';
+            } else {
+                document.body.classList.remove('dark-theme');
+                if (themeIcon) themeIcon.textContent = '🌙';
+            }
+        });
+    </script>
+</body>
+</html>

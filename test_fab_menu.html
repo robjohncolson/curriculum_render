@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAB Menu Position Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .info-card {
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px var(--shadow-light);
+            max-width: 500px;
+        }
+        .info-card h1 {
+            margin-top: 0;
+        }
+        .status-list {
+            list-style: none;
+            padding: 0;
+        }
+        .status-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: var(--bg-tertiary);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-check {
+            color: var(--accent-success);
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-card">
+        <h1>FAB Menu Position Test</h1>
+        <p>The FAB menu button is in the bottom-right corner. Click it to see the menu items stack vertically above it.</p>
+
+        <h3>Expected Behavior:</h3>
+        <ul class="status-list">
+            <li><span class="status-check">✓</span> FAB button (☰) in bottom-right corner</li>
+            <li><span class="status-check">✓</span> Click FAB to open menu</li>
+            <li><span class="status-check">✓</span> 4 circular icons stack vertically above FAB</li>
+            <li><span class="status-check">✓</span> All buttons aligned on same X-axis</li>
+            <li><span class="status-check">✓</span> Items are evenly spaced (12px gap)</li>
+            <li><span class="status-check">✓</span> Hover shows label tooltips on left</li>
+            <li><span class="status-check">✓</span> Items animate upward from FAB</li>
+            <li><span class="status-check">✓</span> Click outside to close menu</li>
+        </ul>
+
+        <h3>Menu Items (bottom to top):</h3>
+        <ol>
+            <li>🌙 Theme - Toggle dark/light mode (closest to FAB)</li>
+            <li>💾 Sync - Save/export data</li>
+            <li>📤 Share - Share the app</li>
+            <li>🎮 Sprite - Configure sprite settings (furthest from FAB)</li>
+        </ol>
+    </div>
+
+    <!-- Unified Floating Action Button -->
+    <div class="fab-container">
+        <button class="fab-main" onclick="toggleFabMenu()" title="Menu">
+            <span class="fab-icon">☰</span>
+            <span class="fab-icon-close" style="display: none;">✕</span>
+        </button>
+        <div class="fab-menu" style="display: none;">
+            <button class="fab-item sprite-config-toggle" onclick="showAction('Sprite')" title="Sprite settings">
+                <span class="fab-item-icon">🎮</span>
+                <span class="fab-item-label">Sprite</span>
+            </button>
+            <button class="fab-item share-button" onclick="showAction('Share')" title="Share this app">
+                <span class="fab-item-icon">📤</span>
+                <span class="fab-item-label">Share</span>
+            </button>
+            <button class="fab-item sync-button" onclick="showAction('Sync')" title="Sync & Export Data">
+                <span class="fab-item-icon">💾</span>
+                <span class="fab-item-label">Sync</span>
+            </button>
+            <button class="fab-item theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+                <span class="fab-item-icon">🌙</span>
+                <span class="fab-item-label">Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // FAB Menu Management
+        function toggleFabMenu() {
+            const fabMenu = document.querySelector('.fab-menu');
+            const fabMain = document.querySelector('.fab-main');
+            const fabIcon = document.querySelector('.fab-icon');
+            const fabIconClose = document.querySelector('.fab-icon-close');
+
+            if (fabMenu.style.display === 'none' || !fabMenu.style.display) {
+                fabMenu.style.display = 'flex';
+                fabIcon.style.display = 'none';
+                fabIconClose.style.display = 'block';
+                fabMain.classList.add('active');
+            } else {
+                closeFabMenu();
+            }
+        }
+
+        function closeFabMenu() {
+            const fabMenu = document.querySelector('.fab-menu');
+            const fabMain = document.querySelector('.fab-main');
+            const fabIcon = document.querySelector('.fab-icon');
+            const fabIconClose = document.querySelector('.fab-icon-close');
+
+            fabMenu.style.display = 'none';
+            fabIcon.style.display = 'block';
+            fabIconClose.style.display = 'none';
+            fabMain.classList.remove('active');
+        }
+
+        // Close FAB menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const fabContainer = document.querySelector('.fab-container');
+            if (fabContainer && !fabContainer.contains(event.target)) {
+                const fabMenu = document.querySelector('.fab-menu');
+                if (fabMenu && fabMenu.style.display === 'flex') {
+                    closeFabMenu();
+                }
+            }
+        });
+
+        // Theme management
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.querySelector('.theme-toggle .fab-item-icon');
+
+            if (body.classList.contains('dark-theme')) {
+                body.classList.remove('dark-theme');
+                if (themeIcon) themeIcon.textContent = '🌙';
+                localStorage.setItem('fabTestTheme', 'light');
+            } else {
+                body.classList.add('dark-theme');
+                if (themeIcon) themeIcon.textContent = '☀️';
+                localStorage.setItem('fabTestTheme', 'dark');
+            }
+
+            // Close menu after action
+            setTimeout(closeFabMenu, 300);
+        }
+
+        // Show action feedback
+        function showAction(action) {
+            alert(`${action} button clicked!`);
+            closeFabMenu();
+        }
+
+        // Initialize theme on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('fabTestTheme') || 'light';
+            const themeIcon = document.querySelector('.theme-toggle .fab-item-icon');
+
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                if (themeIcon) themeIcon.textContent = '☀️';
+            } else {
+                document.body.classList.remove('dark-theme');
+                if (themeIcon) themeIcon.textContent = '🌙';
+            }
+        });
+    </script>
+</body>
+</html>
