@@ -1,0 +1,143 @@
+.
+├── css
+│   ├── styles.css
+│   └── styles.css.backup
+├── data
+│   ├── curriculum.js
+│   ├── units.js
+│   ├── units.js.backup
+│   ├── units.js.backup_v2
+│   ├── units.js.backup_v3
+│   └── units.js.backup_v4
+├── docs
+│   ├── CLAUDE.md
+│   ├── COMPREHENSIVE_FUNCTION_DOCUMENTATION.md
+│   ├── FOUNDATION_DOCUMENT.md
+│   ├── TURBO_MODE_SETUP.md
+│   ├── TURBO_TROUBLESHOOTING.md
+│   ├── advanced_combiner_tool.html
+│   ├── analyze_quizzes.py
+│   ├── master_peer_data_2025-09-30.json
+│   ├── remove_deprecated_props.py
+│   ├── remove_quizzes.py
+│   ├── student2username.csv
+│   ├── supabase_schema.sql
+│   ├── sync_diagnostics.js
+│   ├── teacher_dashboard.html
+│   ├── test_fab_menu.html
+│   ├── test_ui_changes.html
+│   └── users
+│       ├── Apple_Monkey_data_3.json
+│       ├── Apple_Monkey_data_4.json
+│       ├── Apple_Rabbit_data (1).json
+│       ├── Apple_Rabbit_data.json
+│       ├── Apple_Rabbit_data_1.json
+│       ├── Apple_Rabbit_data_2.json
+│       ├── Apple_Rabbit_data_3.json
+│       ├── Apple_Rabbit_data_4.json
+│       ├── Apple_Rabbit_data_5.json
+│       ├── Apricot_Dog_data (3).json
+│       ├── Apricot_Dog_data.json
+│       ├── Apricot_Dog_data_6.json
+│       ├── Apricot_Dog_data_8.json
+│       ├── Apricot_Fox_data (2).json
+│       ├── Apricot_Fox_data (3).json
+│       ├── Apricot_Fox_data (4).json
+│       ├── Apricot_Fox_data (5).json
+│       ├── Apricot_Fox_data_10.json
+│       ├── Apricot_Fox_data_8.json
+│       ├── Apricot_Fox_data_9.json
+│       ├── Apricot_Horse_data.json
+│       ├── Apricot_Horse_data_1.json
+│       ├── Apricot_Horse_data_2.json
+│       ├── Ashley_Zecenda_data.json
+│       ├── Banana_Fox_data.json
+│       ├── Banana_Goat_data.json
+│       ├── Banana_Goat_data_1.json
+│       ├── Banana_Goat_data_2.json
+│       ├── Banana_Goat_data_3.json
+│       ├── Berry_Iguana_data (1).json
+│       ├── Berry_Iguana_data.json
+│       ├── Cherry_Monkey_data.json
+│       ├── Cherry_Monkey_data_1.json
+│       ├── Cherry_Monkey_data_2.json
+│       ├── Coconut_Cat_data (1).json
+│       ├── Coconut_Cat_data.json
+│       ├── Coconut_Cat_data_1.json
+│       ├── Coconut_Cat_data_2.json
+│       ├── Grape_Fox_data.json
+│       ├── Grape_Fox_data_1.json
+│       ├── Grape_Fox_data_2.json
+│       ├── Grape_Fox_data_3.json
+│       ├── Grape_Koala_data.json
+│       ├── Grape_Koala_data_2.json
+│       ├── Grape_Koala_data_4.json
+│       ├── Grape_Koala_data_5 (1).json
+│       ├── Grape_Koala_data_5.json
+│       ├── Grape_Newt_data_1.json
+│       ├── Guava_Cat_data_2.json
+│       ├── Kiwi_Panda_data_1.json
+│       ├── Kiwi_Panda_data_3.json
+│       ├── Kiwi_Panda_data_4.json
+│       ├── Kiwi_Panda_data_5.json
+│       ├── Lemon_Eagle_data.json
+│       ├── Lemon_Goat_data_3 (1).json
+│       ├── Lemon_Goat_data_3.json
+│       ├── Lemon_Goat_data_4.json
+│       ├── Lemon_Monkey_data.json
+│       ├── Mango_Dog_data (6).json
+│       ├── Mango_Dog_data (7).json
+│       ├── Mango_Dog_data_10.json
+│       ├── Mango_Dog_data_9.json
+│       ├── Mango_Tiger_data_1.json
+│       ├── Mango_Tiger_data_3.json
+│       ├── Mango_Tiger_data_4.json
+│       ├── Papaya_Eagle_data.json
+│       ├── Papaya_Eagle_data_1.json
+│       ├── Papaya_Eagle_data_3.json
+│       ├── Papaya_Fox.json
+│       ├── Papaya_Goat_data.json
+│       ├── Papaya_Goat_data_1.json
+│       ├── Papaya_Goat_data_3.json
+│       ├── Papaya_Iguana_data.json
+│       ├── Papaya_Iguana_data_1.json
+│       ├── Papaya_Iguana_data_2.json
+│       ├── Papaya_Iguana_data_3.json
+│       ├── Plum_Iguana_data_1.json
+│       ├── Plum_Iguana_data_2.json
+│       ├── Plum_Iguana_data_4.json
+│       ├── Plum_Iguana_data_5.json
+│       ├── Plum_Iguana_data_6.json
+│       ├── ashley_zecena.json
+│       ├── guava_wolf.json
+│       ├── ian_delarosa.json
+│       ├── lemon-eagle_data.json
+│       ├── lemon_eagle_data (1).json
+│       ├── mango_panda_data_1.json
+│       ├── master_database_2025-09-29.json
+│       └── papaya_goat_data_4.json
+├── index.html
+├── js
+│   ├── auth.js
+│   ├── canvas_engine.js
+│   ├── charthelper.js
+│   ├── charts.js
+│   ├── data_manager.js
+│   ├── entities
+│   │   ├── peer_sprite.js
+│   │   └── player_sprite.js
+│   ├── sprite_manager.js
+│   └── sprite_sheet.js
+├── map.tex
+├── railway-server
+│   ├── README.md
+│   ├── package.json
+│   └── server.js
+├── railway_client.js
+├── railway_config.js
+├── sprite.png
+├── supabase_config.js
+├── supabase_schema_simple.sql
+└── tree.txt
+
+8 directories, 133 files

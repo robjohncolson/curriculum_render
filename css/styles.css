@@ -4439,3 +4439,19 @@ button.sprite-config-toggle:not(.fab-item) {
         transform: translateX(-60px);
     }
 }
+
+/* --- START: Added Grayscale Theme Styles --- */
+
+/*
+  This class applies a grayscale filter to the main UI containers.
+  It intentionally does not target the <body> or the #spriteCanvas,
+  so the sprites remain in full color.
+*/
+body.grayscale-enabled .container,
+body.grayscale-enabled .fab-container,
+body.grayscale-enabled .modal {
+    filter: grayscale(100%);
+    -webkit-filter: grayscale(100%); /* For Safari compatibility */
+}
+
+/* --- END: Added Grayscale Theme Styles --- */

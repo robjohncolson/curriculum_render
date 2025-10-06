@@ -14,7 +14,7 @@
     <script src="supabase_config.js"></script>
     <script src="railway_config.js"></script>
     <script src="js/charts.js"></script>
-    <script src="sync_diagnostics.js"></script>
+    <script src="docs/sync_diagnostics.js"></script>
     <script src="railway_client.js"></script>
 
     <!-- Sprite system -->
@@ -4886,28 +4886,81 @@ if (chartInstances[`dotplot-${questionId}`]) {
         // Theme management
         function initTheme() {
             const savedTheme = localStorage.getItem('quizTheme') || 'light';
-            currentTheme = savedTheme;
             applyTheme(savedTheme);
         }
 
         function applyTheme(theme) {
             const body = document.body;
-            const themeIcon = document.querySelector('.theme-toggle .fab-item-icon');
+            const themeToggleBtn = document.querySelector('.theme-toggle');
+            const themeIcon = themeToggleBtn ? themeToggleBtn.querySelector('.fab-item-icon') : null;
+            const themeLabel = themeToggleBtn ? themeToggleBtn.querySelector('.fab-item-label') : null;
 
-            if (theme === 'dark') {
-                body.classList.add('dark-theme');
-                if (themeIcon) themeIcon.textContent = '☀️';
-            } else {
-                body.classList.remove('dark-theme');
-                if (themeIcon) themeIcon.textContent = '🌙';
+            // Reset theme classes before applying the new ones
+            body.classList.remove('dark-theme', 'grayscale-enabled');
+
+            let nextThemeDescription = '';
+
+            switch (theme) {
+                case 'light':
+                    // Current: Light. Next is Light Grayscale.
+                    if (themeIcon) themeIcon.textContent = '🎨';
+                    if (themeLabel) themeLabel.textContent = 'Grayscale';
+                    nextThemeDescription = 'Switch to Light Grayscale';
+                    break;
+                case 'light-gray':
+                    // Current: Light Grayscale. Next is Dark.
+                    body.classList.add('grayscale-enabled');
+                    if (themeIcon) themeIcon.textContent = '🌙';
+                    if (themeLabel) themeLabel.textContent = 'Dark Mode';
+                    nextThemeDescription = 'Switch to Dark Mode';
+                    break;
+                case 'dark':
+                    // Current: Dark. Next is Dark Grayscale.
+                    body.classList.add('dark-theme');
+                    if (themeIcon) themeIcon.textContent = '🎨';
+                    if (themeLabel) themeLabel.textContent = 'Dark Gray';
+                    nextThemeDescription = 'Switch to Dark Grayscale';
+                    break;
+                case 'dark-gray':
+                    // Current: Dark Gray. Next is Light.
+                    body.classList.add('dark-theme');
+                    body.classList.add('grayscale-enabled');
+                    if (themeIcon) themeIcon.textContent = '☀️';
+                    if (themeLabel) themeLabel.textContent = 'Light Mode';
+                    nextThemeDescription = 'Switch to Light Mode';
+                    break;
+                default:
+                    // Fallback to light theme if state is invalid
+                    theme = 'light';
+                    if (themeIcon) themeIcon.textContent = '🎨';
+                    if (themeLabel) themeLabel.textContent = 'Grayscale';
+                    nextThemeDescription = 'Switch to Light Grayscale';
+                    break;
             }
-            
+
+            if (themeToggleBtn) {
+                themeToggleBtn.title = nextThemeDescription;
+            }
+
             currentTheme = theme;
             localStorage.setItem('quizTheme', theme);
+
+            // Re-render charts and QR codes if they are visible to apply new theme colors
+            if (typeof refreshAllVisualizations === 'function') {
+                refreshAllVisualizations();
+            }
+
+            const shareModal = document.getElementById('shareModal');
+            if (qrCodesGenerated && shareModal && shareModal.style.display === 'block') {
+                generateQRCodes();
+            }
         }
 
         window.toggleTheme = function() {
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            const themeCycle = ['light', 'light-gray', 'dark', 'dark-gray'];
+            const currentIndex = themeCycle.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themeCycle.length;
+            const newTheme = themeCycle[nextIndex];
             applyTheme(newTheme);
         }
 
@@ -6482,11 +6535,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
     </div>
 
     <!-- Canvas System Scripts -->
-    <script src="js/sprite_sheet.js"></script>
-    <script src="js/canvas_engine.js"></script>
-    <script src="js/entities/player_sprite.js"></script>
-    <script src="js/entities/peer_sprite.js"></script>
-    <script src="js/sprite_manager.js"></script>
+    <!-- Duplicate includes removed to prevent re-declaration errors -->
 
     <script>
         // Sprite system globals
