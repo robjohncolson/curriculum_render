@@ -8,8 +8,48 @@
 // ========================================
 
 // Arrays for generating random usernames
-const fruits = ['Apple', 'Banana', 'Cherry', 'Grape', 'Lemon', 'Mango', 'Orange', 'Peach', 'Pear', 'Plum', 'Berry', 'Melon', 'Kiwi', 'Lime', 'Papaya', 'Guava', 'Apricot', 'Date', 'Fig', 'Coconut'];
-const animals = ['Bear', 'Cat', 'Dog', 'Eagle', 'Fox', 'Goat', 'Horse', 'Iguana', 'Jaguar', 'Koala', 'Lion', 'Monkey', 'Newt', 'Owl', 'Panda', 'Quail', 'Rabbit', 'Snake', 'Tiger', 'Wolf'];
+const fruits = [
+    'Ackee', 'Apple', 'Apricot', 'Avocado', 'Banana', 
+    'Bilberry', 'Blackberry', 'Blackcurrant', 'Blueberry', 'Boysenberry', 
+    'Breadfruit', 'Cantaloupe', 'Carambola', 'Cherimoya', 'Cherry', 
+    'Clementine', 'Cloudberry', 'Coconut', 'Cranberry', 'Damson', 
+    'Date', 'Dragonfruit', 'Durian', 'Elderberry', 'Feijoa', 
+    'Fig', 'Goji', 'Gooseberry', 'Grape', 'Grapefruit', 
+    'Guava', 'Honeyberry', 'Honeydew', 'Huckleberry', 'Imbe', 
+    'Jackfruit', 'Jabuticaba', 'Jostaberry', 'Jujube', 'Kiwano', 
+    'Kiwi', 'Kumquat', 'Lemon', 'Lime', 'Lingonberry', 
+    'Loganberry', 'Longan', 'Loquat', 'Lychee', 'Mamey', 
+    'Mango', 'Mangosteen', 'Marionberry', 'Melon', 'Miracle', 
+    'Mulberry', 'Nance', 'Nectarine', 'Olive', 'Orange', 
+    'Papaya', 'Passionfruit', 'Pawpaw', 'Peach', 'Pear', 
+    'Pepino', 'Persimmon', 'Pineapple', 'Pineberry', 'Pitaya', 
+    'Plantain', 'Plum', 'Pluot', 'Pomegranate', 'Pomelo', 
+    'Quince', 'Rambutan', 'Raspberry', 'Redcurrant', 'Salak', 
+    'Salmonberry', 'Sapodilla', 'Sapote', 'Soursop', 'Starfruit', 
+    'Strawberry', 'Tamarillo', 'Tamarind', 'Tangelo', 'Tangerine', 
+    'Tayberry', 'Ugli', 'Watermelon', 'Whitecurrant', 'Yuzu'
+];
+const animals = [
+    'Aardvark', 'Albatross', 'Alligator', 'Alpaca', 'Antelope', 
+    'Armadillo', 'Axolotl', 'Badger', 'Barracuda', 'Bat', 
+    'Beaver', 'Bison', 'Bobcat', 'Buffalo', 'Camel', 
+    'Capybara', 'Caribou', 'Cassowary', 'Chameleon', 'Cheetah', 
+    'Chinchilla', 'Cobra', 'Condor', 'Cougar', 'Coyote', 
+    'Crane', 'Crocodile', 'Dingo', 'Dolphin', 'Donkey', 
+    'Eagle', 'Echidna', 'Elephant', 'Emu', 'Falcon', 
+    'Ferret', 'Finch', 'Flamingo', 'Gazelle', 'Gecko', 
+    'Gibbon', 'Giraffe', 'Gopher', 'Gorilla', 'Grizzly', 
+    'Hedgehog', 'Heron', 'Hippo', 'Hornet', 'Hyena', 
+    'Impala', 'Jackal', 'Jaguar', 'Jellyfish', 'Kangaroo', 
+    'Kingfisher', 'Kookaburra', 'Lemur', 'Leopard', 'Llama', 
+    'Lobster', 'Macaw', 'Manatee', 'Meerkat', 'Mongoose', 
+    'Narwhal', 'Ocelot', 'Octopus', 'Okapi', 'Opossum', 
+    'Ostrich', 'Otter', 'Panther', 'Parrot', 'Pelican', 
+    'Penguin', 'Platypus', 'Porcupine', 'Quokka', 'Raccoon', 
+    'Raven', 'Reindeer', 'Rhino', 'Roadrunner', 'Salamander', 
+    'Scorpion', 'Seahorse', 'Seal', 'Serval', 'Shark', 
+    'Sloth', 'Stingray', 'Tapir', 'Toucan', 'Vulture'
+];
 
 /**
  * Generates a random username in the format "Fruit_Animal"
