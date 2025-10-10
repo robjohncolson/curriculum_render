@@ -157,7 +157,7 @@ const ALL_UNITS_DATA = [
                 url: "https://dashboard.blooket.com/set/68df31925f508849b0b4ae7c",
                 title: "u1l10blooket_1"
             }
-        ].
+        ],
         blookets: [
             {
                 url: "https://dashboard.blooket.com/set/68e880c739c5e77ef8b35076",
