@@ -1,0 +1,772 @@
+{
+  "usernames": [],
+  "crData": {
+    "Q04": {
+      "attempted": 2,
+      "total": 8,
+      "percent": "25"
+    },
+    "Q06": {
+      "attempted": 1,
+      "total": 8,
+      "percent": "13"
+    }
+  },
+  "mastery": {
+    "teacher_man": {
+      "studentName": "Unknown",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      }
+    },
+    "apricot_fox": {
+      "studentName": "Keily",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      }
+    },
+    "apricot_dog": {
+      "studentName": "Julissa",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "banana_goat": {
+      "studentName": "Tommy",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "apple_monkey": {
+      "studentName": "edgar",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      }
+    },
+    "guava_cat": {
+      "studentName": "Gabriella",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      }
+    },
+    "plum_iguana": {
+      "studentName": "Malinda",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "apple_rabbit": {
+      "studentName": "Hazel",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      },
+      "SHAPE": {
+        "percentage": 0
+      }
+    },
+    "papaya_fox": {
+      "studentName": "Ashley Z",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      }
+    },
+    "papaya_goat": {
+      "studentName": "jeysac",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "grape_koala": {
+      "studentName": "Chanlita",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      }
+    },
+    "kiwi_panda": {
+      "studentName": "Edwin",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "grape_fox": {
+      "studentName": "karolynn",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "lemon_monkey": {
+      "studentName": "Unknown",
+      "CONTEXT": {
+        "percentage": 0
+      }
+    },
+    "apricot_horse": {
+      "studentName": "francois",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      }
+    },
+    "mango_dog": {
+      "studentName": "Sheyly",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "berry_iguana": {
+      "studentName": "valeria",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      }
+    },
+    "papaya_iguana": {
+      "studentName": "ashley w",
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "lemon_eagle": {
+      "studentName": "ghafour",
+      "CENTER": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "coconut_cat": {
+      "studentName": "Moshammed",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      }
+    },
+    "mango_tiger": {
+      "studentName": "London",
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "cherry_monkey": {
+      "studentName": "Kyle",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "mango_panda": {
+      "studentName": "Janelle",
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "SHAPE": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      }
+    },
+    "guava_wolf": {
+      "studentName": "ian",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      }
+    },
+    "papaya_eagle": {
+      "studentName": "Ana",
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      }
+    },
+    "kiwi_monkey": {
+      "studentName": "Unknown",
+      "CENTER": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "Z_TO_PROP": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      },
+      "SPREAD": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      },
+      "SHAPE": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "EMPIRICAL": {
+        "percentage": 0
+      },
+      "Z_SCORES": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      }
+    },
+    "test_user": {
+      "studentName": "Unknown",
+      "VARIABLES": {
+        "percentage": 0
+      },
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      }
+    },
+    "lime_lion": {
+      "studentName": "Unknown",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "VARIABLES": {
+        "percentage": 0
+      }
+    },
+    "papaya_cat": {
+      "studentName": "Unknown",
+      "CENTER": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "COMPARISON": {
+        "percentage": 0
+      }
+    },
+    "tayberry_pelican": {
+      "studentName": "Unknown",
+      "CONTEXT": {
+        "percentage": 0
+      },
+      "CENTER": {
+        "percentage": 0
+      },
+      "DISPLAYS": {
+        "percentage": 0
+      },
+      "PARAMETERS": {
+        "percentage": 0
+      },
+      "NORMAL": {
+        "percentage": 0
+      }
+    }
+  },
+  "itemAnalysis": [
+    {
+      "questionId": "U1-L10-Q01",
+      "pValue": 0.8,
+      "discrimination": 0.232
+    },
+    {
+      "questionId": "U1-L10-Q05",
+      "pValue": 0.889,
+      "discrimination": 0.258
+    },
+    {
+      "questionId": "U1-L10-Q02",
+      "pValue": 0.667,
+      "discrimination": 0.825
+    },
+    {
+      "questionId": "U1-L10-Q03",
+      "pValue": 0.667,
+      "discrimination": 0.516
+    },
+    {
+      "questionId": "U1-L10-Q07",
+      "pValue": 0.714,
+      "discrimination": 0.785
+    },
+    {
+      "questionId": "U1-L10-Q08",
+      "pValue": 0.714,
+      "discrimination": 0.785
+    }
+  ]
+}

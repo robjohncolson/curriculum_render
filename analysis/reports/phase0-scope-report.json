@@ -1,0 +1,80 @@
+{
+  "phase": "Phase 0: Scope, Inputs, and Assumptions",
+  "timestamp": "2025-10-10T01:10:48.049Z",
+  "scope": {
+    "period": "B",
+    "unit": "unit1",
+    "unitNumber": 1,
+    "lessons": {
+      "range": [
+        1,
+        10
+      ],
+      "spotlight": 10,
+      "all": [
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        "L6",
+        "L7",
+        "L8",
+        "L9",
+        "L10"
+      ]
+    },
+    "description": "Period B students, Unit 1 (Exploring One-Variable Data), Lessons 1-10 with Lesson 10 spotlight"
+  },
+  "assumptions": [
+    "All students who attempted U1-L10 are Period B students",
+    "Students without U1-L10 attempts are Period E students",
+    "Latest attempt per student×question is the canonical answer",
+    "Timestamp field is primary; updated_at is fallback for recency",
+    "Username normalization: lowercase, hyphens→underscores, trim whitespace"
+  ],
+  "inputs": {
+    "answersData": "../docs/answers_rows (1).csv",
+    "rosterMapping": "../docs/student2username.csv",
+    "curriculum": "../data/curriculum.js",
+    "units": "../data/units.js"
+  },
+  "lesson10": {
+    "questions": {
+      "multipleChoice": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ],
+      "constructedResponse": [
+        "U1-L10-Q04",
+        "U1-L10-Q06"
+      ],
+      "total": 8
+    },
+    "answerKey": {
+      "U1-L10-Q01": "D",
+      "U1-L10-Q02": "A",
+      "U1-L10-Q03": "A",
+      "U1-L10-Q05": "B",
+      "U1-L10-Q07": "C",
+      "U1-L10-Q08": "A"
+    },
+    "rubrics": {
+      "U1-L10-Q04": {
+        "topic": "Histogram Construction and Distribution Description",
+        "totalPoints": 4,
+        "parts": 3
+      },
+      "U1-L10-Q06": {
+        "topic": "Z-scores, Proportions, and Standard Deviation Interpretation",
+        "totalPoints": 3,
+        "parts": 3
+      }
+    }
+  },
+  "status": "Complete"
+}

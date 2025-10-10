@@ -1,0 +1,13 @@
+skill,skillName,studentsStruggling,totalStudents,strugglingPercent,redCount,yellowCount
+SHAPE,"Distribution Shape",3,3,100.0,3,0
+CENTER,"Measures of Center",27,27,100.0,27,0
+SPREAD,"Measures of Spread",21,21,100.0,21,0
+DISPLAYS,"Statistical Displays",28,28,100.0,28,0
+COMPARISON,"Comparing Distributions",19,19,100.0,19,0
+NORMAL,"Normal Distribution Properties",10,10,100.0,10,0
+Z_SCORES,"Z-Score Calculation",1,1,100.0,1,0
+Z_TO_PROP,"Z-Scores to Proportions",21,21,100.0,21,0
+EMPIRICAL,"Empirical Rule Application",21,21,100.0,21,0
+CONTEXT,"Interpretation in Context",29,29,100.0,29,0
+VARIABLES,"Variable Identification",21,21,100.0,21,0
+PARAMETERS,"Parameters vs Statistics",10,10,100.0,10,0

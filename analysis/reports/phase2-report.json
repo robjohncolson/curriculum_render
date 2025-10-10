@@ -1,0 +1,50 @@
+{
+  "phase": "phase2",
+  "timestamp": "2025-10-10T01:38:35.880Z",
+  "stats": {
+    "totalStudents": 24,
+    "periodB": 8,
+    "periodE": 16,
+    "studentsWithAliases": 3,
+    "unmappedUsernames": 7
+  },
+  "validation": {
+    "isValid": false,
+    "issues": [
+      {
+        "severity": "error",
+        "category": "period_assignment",
+        "message": "3 L10 submitters not in Period B",
+        "usernames": [
+          "teacher_man",
+          "kiwi_monkey",
+          "tayberry_pelican"
+        ]
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "unmapped_usernames",
+        "message": "7 usernames not in roster mapping",
+        "usernames": [
+          "teacher_man",
+          "lemon_monkey",
+          "kiwi_monkey",
+          "test_user",
+          "lime_lion",
+          "papaya_cat",
+          "tayberry_pelican"
+        ],
+        "recommendation": "These may be students not in student2username.csv"
+      }
+    ],
+    "stats": {
+      "totalStudents": 24,
+      "periodB": 8,
+      "periodE": 16,
+      "studentsWithAliases": 3,
+      "unmappedUsernames": 7
+    }
+  }
+}

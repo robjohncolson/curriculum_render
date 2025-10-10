@@ -1,0 +1,603 @@
+{
+  "rosterResolved": {
+    "karolynn": {
+      "studentName": "karolynn",
+      "primaryUsername": "grape_fox",
+      "aliases": [],
+      "allUsernames": [
+        "grape_fox"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "edwin": {
+      "studentName": "Edwin",
+      "primaryUsername": "kiwi_panda",
+      "aliases": [],
+      "allUsernames": [
+        "kiwi_panda"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "tommy": {
+      "studentName": "Tommy",
+      "primaryUsername": "banana_goat",
+      "aliases": [],
+      "allUsernames": [
+        "banana_goat"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "chanlita": {
+      "studentName": "Chanlita",
+      "primaryUsername": "grape_koala",
+      "aliases": [
+        "grape_newt"
+      ],
+      "allUsernames": [
+        "grape_koala",
+        "grape_newt"
+      ],
+      "aliasType": "multiple_usernames",
+      "usageCounts": {
+        "grape_koala": 15,
+        "grape_newt": 3
+      },
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "kyle": {
+      "studentName": "Kyle",
+      "primaryUsername": "cherry_monkey",
+      "aliases": [],
+      "allUsernames": [
+        "cherry_monkey"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "edgar": {
+      "studentName": "edgar",
+      "primaryUsername": "apple_monkey",
+      "aliases": [],
+      "allUsernames": [
+        "apple_monkey"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 6,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q05",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "ana": {
+      "studentName": "Ana",
+      "primaryUsername": "papaya_eagle",
+      "aliases": [],
+      "allUsernames": [
+        "papaya_eagle"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 6,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q08",
+        "U1-L10-Q07",
+        "U1-L10-Q05"
+      ]
+    },
+    "justin": {
+      "studentName": "Justin",
+      "primaryUsername": "apricot_horse",
+      "aliases": [],
+      "allUsernames": [
+        "apricot_horse"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 6,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "janelle": {
+      "studentName": "Janelle",
+      "primaryUsername": "mango_panda",
+      "aliases": [],
+      "allUsernames": [
+        "mango_panda"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 7,
+      "l10UniqueQuestions": 7,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q04",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "hazel": {
+      "studentName": "Hazel",
+      "primaryUsername": "apple_rabbit",
+      "aliases": [],
+      "allUsernames": [
+        "apple_rabbit"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 5,
+      "l10UniqueQuestions": 5,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q04",
+        "U1-L10-Q05"
+      ]
+    },
+    "gabriella": {
+      "studentName": "Gabriella",
+      "primaryUsername": "guava_cat",
+      "aliases": [],
+      "allUsernames": [
+        "guava_cat"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 6,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "malinda": {
+      "studentName": "Malinda",
+      "primaryUsername": "plum_iguana",
+      "aliases": [],
+      "allUsernames": [
+        "plum_iguana"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "jeysac": {
+      "studentName": "jeysac",
+      "primaryUsername": "papaya_goat",
+      "aliases": [],
+      "allUsernames": [
+        "papaya_goat"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "sheyly": {
+      "studentName": "Sheyly",
+      "primaryUsername": "mango_dog",
+      "aliases": [],
+      "allUsernames": [
+        "mango_dog"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "valeria": {
+      "studentName": "valeria",
+      "primaryUsername": "berry_iguana",
+      "aliases": [],
+      "allUsernames": [
+        "berry_iguana"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "francois": {
+      "studentName": "francois",
+      "primaryUsername": "apricot_horse",
+      "aliases": [
+        "lemon_goat"
+      ],
+      "allUsernames": [
+        "apricot_horse",
+        "lemon_goat"
+      ],
+      "aliasType": "multiple_usernames",
+      "usageCounts": {
+        "apricot_horse": 36,
+        "lemon_goat": 18
+      },
+      "period": "B",
+      "l10AttemptCount": 12,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "keily": {
+      "studentName": "Keily",
+      "primaryUsername": "apricot_fox",
+      "aliases": [],
+      "allUsernames": [
+        "apricot_fox"
+      ],
+      "aliasType": "none",
+      "period": "B",
+      "l10AttemptCount": 6,
+      "l10UniqueQuestions": 6,
+      "l10Questions": [
+        "U1-L10-Q01",
+        "U1-L10-Q02",
+        "U1-L10-Q03",
+        "U1-L10-Q05",
+        "U1-L10-Q07",
+        "U1-L10-Q08"
+      ]
+    },
+    "julissa": {
+      "studentName": "Julissa",
+      "primaryUsername": "apricot_dog",
+      "aliases": [
+        "banana_fox"
+      ],
+      "allUsernames": [
+        "apricot_dog",
+        "banana_fox"
+      ],
+      "aliasType": "multiple_usernames",
+      "usageCounts": {
+        "apricot_dog": 30,
+        "banana_fox": 6
+      },
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "ian": {
+      "studentName": "ian",
+      "primaryUsername": "guava_wolf",
+      "aliases": [],
+      "allUsernames": [
+        "guava_wolf"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "ghafour": {
+      "studentName": "ghafour",
+      "primaryUsername": "lemon_eagle",
+      "aliases": [],
+      "allUsernames": [
+        "lemon_eagle"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "ashley w": {
+      "studentName": "ashley w",
+      "primaryUsername": "papaya_iguana",
+      "aliases": [],
+      "allUsernames": [
+        "papaya_iguana"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "ashley z": {
+      "studentName": "Ashley Z",
+      "primaryUsername": "papaya_fox",
+      "aliases": [],
+      "allUsernames": [
+        "papaya_fox"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "moshammed": {
+      "studentName": "Moshammed",
+      "primaryUsername": "coconut_cat",
+      "aliases": [],
+      "allUsernames": [
+        "coconut_cat"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    },
+    "london": {
+      "studentName": "London",
+      "primaryUsername": "mango_tiger",
+      "aliases": [],
+      "allUsernames": [
+        "mango_tiger"
+      ],
+      "aliasType": "none",
+      "period": "E",
+      "l10AttemptCount": 0,
+      "l10UniqueQuestions": 0,
+      "l10Questions": []
+    }
+  },
+  "usernameLookup": {
+    "grape_fox": {
+      "studentKey": "karolynn",
+      "studentName": "karolynn",
+      "primaryUsername": "grape_fox",
+      "period": "E"
+    },
+    "kiwi_panda": {
+      "studentKey": "edwin",
+      "studentName": "Edwin",
+      "primaryUsername": "kiwi_panda",
+      "period": "E"
+    },
+    "banana_goat": {
+      "studentKey": "tommy",
+      "studentName": "Tommy",
+      "primaryUsername": "banana_goat",
+      "period": "E"
+    },
+    "grape_koala": {
+      "studentKey": "chanlita",
+      "studentName": "Chanlita",
+      "primaryUsername": "grape_koala",
+      "period": "E"
+    },
+    "grape_newt": {
+      "studentKey": "chanlita",
+      "studentName": "Chanlita",
+      "primaryUsername": "grape_koala",
+      "period": "E"
+    },
+    "cherry_monkey": {
+      "studentKey": "kyle",
+      "studentName": "Kyle",
+      "primaryUsername": "cherry_monkey",
+      "period": "E"
+    },
+    "apple_monkey": {
+      "studentKey": "edgar",
+      "studentName": "edgar",
+      "primaryUsername": "apple_monkey",
+      "period": "B"
+    },
+    "papaya_eagle": {
+      "studentKey": "ana",
+      "studentName": "Ana",
+      "primaryUsername": "papaya_eagle",
+      "period": "B"
+    },
+    "apricot_horse": {
+      "studentKey": "francois",
+      "studentName": "francois",
+      "primaryUsername": "apricot_horse",
+      "period": "B"
+    },
+    "mango_panda": {
+      "studentKey": "janelle",
+      "studentName": "Janelle",
+      "primaryUsername": "mango_panda",
+      "period": "B"
+    },
+    "apple_rabbit": {
+      "studentKey": "hazel",
+      "studentName": "Hazel",
+      "primaryUsername": "apple_rabbit",
+      "period": "B"
+    },
+    "guava_cat": {
+      "studentKey": "gabriella",
+      "studentName": "Gabriella",
+      "primaryUsername": "guava_cat",
+      "period": "B"
+    },
+    "plum_iguana": {
+      "studentKey": "malinda",
+      "studentName": "Malinda",
+      "primaryUsername": "plum_iguana",
+      "period": "E"
+    },
+    "papaya_goat": {
+      "studentKey": "jeysac",
+      "studentName": "jeysac",
+      "primaryUsername": "papaya_goat",
+      "period": "E"
+    },
+    "mango_dog": {
+      "studentKey": "sheyly",
+      "studentName": "Sheyly",
+      "primaryUsername": "mango_dog",
+      "period": "E"
+    },
+    "berry_iguana": {
+      "studentKey": "valeria",
+      "studentName": "valeria",
+      "primaryUsername": "berry_iguana",
+      "period": "E"
+    },
+    "lemon_goat": {
+      "studentKey": "francois",
+      "studentName": "francois",
+      "primaryUsername": "apricot_horse",
+      "period": "B"
+    },
+    "apricot_fox": {
+      "studentKey": "keily",
+      "studentName": "Keily",
+      "primaryUsername": "apricot_fox",
+      "period": "B"
+    },
+    "apricot_dog": {
+      "studentKey": "julissa",
+      "studentName": "Julissa",
+      "primaryUsername": "apricot_dog",
+      "period": "E"
+    },
+    "banana_fox": {
+      "studentKey": "julissa",
+      "studentName": "Julissa",
+      "primaryUsername": "apricot_dog",
+      "period": "E"
+    },
+    "guava_wolf": {
+      "studentKey": "ian",
+      "studentName": "ian",
+      "primaryUsername": "guava_wolf",
+      "period": "E"
+    },
+    "lemon_eagle": {
+      "studentKey": "ghafour",
+      "studentName": "ghafour",
+      "primaryUsername": "lemon_eagle",
+      "period": "E"
+    },
+    "papaya_iguana": {
+      "studentKey": "ashley w",
+      "studentName": "ashley w",
+      "primaryUsername": "papaya_iguana",
+      "period": "E"
+    },
+    "papaya_fox": {
+      "studentKey": "ashley z",
+      "studentName": "Ashley Z",
+      "primaryUsername": "papaya_fox",
+      "period": "E"
+    },
+    "coconut_cat": {
+      "studentKey": "moshammed",
+      "studentName": "Moshammed",
+      "primaryUsername": "coconut_cat",
+      "period": "E"
+    },
+    "mango_tiger": {
+      "studentKey": "london",
+      "studentName": "London",
+      "primaryUsername": "mango_tiger",
+      "period": "E"
+    }
+  },
+  "sharedResolutions": [
+    {
+      "username": "apricot_horse",
+      "type": "truly_shared",
+      "originalNames": [
+        "Justin",
+        "francois"
+      ],
+      "resolvedName": null,
+      "decision": "WARNING: Different students sharing same username",
+      "action": "Needs manual resolution"
+    }
+  ],
+  "validation": {
+    "isValid": false,
+    "issues": [
+      {
+        "severity": "error",
+        "category": "period_assignment",
+        "message": "3 L10 submitters not in Period B",
+        "usernames": [
+          "teacher_man",
+          "kiwi_monkey",
+          "tayberry_pelican"
+        ]
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "warning",
+        "category": "unmapped_usernames",
+        "message": "7 usernames not in roster mapping",
+        "usernames": [
+          "teacher_man",
+          "lemon_monkey",
+          "kiwi_monkey",
+          "test_user",
+          "lime_lion",
+          "papaya_cat",
+          "tayberry_pelican"
+        ],
+        "recommendation": "These may be students not in student2username.csv"
+      }
+    ],
+    "stats": {
+      "totalStudents": 24,
+      "periodB": 8,
+      "periodE": 16,
+      "studentsWithAliases": 3,
+      "unmappedUsernames": 7
+    }
+  }
+}

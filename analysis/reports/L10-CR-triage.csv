@@ -1,0 +1,5 @@
+primaryUsername,studentName,period,questionId,triageBucket,triageScore,keywordMatches,needsReview,responseLength
+mango_panda,Janelle,B,U1-L10-Q04,medium,70,"[""bell"",""91""]",false,36
+kiwi_monkey,Unknown,Unknown,U1-L10-Q04,medium,50,[],false,17
+kiwi_monkey,Unknown,Unknown,U1-L10-Q06,low,25,[""1.62""],true,5
+apple_rabbit,Hazel,B,U1-L10-Q04,medium,50,[],false,16

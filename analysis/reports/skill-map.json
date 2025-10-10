@@ -1,0 +1,811 @@
+{
+  "generated": "2025-10-10T02:14:18.267Z",
+  "metadata": {
+    "totalQuestions": 76,
+    "manualOverrides": 8,
+    "autoDetected": 68
+  },
+  "mappings": [
+    {
+      "questionId": "U1-L2-Q01",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L2-Q02",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L2-Q03",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L3-Q01",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L3-Q02",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L3-Q03",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q01",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q02",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q03",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q04",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q05",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L4-Q06",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L5-Q01",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L5-Q02",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L5-Q03",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L6-Q01",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L6-Q02",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L6-Q03",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q01",
+      "skills": [
+        "CENTER"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q02",
+      "skills": [
+        "CENTER"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q03",
+      "skills": [
+        "CENTER"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q04",
+      "skills": [
+        "CENTER",
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q05",
+      "skills": [
+        "DISPLAYS",
+        "Z_TO_PROP",
+        "EMPIRICAL"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L7-Q06",
+      "skills": [
+        "SPREAD",
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L8-Q01",
+      "skills": [
+        "CENTER",
+        "DISPLAYS",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L8-Q02",
+      "skills": [
+        "DISPLAYS",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L8-Q03",
+      "skills": [
+        "CENTER",
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L9-Q01",
+      "skills": [
+        "CENTER",
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L9-Q02",
+      "skills": [
+        "CENTER",
+        "DISPLAYS",
+        "COMPARISON"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L9-Q03",
+      "skills": [
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-L10-Q01",
+      "skills": [
+        "PARAMETERS",
+        "NORMAL"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q02",
+      "skills": [
+        "Z_TO_PROP",
+        "NORMAL"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q03",
+      "skills": [
+        "Z_TO_PROP",
+        "NORMAL"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q04",
+      "skills": [
+        "DISPLAYS",
+        "SHAPE",
+        "CENTER",
+        "CONTEXT"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q05",
+      "skills": [
+        "EMPIRICAL",
+        "NORMAL"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q06",
+      "skills": [
+        "Z_SCORES",
+        "Z_TO_PROP",
+        "CONTEXT"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q07",
+      "skills": [
+        "NORMAL",
+        "Z_TO_PROP"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-L10-Q08",
+      "skills": [
+        "NORMAL",
+        "Z_TO_PROP"
+      ],
+      "method": "manual_override",
+      "confidence": "high"
+    },
+    {
+      "questionId": "U1-PC-FRQ-Q01",
+      "skills": [
+        "CENTER",
+        "DISPLAYS",
+        "NORMAL",
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-FRQ-Q02",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL",
+        "Z_SCORES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q01",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q02",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q03",
+      "skills": [
+        "Z_TO_PROP",
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q04",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q05",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q06",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q07",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q08",
+      "skills": [
+        "CENTER",
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q09",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q10",
+      "skills": [
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q11",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q12",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q13",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q14",
+      "skills": [
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q15",
+      "skills": [
+        "DISPLAYS",
+        "VARIABLES"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q16",
+      "skills": [
+        "DISPLAYS",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q17",
+      "skills": [
+        "SHAPE",
+        "DISPLAYS",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-A-Q18",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q01",
+      "skills": [
+        "CENTER"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q02",
+      "skills": [
+        "CENTER",
+        "COMPARISON"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q03",
+      "skills": [
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q04",
+      "skills": [
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q05",
+      "skills": [
+        "CENTER",
+        "DISPLAYS",
+        "CONTEXT"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q06",
+      "skills": [
+        "CENTER",
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q07",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q08",
+      "skills": [
+        "DISPLAYS",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q09",
+      "skills": [
+        "CENTER",
+        "DISPLAYS",
+        "COMPARISON"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q10",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q11",
+      "skills": [
+        "DISPLAYS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q12",
+      "skills": [
+        "SPREAD"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q13",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL",
+        "EMPIRICAL"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q14",
+      "skills": [
+        "CENTER",
+        "NORMAL"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q15",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q16",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q17",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL",
+        "Z_TO_PROP"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "U1-PC-MCQ-B-Q18",
+      "skills": [
+        "CENTER",
+        "SPREAD",
+        "NORMAL",
+        "Z_TO_PROP",
+        "PARAMETERS"
+      ],
+      "method": "auto_detect",
+      "confidence": "medium"
+    }
+  ],
+  "taxonomy": {
+    "SHAPE": {
+      "id": "SHAPE",
+      "name": "Distribution Shape",
+      "description": "Describing and comparing distribution shapes (symmetric, skewed, uniform)",
+      "apStandard": "VAR-1",
+      "examples": [
+        "Identify skewness",
+        "Compare distribution shapes",
+        "Describe symmetry"
+      ]
+    },
+    "CENTER": {
+      "id": "CENTER",
+      "name": "Measures of Center",
+      "description": "Calculating and interpreting mean, median, and mode",
+      "apStandard": "VAR-1",
+      "examples": [
+        "Calculate mean",
+        "Find median",
+        "Determine mode",
+        "Choose appropriate center measure"
+      ]
+    },
+    "SPREAD": {
+      "id": "SPREAD",
+      "name": "Measures of Spread",
+      "description": "Understanding range, IQR, variance, and standard deviation",
+      "apStandard": "VAR-1",
+      "examples": [
+        "Calculate standard deviation",
+        "Find IQR",
+        "Interpret variability"
+      ]
+    },
+    "DISPLAYS": {
+      "id": "DISPLAYS",
+      "name": "Statistical Displays",
+      "description": "Creating and interpreting histograms, boxplots, and dotplots",
+      "apStandard": "UNC-1",
+      "examples": [
+        "Create histogram",
+        "Interpret boxplot",
+        "Choose appropriate display"
+      ]
+    },
+    "COMPARISON": {
+      "id": "COMPARISON",
+      "name": "Comparing Distributions",
+      "description": "Comparing two or more distributions using shape, center, and spread",
+      "apStandard": "VAR-3",
+      "examples": [
+        "Compare two groups",
+        "Identify meaningful differences",
+        "Describe relative performance"
+      ]
+    },
+    "NORMAL": {
+      "id": "NORMAL",
+      "name": "Normal Distribution Properties",
+      "description": "Understanding normal distribution characteristics and the empirical rule",
+      "apStandard": "VAR-2",
+      "examples": [
+        "Recognize normal shape",
+        "Apply 68-95-99.7 rule",
+        "Identify parameters μ and σ"
+      ]
+    },
+    "Z_SCORES": {
+      "id": "Z_SCORES",
+      "name": "Z-Score Calculation",
+      "description": "Calculating and interpreting z-scores for standardization",
+      "apStandard": "VAR-2",
+      "examples": [
+        "Calculate z = (x - μ) / σ",
+        "Interpret standardized values",
+        "Compare across distributions"
+      ]
+    },
+    "Z_TO_PROP": {
+      "id": "Z_TO_PROP",
+      "name": "Z-Scores to Proportions",
+      "description": "Converting z-scores to proportions and percentiles using normal tables",
+      "apStandard": "VAR-2",
+      "examples": [
+        "Use Table A",
+        "Find proportion below/above",
+        "Calculate percentiles"
+      ]
+    },
+    "EMPIRICAL": {
+      "id": "EMPIRICAL",
+      "name": "Empirical Rule Application",
+      "description": "Applying the 68-95-99.7 rule for approximate proportions",
+      "apStandard": "VAR-2",
+      "examples": [
+        "Apply 68% rule",
+        "Estimate proportions",
+        "Identify unusual values"
+      ]
+    },
+    "CONTEXT": {
+      "id": "CONTEXT",
+      "name": "Interpretation in Context",
+      "description": "Interpreting statistical results within the data context",
+      "apStandard": "UNC-1",
+      "examples": [
+        "Write context-specific conclusions",
+        "Relate to real-world situations",
+        "Avoid statistical jargon"
+      ]
+    },
+    "VARIABLES": {
+      "id": "VARIABLES",
+      "name": "Variable Identification",
+      "description": "Distinguishing categorical vs quantitative variables",
+      "apStandard": "DAT-1",
+      "examples": [
+        "Classify variable types",
+        "Identify discrete vs continuous"
+      ]
+    },
+    "PARAMETERS": {
+      "id": "PARAMETERS",
+      "name": "Parameters vs Statistics",
+      "description": "Understanding population parameters vs sample statistics notation",
+      "apStandard": "UNC-3",
+      "examples": [
+        "Use μ vs x̄",
+        "Use σ vs s",
+        "Distinguish population from sample"
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+ID,Username_Original,Username_Normalized,Question_ID,Answer_Value,Timestamp,Issues,Category
+1,test_user,test_user,test_q1,A,1759209161956,invalid_question_id,Test Data
+4,test_user,test_user,test_q2,C,1759206226635,invalid_question_id,Test Data
+553,teacher_man,teacher_man,U1-PC-FRQ-Q02,dfsdf,1759282313981,invalid_question_id,Progress Check
+554,teacher_man,teacher_man,U1-PC-MCQ-A-Q01,C,1759282329071,invalid_question_id,Progress Check
+1363,test_peer,test_peer,q1,A,1759626035750,invalid_question_id,Test Data
+2512,test_verification,test_verification,test_q1,D,1759250000000,invalid_question_id,Test Data
+3048,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q02,B,1759847009058,invalid_question_id,Unit 9 Format
+3049,Kiwi_Monkey,kiwi_monkey,U9-L3-FRQ-Q01,they move faster away from home,1759847011298,invalid_question_id,Unit 9 Format
+3050,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q01,B,1759847063302,invalid_question_id,Progress Check
+3051,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q03,C,1759847020387,invalid_question_id,Unit 9 Format
+3052,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q04,C,1759847031689,invalid_question_id,Unit 9 Format
+3054,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q05,B,1759847034693,invalid_question_id,Unit 9 Format
+3055,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q06,D,1759847037742,invalid_question_id,Unit 9 Format
+3056,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q07,C,1759847048967,invalid_question_id,Unit 9 Format
+3057,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q08,D,1759847052091,invalid_question_id,Unit 9 Format
+3058,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q09,B,1759847055304,invalid_question_id,Unit 9 Format
+3060,Kiwi_Monkey,kiwi_monkey,U9-L3-MCQ-Q10,B,1759847057628,invalid_question_id,Unit 9 Format
+3065,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q02,E,1759847127520,invalid_question_id,Progress Check
+3068,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q03,D,1759847187775,invalid_question_id,Progress Check
+3075,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q04,E,1759847334183,invalid_question_id,Progress Check
+3080,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q05,B,1759847464192,invalid_question_id,Progress Check
+3095,Apple_Monkey,apple_monkey,U1-PC-MCQ-A-Q06,D,1759847546232,invalid_question_id,Progress Check
