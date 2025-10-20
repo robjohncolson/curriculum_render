@@ -1864,7 +1864,69 @@ const EMBEDDED_CURRICULUM = [
       "id": "U1-L10-Q06",
       "type": "free-response",
       "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nKathy and her brother Clay recently ran in a local marathon. The distribution of finishing time for women was approximately normal with mean 259 minutes and standard deviation 32 minutes. The distribution of finishing time for men was approximately normal with mean 242 minutes and standard deviation 29 minutes.\n\n(a) The finishing time for Clay was 289 minutes. Calculate and interpret the standardized score for Clay's marathon time. Show your work.\n(b) The finishing time for Kathy was 272 minutes. What proportion of women who ran the marathon had a finishing time less than Kathy's? Show your work.\n(c) The standard deviation of finishing time is greater for women than for men. What does this indicate about the finishing times of the women who ran the marathon compared to the finishing times of the men who ran the marathon?",
-      "reasoning": "Part (a): Clay's finishing time was 289 minutes and the distribution of finishing time for men had a mean of 242 minutes and a standard deviation of 29 minutes. The standardized score for Clay's marathon time is: z = (289-242)/29 ≈ 1.62. Clay's finishing time is 1.62 standard deviations greater than the men's mean finishing time. Part (b): Kathy's finishing time was 272 minutes and the distribution of finishing time for women had a mean of 259 minutes and a standard deviation of 32 minutes. The standardized score for Kathy's marathon time is: z = (272-259)/32 ≈ 0.41. Using technology or the standard normal table, the proportion of women who ran the marathon with a finishing time less than Kathy is approximately 0.66. Part (c): Since the standard deviation for women's times is greater than the standard deviation for men's times, there is more variability in the women's times than in the men's times. This indicates that, on average, women's times are further away from the women's mean marathon time than the average distance men's times are away from the men's mean marathon time."
+      "solution": {
+        "parts": [
+          {
+            "partId": "a",
+            "description": "Calculate and interpret the standardized score for Clay's marathon time.",
+            "response": "The standardized score for Clay's marathon time is z ≈ 1.62. This means Clay's finishing time is 1.62 standard deviations greater than the men's mean finishing time.",
+            "calculations": [
+              "z = (x - μ) / σ",
+              "z = (289 - 242) / 29 ≈ 1.62"
+            ]
+          },
+          {
+            "partId": "b",
+            "description": "What proportion of women who ran the marathon had a finishing time less than Kathy's?",
+            "response": "The standardized score for Kathy's marathon time is z ≈ 0.41. Using technology or a standard normal table, the proportion of women who ran the marathon with a finishing time less than Kathy is approximately 0.66.",
+            "calculations": [
+              "z = (x - μ) / σ",
+              "z = (272 - 259) / 32 ≈ 0.41",
+              "P(Z < 0.41) ≈ 0.6591 or 0.66"
+            ]
+          },
+          {
+            "partId": "c",
+            "description": "What does the greater standard deviation for women indicate?",
+            "response": "Since the standard deviation for women's times is greater than the standard deviation for men's times, there is more variability in the women's times than in the men's times. This indicates that, on average, women's times are further away from the women's mean marathon time than the average distance men's times are away from the men's mean marathon time."
+          }
+        ],
+        "scoring": {
+          "totalPoints": 4,
+          "rubric": [
+            {
+              "part": "a",
+              "maxPoints": 1,
+              "criteria": [
+                "Identifies parameters to be used in z-score calculation.",
+                "Correct calculation of standardized score with supporting work.",
+                "Correct interpretation of the standardized score in context."
+              ],
+              "scoringNotes": "Essentially correct (E) if all three components are satisfied."
+            },
+            {
+              "part": "b",
+              "maxPoints": 2,
+              "criteria": [
+                "Indicates use of a normal distribution and clearly identifies the correct parameter values.",
+                "Uses the correct boundary value of 272 and the correct direction ('less than').",
+                "Reports the correct proportion consistent with the values used."
+              ],
+              "scoringNotes": "Essentially correct (E) if all three components are satisfied."
+            },
+            {
+              "part": "c",
+              "maxPoints": 1,
+              "criteria": [
+                "Indicates that a greater standard deviation represents more variability.",
+                "Correctly compares the variability in the women's times to the variability in the men's times."
+              ],
+              "scoringNotes": "Essentially correct (E) if both components are satisfied."
+            }
+          ]
+        }
+      },
+      "reasoning": "The primary goals of this question are to assess a student's ability to (1) calculate and interpret a z-score; (2) determine proportions from a normal distribution; and (3) explain the meaning of a standard deviation."
     },
     {
       "id": "U1-L10-Q07",
@@ -1930,6 +1992,7 @@ const EMBEDDED_CURRICULUM = [
     {
       "id": "U1-PC-FRQ-Q01",
       "type": "free-response",
+      "requiresGraph": "histogram",
       "prompt": "Show all your work. Indicate clearly the methods you use, because you will be scored on the correctness of your methods as well as on the accuracy and completeness of your results and explanations.\n\nThe manager of a vacation resort believes that the ages of adult visitors to the resort can be modeled by a normal distribution. The manager surveyed a random sample of visitors and recorded their age. A summary of the responses is shown in the frequency table, where x represents the age of the visitor.\n\n(a) Construct a histogram of the distribution of ages.\n(b) Write a few sentences to describe the distribution of ages of the adult visitors to the resort.\n(c) Does the histogram provide convincing evidence that the surveyed ages come from a normal distribution? Explain your answer.",
       "solution": {
         "parts": [
@@ -4168,6 +4231,11 @@ const EMBEDDED_CURRICULUM = [
           }
         ]
       }
+    },
+    {
+      "id": "U2-L1-Q01",
+      "type": "resource",
+      "prompt": "This lesson contains instructional resources. Please review the videos and games listed above before proceeding to the next lesson."
     },
     {
       "id": "U2-L2-Q01",

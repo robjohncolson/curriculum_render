@@ -1,35 +1,54 @@
+// Create charts namespace to avoid collisions with index.html functions
+window.charts = window.charts || {};
 
-function renderChart(chartData, questionId) {
-    const chartId = `chart-${questionId}`;
+// Phase 1: Generate HTML only (no side effects)
+function getChartHtml(chartData, canvasId) {
     const config = chartData.chartConfig || {};
 
-    // Use the chart's title if available, otherwise use the chart type
+    // Use the chart's title if available
     const chartTitle = chartData.title ?
         chartData.title :
         (config.description ?
             `📊 ${chartData.chartType.toUpperCase()} CHART` :
             `📊 ${chartData.chartType.toUpperCase()} CHART`);
 
-    // Allow a chart to request full horizontal space when rendered inside a "multiple-charts-container"
+    // Allow a chart to request full horizontal space
     const containerStyle = chartData.fullWidth ? 'style="flex:0 0 100%; max-width:100%; width:100%;"' : '';
 
-    let chartHtml = `
+    return `
         <div class="chart-container" ${containerStyle}>
             <div class="chart-title">${chartTitle}</div>
-            ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` : 
-''}
+            ${config.description ? `<div style="font-size: 0.9em; color: #666; text-align: center; margin-bottom: 10px; font-style: italic;">${config.description}</div>` : ''}
             <div class="chart-canvas">
-                <canvas id="${chartId}"></canvas>
+                <canvas id="${canvasId}"></canvas>
             </div>
         </div>
     `;
+}
 
-    // Return HTML first, then we'll create the chart after the DOM is updated
-    setTimeout(() => {
-        const canvas = document.getElementById(chartId);
-        if (!canvas) return;
+// Phase 2: Draw chart on existing canvas (must be called AFTER canvas is in DOM)
+function renderChartNow(chartData, canvasId) {
+    // Ensure global chart registry exists
+    if (!window.chartInstances) {
+        window.chartInstances = {};
+    }
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.warn(`Canvas not found: ${canvasId}`);
+        return;
+    }
 
-        const ctx = canvas.getContext('2d');
+    // Destroy existing chart if present
+    if (window.chartInstances?.[canvasId]) {
+        try {
+            window.chartInstances[canvasId].destroy();
+        } catch (e) {
+            console.warn(`Error destroying chart ${canvasId}:`, e);
+        }
+    }
+
+    const ctx = canvas.getContext('2d');
+    const config = chartData.chartConfig || {};
 
         if (chartData.chartType === 'bar' || chartData.chartType === 'histogram') {
             // Ensure every segment in a stacked / segmented bar gets its own visually distinct color
@@ -234,7 +253,7 @@ function renderChart(chartData, questionId) {
                     }
                 }
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
 
         } else if (chartData.chartType === 'pie') {
             const seriesData = chartData.series[0].values;
@@ -286,7 +305,7 @@ function renderChart(chartData, questionId) {
                     }
                 }
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
 
         } else if (chartData.chartType === 'scatter') {
             const config = chartData.chartConfig || {};
@@ -507,7 +526,7 @@ function renderChart(chartData, questionId) {
                     }
                 }
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
 
             // Add point label plugin AFTER chart creation to ensure meta is available
             if (false && (hasPointLabels || config.showPointLabels)) {
@@ -676,7 +695,7 @@ function renderChart(chartData, questionId) {
                     }
                 }
             });
-             chartInstances[chartId] = chart;
+             window.chartInstances[canvasId] = chart;
 
             // Adjust chart height so stacked dots appear closer (rough heuristic)
             const minHeight = 120;
@@ -1118,7 +1137,7 @@ function renderChart(chartData, questionId) {
                     }
                 }]
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
         } else if (chartData.chartType === 'normal') {
             // --------------------------------------------------
             // Normal distribution curve with optional shaded region
@@ -1221,7 +1240,7 @@ function renderChart(chartData, questionId) {
                     plugins: { legend: { display: false }, datalabels: { display: false } }
                 }
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
         } else if (chartData.chartType === 'chisquare') {
             // --- New chi-square distribution rendering ---
             const cfg = chartData.chartConfig || {};
@@ -1361,7 +1380,7 @@ function renderChart(chartData, questionId) {
                     }
                 }
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
         } else if (chartData.chartType === 'numberline') {
             // --------------------------------------------------
             // Custom number line (baseline with ticks & labels)
@@ -1492,9 +1511,28 @@ function renderChart(chartData, questionId) {
                 },
                 plugins: [numberLinePlugin]
             });
-            chartInstances[chartId] = chart;
+            window.chartInstances[canvasId] = chart;
         }
-    }, 100);
-
-    return chartHtml;
 }
+
+// Compatibility wrapper for old renderChart calls (deprecated)
+// This maintains backward compatibility with existing code that expects:
+//   renderChart(chartData, questionId) -> returns HTML with setTimeout scheduling
+function renderChart(chartData, questionId) {
+    console.warn('renderChart is deprecated. Use charts.getChartHtml() + charts.renderChartNow() for two-phase rendering.');
+
+    const canvasId = `chart-${questionId}`;
+    const html = getChartHtml(chartData, canvasId);
+
+    // Schedule chart drawing with setTimeout (old behavior)
+    // Use explicit namespace to avoid global override issues
+    setTimeout(() => {
+        window.charts.renderChartNow(chartData, canvasId);
+    }, 0);
+
+    return html;
+}
+
+// Export to namespace for explicit two-phase rendering
+window.charts.getChartHtml = getChartHtml;
+window.charts.renderChartNow = renderChartNow;

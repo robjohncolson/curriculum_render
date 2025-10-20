@@ -4454,4 +4454,267 @@ body.grayscale-enabled .modal {
     -webkit-filter: grayscale(100%); /* For Safari compatibility */
 }
 
+/* --- START: FRQ Enhancement Styles --- */
+
+/* FRQ Enhanced Display */
+.peer-response-card.frq {
+    padding: 20px;
+    margin-bottom: 20px;
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-primary);
+}
+
+.peer-frq-answer {
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 15px;
+    margin: 10px 0;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    word-wrap: break-word;
+    color: var(--text-primary);
+}
+
+.peer-frq-reasoning {
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 12px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-tertiary);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.peer-frq-reasoning.hidden {
+    background: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Star Voting System */
+.frq-vote-widget {
+    margin-top: 15px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.frq-vote-widget .star {
+    cursor: pointer;
+    color: var(--text-tertiary);
+    font-size: 20px;
+    transition: color 0.2s, transform 0.1s;
+}
+
+.frq-vote-widget .star:hover {
+    color: var(--accent-warning);
+    transform: scale(1.1);
+}
+
+.frq-vote-widget .star.active {
+    color: var(--accent-warning);
+}
+
+.frq-vote-stats {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Graph Input UI */
+.graph-input {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.graph-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.graph-row .label {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.graph-row .value {
+    width: 120px;
+    padding: 8px;
+    border: 1px solid var(--border-tertiary);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.graph-row .remove-row {
+    padding: 8px 12px;
+    background: var(--accent-danger);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.add-bar-btn {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: var(--accent-success);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.peer-chart-container {
+    min-height: 300px;
+    margin: 10px 0;
+}
+
+/* --- END: FRQ Enhancement Styles --- */
+
+/* FRQ Solution Display Styles */
+.frq-solution-container {
+    background: #f8f9fa;
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.frq-solution-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #28a745;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #28a745;
+    padding-bottom: 10px;
+}
+
+.solution-icon {
+    margin-right: 8px;
+}
+
+.frq-solution-part {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border-left: 3px solid #007bff;
+    border-radius: 4px;
+}
+
+.frq-solution-part h5 {
+    color: #007bff;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.frq-part-desc {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.frq-part-response {
+    margin: 10px 0;
+    padding: 10px;
+    background: #e8f4f8;
+    border-radius: 4px;
+}
+
+.frq-calculations {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.frq-calculations li {
+    margin: 5px 0;
+    font-family: 'Courier New', monospace;
+    background: #f5f5f5;
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+.frq-rubric {
+    margin-top: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 4px;
+}
+
+.frq-rubric h5 {
+    color: #dc3545;
+    margin-bottom: 15px;
+}
+
+.frq-rubric-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.frq-rubric-table th {
+    background: #f8f9fa;
+    padding: 8px;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.frq-rubric-table td {
+    padding: 8px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.frq-rubric-table tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.frq-rubric-table ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.frq-solution-chart {
+    margin: 15px 0;
+}
+
+/* Dark mode support */
+.dark-mode .frq-solution-container {
+    background: #2d2d2d;
+    border-color: #4caf50;
+}
+
+.dark-mode .frq-solution-part {
+    background: #1e1e1e;
+}
+
+.dark-mode .frq-part-response {
+    background: #1a3a4a;
+}
+
+.dark-mode .frq-calculations li {
+    background: #2d2d2d;
+}
+
+.dark-mode .frq-rubric {
+    background: #1e1e1e;
+}
+
+.dark-mode .frq-rubric-table th {
+    background: #2d2d2d;
+}
+
+.dark-mode .frq-rubric-table tr:nth-child(even) {
+    background: #2d2d2d;
+}
+
 /* --- END: Added Grayscale Theme Styles --- */

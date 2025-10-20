@@ -1,45 +1,27 @@
--- Supabase Schema for AP Stats Curriculum App
--- Minimal schema focusing on simplicity and functionality
+-- This new table is designed to perfectly match your CSV file structure for import.
+CREATE TABLE answers (
+    -- id is a number from the CSV, not auto-generated. 'serial' is changed to 'bigint'.
+    id bigint NOT NULL,
 
--- Create answers table
-CREATE TABLE IF NOT EXISTS answers (
-  id SERIAL PRIMARY KEY,
-  username TEXT NOT NULL,
-  question_id TEXT NOT NULL,
-  answer_value TEXT NOT NULL,
-  timestamp BIGINT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
+    -- These columns match perfectly.
+    username text NOT NULL,
+    question_id text NOT NULL,
+    answer_value text NULL, -- Changed to NULL to be safe, as some FRQ answers might be empty.
 
-  -- Ensure unique answers per user per question (latest timestamp wins on conflict)
-  UNIQUE(username, question_id)
+    -- This column type already matches the CSV.
+    "timestamp" bigint NOT NULL,
+
+    -- These are now plain timestamp columns that will accept values from the CSV.
+    -- The "default now()" has been removed.
+    created_at timestamp with time zone NULL,
+    updated_at timestamp with time zone NULL,
+
+    -- Keep the same constraints.
+    CONSTRAINT answers_imported_pkey PRIMARY KEY (id),
+    CONSTRAINT answers_imported_username_question_id_key UNIQUE (username, question_id)
 );
-
--- Create index for efficient queries
-CREATE INDEX IF NOT EXISTS idx_answers_username ON answers(username);
-CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers(question_id);
-CREATE INDEX IF NOT EXISTS idx_answers_timestamp ON answers(timestamp DESC);
-
--- Create badges table (optional - for achievement tracking)
-CREATE TABLE IF NOT EXISTS badges (
-  id SERIAL PRIMARY KEY,
-  username TEXT NOT NULL,
-  badge_type TEXT NOT NULL,
-  earned_date BIGINT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-
-  -- Ensure unique badges per user
-  UNIQUE(username, badge_type)
-);
-
--- Create index for badges
-CREATE INDEX IF NOT EXISTS idx_badges_username ON badges(username);
-
--- Enable Row Level Security
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
 
--- Create policies for public read/write (no auth required per requirements)
--- Anyone can read all answers (peer learning transparency)
 CREATE POLICY "Anyone can read answers" ON answers
   FOR SELECT USING (true);
 
@@ -51,18 +33,7 @@ CREATE POLICY "Anyone can insert answers" ON answers
 CREATE POLICY "Anyone can update answers" ON answers
   FOR UPDATE USING (true);
 
--- Same policies for badges
-CREATE POLICY "Anyone can read badges" ON badges
-  FOR SELECT USING (true);
-
-CREATE POLICY "Anyone can insert badges" ON badges
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Anyone can update badges" ON badges
-  FOR UPDATE USING (true);
-
--- Create a function to handle upserts (insert or update based on unique constraint)
-CREATE OR REPLACE FUNCTION upsert_answer(
+  CREATE OR REPLACE FUNCTION upsert_answer(
   p_username TEXT,
   p_question_id TEXT,
   p_answer_value TEXT,

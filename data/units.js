@@ -193,6 +193,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1epQNhpTqA0qMv8ceTpH5IagjDDUlOPC0/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/68f5bd1a9dcd782f18b55b5a",
+                title: "u2l1blooket"
+            }
+        ]
       },
       {
         id: "2-2",

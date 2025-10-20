@@ -20,6 +20,14 @@
 
       console.log('🚂 Initializing Railway server connection...');
 
+      // Capture original functions if not already captured
+      if (typeof window.originalPushAnswer !== 'function' && typeof window.pushAnswerToSupabase === 'function') {
+          window.originalPushAnswer = window.pushAnswerToSupabase;
+      }
+      if (typeof window.originalPullPeerData !== 'function' && typeof window.pullPeerDataFromSupabase === 'function') {
+          window.originalPullPeerData = window.pullPeerDataFromSupabase;
+      }
+
       // Test REST API connection
       fetch(`${RAILWAY_SERVER_URL}/health`)
           .then(res => res.json())
@@ -342,9 +350,8 @@
   if (USE_RAILWAY) {
       console.log('🚂 Railway mode enabled - overriding sync functions');
 
-      // Store original functions BEFORE overriding
-      window.originalPushAnswer = window.pushAnswerToSupabase;
-      window.originalPullPeerData = window.pullPeerDataFromSupabase;
+      // NOTE: Original functions are now captured inside initializeRailwayConnection()
+      // to avoid race conditions with index.html loading
 
       // Override with Railway-enhanced versions
       window.pushAnswerToSupabase = submitAnswerViaRailway;
