@@ -1,71 +1,48 @@
--- This new table is designed to perfectly match your CSV file structure for import.
-CREATE TABLE answers (
-    -- id is a number from the CSV, not auto-generated. 'serial' is changed to 'bigint'.
-    id bigint NOT NULL,
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-    -- These columns match perfectly.
-    username text NOT NULL,
-    question_id text NOT NULL,
-    answer_value text NULL, -- Changed to NULL to be safe, as some FRQ answers might be empty.
-
-    -- This column type already matches the CSV.
-    "timestamp" bigint NOT NULL,
-
-    -- These are now plain timestamp columns that will accept values from the CSV.
-    -- The "default now()" has been removed.
-    created_at timestamp with time zone NULL,
-    updated_at timestamp with time zone NULL,
-
-    -- Keep the same constraints.
-    CONSTRAINT answers_imported_pkey PRIMARY KEY (id),
-    CONSTRAINT answers_imported_username_question_id_key UNIQUE (username, question_id)
+CREATE TABLE public.answers (
+  id integer NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
+  username text NOT NULL,
+  question_id text NOT NULL,
+  answer_value text NOT NULL,
+  timestamp bigint NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT answers_pkey PRIMARY KEY (username, question_id)
 );
-ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can read answers" ON answers
-  FOR SELECT USING (true);
-
--- Anyone can insert their own answers
-CREATE POLICY "Anyone can insert answers" ON answers
-  FOR INSERT WITH CHECK (true);
-
--- Anyone can update their own answers (latest timestamp wins)
-CREATE POLICY "Anyone can update answers" ON answers
-  FOR UPDATE USING (true);
-
-  CREATE OR REPLACE FUNCTION upsert_answer(
-  p_username TEXT,
-  p_question_id TEXT,
-  p_answer_value TEXT,
-  p_timestamp BIGINT
-)
-RETURNS void AS $$
-BEGIN
-  INSERT INTO answers (username, question_id, answer_value, timestamp)
-  VALUES (p_username, p_question_id, p_answer_value, p_timestamp)
-  ON CONFLICT (username, question_id)
-  DO UPDATE SET
-    answer_value = EXCLUDED.answer_value,
-    timestamp = EXCLUDED.timestamp
-  WHERE EXCLUDED.timestamp > answers.timestamp; -- Only update if newer
-END;
-$$ LANGUAGE plpgsql;
-
--- Create a view for getting latest peer data efficiently
-CREATE OR REPLACE VIEW latest_peer_answers AS
-SELECT
-  question_id,
-  answer_value,
-  COUNT(*) as answer_count,
-  MAX(timestamp) as latest_timestamp
-FROM answers
-GROUP BY question_id, answer_value;
-
--- Create a view for getting user progress
-CREATE OR REPLACE VIEW user_progress AS
-SELECT
-  username,
-  COUNT(DISTINCT question_id) as questions_answered,
-  MAX(timestamp) as last_activity
-FROM answers
-GROUP BY username;
+CREATE TABLE public.badges (
+  id integer NOT NULL DEFAULT nextval('badges_id_seq'::regclass),
+  username text NOT NULL,
+  badge_type text NOT NULL,
+  earned_date bigint NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT badges_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_activity (
+  username text NOT NULL,
+  activity_state text NOT NULL,
+  question_id text,
+  timestamp bigint NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_activity_pkey PRIMARY KEY (username)
+);
+CREATE TABLE public.votes (
+  id bigint NOT NULL DEFAULT nextval('votes_id_seq'::regclass),
+  created_at timestamp without time zone DEFAULT now(),
+  question_id text,
+  voter_username text,
+  target_username text,
+  score smallint,
+  timestamp timestamp without time zone,
+  CONSTRAINT votes_pkey PRIMARY KEY (id)
+);
+-- Ensure upsert on (question_id, voter_username, target_username) works
+ALTER TABLE public.votes
+  ADD CONSTRAINT votes_question_voter_target_key UNIQUE (question_id, voter_username, target_username);
+-- Strengthen data integrity
+ALTER TABLE public.votes ALTER COLUMN question_id SET NOT NULL;
+ALTER TABLE public.votes ALTER COLUMN voter_username SET NOT NULL;
+ALTER TABLE public.votes ALTER COLUMN target_username SET NOT NULL;
+ALTER TABLE public.votes ALTER COLUMN "timestamp" SET NOT NULL;
