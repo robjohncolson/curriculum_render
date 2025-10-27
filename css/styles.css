@@ -4718,3 +4718,155 @@ body.grayscale-enabled .modal {
 }
 
 /* --- END: Added Grayscale Theme Styles --- */
+
+/* Resources Section Styles */
+.resources-section {
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.resources-section h3 {
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    border-bottom: 2px solid var(--accent-primary);
+    padding-bottom: 10px;
+}
+
+/* PDF Resources */
+.pdf-resources {
+    margin-bottom: 15px;
+}
+
+.pdf-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 4px solid #e74c3c;
+    margin-bottom: 10px;
+}
+
+.pdf-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pdf-link {
+    color: #e74c3c;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.pdf-link:hover {
+    background: rgba(231, 76, 60, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Video Resources */
+.video-resources {
+    margin-bottom: 15px;
+}
+
+.video-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 4px solid #3498db;
+    margin-bottom: 8px;
+}
+
+.video-number {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.video-link {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.video-link:hover {
+    background: rgba(52, 152, 219, 0.2);
+    transform: translateY(-2px);
+}
+
+.video-link.alt {
+    color: #9b59b6;
+    background: rgba(155, 89, 182, 0.1);
+}
+
+.video-link.alt:hover {
+    background: rgba(155, 89, 182, 0.2);
+}
+
+/* Blooket Resources */
+.blooket-resources {
+    margin-bottom: 15px;
+}
+
+.blooket-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border-left: 4px solid #f39c12;
+    margin-bottom: 8px;
+}
+
+.blooket-number {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.blooket-link {
+    color: #f39c12;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: rgba(243, 156, 18, 0.1);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.blooket-link:hover {
+    background: rgba(243, 156, 18, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Dark theme adjustments for resources */
+body.dark-theme .pdf-link {
+    color: #ff6b6b;
+}
+
+body.dark-theme .video-link {
+    color: #5bc0de;
+}
+
+body.dark-theme .video-link.alt {
+    color: #c39bd3;
+}
+
+body.dark-theme .blooket-link {
+    color: #ffd700;
+}
