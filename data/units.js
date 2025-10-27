@@ -216,7 +216,7 @@ const ALL_UNITS_DATA = [
                 title: "u2l2blooket"
             }
         ],
-        pdf: "pdf/u2l2.pdf"
+        pdfs: ["pdf/u2l2.pdf"]
       },
       {
         id: "2-3",
@@ -235,7 +235,7 @@ const ALL_UNITS_DATA = [
                 title: "u2l3blooket"
             }
         ],
-        pdf: "pdf/u2l3.pdf"
+        pdfs: ["pdf/u2l3.pdf"]
       },
       {
         id: "2-4",
@@ -262,8 +262,7 @@ const ALL_UNITS_DATA = [
                 title: "u2l4_2blooket"
             }
         ],
-        pdf: "pdf/u2l4_1.pdf",
-        pdf: "pdf/u2l4_2.pdf"
+        pdfs: ["pdf/u2l4_1.pdf", "pdf/u2l4_2.pdf"]
       },
       {
         id: "2-5",

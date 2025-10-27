@@ -5919,8 +5919,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         const topic = unitResources.topics.find(t => t.id === topicId);
                         if (topic) {
                             const resources = [];
-                            if (topic.pdf && topic.pdf.trim() !== '') {
-                                resources.push('📄 PDF');
+                            if (Array.isArray(topic.pdfs) && topic.pdfs.length > 0) {
+                                resources.push(`📄 ${topic.pdfs.length} PDF${topic.pdfs.length > 1 ? 's' : ''}`);
                             }
                             if (topic.videos && topic.videos.length > 0) {
                                 resources.push(`📹 ${topic.videos.length} video${topic.videos.length > 1 ? 's' : ''}`);
@@ -5994,25 +5994,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     if (topic) {
                         const hasVideos = Array.isArray(topic.videos) && topic.videos.length > 0;
                         const hasBlookets = Array.isArray(topic.blookets) && topic.blookets.length > 0;
-                        const hasPdf = topic.pdf && topic.pdf.trim() !== '';
+                        const hasPdfs = Array.isArray(topic.pdfs) && topic.pdfs.length > 0;
 
-                        if (hasVideos || hasBlookets || hasPdf) {
+                        if (hasVideos || hasBlookets || hasPdfs) {
                             videoSection = `
                                 <div class="resources-section">
                                     <h3>📚 Lesson Resources: ${topic.description}</h3>
                             `;
 
-                            if (hasPdf) {
-                                videoSection += `
-                                    <div class="pdf-resources">
+                            if (hasPdfs) {
+                                videoSection += '<div class="pdf-resources">';
+                                topic.pdfs.forEach((pdf, index) => {
+                                    const worksheetLabel = topic.pdfs.length > 1 
+                                        ? `📄 Follow-Along Worksheet ${index + 1}:` 
+                                        : '📄 Follow-Along Worksheet:';
+                                    videoSection += `
                                         <div class="pdf-item">
-                                            <span class="pdf-label">📄 Follow-Along Worksheet:</span>
-                                            <a href="${topic.pdf}" target="_blank" class="pdf-link">
+                                            <span class="pdf-label">${worksheetLabel}</span>
+                                            <a href="${pdf}" target="_blank" class="pdf-link">
                                                 View/Download PDF
                                             </a>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
+                                });
+                                videoSection += '</div>';
                             }
 
                             if (hasVideos) {
