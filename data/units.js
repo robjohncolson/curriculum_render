@@ -251,7 +251,7 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1ZpPac1ofe4Bot2yrLgwLPvSHdMUHvK4J/view?usp=drive_link"
             }
         ],
-        pdf: "pdf/u2l4_1.pdf"
+        pdf: "pdf/u2l4_1.pdf",
         pdf: "pdf/u2l4_2.pdf"
       },
       {
