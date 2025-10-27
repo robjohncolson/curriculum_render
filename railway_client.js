@@ -208,23 +208,28 @@
 
   // Railway-enhanced answer submission
   async function submitAnswerViaRailway(username, questionId, answerValue, timestamp) {
+      const fallbackSubmit = typeof window.originalPushAnswer === 'function'
+          ? window.originalPushAnswer
+          : null;
       if (!USE_RAILWAY) {
           // Fall back to direct Supabase
-          return window.originalPushAnswer(username, questionId, answerValue, timestamp);
+          return fallbackSubmit ? fallbackSubmit(username, questionId, answerValue, timestamp) : false;
       }
 
       try {
+          const payload = {
+              username,
+              question_id: questionId,
+              answer_value: answerValue,
+              timestamp: timestamp
+          };
+          console.log(`[Railway] submit ${questionId}: payload ready (${typeof answerValue})`);
           const response = await fetch(`${RAILWAY_SERVER_URL}/api/submit-answer`, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                  username,
-                  question_id: questionId,
-                  answer_value: answerValue,
-                  timestamp: timestamp
-              })
+              body: JSON.stringify(payload)
           });
 
           const result = await response.json();
@@ -238,7 +243,7 @@
       } catch (error) {
           console.error('Railway submit failed, falling back to direct Supabase:', error);
           // Only fall back if Railway actually failed
-          return window.originalPushAnswer(username, questionId, answerValue, timestamp);
+          return fallbackSubmit ? fallbackSubmit(username, questionId, answerValue, timestamp) : false;
       }
   }
 
@@ -323,12 +328,21 @@
       }
 
       try {
+          const normalized = answers.map(answer => ({
+              username: answer.username,
+              question_id: answer.question_id,
+              answer_value: answer.answer_value,
+              timestamp: typeof answer.timestamp === 'string'
+                  ? new Date(answer.timestamp).getTime()
+                  : answer.timestamp
+          }));
+          console.log(`[Railway] batch submit: ${normalized.length} answers`);
           const response = await fetch(`${RAILWAY_SERVER_URL}/api/batch-submit`, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ answers })
+              body: JSON.stringify({ answers: normalized })
           });
 
           const result = await response.json();

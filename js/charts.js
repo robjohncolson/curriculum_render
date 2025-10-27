@@ -89,6 +89,7 @@ function renderChartNow(chartData, canvasId) {
 
             // Configure bar spacing - gaps for bar charts, no gaps for histograms
             const isHistogram = chartData.chartType === 'histogram';
+            const binningMode = isHistogram ? (config.binningMode || 'auto') : null;
             const categoryPercentage = isHistogram ? 1.0 : 0.8;
             const barPercentage = isHistogram ? 1.0 : 0.9;
 
@@ -232,7 +233,7 @@ function renderChartNow(chartData, canvasId) {
                             ticks: {
                                 color: getTextColor()
                             },
-                            offset: true
+                            offset: isHistogram ? (binningMode === 'explicit' ? false : true) : true
                         }
                     },
                     plugins: {
@@ -255,21 +256,146 @@ function renderChartNow(chartData, canvasId) {
             });
             window.chartInstances[canvasId] = chart;
 
-        } else if (chartData.chartType === 'pie') {
-            const seriesData = chartData.series[0].values;
-            const labels = seriesData.map(item => item.name);
-            const values = seriesData.map(item => item.value);
+        } else if (chartData.chartType === 'line') {
+            const series = Array.isArray(chartData.series) ? chartData.series : [];
+            let labels = Array.isArray(chartData.xLabels) ? chartData.xLabels.slice() : [];
+
+            if (!labels.length && series.length > 0) {
+                labels = series[0].values.map((_, index) => `Category ${index + 1}`);
+            }
+
+            const xAxisConfig = config.xAxis || {};
+            const yAxisConfig = config.yAxis || {};
+
+            let showHorizontalGrid = true;
+            let showVerticalGrid = true;
+
+            if (config.gridLines !== undefined) {
+                if (typeof config.gridLines === 'boolean') {
+                    showHorizontalGrid = config.gridLines;
+                    showVerticalGrid = config.gridLines;
+                } else if (typeof config.gridLines === 'object') {
+                    showHorizontalGrid = config.gridLines.horizontal !== false;
+                    showVerticalGrid = config.gridLines.vertical !== false;
+                }
+            }
+
+            const colorPalette = generateChartColors(Math.max(series.length, 1));
+            const datasets = series.map((seriesItem, index) => {
+                const color = colorPalette[index % colorPalette.length];
+                const valuesArray = Array.isArray(seriesItem.values) ? seriesItem.values : [];
+                return {
+                    label: seriesItem.name || `Series ${index + 1}`,
+                    data: valuesArray.map(value => Number(value) || 0),
+                    borderColor: color,
+                    backgroundColor: applyAlphaToColor(color, config.fillArea === true ? 0.25 : 0.05),
+                    fill: config.fillArea === true,
+                    tension: 0.25,
+                    pointBackgroundColor: color,
+                    pointBorderColor: color,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                };
+            });
 
             const chart = new Chart(ctx, {
-                type: 'pie',
+                type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: generateChartColors(values.length),
-                        borderWidth: 2,
-                        borderColor: isDarkMode() ? '#2d2d2d' : '#fff'
-                    }]
+                    labels,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: xAxisConfig.title || 'Category',
+                                color: getTextColor()
+                            },
+                            grid: {
+                                display: showVerticalGrid,
+                                color: getGridColor()
+                            },
+                            ticks: {
+                                color: getTextColor()
+                            }
+                        },
+                        y: {
+                            min: yAxisConfig.min,
+                            max: yAxisConfig.max,
+                            beginAtZero: yAxisConfig.min !== undefined ? (yAxisConfig.min === 0) : true,
+                            title: {
+                                display: true,
+                                text: yAxisConfig.title || 'Value',
+                                color: getTextColor()
+                            },
+                            grid: {
+                                display: showHorizontalGrid,
+                                color: getGridColor()
+                            },
+                            ticks: {
+                                color: getTextColor(),
+                                stepSize: yAxisConfig.tickInterval
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: datasets.length > 1,
+                            labels: {
+                                color: getTextColor()
+                            }
+                        },
+                        datalabels: {
+                            display: config.showPointLabels === true,
+                            color: getTextColor(),
+                            align: 'top',
+                            anchor: 'end',
+                            formatter: (value) => value
+                        }
+                    }
+                }
+            });
+            window.chartInstances[canvasId] = chart;
+
+        } else if (chartData.chartType === 'pie' || chartData.chartType === 'doughnut' || chartData.chartType === 'polarArea') {
+            const chartType = chartData.chartType;
+            const firstSeries = Array.isArray(chartData.series) && chartData.series.length > 0
+                ? chartData.series[0]
+                : { values: [] };
+            const seriesData = Array.isArray(firstSeries.values) ? firstSeries.values : [];
+            const labels = seriesData.map(item => item.name || '');
+            const values = seriesData.map(item => Number(item.value) || 0);
+            const colors = generateChartColors(values.length);
+            const isPolarArea = chartType === 'polarArea';
+
+            const datasetConfig = {
+                data: values,
+                backgroundColor: colors
+            };
+
+            if (isPolarArea) {
+                datasetConfig.borderColor = colors.map(color => applyAlphaToColor(color, 0.9));
+                datasetConfig.borderWidth = 1;
+            } else {
+                datasetConfig.borderColor = isDarkMode() ? '#2d2d2d' : '#fff';
+                datasetConfig.borderWidth = 2;
+            }
+
+            const total = values.reduce((acc, value) => acc + value, 0);
+            const showLabels = config.showPointLabels === true;
+
+            const chart = new Chart(ctx, {
+                type: isPolarArea ? 'polarArea' : chartType,
+                data: {
+                    labels,
+                    datasets: [datasetConfig]
                 },
                 options: {
                     responsive: true,
@@ -279,27 +405,140 @@ function renderChartNow(chartData, canvasId) {
                             position: 'bottom',
                             labels: {
                                 padding: 20,
-                                usePointStyle: true,
+                                usePointStyle: !isPolarArea,
                                 color: getTextColor()
                             }
                         },
-                        // Optional data labels for pie charts (percentages) when chartConfig.showPointLabels is true
                         datalabels: {
-                            display: (config.showPointLabels === true),
+                            display: showLabels,
                             color: getTextColor(),
                             formatter: function(value, context) {
-                                const total = values.reduce((a, b) => a + b, 0);
+                                if (!showLabels) return '';
+                                if (isPolarArea || total === 0) {
+                                    return value;
+                                }
                                 const percentage = ((value / total) * 100).toFixed(1);
-                                return percentage + '%';
+                                return `${percentage}%`;
                             }
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const total = values.reduce((a, b) => a + b, 0);
+                                    const label = context.label || '';
+                                    if (isPolarArea || total === 0) {
+                                        return `${label}: ${context.parsed}`;
+                                    }
                                     const percentage = ((context.parsed / total) * 100).toFixed(1);
-                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                    return `${label}: ${context.parsed} (${percentage}%)`;
                                 }
+                            }
+                        }
+                    }
+                }
+            });
+            window.chartInstances[canvasId] = chart;
+
+        } else if (chartData.chartType === 'bubble') {
+            const points = Array.isArray(chartData.points) ? chartData.points : [];
+            const xAxisConfig = config.xAxis || {};
+            const yAxisConfig = config.yAxis || {};
+
+            let showHorizontalGrid = true;
+            let showVerticalGrid = true;
+
+            if (config.gridLines !== undefined) {
+                if (typeof config.gridLines === 'boolean') {
+                    showHorizontalGrid = config.gridLines;
+                    showVerticalGrid = config.gridLines;
+                } else if (typeof config.gridLines === 'object') {
+                    showHorizontalGrid = config.gridLines.horizontal !== false;
+                    showVerticalGrid = config.gridLines.vertical !== false;
+                }
+            }
+
+            const colors = generateChartColors(Math.max(points.length, 1));
+            const dataset = {
+                label: config.seriesName || 'Bubbles',
+                data: points.map((pt) => ({
+                    x: Number(pt.x) || 0,
+                    y: Number(pt.y) || 0,
+                    r: Math.max(Number(pt.r) || 0, 0),
+                    label: pt.label
+                }))
+            };
+
+            const bubbleColors = dataset.data.map((_item, index) => colors[index % colors.length] || getScatterPointColor());
+            dataset.backgroundColor = bubbleColors.map(color => applyAlphaToColor(color, 0.65));
+            dataset.borderColor = bubbleColors;
+            dataset.borderWidth = 1;
+
+            const chart = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [dataset]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            min: xAxisConfig.min,
+                            max: xAxisConfig.max,
+                            title: {
+                                display: true,
+                                text: xAxisConfig.title || 'X Value',
+                                color: getTextColor()
+                            },
+                            grid: {
+                                display: showVerticalGrid,
+                                color: getGridColor()
+                            },
+                            ticks: {
+                                color: getTextColor(),
+                                stepSize: xAxisConfig.tickInterval
+                            }
+                        },
+                        y: {
+                            min: yAxisConfig.min,
+                            max: yAxisConfig.max,
+                            title: {
+                                display: true,
+                                text: yAxisConfig.title || 'Y Value',
+                                color: getTextColor()
+                            },
+                            grid: {
+                                display: showHorizontalGrid,
+                                color: getGridColor()
+                            },
+                            ticks: {
+                                color: getTextColor(),
+                                stepSize: yAxisConfig.tickInterval
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        datalabels: {
+                            display: (ctx) => {
+                                const item = dataset.data[ctx.dataIndex];
+                                return (item && item.label) || config.showPointLabels === true;
+                            },
+                            align: 'center',
+                            anchor: 'center',
+                            color: getTextColor(),
+                            formatter: (value, context) => {
+                                const item = dataset.data[context.dataIndex];
+                                if (item && item.label) {
+                                    return item.label;
+                                }
+                                if (config.showPointLabels === true) {
+                                    return value.r;
+                                }
+                                return '';
                             }
                         }
                     }
@@ -560,6 +799,77 @@ function renderChartNow(chartData, canvasId) {
                 chart.options.plugins.push(labelPlugin);
                 chart.update();
             }
+
+        } else if (chartData.chartType === 'radar') {
+            const categories = Array.isArray(chartData.categories) ? chartData.categories : [];
+            const datasetsInput = Array.isArray(chartData.datasets) ? chartData.datasets : [];
+            const radialConfig = config.yAxis || {};
+
+            const colorPalette = generateChartColors(Math.max(datasetsInput.length, 1));
+            const datasets = datasetsInput.map((dataset, index) => {
+                const color = colorPalette[index % colorPalette.length];
+                return {
+                    label: dataset.name || `Series ${index + 1}`,
+                    data: (dataset.values || []).map(value => Number(value) || 0),
+                    borderColor: color,
+                    backgroundColor: applyAlphaToColor(color, 0.25),
+                    pointBackgroundColor: color,
+                    pointBorderColor: color,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.25
+                };
+            });
+
+            const chart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: categories,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: radialConfig.min === undefined ? true : radialConfig.min === 0,
+                            min: radialConfig.min,
+                            max: radialConfig.max,
+                            angleLines: {
+                                color: getGridColor()
+                            },
+                            grid: {
+                                color: getGridColor()
+                            },
+                            pointLabels: {
+                                color: getTextColor()
+                            },
+                            ticks: {
+                                color: getTextColor(),
+                                stepSize: radialConfig.tickInterval,
+                                backdropColor: 'transparent'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: datasets.length > 1,
+                            labels: {
+                                color: getTextColor()
+                            }
+                        },
+                        datalabels: {
+                            display: config.showPointLabels === true,
+                            color: getTextColor(),
+                            align: 'end',
+                            anchor: 'end',
+                            formatter: (value) => value
+                        }
+                    }
+                }
+            });
+            window.chartInstances[canvasId] = chart;
 
         } else if (chartData.chartType === 'dotplot') {
             const config = chartData.chartConfig || {};
@@ -1142,11 +1452,14 @@ function renderChartNow(chartData, canvasId) {
             // --------------------------------------------------
             // Normal distribution curve with optional shaded region
             // --------------------------------------------------
-            const mean = (typeof chartData.mean === 'number') ? chartData.mean : 0;
-            const sd   = (typeof chartData.sd   === 'number' && chartData.sd > 0) ? chartData.sd : 1;
-            const shade = chartData.shade || null; // {lower: number|null, upper: number|null}
-
             const config        = chartData.chartConfig || {};
+            const useProvidedParams = config.useProvidedParams !== false;
+            const rawMean = (typeof chartData.mean === 'number') ? chartData.mean : 0;
+            const rawSd   = (typeof chartData.sd   === 'number' && chartData.sd > 0) ? chartData.sd : 1;
+            const mean    = useProvidedParams ? rawMean : 0;
+            const sd      = useProvidedParams ? rawSd : 1;
+            const shade   = chartData.shade || null; // {lower: number|null, upper: number|null}
+
             const xAxisConfig   = config.xAxis || {};
             const yAxisConfig   = config.yAxis || {};
 
@@ -1513,6 +1826,36 @@ function renderChartNow(chartData, canvasId) {
             });
             window.chartInstances[canvasId] = chart;
         }
+}
+
+function applyAlphaToColor(color, alpha) {
+    if (!color) {
+        return `rgba(0, 0, 0, ${alpha})`;
+    }
+    if (color.startsWith('#')) {
+        let hex = color.slice(1);
+        if (hex.length === 3) {
+            hex = hex.split('').map(ch => ch + ch).join('');
+        }
+        const int = parseInt(hex, 16);
+        if (!Number.isFinite(int)) {
+            return color;
+        }
+        const r = (int >> 16) & 255;
+        const g = (int >> 8) & 255;
+        const b = int & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    if (color.startsWith('rgba')) {
+        return color.replace(/rgba\(([^)]+)\)/, (_match, contents) => {
+            const parts = contents.split(',').map(part => part.trim());
+            return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+        });
+    }
+    if (color.startsWith('rgb')) {
+        return color.replace(/rgb\(([^)]+)\)/, (_match, contents) => `rgba(${contents}, ${alpha})`);
+    }
+    return color;
 }
 
 // Compatibility wrapper for old renderChart calls (deprecated)

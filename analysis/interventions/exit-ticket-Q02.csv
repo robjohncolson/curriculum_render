@@ -1,4 +1,0 @@
-itemNumber,questionText,correctAnswer,skill,difficulty
-1,"Given μ = 48.5g and σ = 1.2g, calculate the z-score for a Reese's cup weighing 47g. Then find the proportion of cups weighing LESS than 47g.",z = -1.25; proportion ≈ 0.1056 or 10.6%,Z_TO_PROP,medium
-2,"Using the same distribution (μ = 48.5g, σ = 1.2g), what proportion of Reese's cups weigh MORE than 50g?",z = 1.25; proportion above = 1 - 0.8944 ≈ 0.1056 or 10.6%,Z_TO_PROP,medium
-3,"Interpret your answer from Item 2 in context.","About 10.6% of Reese's Peanut Butter Cups weigh more than 50g." (or similar context-specific statement),CONTEXT,easy

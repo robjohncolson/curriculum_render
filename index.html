@@ -31,6 +31,7 @@
     <div class="container">
         <h1>🧮 AP Statistics Consensus Quiz</h1>
         <div id="messageArea"></div>
+        <div id="restoreStatusBanner" class="message success" style="display: none;"></div>
         <div id="questionsContainer"></div>
     </div>
 
@@ -89,6 +90,26 @@
                             <small>Import answers from a backup file</small>
                         </span>
                     </button>
+                    <button id="cloudRestoreBtn" class="modal-btn" style="display: none;">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        <span>
+                            <strong>Restore from Cloud</strong>
+                            <small>Use your Supabase backup (turbo mode)</small>
+                        </span>
+                    </button>
+                </div>
+                <div id="cloudRestoreHelper" class="helper-text" style="display: none; margin-top: 8px;">
+                    <i class="fas fa-info-circle"></i> Turbo mode must be active to restore from the cloud.
+                </div>
+                <div id="autoExportContainer" class="auto-export-control" style="display: none; margin-top: 12px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="autoExportToggle" style="width: 18px; height: 18px;">
+                        <span>
+                            <strong>Auto-export Recovery Pack</strong><br>
+                            <small>Beta: Save updates to a chosen folder automatically</small>
+                        </span>
+                    </label>
+                    <small id="autoExportSupportNote" class="helper-text" style="display: block; margin-top: 6px;"></small>
                 </div>
             </div>
 
@@ -109,11 +130,17 @@
                             <small>Load peer answers from teacher's file</small>
                         </span>
                     </button>
+                    <button id="classPacksBtn" class="modal-btn" style="display: none;">
+                        <i class="fas fa-layer-group"></i>
+                        <span>
+                            <strong>Generate Class Packs</strong>
+                            <small>Create recovery packs for every student</small>
+                        </span>
+                    </button>
                 </div>
             </div>
 
             <div class="sync-footer">
-                <small><i class="fas fa-keyboard"></i> Tip: Press Ctrl+S to quickly access sync options</small>
             </div>
         </div>
     </div>
@@ -177,10 +204,14 @@
     </div>
 
 
-<script src="data/curriculum.js"></script>
+    <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
+    <script src="data/chart_questions.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
+    <script src="js/chart_registry.js"></script>
+    <script src="js/chart_wizard.js"></script>
+    <script defer src="docs/analysis/frq_chart_inventory.js"></script>
     <script>
 
         // ========================================
@@ -192,6 +223,108 @@
         let turboModeActive = false;
         let syncCheckInterval = null;
         let lastPeerDataTimestamp = null;
+
+        window.FEATURE_FLAGS = Object.assign({
+            restoreFromCloud: true,
+            classPacks: false,
+            autoExport: false
+        }, window.FEATURE_FLAGS || {});
+
+        const recoveryAutoExport = {
+            enabled: false,
+            directoryHandle: null,
+            debounceTimer: null,
+            support: typeof window.showDirectoryPicker === 'function',
+            lastReason: null,
+            async enable() {
+                if (!this.support) {
+                    return false;
+                }
+                try {
+                    const handle = await window.showDirectoryPicker();
+                    let permission = await handle.queryPermission({ mode: 'readwrite' });
+                    if (permission !== 'granted') {
+                        permission = await handle.requestPermission({ mode: 'readwrite' });
+                    }
+                    if (permission !== 'granted') {
+                        showMessage('Permission denied for auto-export folder.', 'error');
+                        return false;
+                    }
+                    this.directoryHandle = handle;
+                    this.enabled = true;
+                    localStorage.setItem('recoveryAutoExportEnabled', 'true');
+                    localStorage.setItem('recoveryAutoExportFolderName', handle.name || 'selected folder');
+                    console.info('RECOVERY: Auto-export enabled for folder', handle.name || 'unknown');
+                    return true;
+                } catch (error) {
+                    console.warn('RECOVERY: Auto-export enable cancelled or failed', error);
+                    return false;
+                }
+            },
+            disable() {
+                this.enabled = false;
+                this.directoryHandle = null;
+                if (this.debounceTimer) {
+                    clearTimeout(this.debounceTimer);
+                    this.debounceTimer = null;
+                }
+                localStorage.removeItem('recoveryAutoExportEnabled');
+                console.info('RECOVERY: Auto-export disabled');
+            },
+            queue(reason = 'auto') {
+                if (!window.FEATURE_FLAGS.autoExport || !this.enabled || !this.directoryHandle || !currentUsername) {
+                    return;
+                }
+                this.lastReason = reason;
+                if (this.debounceTimer) {
+                    clearTimeout(this.debounceTimer);
+                }
+                this.debounceTimer = setTimeout(() => {
+                    this.perform(currentUsername).catch(error => {
+                        console.warn('RECOVERY: Auto-export failed', error);
+                    });
+                }, 8000);
+            },
+            async perform(username) {
+                if (!window.FEATURE_FLAGS.autoExport || !this.enabled || !this.directoryHandle || !username) {
+                    return;
+                }
+                try {
+                    let permission = await this.directoryHandle.queryPermission({ mode: 'readwrite' });
+                    if (permission === 'prompt') {
+                        permission = await this.directoryHandle.requestPermission({ mode: 'readwrite' });
+                    }
+                    if (permission !== 'granted') {
+                        console.warn('RECOVERY: Auto-export skipped due to missing permission');
+                        return;
+                    }
+                    if (typeof window.buildRecoveryPack !== 'function') {
+                        console.warn('RECOVERY: buildRecoveryPack not available - skipping auto-export');
+                        return;
+                    }
+                    const pack = await window.buildRecoveryPack(username);
+                    const fileName = `recovery_pack_${username}_${new Date().toISOString().split('T')[0]}.json`;
+                    const fileHandle = await this.directoryHandle.getFileHandle(fileName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(JSON.stringify(pack, null, 2));
+                    await writable.close();
+                    console.info(`RECOVERY: Auto-export wrote ${fileName}`);
+                } catch (error) {
+                    console.error('RECOVERY: Auto-export error', error);
+                }
+            }
+        };
+        window.recoveryAutoExport = recoveryAutoExport;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (navigator.storage && typeof navigator.storage.persist === 'function') {
+                navigator.storage.persist().then(granted => {
+                    console.info(`RECOVERY: Persistent storage ${granted ? 'granted' : 'denied'}`);
+                }).catch(error => {
+                    console.warn('RECOVERY: Persistent storage request failed', error);
+                });
+            }
+        });
 
         // PHASE 2 OPTIMIZATION: Answer batching queue
         let answerSyncQueue = [];
@@ -265,22 +398,21 @@
 
             try {
                 // Ensure timestamp is a number (Unix milliseconds)
-                if (typeof timestamp === 'string') {
-                    timestamp = new Date(timestamp).getTime();
-                }
+                const normalizedTimestamp = typeof timestamp === 'string'
+                    ? new Date(timestamp).getTime()
+                    : timestamp;
+
+                const payload = {
+                    username,
+                    question_id: questionId,
+                    answer_value: answerValue,
+                    timestamp: normalizedTimestamp
+                };
 
                 // Supabase v2 upsert syntax - array of objects, onConflict as separate parameter
                 const { data, error } = await supabase
                     .from('answers')
-                    .upsert(
-                        [{
-                            username: username,
-                            question_id: questionId,
-                            answer_value: answerValue,
-                            timestamp: timestamp
-                        }],
-                        { onConflict: 'username,question_id' }
-                    );
+                    .upsert([payload], { onConflict: 'username,question_id' });
 
                 if (error) throw error;
                 console.log(`✅ Synced answer for ${questionId} to cloud`);
@@ -298,7 +430,9 @@
             try {
                 // Ensure all timestamps are numbers
                 const processedBatch = answerBatch.map(answer => ({
-                    ...answer,
+                    username: answer.username,
+                    question_id: answer.question_id,
+                    answer_value: answer.answer_value,
                     timestamp: typeof answer.timestamp === 'string'
                         ? new Date(answer.timestamp).getTime()
                         : answer.timestamp
@@ -699,7 +833,7 @@
             for (const [username, userData] of Object.entries(peerData)) {
                 if (username === currentUser) continue; // skip self
                 if (!classData.users[username]) {
-                    classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                    classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                 }
                 for (const [questionId, answerData] of Object.entries(userData.answers)) {
                     const existingAnswer = classData.users[username].answers[questionId];
@@ -824,7 +958,7 @@ function mergePeerAnswer(detail) {
     ensureClassDataInitialized();
 
     if (!classData.users[username]) {
-        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
     }
 
     const existingAnswer = classData.users[username].answers[question_id];
@@ -956,6 +1090,25 @@ function refreshQuestionIfVisible(questionId) {
         let allUnitQuestions = [];
         let chartInstances = {};
         let currentTheme = 'light';
+
+        function getChartPayloadForUser(username, questionId) {
+            if (!username || !questionId) return null;
+            try {
+                const charts = classData?.users?.[username]?.charts;
+                if (!charts || !charts[questionId]) {
+                    return null;
+                }
+                return JSON.parse(JSON.stringify(charts[questionId]));
+            } catch (error) {
+                console.warn('Chart payload clone failed:', error);
+                return null;
+            }
+        }
+
+        window.getChartSubmissionPayload = function(questionId, usernameOverride) {
+            const username = usernameOverride || currentUsername || localStorage.getItem('consensusUsername') || '';
+            return getChartPayloadForUser(username.trim(), questionId);
+        };
 
         // Add this to your global variables
         let allCurriculumData = {}; // Store all units' data
@@ -1335,6 +1488,11 @@ function refreshQuestionIfVisible(questionId) {
                     // Try to find username in various formats
                     let username = null;
 
+                    if (data && data.manifest && data.data && data.manifest.username) {
+                        importDataForUser(data.manifest.username, data);
+                        return;
+                    }
+
                     // Check for direct username field (personal export)
                     if (data.username) {
                         username = data.username;
@@ -1397,6 +1555,7 @@ function refreshQuestionIfVisible(questionId) {
         // Function to show username selection dialog
         // Store import data globally for use after username selection
         let pendingImportData = null;
+        let pendingUsernameDisplayMap = {};
 
         function showUsernameSelection(usernames, importData = null) {
             // Store the import data for later use
@@ -1408,7 +1567,7 @@ function refreshQuestionIfVisible(questionId) {
 
             let optionsHTML = usernames.map(u =>
                 `<button onclick="selectUsername('${u}')" class="username-option">
-                    ${u}
+                    ${pendingUsernameDisplayMap[u] || u}
                 </button>`
             ).join('');
 
@@ -1434,6 +1593,7 @@ function refreshQuestionIfVisible(questionId) {
             if (pendingImportData) {
                 importDataForUser(username, pendingImportData);
                 pendingImportData = null;
+                pendingUsernameDisplayMap = {};
             } else {
                 checkExistingData(username);
             }
@@ -1442,6 +1602,7 @@ function refreshQuestionIfVisible(questionId) {
         window.closeUsernameSelection = function() {
             document.querySelector('.modal').remove();
             pendingImportData = null;
+            pendingUsernameDisplayMap = {};
         }
 
         // --- Start of New Code for Phase 2 (Revised) ---
@@ -1863,15 +2024,141 @@ if (continueBtn) {
 
   // --- End of importAndMergePersonalData Function for Phase 4.2 ---
 
+        async function restoreFromCloudByUsername() {
+            if (!window.FEATURE_FLAGS.restoreFromCloud) {
+                showMessage('Cloud restore is not available right now.', 'info');
+                return;
+            }
+            if (!turboModeActive || !supabase) {
+                showMessage('Turbo mode must be active to restore from the cloud.', 'error');
+                return;
+            }
+
+            const defaultUsername = currentUsername || '';
+            const input = prompt('Enter the username to restore from the cloud:', defaultUsername);
+            if (!input) {
+                showMessage('Cloud restore cancelled.', 'info');
+                return;
+            }
+
+            const username = input.trim();
+            if (!username) {
+                showMessage('A username is required to restore from the cloud.', 'error');
+                return;
+            }
+
+            showMessage('Fetching cloud backup...', 'info');
+
+            try {
+                const rows = [];
+                const pageSize = 500;
+                let rangeStart = 0;
+
+                while (true) {
+                    const { data, error } = await supabase
+                        .from('answers')
+                        .select('question_id, answer_value, timestamp')
+                        .eq('username', username)
+                        .order('timestamp', { ascending: true })
+                        .range(rangeStart, rangeStart + pageSize - 1);
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (!data || data.length === 0) {
+                        break;
+                    }
+
+                    rows.push(...data);
+
+                    if (data.length < pageSize) {
+                        break;
+                    }
+
+                    rangeStart += pageSize;
+                }
+
+                if (rows.length === 0) {
+                    showMessage('No cloud data found for that username.', 'error');
+                    return;
+                }
+
+                const answers = {};
+                const timestamps = {};
+                let latestTimestamp = 0;
+
+                rows.forEach(row => {
+                    if (!row.question_id) return;
+                    const normalizedTimestamp = row.timestamp ? Number(row.timestamp) : Date.now();
+                    latestTimestamp = Math.max(latestTimestamp, normalizedTimestamp);
+                    answers[row.question_id] = {
+                        value: row.answer_value,
+                        timestamp: normalizedTimestamp,
+                        source: 'cloud'
+                    };
+                    timestamps[row.question_id] = normalizedTimestamp;
+                });
+
+                const answerCount = Object.keys(answers).length;
+                const lastActivityText = latestTimestamp ? new Date(latestTimestamp).toLocaleString() : 'Unknown';
+                const confirmMessage = `Restore ${username} from cloud?\nRecords: ${rows.length}\nQuestions answered: ${answerCount}\nLast activity: ${lastActivityText}\n\nType YES to confirm.`;
+                const confirmation = prompt(confirmMessage, 'YES');
+                if (!confirmation || confirmation.toLowerCase() !== 'yes') {
+                    showMessage('Cloud restore cancelled.', 'info');
+                    return;
+                }
+
+                try {
+                    if (localStorage.getItem(`answers_${username}`) && typeof window.buildRecoveryPack === 'function') {
+                        const backupPack = await window.buildRecoveryPack(username);
+                        const backupKey = `recovery_localBackup_${username}_${Date.now()}`;
+                        localStorage.setItem(backupKey, JSON.stringify(backupPack));
+                        console.info('RECOVERY: Created local backup before cloud restore', backupKey);
+                    }
+                } catch (backupError) {
+                    console.warn('RECOVERY: Unable to create local backup before cloud restore', backupError);
+                }
+
+                const payload = {
+                    exportTime: new Date().toISOString(),
+                    users: {
+                        [username]: {
+                            answers,
+                            timestamps
+                        }
+                    },
+                    __source: 'cloud_restore'
+                };
+
+                await importDataForUser(username, payload);
+
+                const banner = document.getElementById('restoreStatusBanner');
+                const statusText = `Recovery restored for ${username} at ${new Date().toLocaleString()}`;
+                if (banner) {
+                    banner.textContent = statusText;
+                    banner.style.display = 'block';
+                    setTimeout(() => {
+                        banner.style.display = 'none';
+                        banner.textContent = '';
+                    }, 8000);
+                } else {
+                    showMessage(statusText, 'success');
+                }
+            } catch (error) {
+                console.error('RECOVERY: Cloud restore failed', error);
+                showMessage('Failed to restore from the cloud. Please try again later.', 'error');
+            }
+        }
+
         // Function to import data for a specific user
-        function importDataForUser(username, importData) {
+        async function importDataForUser(username, importData) {
             console.log('=== importDataForUser called ===');
             console.log('Target username:', username);
             console.log('Import data:', importData);
             console.log('Import data keys:', Object.keys(importData));
 
             try {
-                // Set the username first
                 currentUsername = username;
                 localStorage.setItem('consensusUsername', username);
                 initClassData();
@@ -1879,14 +2166,17 @@ if (continueBtn) {
                 let userData = null;
                 let allStudentsData = {};
                 let importSuccess = false;
+                let isRecoveryPack = false;
+                let recoveryWarnings = [];
+                let deferredLocalStorageMirror = null;
 
-                // Helper function to find username with case-insensitive matching
                 function findUserData(dataObj, targetUsername) {
-                    // Try exact match first
+                    if (!dataObj || typeof dataObj !== 'object') {
+                        return null;
+                    }
                     if (dataObj[targetUsername]) {
                         return { key: targetUsername, data: dataObj[targetUsername] };
                     }
-                    // Try case-insensitive match
                     const lowerTarget = targetUsername.toLowerCase();
                     for (const key in dataObj) {
                         if (key.toLowerCase() === lowerTarget) {
@@ -1897,8 +2187,44 @@ if (continueBtn) {
                     return null;
                 }
 
-                // DETECTION 1: Master file with "students" field (current format)
-                if (importData.exportTime && importData.students) {
+                if (importData && importData.manifest && importData.data) {
+                    isRecoveryPack = true;
+                    let validationResult = { ok: true, warnings: [] };
+                    if (typeof window.validateRecoveryPack === 'function') {
+                        validationResult = await window.validateRecoveryPack(importData);
+                        if (!validationResult.ok) {
+                            showMessage('Recovery Pack is missing required information.', 'error');
+                            return;
+                        }
+                        recoveryWarnings = validationResult.warnings || [];
+                        if (recoveryWarnings.length > 0) {
+                            console.warn('RECOVERY: Recovery Pack warnings', recoveryWarnings);
+                        }
+                    }
+
+                    const packData = importData.data || {};
+                    const normalizedAnswers = packData.answers
+                        ? migrateAnswersToStandardFormat(packData.answers)
+                        : {};
+
+                    userData = {
+                        answers: normalizedAnswers,
+                        reasons: packData.reasons || {},
+                        progress: packData.progress || {},
+                        timestamps: packData.timestamps || {},
+                        attempts: packData.attempts || {},
+                        badges: packData.badges || {},
+                        preferences: packData.preferences || {},
+                        charts: packData.charts || {}
+                    };
+
+                    allStudentsData = packData.classDataUser && typeof packData.classDataUser === 'object'
+                        ? { [username]: packData.classDataUser }
+                        : { [username]: userData };
+
+                    deferredLocalStorageMirror = packData.localStorageMirror;
+                    importSuccess = true;
+                } else if (importData.exportTime && importData.students) {
                     const userMatch = findUserData(importData.students, username);
                     if (userMatch) {
                         console.log('Detected: Master file with students field');
@@ -1906,9 +2232,7 @@ if (continueBtn) {
                         allStudentsData = importData.students;
                         importSuccess = true;
                     }
-                }
-                // DETECTION 2: Legacy individual file with "users" field
-                else if (importData.exportTime && importData.users) {
+                } else if (importData.exportTime && importData.users) {
                     const userMatch = findUserData(importData.users, username);
                     if (userMatch) {
                         console.log('Detected: Legacy individual file with users field');
@@ -1916,12 +2240,9 @@ if (continueBtn) {
                         allStudentsData = importData.users;
                         importSuccess = true;
                     }
-                }
-                // DETECTION 3: Master database export format
-                else if (importData.exportType === 'master_database') {
+                } else if (importData.exportType === 'master_database') {
                     console.log('Detected: Master database format');
                     if (importData.allAnswers && importData.allAnswers[username]) {
-                        // STANDARDIZATION FIX: Use migration function for consistency
                         const standardizedAnswers = migrateAnswersToStandardFormat(importData.allAnswers[username]);
                         localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
                         importSuccess = true;
@@ -1933,21 +2254,81 @@ if (continueBtn) {
                         localStorage.setItem('classData', JSON.stringify(importData.classData));
                     }
                     showMessage(`Master database imported successfully for ${username}!`, 'success');
-                }
-                // DETECTION 4: Simple username-only format (fallback)
-                else if (importData.username || importData.consensusUsername) {
+                } else if (importData.username || importData.consensusUsername) {
                     console.log('Detected: Username-only format');
                     showMessage(`Username set to ${username} from import file.`, 'success');
                     importSuccess = true;
                 }
 
-                // Process user data if found (for formats 1 & 2)
                 if (userData) {
                     console.log(`Processing user data for ${username}:`, userData);
 
-                    // Import user's personal data to both individual keys AND classData structure
+                    const existingClassUser = (classData.users && classData.users[username]) || {};
+                    let existingAnswerCount = 0;
+                    try {
+                        const existingAnswersRaw = localStorage.getItem(`answers_${username}`);
+                        if (existingAnswersRaw) {
+                            const parsedExisting = JSON.parse(existingAnswersRaw);
+                            existingAnswerCount = Object.keys(parsedExisting || {}).length;
+                        }
+                    } catch (parseError) {
+                        console.warn('RECOVERY: Failed to parse existing answers for conflict detection', parseError);
+                    }
+                    if (existingClassUser && existingClassUser.answers) {
+                        existingAnswerCount = Math.max(existingAnswerCount, Object.keys(existingClassUser.answers || {}).length);
+                    }
+
+                    const incomingAnswerCount = Object.keys(userData.answers || {}).length;
+                    let conflictChoice = 'import';
+
+                    if (existingAnswerCount > 0 && incomingAnswerCount > 0) {
+                        const choice = prompt(`Existing data detected for ${username}.\n1) Use Cloud/File (replace)\n2) Keep Local\n3) Merge\nEnter 1, 2, or 3 (default 1):`, '1');
+                        const normalizedChoice = (choice || '1').trim();
+                        if (normalizedChoice === '2') {
+                            conflictChoice = 'local';
+                        } else if (normalizedChoice === '3') {
+                            conflictChoice = 'merge';
+                        }
+                    }
+
+                    if (existingAnswerCount > 0 && conflictChoice !== 'local') {
+                        try {
+                            if (typeof window.buildRecoveryPack === 'function') {
+                                const backupPack = await window.buildRecoveryPack(username);
+                                const backupKey = `recovery_localBackup_${username}_${Date.now()}`;
+                                localStorage.setItem(backupKey, JSON.stringify(backupPack));
+                                console.info('RECOVERY: Local backup stored at', backupKey);
+                            }
+                        } catch (backupError) {
+                            console.warn('RECOVERY: Failed to create local backup before import', backupError);
+                        }
+                    }
+
+                    if (conflictChoice === 'local') {
+                        showMessage('Kept your local data. No changes were imported.', 'info');
+                        return;
+                    }
+
+                    if (conflictChoice === 'merge' && typeof mergePersonalData === 'function') {
+                        userData = mergePersonalData(existingClassUser || {}, userData || {});
+                        allStudentsData[username] = userData;
+                        importSuccess = true;
+                    }
+
+                    if (deferredLocalStorageMirror && conflictChoice !== 'local') {
+                        Object.keys(deferredLocalStorageMirror || {}).forEach(key => {
+                            const value = deferredLocalStorageMirror[key];
+                            if (typeof value === 'string') {
+                                try {
+                                    localStorage.setItem(key, value);
+                                } catch (storageError) {
+                                    console.warn('RECOVERY: Unable to restore localStorage key', key, storageError);
+                                }
+                            }
+                        });
+                    }
+
                     if (userData.answers) {
-                        // STANDARDIZATION FIX: Use migration function for consistency
                         const standardizedAnswers = migrateAnswersToStandardFormat(userData.answers);
                         localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
                         console.log(`Imported ${Object.keys(standardizedAnswers).length} answers for ${username} (standardized format)`);
@@ -1966,58 +2347,52 @@ if (continueBtn) {
                         localStorage.setItem(`attempts_${username}`, JSON.stringify(userData.attempts));
                     }
 
-                    // CRITICAL: Update classData for both current user AND peer data
-                    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-                    if (!classData.users) classData.users = {};
-
-                    // First, ensure current user exists in classData and populate their data
-                    if (!classData.users[username]) {
-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{}');
+                    if (!classDataSnapshot.users) classDataSnapshot.users = {};
+                    if (!classDataSnapshot.users[username]) {
+                        classDataSnapshot.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                     }
+
                     if (userData.answers) {
-                        // STANDARDIZATION FIX: Use migration function for current user too
                         const standardizedAnswers = migrateAnswersToStandardFormat(userData.answers);
-                        Object.assign(classData.users[username].answers, standardizedAnswers);
-                        // Also update timestamps
+                        Object.assign(classDataSnapshot.users[username].answers, standardizedAnswers);
                         Object.keys(standardizedAnswers).forEach(qId => {
-                            classData.users[username].timestamps[qId] = standardizedAnswers[qId].timestamp;
+                            classDataSnapshot.users[username].timestamps[qId] = standardizedAnswers[qId].timestamp;
                         });
                     }
-                    if (userData.reasons) Object.assign(classData.users[username].reasons, userData.reasons);
-                    if (userData.timestamps) Object.assign(classData.users[username].timestamps, userData.timestamps);
-                    if (userData.attempts) Object.assign(classData.users[username].attempts, userData.attempts);
-                    console.log(`Updated classData for current user ${username} with ${Object.keys(userData.answers || {}).length} answers (standardized format)`);
+                    if (userData.reasons) Object.assign(classDataSnapshot.users[username].reasons, userData.reasons);
+                    if (userData.timestamps) Object.assign(classDataSnapshot.users[username].timestamps, userData.timestamps);
+                    if (userData.attempts) Object.assign(classDataSnapshot.users[username].attempts, userData.attempts);
 
                     let peerCount = 0;
-                    Object.keys(allStudentsData).forEach(otherUsername => {
+                    Object.keys(allStudentsData || {}).forEach(otherUsername => {
                         if (otherUsername !== username) {
                             peerCount++;
-                            if (!classData.users[otherUsername]) {
-                                classData.users[otherUsername] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                            if (!classDataSnapshot.users[otherUsername]) {
+                                classDataSnapshot.users[otherUsername] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                             }
 
                             const otherUserData = allStudentsData[otherUsername];
-                            if (otherUserData.answers) {
-                                // STANDARDIZATION FIX: Use consistent object format for peer data too
+                            if (otherUserData && otherUserData.answers) {
                                 const standardizedAnswers = migrateAnswersToStandardFormat(otherUserData.answers);
                                 Object.keys(standardizedAnswers).forEach(questionId => {
                                     const answerObj = standardizedAnswers[questionId];
-                                    // Store the full object, not just the value
-                                    classData.users[otherUsername].answers[questionId] = answerObj;
-                                    // Also store timestamp separately for backward compatibility
-                                    classData.users[otherUsername].timestamps[questionId] = answerObj.timestamp;
+                                    classDataSnapshot.users[otherUsername].answers[questionId] = answerObj;
+                                    classDataSnapshot.users[otherUsername].timestamps[questionId] = answerObj.timestamp;
                                 });
                             }
-                            if (otherUserData.reasons) {
-                                Object.assign(classData.users[otherUsername].reasons, otherUserData.reasons);
+                            if (otherUserData && otherUserData.reasons) {
+                                Object.assign(classDataSnapshot.users[otherUsername].reasons, otherUserData.reasons);
                             }
-                            if (otherUserData.attempts) {
-                                Object.assign(classData.users[otherUsername].attempts, otherUserData.attempts);
+                            if (otherUserData && otherUserData.attempts) {
+                                Object.assign(classDataSnapshot.users[otherUsername].attempts, otherUserData.attempts);
                             }
                         }
                     });
 
-                    localStorage.setItem('classData', JSON.stringify(classData));
+                    localStorage.setItem('classData', JSON.stringify(classDataSnapshot));
+                    classData = classDataSnapshot;
+                    window.classData = classDataSnapshot;
                     showMessage(`Data imported successfully for ${username}! Found ${peerCount} peer students.`, 'success');
                 }
 
@@ -2025,14 +2400,22 @@ if (continueBtn) {
                     throw new Error('Unrecognized file format - check your file structure');
                 }
 
-                // Initialize and show welcome, then navigate to units
                 showUsernameWelcome();
                 initializeFromEmbeddedData();
 
-                // Auto-navigate to units page after successful import
                 setTimeout(() => {
                     showMessage(`Successfully imported data for ${username}! Redirecting to units...`, 'success');
                 }, 500);
+
+                if (isRecoveryPack && recoveryWarnings.length > 0) {
+                    setTimeout(() => {
+                        showMessage(`⚠️ Recovery Pack warning: ${recoveryWarnings.join('; ')}`, 'error');
+                    }, 4500);
+                }
+
+                if (window.recoveryAutoExport) {
+                    window.recoveryAutoExport.queue('restore');
+                }
 
             } catch (error) {
                 showMessage('Error importing data: ' + error.message, 'error');
@@ -2179,6 +2562,54 @@ if (continueBtn) {
             reader.readAsText(file);
         }
 
+        function normalizeToken(value) {
+            return (value || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function extractMasterUserMap(masterData) {
+            const userMap = {};
+            if (!masterData || typeof masterData !== 'object') {
+                return userMap;
+            }
+
+            const mergeSource = source => {
+                if (source && typeof source === 'object') {
+                    Object.keys(source).forEach(key => {
+                        if (!userMap[key]) {
+                            userMap[key] = source[key];
+                        }
+                    });
+                }
+            };
+
+            mergeSource(masterData.students);
+            mergeSource(masterData.users);
+
+            if (masterData.allUsers) {
+                if (Array.isArray(masterData.allUsers)) {
+                    masterData.allUsers.forEach(entry => {
+                        if (typeof entry === 'string' && !userMap[entry]) {
+                            userMap[entry] = {};
+                        } else if (entry && typeof entry === 'object' && entry.username && !userMap[entry.username]) {
+                            userMap[entry.username] = entry;
+                        }
+                    });
+                } else if (typeof masterData.allUsers === 'object') {
+                    mergeSource(masterData.allUsers);
+                }
+            }
+
+            if (masterData.allAnswers && typeof masterData.allAnswers === 'object') {
+                Object.keys(masterData.allAnswers).forEach(key => {
+                    if (!userMap[key]) {
+                        userMap[key] = { answers: masterData.allAnswers[key] };
+                    }
+                });
+            }
+
+            return userMap;
+        }
+
         function parseCSVMapping(csvText) {
             const lines = csvText.trim().split('\n');
             if (lines.length < 1) return null;
@@ -2191,9 +2622,11 @@ if (continueBtn) {
                 // Split by comma and clean up the values
                 const parts = line.split(',').map(part => part.trim().replace(/^["']|["']$/g, ''));
                 if (parts.length >= 2 && parts[0] && parts[1]) {
+                    const aliases = parts.slice(2).filter(Boolean);
                     students.push({
                         name: parts[0],
-                        username: parts[1]
+                        username: parts[1],
+                        aliases
                     });
                 }
             }
@@ -2208,7 +2641,10 @@ if (continueBtn) {
             mappingData.forEach((student, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `${student.name} (${student.username})`;
+                const aliasText = student.aliases && student.aliases.length
+                    ? ` • Aliases: ${student.aliases.join(', ')}`
+                    : '';
+                option.textContent = `${student.name} (${student.username})${aliasText}`;
                 select.appendChild(option);
             });
 
@@ -2230,17 +2666,64 @@ if (continueBtn) {
             }
 
             const selectedStudent = csvMappingData[selectedIndex];
-            const username = selectedStudent.username;
-
-            // Save data before closing modal (since closeCSVImportModal clears it)
             const savedMasterData = masterDataForCSV;
 
-            // Close modal
+            const masterUserMap = extractMasterUserMap(savedMasterData);
+            const candidateReasons = new Map();
+            const addCandidate = (value, reason) => {
+                if (!value) return;
+                if (!candidateReasons.has(value)) {
+                    candidateReasons.set(value, reason);
+                }
+            };
+
+            addCandidate(selectedStudent.username, 'CSV username');
+
+            const aliasTokens = new Set();
+            aliasTokens.add(normalizeToken(selectedStudent.username));
+            aliasTokens.add(normalizeToken(selectedStudent.name));
+            (selectedStudent.aliases || []).forEach(alias => {
+                aliasTokens.add(normalizeToken(alias));
+            });
+
+            Object.keys(masterUserMap).forEach(candidate => {
+                const candidateRecord = masterUserMap[candidate];
+                const normalizedCandidate = normalizeToken(candidate);
+                if (aliasTokens.has(normalizedCandidate)) {
+                    addCandidate(candidate, 'Alias match from master data');
+                }
+                if (candidateRecord && typeof candidateRecord === 'object') {
+                    if (candidateRecord.username && aliasTokens.has(normalizeToken(candidateRecord.username))) {
+                        addCandidate(candidateRecord.username, 'Embedded username match');
+                    }
+                    if (candidateRecord.name && aliasTokens.has(normalizeToken(candidateRecord.name))) {
+                        addCandidate(candidate, 'Roster name match');
+                    }
+                }
+            });
+
+            const candidates = Array.from(candidateReasons.keys());
+
+            if (candidates.length === 0) {
+                candidates.push(selectedStudent.username);
+            }
+
+            // Close modal before proceeding
             closeCSVImportModal();
 
-            // Import data for the selected user
-            showMessage(`Importing data for ${selectedStudent.name} (${username})...`, 'info');
-            importDataForUser(username, savedMasterData);
+            if (candidates.length === 1) {
+                const resolvedUsername = candidates[0];
+                showMessage(`Importing data for ${selectedStudent.name} (${resolvedUsername})...`, 'info');
+                importDataForUser(resolvedUsername, savedMasterData);
+            } else {
+                pendingUsernameDisplayMap = {};
+                candidates.forEach(candidate => {
+                    const reason = candidateReasons.get(candidate) || 'Possible match';
+                    pendingUsernameDisplayMap[candidate] = `${candidate} (${reason})`;
+                });
+                showMessage('Multiple possible usernames found. Please choose the correct one.', 'info');
+                showUsernameSelection(candidates, savedMasterData);
+            }
         }
 
         // Global ESC Key Handler for All Modals
@@ -2298,36 +2781,7 @@ if (continueBtn) {
             }
         });
 
-        // Global Ctrl+S Shortcut Handler
-        document.addEventListener('keydown', function(event) {
-            if (event.ctrlKey && event.key === 's') {
-                // Check if user is typing in an input field
-                const activeElement = document.activeElement;
-                const isTyping = activeElement && (
-                    activeElement.tagName === 'TEXTAREA' ||
-                    activeElement.tagName === 'INPUT' ||
-                    activeElement.contentEditable === 'true' ||
-                    activeElement.classList.contains('frq-textarea') ||
-                    activeElement.classList.contains('reason-textarea')
-                );
-
-                // Don't trigger if user is typing
-                if (isTyping) {
-                    return;
-                }
-
-                // Prevent browser's default save behavior
-                event.preventDefault();
-
-                // Flash green effect
-                flashGreenScreen();
-
-                // Open sync modal after flash
-                setTimeout(() => {
-                    showSyncModal();
-                }, 150);
-            }
-        });
+        // Ctrl+S sync shortcut removed to avoid overriding native save dialogs
 
         // Green flash effect function
         function flashGreenScreen() {
@@ -2817,6 +3271,9 @@ function renderLessonSelector(unitInfo) {
                 const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
                 // FRQs are never disabled - unlimited retries allowed
                 const isDisabled = false;
+                const chartMetadata = window.CHART_QUESTIONS?.[question.id];
+                const savedChart = classData?.users?.[currentUsername]?.charts?.[question.id] || null;
+                const chartButtonLabel = savedChart ? 'Edit Chart' : 'Create Chart';
 
                 if (question.requiresGraph === 'histogram') {
                     // Graph-based FRQ: Show histogram input UI
@@ -2855,6 +3312,18 @@ function renderLessonSelector(unitInfo) {
                                 }
                             </div>
                             ${!isDisabled ? `<button type="button" onclick="addGraphRow('${question.id}')" class="add-bar-btn">Add Bar</button>` : ''}
+                            ${chartMetadata ? `
+                                <div class="chart-wizard-controls" style="margin-top: 16px;">
+                                    <button
+                                        type="button"
+                                        class="chart-wizard-button"
+                                        data-chart-button="${question.id}"
+                                        onclick="openChartWizard('${question.id}')"
+                                    >${chartButtonLabel}</button>
+                                    ${chartMetadata.prompt ? `<div class="chart-wizard-prompt">${chartMetadata.prompt}</div>` : ''}
+                                </div>
+                                <div id="chart-preview-${question.id}" class="chart-preview-container" data-chart-preview="${question.id}"></div>
+                            ` : ''}
                         </div>
                     `;
                 } else {
@@ -2869,6 +3338,18 @@ function renderLessonSelector(unitInfo) {
                                 style="width: 100%; min-height: 200px; padding: 10px; border: 2px solid #ddd;"
                             >${savedAnswer?.value || savedAnswer || ''}</textarea>
                         </div>
+                        ${chartMetadata ? `
+                            <div class="chart-wizard-controls">
+                                <button
+                                    type="button"
+                                    class="chart-wizard-button"
+                                    data-chart-button="${question.id}"
+                                    onclick="openChartWizard('${question.id}')"
+                                >${chartButtonLabel}</button>
+                                ${chartMetadata.prompt ? `<div class="chart-wizard-prompt">${chartMetadata.prompt}</div>` : ''}
+                            </div>
+                            <div id="chart-preview-${question.id}" class="chart-preview-container" data-chart-preview="${question.id}"></div>
+                        ` : ''}
                     `;
                 }
             }
@@ -2964,6 +3445,9 @@ function renderLessonSelector(unitInfo) {
 
             // If this question is already answered, populate peer responses immediately
             setTimeout(() => {
+                if (typeof window.renderChartWizardPreview === 'function') {
+                    window.renderChartWizardPreview(question.id);
+                }
                 if (isAnswered) {
                     populatePeerResponses(question.id, question.type);
 
@@ -3467,8 +3951,11 @@ function renderLessonSelector(unitInfo) {
                     answers: {},
                     reasons: {},
                     timestamps: {},
-                    attempts: {}
+                    attempts: {},
+                    charts: {}
                 };
+            } else if (!classData.users[currentUsername].charts) {
+                classData.users[currentUsername].charts = {};
             }
 
             // Create timestamp as number for consistency
@@ -5104,17 +5591,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             promptUsername();
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Ctrl+S to export data
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                if (currentUsername) {
-                    exportPersonal();
-                }
-            }
-        });
-
         // Lazy loading charts removed - using immediate two-phase rendering instead
 
         // Helper function to check if an answer is correct
@@ -5135,8 +5611,23 @@ if (chartInstances[`dotplot-${questionId}`]) {
         // Add this if it doesn't already exist
         if(!window.turboModeListenerAttached) {
             window.addEventListener('turboModeChanged', (e) => {
-                if (!e.detail.enabled && window.spriteManager) {
+                const enabled = !!(e && e.detail && e.detail.enabled);
+                if (typeof turboModeActive !== 'undefined') {
+                    turboModeActive = enabled;
+                    console.info(`RECOVERY: Turbo mode state updated via event listener → ${enabled ? 'enabled' : 'disabled'}`);
+                }
+
+                if (!enabled && window.spriteManager) {
                     window.spriteManager.clearAllPeerSprites();
+                }
+
+                const syncModal = document.getElementById('syncModal');
+                if (syncModal && syncModal.style.display === 'block') {
+                    try {
+                        initializeSyncModal();
+                    } catch (error) {
+                        console.warn('RECOVERY: Failed to refresh sync modal after turbo mode change', error);
+                    }
                 }
             });
             window.turboModeListenerAttached = true;
@@ -5237,6 +5728,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Call existing save answer function
             if (typeof saveAnswer === 'function') {
                 saveAnswer(questionId, answer, options);
+            }
+
+            if (window.recoveryAutoExport) {
+                window.recoveryAutoExport.queue('answer-update');
             }
 
             // Auto-save progress periodically
@@ -5812,6 +6307,55 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
             }
 
+            const autoExportContainer = document.getElementById('autoExportContainer');
+            const autoExportToggle = document.getElementById('autoExportToggle');
+            const autoExportSupportNote = document.getElementById('autoExportSupportNote');
+            if (autoExportContainer) {
+                if (window.FEATURE_FLAGS.autoExport) {
+                    autoExportContainer.style.display = 'block';
+                    if (!recoveryAutoExport.support) {
+                        if (autoExportToggle) {
+                            autoExportToggle.disabled = true;
+                        }
+                        if (autoExportSupportNote) {
+                            autoExportSupportNote.textContent = 'Browser does not support folder access. Please use manual exports.';
+                        }
+                    } else if (autoExportToggle) {
+                        const storedFolder = localStorage.getItem('recoveryAutoExportFolderName');
+                        if (autoExportSupportNote) {
+                            autoExportSupportNote.textContent = storedFolder
+                                ? `Previously selected folder: ${storedFolder}. Toggle on to resume auto-export.`
+                                : 'Choose a folder to enable automatic Recovery Pack exports.';
+                        }
+                        autoExportToggle.checked = false;
+                        autoExportToggle.addEventListener('change', async function() {
+                            if (this.checked) {
+                                const enabled = await recoveryAutoExport.enable();
+                                if (!enabled) {
+                                    this.checked = false;
+                                    if (autoExportSupportNote) {
+                                        autoExportSupportNote.textContent = 'Auto-export cancelled. No folder selected.';
+                                    }
+                                    return;
+                                }
+                                if (autoExportSupportNote) {
+                                    autoExportSupportNote.textContent = `Saving to: ${recoveryAutoExport.directoryHandle?.name || 'selected folder'}`;
+                                }
+                                showMessage('Auto-export enabled. Recovery Packs will update automatically.', 'success');
+                                recoveryAutoExport.queue('toggle-on');
+                            } else {
+                                recoveryAutoExport.disable();
+                                if (autoExportSupportNote) {
+                                    autoExportSupportNote.textContent = 'Auto-export disabled. You can re-enable it anytime.';
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    autoExportContainer.style.display = 'none';
+                }
+            }
+
             // Two-way sync button
             document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function() {
                 if (window.cloudSync) {
@@ -5861,6 +6405,25 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     }
                     smartImportInput.click();
                     closeSyncModal();
+                }
+            });
+
+            document.addEventListener('click', async function(event) {
+                if (event.target.id === 'cloudRestoreBtn' || event.target.closest('#cloudRestoreBtn')) {
+                    event.preventDefault();
+                    if (typeof restoreFromCloudByUsername === 'function') {
+                        await restoreFromCloudByUsername();
+                    }
+                    closeSyncModal();
+                }
+            });
+
+            document.addEventListener('click', async function(event) {
+                if (event.target.id === 'classPacksBtn' || event.target.closest('#classPacksBtn')) {
+                    event.preventDefault();
+                    if (typeof window.generateClassPacks === 'function') {
+                        await window.generateClassPacks();
+                    }
                 }
             });
 
@@ -5931,7 +6494,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                                                     // ALSO store in classData structure (for peer display)
                                                     if (!classData.users[username]) {
-                                                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                                                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                                                     }
                                                     Object.assign(classData.users[username].answers, standardizedAnswers);
 
@@ -6060,7 +6623,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
   // --- End of File Type Detection Functions ---
         // Smart Import Function - Auto-detects file type
-        function handleSmartImport(event) {
+        async function handleSmartImport(event) {
             console.log('handleSmartImport called', event);
             const file = event.target.files[0];
             console.log('Selected file:', file);
@@ -6070,7 +6633,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
 
@@ -6084,8 +6647,40 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                     // Store debug info to survive page refresh
                     localStorage.setItem('import_debug', JSON.stringify(debugInfo));
-                    
+
                     console.log('File import debug - data keys:', Object.keys(data));
+
+                    if (data && data.manifest && data.data) {
+                        const packUsername = data.manifest.username;
+                        if (!packUsername || typeof packUsername !== 'string') {
+                            showMessage('Recovery Pack missing username information.', 'error');
+                            return;
+                        }
+
+                        let validationResult = null;
+                        if (typeof window.validateRecoveryPack === 'function') {
+                            validationResult = await window.validateRecoveryPack(data);
+                            if (!validationResult.ok) {
+                                showMessage('Recovery Pack is missing required information.', 'error');
+                                return;
+                            }
+                            if (validationResult.warnings && validationResult.warnings.length > 0) {
+                                console.warn('RECOVERY: Recovery Pack warnings', validationResult.warnings);
+                            }
+                        }
+
+                        const answerCount = Object.keys((data.data && data.data.answers) || {}).length;
+                        const packTimestamp = data.manifest.timestampISO || 'Unknown';
+                        const confirmText = `Import Recovery Pack for ${packUsername}?\nAnswers: ${answerCount}\nGenerated: ${packTimestamp}\n\nType YES to confirm.`;
+                        const proceed = prompt(confirmText, 'YES');
+                        if (!proceed || proceed.toLowerCase() !== 'yes') {
+                            showMessage('Recovery Pack import cancelled.', 'info');
+                            return;
+                        }
+
+                        importDataForUser(packUsername, data);
+                        return;
+                    }
 
   // Direct detection logic without external functions
   let isPersonalFile = false;
@@ -6315,7 +6910,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                             // ALSO store in classData structure (for peer display)
                             if (!classData.users[username]) {
-                                classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                                classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                             }
                             Object.assign(classData.users[username].answers, standardizedAnswers);
                             console.log(`✓ Added ${username} to classData structure`);
@@ -6436,6 +7031,28 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const turboModeNotice = document.getElementById('turboModeNotice');
             if (turboModeNotice) {
                 turboModeNotice.style.display = turboModeActive ? 'block' : 'none';
+            }
+
+            const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
+            const cloudRestoreHelper = document.getElementById('cloudRestoreHelper');
+            const shouldShowCloud = !!(window.FEATURE_FLAGS.restoreFromCloud && turboModeActive && supabase);
+            if (cloudRestoreBtn) {
+                cloudRestoreBtn.style.display = shouldShowCloud ? 'flex' : 'none';
+            }
+            if (cloudRestoreHelper) {
+                if (window.FEATURE_FLAGS.restoreFromCloud) {
+                    cloudRestoreHelper.style.display = 'block';
+                    cloudRestoreHelper.innerHTML = shouldShowCloud
+                        ? '<i class="fas fa-cloud"></i> Cloud restore ready: pull your latest answers from Supabase.'
+                        : '<i class="fas fa-info-circle"></i> Turbo mode must be active to restore from the cloud.';
+                } else {
+                    cloudRestoreHelper.style.display = 'none';
+                }
+            }
+
+            const classPacksBtn = document.getElementById('classPacksBtn');
+            if (classPacksBtn) {
+                classPacksBtn.style.display = window.FEATURE_FLAGS.classPacks ? 'flex' : 'none';
             }
 
             // Ensure Master Import button exists (add dynamically if missing)

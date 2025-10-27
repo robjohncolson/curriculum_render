@@ -1,0 +1,36 @@
+=== histogram ===
+U1-L10-Q04
+U1-PC-FRQ-Q01
+U5-L2-Q01
+
+=== scatter ===
+U2-L9-Q01
+U2-PC-FRQ-Q01
+U9-PC-FRQ-Q01
+
+=== bar ===
+U3-L5-Q02
+U3-PC-FRQ-Q02
+U8-L3-Q03
+
+=== normal ===
+U1-L10-Q06
+U1-PC-FRQ-Q02
+U5-L6-FRQ-Q01
+U5-PC-FRQ-Q01
+U6-L3-Q01
+U6-L7-Q08
+U6-PC-FRQ-Q01
+U6-PC-FRQ-Q02
+
+=== chisquare ===
+U8-L6-Q02
+U8-PC-FRQ-Q01
+U8-PC-FRQ-Q02
+
+=== multi ===
+U2-PC-FRQ-Q02
+U5-PC-FRQ-Q02
+U7-L8-Q01
+U8-L3-Q05
+U9-L3-FRQ-Q01

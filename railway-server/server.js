@@ -198,6 +198,17 @@ app.post('/api/submit-answer', async (req, res) => {
 
     // Normalize timestamp
     const normalizedTimestamp = normalizeTimestamp(timestamp || Date.now());
+    const answerSize = (() => {
+      try {
+        return typeof answer_value === 'string'
+          ? answer_value.length
+          : JSON.stringify(answer_value).length;
+      } catch (err) {
+        return -1;
+      }
+    })();
+    const sizeLabel = answerSize >= 0 ? `${answerSize} chars` : 'received';
+    console.log(`📨 submit-answer ${question_id}: answer_value ${sizeLabel}`);
 
     // Upsert to Supabase
     const { data, error } = await supabase
@@ -249,9 +260,12 @@ app.post('/api/batch-submit', async (req, res) => {
 
     // Normalize all timestamps
     const normalizedAnswers = answers.map(answer => ({
-      ...answer,
+      username: answer.username,
+      question_id: answer.question_id,
+      answer_value: answer.answer_value,
       timestamp: normalizeTimestamp(answer.timestamp || Date.now())
     }));
+    console.log(`📦 batch-submit ${normalizedAnswers.length} answers`);
 
     // Batch upsert to Supabase
     const { data, error } = await supabase

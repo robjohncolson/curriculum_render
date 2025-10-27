@@ -22,6 +22,7 @@ function initClassData() {
             reasons: {},
             timestamps: {},
             attempts: {},
+            charts: {},
             // TASK 3.3: Real-time activity tracking for pig system
             currentActivity: {
                 state: 'idle',        // idle, viewing, answering, submitted
@@ -31,6 +32,9 @@ function initClassData() {
         };
     } else {
         // TASK 4.1: Migrate existing users to have currentActivity field
+        if (!classData.users[currentUsername].charts) {
+            classData.users[currentUsername].charts = {};
+        }
         if (!classData.users[currentUsername].currentActivity) {
             classData.users[currentUsername].currentActivity = {
                 state: 'idle',
@@ -159,31 +163,232 @@ function initializeFromEmbeddedData() {
 // DATA EXPORT FUNCTIONS (Priority 2)
 // ========================================
 
-/**
- * Exports current user's personal data to JSON file
- * Exposed to window for onclick handlers
- */
-window.exportPersonal = function() {
-    const personalData = {
-        exportTime: new Date().toISOString(),
-        username: currentUsername,
-        users: {
-            [currentUsername]: classData.users[currentUsername]
+async function computeSha256Hex(text) {
+    if (!text || !window.crypto || !window.crypto.subtle) {
+        return null;
+    }
+    try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(text);
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    } catch (error) {
+        console.warn('RECOVERY: Failed to compute SHA-256 checksum', error);
+        return null;
+    }
+}
+
+window.buildRecoveryPack = async function(username = currentUsername) {
+    if (!username) {
+        throw new Error('No username available for Recovery Pack export.');
+    }
+
+    if (typeof initClassData === 'function') {
+        try {
+            initClassData();
+        } catch (error) {
+            console.warn('RECOVERY: initClassData failed during buildRecoveryPack', error);
         }
+    }
+
+    const nowISO = new Date().toISOString();
+    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
+    const userSlice = (classDataSnapshot.users && classDataSnapshot.users[username])
+        || (classData && classData.users && classData.users[username])
+        || {};
+
+    const userState = {
+        answers: JSON.parse(localStorage.getItem(`answers_${username}`) || '{}'),
+        reasons: JSON.parse(localStorage.getItem(`reasons_${username}`) || '{}'),
+        progress: JSON.parse(localStorage.getItem(`progress_${username}`) || '{}'),
+        timestamps: JSON.parse(localStorage.getItem(`timestamps_${username}`) || '{}'),
+        attempts: JSON.parse(localStorage.getItem(`attempts_${username}`) || '{}'),
+        badges: JSON.parse(localStorage.getItem(`badges_${username}`) || '{}'),
+        charts: JSON.parse(localStorage.getItem(`charts_${username}`) || '{}'),
+        preferences: JSON.parse(localStorage.getItem(`preferences_${username}`) || '{}'),
+        classDataUser: userSlice || {}
     };
 
-    const blob = new Blob([JSON.stringify(personalData, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentUsername}_data.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const localStorageMirror = {};
+    const mirrorPrefixes = [
+        'answers_',
+        'reasons_',
+        'progress_',
+        'timestamps_',
+        'attempts_',
+        'badges_',
+        'charts_',
+        'preferences_',
+        'sessionStart_',
+        'tempProgress_'
+    ];
+    mirrorPrefixes.forEach(prefix => {
+        const key = `${prefix}${username}`;
+        const value = localStorage.getItem(key);
+        if (value !== null) {
+            localStorageMirror[key] = value;
+        }
+    });
 
-    showMessage('Personal data exported successfully!', 'success');
-}
+    const dataPayload = Object.assign({}, userState, {
+        localStorageMirror,
+        meta: {
+            createdAt: nowISO,
+            answerCount: Object.keys(userState.answers || {}).length,
+            username
+        }
+    });
+
+    const manifest = {
+        version: 'student-recovery-pack',
+        schemaVersion: '1.0.0',
+        username,
+        timestampISO: nowISO,
+        appBuild: window.APP_BUILD || 'curriculum-web',
+        turboCompatible: !!window.turboModeActive
+    };
+
+    const integrity = {};
+    const checksum = await computeSha256Hex(JSON.stringify(dataPayload));
+    if (checksum) {
+        integrity.checksumSha256 = checksum;
+    }
+
+    return {
+        manifest,
+        data: dataPayload,
+        integrity
+    };
+};
+
+window.validateRecoveryPack = async function(pack) {
+    const warnings = [];
+    let ok = true;
+
+    if (!pack || typeof pack !== 'object') {
+        return { ok: false, warnings: ['Invalid Recovery Pack structure.'], checksum: null };
+    }
+
+    if (!pack.manifest || typeof pack.manifest !== 'object') {
+        warnings.push('Missing manifest section.');
+        ok = false;
+    }
+
+    const username = pack.manifest?.username;
+    if (!username || typeof username !== 'string') {
+        warnings.push('Manifest username missing or invalid.');
+        ok = false;
+    }
+
+    if (!pack.data || typeof pack.data !== 'object') {
+        warnings.push('Data payload missing.');
+        ok = false;
+    }
+
+    let computedChecksum = null;
+    const providedChecksum = pack.integrity && pack.integrity.checksumSha256;
+    if (providedChecksum) {
+        if (window.crypto && window.crypto.subtle) {
+            try {
+                computedChecksum = await computeSha256Hex(JSON.stringify(pack.data));
+                if (computedChecksum && computedChecksum !== providedChecksum) {
+                    warnings.push('Checksum mismatch detected.');
+                }
+            } catch (error) {
+                warnings.push('Checksum verification failed.');
+            }
+        } else {
+            warnings.push('Checksum provided but browser cannot verify it.');
+        }
+    }
+
+    return { ok, warnings, checksum: computedChecksum };
+};
+
+window.exportPersonal = async function() {
+    if (!currentUsername) {
+        showMessage('Please select a username before exporting.', 'error');
+        return;
+    }
+
+    try {
+        const pack = await window.buildRecoveryPack(currentUsername);
+        const fileName = `recovery_pack_${currentUsername}_${new Date().toISOString().split('T')[0]}.json`;
+        const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showMessage('Recovery Pack exported successfully!', 'success');
+        if (window.recoveryAutoExport) {
+            window.recoveryAutoExport.queue('manual-export');
+        }
+    } catch (error) {
+        console.error('RECOVERY: Failed to export Recovery Pack', error);
+        showMessage('Failed to export Recovery Pack.', 'error');
+    }
+};
+
+window.generateClassPacks = async function() {
+    if (!window.FEATURE_FLAGS || !window.FEATURE_FLAGS.classPacks) {
+        showMessage('Class pack generation is not enabled yet.', 'info');
+        return;
+    }
+
+    if (typeof initClassData === 'function') {
+        try {
+            initClassData();
+        } catch (error) {
+            console.warn('RECOVERY: initClassData failed during class pack generation', error);
+        }
+    }
+
+    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
+    const usernames = Object.keys(classDataSnapshot.users || {});
+    if (usernames.length === 0) {
+        showMessage('No class data available for pack generation.', 'error');
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    let successCount = 0;
+
+    for (const username of usernames) {
+        try {
+            const pack = await window.buildRecoveryPack(username);
+            const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `recovery_pack_${username}_${today}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            successCount++;
+            await new Promise(resolve => setTimeout(resolve, 150));
+        } catch (error) {
+            console.warn('RECOVERY: Failed to build Recovery Pack for', username, error);
+        }
+    }
+
+    if (successCount > 0) {
+        showMessage(`Generated ${successCount} Recovery Pack${successCount === 1 ? '' : 's'}.`, 'success');
+    } else {
+        showMessage('No Recovery Packs were generated.', 'error');
+    }
+
+    if (successCount !== usernames.length) {
+        console.info(`RECOVERY: Class pack generation completed with ${successCount}/${usernames.length} successes.`);
+    }
+};
 
 /**
  * Exports complete master database with all users' data to JSON file
@@ -594,7 +799,9 @@ function importMasterData(data, targetUsername = null) {
 
                     // ALSO store in classData structure (for peer display)
                     if (!classData.users[username]) {
-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {} };
+                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+                    } else if (!classData.users[username].charts) {
+                        classData.users[username].charts = {};
                     }
                     Object.assign(classData.users[username].answers, standardizedAnswers);
                     console.log(`✓ Added ${username} to classData structure`);
@@ -627,6 +834,16 @@ function importMasterData(data, targetUsername = null) {
                     if (classData.users[username]) {
                         Object.assign(classData.users[username].attempts, userInfo.attempts);
                     }
+                }
+
+                if (userInfo.charts) {
+                    if (!classData.users[username]) {
+                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+                    }
+                    if (!classData.users[username].charts) {
+                        classData.users[username].charts = {};
+                    }
+                    Object.assign(classData.users[username].charts, userInfo.charts);
                 }
             });
 

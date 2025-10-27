@@ -1,7 +1,0 @@
-questionId,n,pValue,difficulty,correctAnswer,discrimination,topDistractor,topDistractorPercent
-U1-L10-Q01,10,0.8,Easy,D,0.232,B,20
-U1-L10-Q05,9,0.889,Easy,B,0.258,C,11
-U1-L10-Q02,9,0.667,Medium,A,0.825,B,33
-U1-L10-Q03,9,0.667,Medium,A,0.516,D,22
-U1-L10-Q07,7,0.714,Easy,C,0.785,A,14
-U1-L10-Q08,7,0.714,Easy,A,0.785,D,14
