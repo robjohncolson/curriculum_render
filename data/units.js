@@ -252,6 +252,7 @@ const ALL_UNITS_DATA = [
             }
         ],
         pdf: "pdf/u2l4_1.pdf"
+        pdf: "pdf/u2l4_2.pdf"
       },
       {
         id: "2-5",
