@@ -210,6 +210,13 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/170yFl1LoVYwYZ8a6coNhfQkfkFiHD1gg/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/68f6f23494f8196314f10603",
+                title: "u2l2blooket"
+            }
+        ],
+        pdf: "pdf/u2l2.pdf"
       },
       {
         id: "2-3",
@@ -221,6 +228,14 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1IZIAXWtHsQfr1o7GZIJ2nnYXaQZt6Xyh/view?usp=drive_link"
             }
         ],
+        
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/68f83be7f75399500ade8fe4",
+                title: "u2l3blooket"
+            }
+        ],
+        pdf: "pdf/u2l3.pdf"
       },
       {
         id: "2-4",
