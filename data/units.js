@@ -253,16 +253,13 @@ const ALL_UNITS_DATA = [
         ],
                 
         blookets: [
-            {
-                url: "https://dashboard.blooket.com/set/68feeda5f82ea228f5880730",
-                title: "u2l4_1blooket"
-            },
+          
             {
                 url: "https://dashboard.blooket.com/set/68feeac79dcd782f18b6300d",
                 title: "u2l4_2blooket"
             }
         ],
-        pdfs: ["pdf/u2l4_1.pdf", "pdf/u2l4_2.pdf"]
+        pdfs: ["pdf/u2l4_1.pdf"]
       },
       {
         id: "2-5",
