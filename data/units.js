@@ -278,6 +278,14 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://youtu.be/bPrP6wb497M"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6912d048ade2e3b964a02e7c",
+                title: "u2l5blooket"
+            }
+        ],
+        pdfs: ["pdf/u2l5.pdf"]
+
       },
       {
         id: "2-6",
