@@ -298,6 +298,13 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1_NOitEc1RuIwOgfx9lWcjOkq5yDdXToa/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6916b5ed3cc5b74e6fe7d092",
+                title: "u2l6blooket"
+            }
+        ],
+        pdfs: ["pdf/u2l6.pdf"]
       },
       {
         id: "2-7",
