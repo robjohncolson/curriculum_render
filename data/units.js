@@ -323,7 +323,7 @@ const ALL_UNITS_DATA = [
         blookets: [
             {
                 url: "https://dashboard.blooket.com/set/6917667c3cc5b74e6fe7f136",
-                title: "u2l6blooket"
+                title: "u2l7blooket"
             }
         ],
         pdfs: ["pdf/u2l7.pdf"]
@@ -346,6 +346,13 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1Ghvv9jo8PH9KmX25-23oSRLVlLlUZX7N/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6917fa516ffd135030058b02",
+                title: "u2l8blooket"
+            }
+        ],
+        pdfs: ["pdf/u2l8.pdf"]
       },
       {
         id: "2-9",
