@@ -368,6 +368,13 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1Y0qapTVLcbLj02JjkzA11uEEWFYPe7Cr/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6918d3f96adc1a655284eb2d",
+                title: "u2l9blooket"
+            }
+        ],
+        pdfs: ["pdf/u2l9.pdf"]
       },
       {
         id: "2-capstone",
