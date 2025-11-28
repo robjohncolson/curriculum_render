@@ -41,9 +41,9 @@ class SpriteManager {
   }
   preloadPeers(usernames = []) {
     if (!Array.isArray(usernames) || usernames.length === 0) return;
-    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim().toLowerCase();
     usernames
-      .filter((u) => u && u !== current)
+      .filter((u) => u && u.toLowerCase() !== current)
       .forEach((u) => this.ensurePeerSprite(u));
   }
   getKnownPeerUsernames() {
@@ -68,13 +68,26 @@ class SpriteManager {
   }
   preloadKnownPeers() {
     if (!this.isTurboActive) return;
+    // Don't show peer sprites if no user is logged in
+    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+    if (!current) {
+      this.clearAllPeerSprites();
+      return;
+    }
     // Only show peers that are currently online; no offline fallback
     const online = (window.onlineUsers && Array.from(window.onlineUsers)) || [];
     this.updateOnlinePeers(online);
   }
   updateOnlinePeers(onlineUsernames) {
-    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
-    const desired = new Set((onlineUsernames || []).filter((u) => u && u !== current));
+    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim().toLowerCase();
+
+    // Don't show any peer sprites if no user is logged in
+    if (!current) {
+      this.clearAllPeerSprites();
+      return;
+    }
+
+    const desired = new Set((onlineUsernames || []).filter((u) => u && u.toLowerCase() !== current));
 
     // Add missing peers
     desired.forEach((u) => {

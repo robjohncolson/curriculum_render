@@ -1,6 +1,6 @@
 // auth.js - User authentication and management functions
 // Part of AP Statistics Consensus Quiz
-// Dependencies: Must be loaded after data_manager.js (for initClassData, initializeProgressTracking)
+// Dependencies: Must be loaded after db.js and data_manager.js
 // This module handles "who is the user" - username generation, prompting, and session management
 
 // ========================================
@@ -68,18 +68,90 @@ function generateRandomUsername() {
 /**
  * Main entry point for username workflow
  * Checks for saved username or shows prompt
+ * NOTE: This is now called from startApp() after initDB()
+ * @returns {Promise<void>}
  */
-function promptUsername() {
-    const savedUsername = localStorage.getItem('consensusUsername');
+async function promptUsername() {
+    // Get username from IndexedDB
+    const savedUsername = await AppDB.getStoredUsername();
+
     if (savedUsername) {
         currentUsername = savedUsername;
-        initClassData();
-        initializeProgressTracking(); // Initialize progress tracking for returning user
+
+        // Check if we have local data
+        const localAnswerCount = await AppDB.getUserAnswerCount(currentUsername);
+
+        // If local data is empty, try cloud restore
+        if (localAnswerCount === 0 && window.USE_RAILWAY && window.RestoreUI) {
+            await attemptCloudRestore(currentUsername);
+        }
+
+        await initClassData();
+        initializeProgressTracking();
         showUsernameWelcome();
-        initializeFromEmbeddedData(); // Initialize from embedded data
+        initializeFromEmbeddedData();
         updateCurrentUsernameDisplay();
     } else {
         showUsernamePrompt();
+    }
+}
+
+/**
+ * Attempts to restore user data from Railway/cloud
+ * Shows restore modal with progress
+ * @param {string} username - Username to restore data for
+ * @returns {Promise<boolean>} True if restore succeeded
+ */
+async function attemptCloudRestore(username) {
+    if (!window.railwayClient || typeof window.railwayClient.fetchUserData !== 'function') {
+        console.log('Railway client not available for cloud restore');
+        return false;
+    }
+
+    RestoreUI.show();
+    RestoreUI.setProgress(10, 'Connecting to cloud...');
+
+    try {
+        const cloudData = await window.railwayClient.fetchUserData(username);
+
+        if (cloudData && Object.keys(cloudData.answers || {}).length > 0) {
+            RestoreUI.setProgress(50, 'Restoring your answers...');
+
+            // Ensure user exists in classData
+            if (!classData.users[username]) {
+                classData.users[username] = {
+                    answers: {},
+                    reasons: {},
+                    timestamps: {},
+                    attempts: {},
+                    charts: {},
+                    currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
+                };
+            }
+
+            // Merge cloud data
+            Object.assign(classData.users[username], cloudData);
+
+            // Save to IndexedDB
+            await AppDB.saveUserData(username);
+
+            const answerCount = Object.keys(cloudData.answers || {}).length;
+            RestoreUI.complete(answerCount);
+
+            if (window.showToast) {
+                showToast('Your data has been restored!', 'success');
+            }
+
+            return true;
+        } else {
+            RestoreUI.noData();
+            return false;
+        }
+    } catch (e) {
+        console.warn('Cloud restore failed:', e);
+        RestoreUI.error('Could not reach cloud. Your data may sync later.');
+        setTimeout(() => RestoreUI.hide(), 3000);
+        return false;
     }
 }
 
@@ -92,126 +164,188 @@ function showUsernamePrompt() {
 }
 
 /**
- * NEW: Initial welcome screen with two-button choice (progressive disclosure)
- * This is the entry point for the wizard-style onboarding
+ * NEW: Initial welcome screen with three-button choice
+ * Styled to match the user management modal
  */
 function showWelcomeScreen() {
+    // Ensure no Study Buddy room is active on the welcome/onboarding screen
+    if (typeof destroyStudyBuddyRoom === 'function') {
+        destroyStudyBuddyRoom();
+    }
+
     const questionsContainer = document.getElementById('questionsContainer');
     questionsContainer.innerHTML = `
-        <div class="welcome-wizard">
-            <div class="welcome-header">
-                <h1>📊 AP Statistics Consensus Quiz</h1>
-                <p class="subtitle">Collaborative Learning Platform</p>
-            </div>
+        <div class="onboarding-container">
+            <div class="onboarding-card">
+                <div class="onboarding-header">
+                    <h1><img src="img/icons/icon_stats.png" alt="" class="header-icon"> AP Statistics Consensus Quiz</h1>
+                    <p class="onboarding-subtitle">Collaborative Learning Platform</p>
+                </div>
 
-            <div class="welcome-message">
-                <p>Welcome! Let's get you started.</p>
-            </div>
+                <div class="onboarding-content">
+                    <p class="onboarding-prompt">Welcome! How would you like to get started?</p>
 
-            <div class="wizard-choices">
-                <button onclick="showNewStudentFlow()" class="wizard-button primary">
-                    <div class="button-icon-large">🆕</div>
-                    <div class="button-content">
-                        <div class="button-title">I'm a New Student</div>
-                        <div class="button-description">Get started quickly</div>
+                    <div class="onboarding-options">
+                        <button onclick="showNewStudentFlow()" class="onboarding-option-btn">
+                            <span class="option-icon"><img src="img/icons/icon_new_student.png" alt="New"></span>
+                            <span class="option-text">
+                                <strong>I'm a New Student</strong>
+                                <small>Create a new account</small>
+                            </span>
+                        </button>
+
+                        <button onclick="showReturningStudentFlow()" class="onboarding-option-btn">
+                            <span class="option-icon"><img src="img/icons/icon_switch_user.png" alt="Returning"></span>
+                            <span class="option-text">
+                                <strong>I'm a Returning Student</strong>
+                                <small>Sign in to my account</small>
+                            </span>
+                        </button>
+
+                        <button onclick="showTeacherLoginFlow()" class="onboarding-option-btn teacher-option">
+                            <span class="option-icon"><img src="img/icons/icon_teacher_account.png" alt="Teacher"></span>
+                            <span class="option-text">
+                                <strong>I'm a Teacher</strong>
+                                <small>Access teacher dashboard</small>
+                            </span>
+                        </button>
                     </div>
-                </button>
+                </div>
 
-                <button onclick="showReturningStudentFlow()" class="wizard-button secondary">
-                    <div class="button-icon-large">📂</div>
-                    <div class="button-content">
-                        <div class="button-title">I'm Returning</div>
-                        <div class="button-description">I have a backup file</div>
-                    </div>
-                </button>
-            </div>
-
-            <!-- Show recent usernames if any exist -->
-            <div id="recentUsernamesWelcome" style="display: none; margin-top: 30px;">
-                <p class="recent-label">Recently used on this device:</p>
-                <div id="recentUsernamesListWelcome" class="recent-usernames-compact"></div>
+                <div class="onboarding-footer">
+                    <p class="onboarding-hint">Your progress is saved automatically</p>
+                </div>
             </div>
         </div>
     `;
-
-    // Check for recently used usernames and display them
-    loadRecentUsernamesOnWelcome();
 }
 
 /**
- * NEW: Flow for new students - simple username generation
+ * NEW: Flow for new students - username generation + real name + password
  */
 window.showNewStudentFlow = function() {
     const suggestedName = generateRandomUsername();
     const questionsContainer = document.getElementById('questionsContainer');
 
     questionsContainer.innerHTML = `
-        <div class="new-student-flow">
-            <div class="flow-header">
-                <button onclick="showWelcomeScreen()" class="back-button">← Back</button>
-                <h2>Welcome, New Student!</h2>
-            </div>
-
-            <div class="username-reveal">
-                <p class="reveal-label">Your username is:</p>
-                <div class="username-display-large" id="generatedNameLarge">
-                    ${suggestedName}
+        <div class="onboarding-container">
+            <div class="onboarding-card">
+                <div class="onboarding-header">
+                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
+                    <h2>New Student Registration</h2>
                 </div>
-                <p class="username-hint">💡 Write this down - you'll need it to restore your progress later!</p>
-            </div>
 
-            <div class="flow-actions">
-                <button onclick="acceptUsername('${suggestedName}')" class="action-button primary extra-large">
-                    ✅ Let's Go!
-                </button>
-                <button onclick="rerollUsernameInFlow()" class="action-button secondary large">
-                    🎲 Try Another Name
-                </button>
+                <div class="onboarding-content">
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label">Your Username</label>
+                        <div class="username-generator-row">
+                            <div class="generated-username" id="generatedNameLarge">${suggestedName}</div>
+                            <button type="button" onclick="rerollUsernameInFlow()" class="reroll-btn" title="Generate new username">🎲</button>
+                        </div>
+                        <p class="onboarding-field-hint">This is your unique ID - write it down!</p>
+                    </div>
+
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="newStudentRealName">Your Real Name</label>
+                        <input type="text" id="newStudentRealName" class="onboarding-input" placeholder="e.g., John Smith" autocomplete="name">
+                        <p class="onboarding-field-hint">Only visible to your teacher</p>
+                    </div>
+
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="newStudentPassword">Create a Password</label>
+                        <input type="password" id="newStudentPassword" class="onboarding-input" placeholder="Choose a password" autocomplete="new-password">
+                        <p class="onboarding-field-hint">You'll need this to sign in on other devices</p>
+                    </div>
+
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="newStudentPasswordConfirm">Confirm Password</label>
+                        <input type="password" id="newStudentPasswordConfirm" class="onboarding-input" placeholder="Confirm your password" autocomplete="new-password">
+                    </div>
+
+                    <div id="newStudentError" class="onboarding-error" style="display: none;"></div>
+
+                    <button onclick="submitNewStudentRegistration()" class="onboarding-submit-btn">
+                        Create Account
+                    </button>
+                </div>
             </div>
         </div>
     `;
 }
 
 /**
- * NEW: Flow for returning students - import/restore options
+ * NEW: Flow for returning students - sign in with username + password
  */
-window.showReturningStudentFlow = function() {
+window.showReturningStudentFlow = async function() {
     const questionsContainer = document.getElementById('questionsContainer');
 
+    // Get list of known users from cloud
+    let knownUsers = [];
+    try {
+        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
+            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users`);
+            if (response.ok) {
+                const data = await response.json();
+                knownUsers = data.users || [];
+            }
+        }
+    } catch (e) {
+        console.log('Could not fetch user list from server');
+    }
+
+    // Build user options HTML
+    let userOptionsHtml = '<option value="">-- Select your username --</option>';
+    if (knownUsers.length > 0) {
+        knownUsers.sort((a, b) => a.username.localeCompare(b.username));
+        knownUsers.forEach(user => {
+            userOptionsHtml += `<option value="${user.username}">${user.username}</option>`;
+        });
+    }
+
     questionsContainer.innerHTML = `
-        <div class="returning-student-flow">
-            <div class="flow-header">
-                <button onclick="showWelcomeScreen()" class="back-button">← Back</button>
-                <h2>Welcome Back!</h2>
-            </div>
+        <div class="onboarding-container">
+            <div class="onboarding-card">
+                <div class="onboarding-header">
+                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
+                    <h2>Welcome Back!</h2>
+                </div>
 
-            <div class="restore-options">
-                <p class="restore-intro">How would you like to restore your progress?</p>
-
-                <div class="restore-methods">
-                    <div class="restore-method-card">
-                        <div class="method-icon">🗂️</div>
-                        <h3>From Class Backup</h3>
-                        <p>Your teacher shared a master file with everyone's data</p>
-                        <button onclick="showRestoreOptionsModal()" class="action-button primary">
-                            Restore from Backup
-                        </button>
+                <div class="onboarding-content">
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="returningUsername">Your Username</label>
+                        ${knownUsers.length > 0 ? `
+                            <select id="returningUsername" class="onboarding-select">
+                                ${userOptionsHtml}
+                            </select>
+                            <p class="onboarding-field-hint">Or type your username below if not listed</p>
+                            <input type="text" id="returningUsernameManual" class="onboarding-input" placeholder="Type username manually..." style="margin-top: 8px;">
+                        ` : `
+                            <input type="text" id="returningUsernameManual" class="onboarding-input" placeholder="Enter your username (e.g., Apple_Tiger)">
+                        `}
                     </div>
 
-                    <!-- Show recent usernames if available -->
-                    <div id="recentUsernamesReturning" style="display: none;" class="restore-method-card">
-                        <div class="method-icon">⏱️</div>
-                        <h3>Recent Usernames</h3>
-                        <p>Pick up where you left off on this device</p>
-                        <div id="recentUsernamesListReturning" class="recent-usernames-list"></div>
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="returningPassword">Password</label>
+                        <input type="password" id="returningPassword" class="onboarding-input" placeholder="Enter your password" autocomplete="current-password">
                     </div>
+
+                    <div id="returningStudentError" class="onboarding-error" style="display: none;"></div>
+
+                    <button onclick="submitReturningStudentLogin()" class="onboarding-submit-btn">
+                        Sign In
+                    </button>
+
+                    <div class="onboarding-divider">
+                        <span>or</span>
+                    </div>
+
+                    <button onclick="showRestoreOptionsModal()" class="onboarding-secondary-btn">
+                        Restore from Backup File
+                    </button>
                 </div>
             </div>
         </div>
     `;
-
-    // Load recent usernames for returning students
-    loadRecentUsernamesForReturning();
 }
 
 /**
@@ -228,15 +362,245 @@ window.rerollUsernameInFlow = function() {
             displayElement.textContent = newName;
             displayElement.style.opacity = '1';
         }, 150);
-
-        // Update the accept button
-        const acceptButton = document.querySelector('.action-button.primary.extra-large');
-        if (acceptButton) {
-            acceptButton.onclick = () => acceptUsername(newName);
-        }
     } else {
         // Fallback
         showNewStudentFlow();
+    }
+}
+
+/**
+ * Submit new student registration
+ */
+window.submitNewStudentRegistration = async function() {
+    const username = document.getElementById('generatedNameLarge').textContent.trim();
+    const realName = document.getElementById('newStudentRealName').value.trim();
+    const password = document.getElementById('newStudentPassword').value;
+    const passwordConfirm = document.getElementById('newStudentPasswordConfirm').value;
+    const errorDiv = document.getElementById('newStudentError');
+
+    // Validation
+    if (!realName) {
+        errorDiv.textContent = 'Please enter your real name';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (!password) {
+        errorDiv.textContent = 'Please create a password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (password !== passwordConfirm) {
+        errorDiv.textContent = 'Passwords do not match';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (password.length < 4) {
+        errorDiv.textContent = 'Password must be at least 4 characters';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    errorDiv.style.display = 'none';
+
+    try {
+        // Register user with Railway server
+        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
+            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: username,
+                    real_name: realName,
+                    password: password,
+                    user_type: 'student'
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Registration failed');
+            }
+        }
+
+        // Store password locally
+        localStorage.setItem(`password_${username}`, password);
+        localStorage.setItem('currentUserRealName', realName);
+
+        // Accept the username (this sets up the session)
+        await acceptUsername(username);
+
+        if (window.showToast) {
+            showToast(`Welcome, ${realName}!`, 'success');
+        }
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        errorDiv.textContent = error.message || 'Registration failed. Please try again.';
+        errorDiv.style.display = 'block';
+    }
+}
+
+/**
+ * Submit returning student login
+ */
+window.submitReturningStudentLogin = async function() {
+    const selectEl = document.getElementById('returningUsername');
+    const manualInput = document.getElementById('returningUsernameManual');
+    const password = document.getElementById('returningPassword').value;
+    const errorDiv = document.getElementById('returningStudentError');
+
+    // Get username from select or manual input
+    let username = '';
+    if (selectEl && selectEl.value) {
+        username = selectEl.value;
+    } else if (manualInput && manualInput.value.trim()) {
+        username = manualInput.value.trim();
+    }
+
+    // Validation
+    if (!username) {
+        errorDiv.textContent = 'Please select or enter your username';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (!password) {
+        errorDiv.textContent = 'Please enter your password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    errorDiv.style.display = 'none';
+
+    try {
+        // Verify password with Railway server
+        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
+            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.valid) {
+                throw new Error('Invalid username or password');
+            }
+
+            // Store real name if returned
+            if (data.user && data.user.real_name) {
+                localStorage.setItem('currentUserRealName', data.user.real_name);
+            }
+        } else {
+            // Fallback: check local password
+            const storedPassword = localStorage.getItem(`password_${username}`);
+            if (storedPassword && storedPassword !== password) {
+                throw new Error('Invalid password');
+            }
+        }
+
+        // Store password locally
+        localStorage.setItem(`password_${username}`, password);
+
+        // Accept the username (this sets up the session)
+        await acceptUsername(username);
+
+        if (window.showToast) {
+            showToast(`Welcome back!`, 'success');
+        }
+
+    } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = error.message || 'Login failed. Please try again.';
+        errorDiv.style.display = 'block';
+    }
+}
+
+/**
+ * Teacher login flow from onboarding
+ */
+window.showTeacherLoginFlow = function() {
+    const questionsContainer = document.getElementById('questionsContainer');
+    const MASTER_PASSWORD = window.MASTER_PASSWORD || 'googly231';
+
+    questionsContainer.innerHTML = `
+        <div class="onboarding-container">
+            <div class="onboarding-card">
+                <div class="onboarding-header">
+                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
+                    <h2>Teacher Login</h2>
+                </div>
+
+                <div class="onboarding-content">
+                    <div class="onboarding-form-section">
+                        <label class="onboarding-label" for="teacherPassword">Teacher Password</label>
+                        <input type="password" id="teacherPassword" class="onboarding-input" placeholder="Enter teacher password" autocomplete="current-password">
+                    </div>
+
+                    <div id="teacherLoginError" class="onboarding-error" style="display: none;"></div>
+
+                    <button onclick="submitTeacherLoginFromOnboarding()" class="onboarding-submit-btn">
+                        Access Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Focus password field
+    setTimeout(() => {
+        const passwordField = document.getElementById('teacherPassword');
+        if (passwordField) passwordField.focus();
+    }, 100);
+}
+
+/**
+ * Submit teacher login from onboarding
+ */
+window.submitTeacherLoginFromOnboarding = async function() {
+    const password = document.getElementById('teacherPassword').value;
+    const errorDiv = document.getElementById('teacherLoginError');
+    const MASTER_PASSWORD = window.MASTER_PASSWORD || 'googly231';
+
+    if (!password) {
+        errorDiv.textContent = 'Please enter the teacher password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    if (password !== MASTER_PASSWORD) {
+        errorDiv.textContent = 'Invalid teacher password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    errorDiv.style.display = 'none';
+
+    // Set teacher mode
+    window.isTeacherMode = true;
+    if (window.userManagementState) {
+        window.userManagementState.isTeacher = true;
+    }
+
+    // Create a teacher username if none exists
+    const teacherUsername = 'Teacher_Admin';
+    await acceptUsername(teacherUsername);
+
+    // Update UI for teacher mode
+    if (typeof updateFabMenuForUserType === 'function') {
+        updateFabMenuForUserType();
+    }
+
+    if (window.showToast) {
+        showToast('Welcome, Teacher!', 'success');
+    }
+
+    // Show the teacher dashboard
+    if (typeof showTeacherDashboard === 'function') {
+        setTimeout(() => showTeacherDashboard(), 500);
     }
 }
 
@@ -279,30 +643,41 @@ function loadRecentUsernamesForReturning() {
 }
 
 /**
- * Helper: Get recent usernames from localStorage
+ * Helper: Get recent usernames from in-memory classData and localStorage
  * @returns {Array<string>} Array of recent usernames
  */
 function getRecentUsernames() {
     const recentUsers = [];
 
-    // Check localStorage for any stored usernames
+    // First check in-memory classData (backed by IndexedDB)
+    if (classData && classData.users) {
+        Object.keys(classData.users).forEach(u => {
+            if (u && u !== 'undefined' && !recentUsers.includes(u)) {
+                recentUsers.push(u);
+            }
+        });
+    }
+
+    // Also check localStorage for legacy data (answers_ keys)
     for (let key in localStorage) {
         if (key.startsWith('answers_')) {
             const username = key.replace('answers_', '');
-            if (username && username !== 'undefined') {
+            if (username && username !== 'undefined' && !recentUsers.includes(username)) {
                 recentUsers.push(username);
             }
         }
     }
 
-    // Also check class data
-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-    if (classData.users) {
-        Object.keys(classData.users).forEach(u => {
-            if (!recentUsers.includes(u)) {
+    // Also check saved recent usernames list
+    try {
+        const savedRecent = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
+        savedRecent.forEach(u => {
+            if (u && !recentUsers.includes(u)) {
                 recentUsers.push(u);
             }
         });
+    } catch (e) {
+        // Ignore parse errors
     }
 
     return recentUsers;
@@ -333,11 +708,16 @@ window.rerollUsername = function() {
  * Exposed to window for onclick handlers
  * @param {string} name - The username to accept
  */
-window.acceptUsername = function(name) {
+window.acceptUsername = async function(name) {
     currentUsername = name;
+
+    // Save to IndexedDB
+    await AppDB.setStoredUsername(currentUsername);
+
+    // Also keep in localStorage for backward compatibility / quick access
     localStorage.setItem('consensusUsername', currentUsername);
 
-    // Save to recent usernames list
+    // Save to recent usernames list (kept in localStorage for simplicity)
     let recentUsernames = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
     if (!recentUsernames.includes(name)) {
         recentUsernames.unshift(name);
@@ -346,11 +726,16 @@ window.acceptUsername = function(name) {
         localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
     }
 
-    initClassData();
-    initializeProgressTracking(); // Initialize progress tracking for new session
+    await initClassData();
+    initializeProgressTracking();
     showUsernameWelcome();
     initializeFromEmbeddedData();
     updateCurrentUsernameDisplay();
+
+    // Show success toast
+    if (window.showToast) {
+        showToast(`Welcome, ${name}!`, 'success');
+    }
 
     // Initialize multiplayer pig system
     if (typeof PigManager !== 'undefined' && !window.pigManager) {
@@ -383,26 +768,29 @@ window.recoverUsername = function() {
 }
 
 /**
- * Checks if a username has existing data in localStorage
+ * Checks if a username has existing data in IndexedDB or in-memory classData
  * @param {string} username - Username to check
  */
-function checkExistingData(username) {
-    const existingData = localStorage.getItem(`answers_${username}`);
-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-    const hasData = existingData || (classData.users && classData.users[username]);
+async function checkExistingData(username) {
+    // Check IndexedDB for existing user
+    const hasData = await AppDB.userExists(username) ||
+                   (classData.users && classData.users[username]);
 
     if (hasData) {
         if (confirm(`Found existing data for ${username}. Would you like to continue with this username and restore your progress?`)) {
-            acceptUsername(username);
+            await acceptUsername(username);
             showMessage('Welcome back! Your progress has been restored.', 'success');
         }
     } else {
         if (confirm(`No existing data found for ${username}. Would you like to start fresh with this username?`)) {
-            acceptUsername(username);
+            await acceptUsername(username);
             showMessage('Username set! Starting fresh.', 'info');
         }
     }
 }
+
+// Expose to window for onclick handlers
+window.checkExistingData = checkExistingData;
 
 // ========================================
 // USER DISPLAY & RECENT USERNAMES

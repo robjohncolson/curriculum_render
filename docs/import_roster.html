@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Student Roster</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        h2 {
+            margin-top: 0;
+            color: #444;
+            font-size: 18px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+        textarea {
+            min-height: 200px;
+            font-family: monospace;
+        }
+        button {
+            padding: 12px 24px;
+            background: #4a90d9;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #3a7bc8;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .preview {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        .preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .preview th, .preview td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .preview th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .hint {
+            color: #888;
+            font-size: 13px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Import Student Roster</h1>
+    <p class="subtitle">Upload your CSV file to add students to the system</p>
+
+    <div class="section">
+        <h2>Step 1: Server Configuration</h2>
+        <label for="serverUrl">Railway Server URL</label>
+        <input type="text" id="serverUrl" value="https://curriculum-render-production.up.railway.app" placeholder="https://your-server.up.railway.app">
+
+        <label for="masterPassword">Teacher Password</label>
+        <input type="password" id="masterPassword" placeholder="Enter the teacher password">
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Paste CSV Data</h2>
+        <p class="hint">Format: <code>real_name,username</code> (one per line). Header row will be skipped.</p>
+        <textarea id="csvData" placeholder="Karolynn,grape_fox
+Edwin,kiwi_panda
+Tommy,banana_goat
+..."></textarea>
+
+        <button onclick="parseCSV()">Preview Import</button>
+    </div>
+
+    <div class="section" id="previewSection" style="display: none;">
+        <h2>Step 3: Review & Import</h2>
+        <div class="preview" id="previewTable"></div>
+        <p id="previewCount"></p>
+        <button onclick="doImport()" id="importBtn">Import Students</button>
+        <div id="statusMessage"></div>
+    </div>
+
+    <div class="section">
+        <h2>Current CSV File Content</h2>
+        <p>Here's the content from your <code>student2username.csv</code> file for easy copy-paste:</p>
+        <textarea id="existingCSV" readonly>karolynn,grape_fox
+Edwin,kiwi_panda
+Tommy,banana_goat
+Chanlita,grape_koala
+Kyle,cherry_monkey
+edgar,apple_monkey
+Ana,papaya_eagle
+Justin,apricot_horse
+Janelle,mango_panda
+Hazel,apple_rabbit
+Gabriella,Guava_cat
+Malinda,Plum_iguana
+jeysac,papaya_goat
+chanlita,grape_newt
+Sheyly,mango_dog
+valeria,berry_iguana
+francois,apricot_horse
+Keily,apricot_fox
+francois,lemon_goat
+Julissa,apricot_dog
+ian,guava_wolf
+ghafour,lemon_eagle
+ashley w,papaya_iguana
+Ashley Z,papaya_fox
+Moshammed,coconut_cat
+London,Mango_Tiger
+Julissa,Banana_fox</textarea>
+    </div>
+
+    <script>
+        let parsedUsers = [];
+
+        function parseCSV() {
+            const csvData = document.getElementById('csvData').value.trim();
+            if (!csvData) {
+                alert('Please paste CSV data first');
+                return;
+            }
+
+            const lines = csvData.split('\n').filter(line => line.trim());
+            parsedUsers = [];
+            const seen = new Set();
+
+            for (const line of lines) {
+                const parts = line.split(',').map(p => p.trim());
+                if (parts.length >= 2) {
+                    let realName = parts[0];
+                    let username = parts[1].toLowerCase();
+
+                    // Skip header row
+                    if (realName.toLowerCase() === 'student name' ||
+                        realName.toLowerCase() === 'name' ||
+                        realName.toLowerCase() === 'real_name') {
+                        continue;
+                    }
+
+                    // Capitalize first letter of name
+                    realName = realName.charAt(0).toUpperCase() + realName.slice(1);
+
+                    // Skip duplicates (by username)
+                    if (seen.has(username)) {
+                        continue;
+                    }
+                    seen.add(username);
+
+                    parsedUsers.push({ realName, username });
+                }
+            }
+
+            // Show preview
+            const previewSection = document.getElementById('previewSection');
+            const previewTable = document.getElementById('previewTable');
+            const previewCount = document.getElementById('previewCount');
+
+            if (parsedUsers.length === 0) {
+                previewTable.innerHTML = '<p>No valid entries found. Check your CSV format.</p>';
+                previewSection.style.display = 'block';
+                return;
+            }
+
+            let tableHTML = '<table><thead><tr><th>Name</th><th>Username</th></tr></thead><tbody>';
+            for (const user of parsedUsers) {
+                tableHTML += `<tr><td>${escapeHtml(user.realName)}</td><td><code>${escapeHtml(user.username)}</code></td></tr>`;
+            }
+            tableHTML += '</tbody></table>';
+
+            previewTable.innerHTML = tableHTML;
+            previewCount.textContent = `Ready to import ${parsedUsers.length} students`;
+            previewSection.style.display = 'block';
+        }
+
+        async function doImport() {
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            const masterPassword = document.getElementById('masterPassword').value;
+            const statusDiv = document.getElementById('statusMessage');
+            const importBtn = document.getElementById('importBtn');
+
+            if (!serverUrl) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'Please enter the server URL';
+                return;
+            }
+
+            if (!masterPassword) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'Please enter the teacher password';
+                return;
+            }
+
+            if (parsedUsers.length === 0) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'No users to import';
+                return;
+            }
+
+            importBtn.disabled = true;
+            importBtn.textContent = 'Importing...';
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Sending data to server...';
+
+            try {
+                const response = await fetch(`${serverUrl}/api/users/bulk-import`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        users: parsedUsers,
+                        masterPassword: masterPassword
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Import failed');
+                }
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `Successfully imported ${data.imported} students!`;
+                importBtn.textContent = 'Import Complete';
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `Error: ${error.message}`;
+                importBtn.disabled = false;
+                importBtn.textContent = 'Retry Import';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

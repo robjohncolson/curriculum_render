@@ -9,15 +9,29 @@ class CanvasEngine {
     this.labelColor = '#FFFFFF';
     this.labelGoldColor = '#FFD700';
     this.labelYOffset = 6;
+
+    // Study Buddy room reference (set by StudyBuddyRoom)
+    this.room = null;
+
     this.resize = this.resize.bind(this);
     this.resize();
     window.addEventListener('resize', this.resize);
   }
-  // Ground plane: 50px from bottom, in CSS pixel space
+
+  // Ground plane: from room if available, otherwise 50px from bottom
   get groundY() {
+    if (this.room) {
+      return this.room.groundY;
+    }
     const dpr = window.devicePixelRatio || 1;
     return (this.canvas.height / dpr) - 50;
   }
+
+  // Camera X offset (from room)
+  get cameraX() {
+    return this.room?.cameraX || 0;
+  }
+
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = window.innerWidth;
@@ -61,10 +75,24 @@ class CanvasEngine {
     });
   }
   render() {
+    const dpr = window.devicePixelRatio || 1;
+    const viewportWidth = this.canvas.width / dpr;
+    const viewportHeight = this.canvas.height / dpr;
+
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Render room environment first (ground, platform, walls)
+    // Background stays transparent so website shows through
+    if (this.room) {
+      this.room.render(this.ctx);
+    }
+
+    // Render all entities
     this.entities.forEach((entity) => {
       if (entity.render) entity.render(this.ctx);
     });
+
+    // Render labels on top
     this.ctx.save();
     this.ctx.font = this.labelFont;
     this.ctx.textAlign = 'center';
@@ -73,7 +101,10 @@ class CanvasEngine {
       const spec = entity.getLabelSpec();
       if (!spec) return;
       this.ctx.fillStyle = spec.isGold ? this.labelGoldColor : this.labelColor;
-      this.ctx.fillText(spec.text, spec.x, spec.y - this.labelYOffset);
+
+      // Apply camera offset to label position
+      const labelX = spec.x - this.cameraX;
+      this.ctx.fillText(spec.text, labelX, spec.y - this.labelYOffset);
     });
     this.ctx.restore();
   }

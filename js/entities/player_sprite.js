@@ -37,6 +37,12 @@ class PlayerSprite {
     this._handleKeyDown = this._handleKeyDown.bind(this);
     this._handleKeyUp = this._handleKeyUp.bind(this);
     this.setupKeyboardControls();
+
+    // Door interaction
+    this.isAtDoor = false;
+    this.isDissolving = false;
+    this.dissolveProgress = 0;
+    this.dissolveSpeed = 1.5; // Complete dissolve in ~0.67 seconds
   }
   setupKeyboardControls() {
     window.addEventListener('keydown', this._handleKeyDown, { passive: false });
@@ -66,6 +72,18 @@ class PlayerSprite {
     window.removeEventListener('keyup', this._handleKeyUp);
   }
   update(deltaTime) {
+    // Handle dissolve animation
+    if (this.isDissolving) {
+      this.dissolveProgress += this.dissolveSpeed * deltaTime;
+      if (this.dissolveProgress >= 1) {
+        this.dissolveProgress = 1;
+        // Trigger door enter after dissolve completes
+        this.onDoorEnter();
+      }
+      // Don't process movement while dissolving
+      return;
+    }
+
     // Horizontal input
     this.vx = 0;
     if (this.keys['ArrowLeft'] || this.keys['a']) {
@@ -91,24 +109,142 @@ class PlayerSprite {
     this.x += this.vx * deltaTime;
     this.y += this.vy * deltaTime;
 
-    // Clamp to world bounds
+    // Get dimensions
     const width = this.spriteSheet.frameWidth * this.scale;
     const height = this.spriteSheet.frameHeight * this.scale;
     const dpr = window.devicePixelRatio || 1;
-    const maxX = (this.engine.canvas.width / dpr) - width;
-    const groundY = this.engine.groundY - height;
 
-    // Horizontal clamp
-    if (this.x < 0) this.x = 0;
-    if (this.x > maxX) this.x = maxX;
+    // Check if we're in a Study Buddy room
+    const room = this.engine.room;
 
-    // Ground collision
-    if (this.y >= groundY) {
-      this.y = groundY;
-      this.vy = 0;
-      this.isOnGround = true;
+    if (room) {
+      // Room-based collision
+      const groundY = room.groundY - height;
+
+      // Wall collision
+      if (this.x < room.wallLeft) this.x = room.wallLeft;
+      if (this.x + width > room.wallRight) this.x = room.wallRight - width;
+
+      // Player dimensions for collision
+      const playerBottom = this.y + height;
+      const playerRight = this.x + width;
+
+      // No platform collision - player must stack blocks to reach door
+
+      // Block collision - check standing on blocks AND horizontal collision
+      // Skip peer blocks (they're just visual overlays)
+      let onBlock = false;
+      for (const block of room.blocks) {
+        // Skip peer blocks - they don't interact with player physics
+        if (block.isPeerBlock) continue;
+
+        // Check if overlapping with block
+        const playerLeft = this.x;
+        const playerTop = this.y;
+        const isOverlapping = playerRight > block.x &&
+                              playerLeft < block.x + block.width &&
+                              playerBottom > block.y &&
+                              playerTop < block.y + block.height;
+
+        if (isOverlapping) {
+          // Determine collision direction based on overlap amounts
+          const overlapLeft = playerRight - block.x;
+          const overlapRight = (block.x + block.width) - playerLeft;
+          const overlapTop = playerBottom - block.y;
+          const overlapBottom = (block.y + block.height) - playerTop;
+
+          const minOverlapX = Math.min(overlapLeft, overlapRight);
+          const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+          if (minOverlapY < minOverlapX) {
+            // Vertical collision
+            if (overlapTop < overlapBottom && this.vy >= 0) {
+              // Landing on top of block
+              this.y = block.y - height;
+              this.vy = 0;
+              this.isOnGround = true;
+              onBlock = true;
+            } else if (overlapBottom < overlapTop && this.vy < 0) {
+              // Hit block from below
+              this.y = block.y + block.height;
+              this.vy = 0;
+            }
+          } else {
+            // Horizontal collision - stop player and push block
+            if (overlapLeft < overlapRight) {
+              // Player hit block from left
+              this.x = block.x - width;
+              if (this.vx > 0) {
+                block.push(this.vx * 0.5);
+              }
+            } else {
+              // Player hit block from right
+              this.x = block.x + block.width;
+              if (this.vx < 0) {
+                block.push(this.vx * 0.5);
+              }
+            }
+          }
+        }
+      }
+
+      // Incline collision
+      let onIncline = false;
+      if (room.incline && this.vy >= 0) {
+        const playerCenterX = this.x + width / 2;
+        const inclineY = room.getInclineY(playerCenterX);
+        if (inclineY !== null) {
+          const playerBottom = this.y + height;
+          if (playerBottom >= inclineY) {
+            this.y = inclineY - height;
+            this.vy = 0;
+            this.isOnGround = true;
+            onIncline = true;
+          }
+        }
+      }
+
+      // Ground collision (if not on block or incline)
+      if (!onBlock && !onIncline) {
+        if (this.y >= groundY) {
+          this.y = groundY;
+          this.vy = 0;
+          this.isOnGround = true;
+        } else {
+          this.isOnGround = false;
+        }
+      }
+
+      // Update camera to follow player
+      room.updateCamera(this);
+
+      // Check exit door collision - auto-enter on contact
+      this.isAtDoor = room.checkDoorCollision(this);
+      if (this.isAtDoor && !this.isDissolving) {
+        this.startDissolve();
+      }
+
+      // Check menu door collision - opens FAB menu
+      if (room.checkMenuDoorCollision(this)) {
+        window.dispatchEvent(new CustomEvent('studyBuddyMenuDoorEnter'));
+      }
     } else {
-      this.isOnGround = false;
+      // Legacy behavior (no room)
+      const maxX = (this.engine.canvas.width / dpr) - width;
+      const groundY = this.engine.groundY - height;
+
+      // Horizontal clamp
+      if (this.x < 0) this.x = 0;
+      if (this.x > maxX) this.x = maxX;
+
+      // Ground collision
+      if (this.y >= groundY) {
+        this.y = groundY;
+        this.vy = 0;
+        this.isOnGround = true;
+      } else {
+        this.isOnGround = false;
+      }
     }
 
     // Animation state
@@ -177,19 +313,111 @@ class PlayerSprite {
     // Save state for next frame
     this.prevState = this.state;
   }
+  /**
+   * Check if player is pushing a block
+   */
+  checkBlockPush(block, playerWidth, playerHeight) {
+    const playerBottom = this.y + playerHeight;
+    const playerTop = this.y;
+    const playerLeft = this.x;
+    const playerRight = this.x + playerWidth;
+
+    const blockBottom = block.y + block.height;
+    const blockTop = block.y;
+    const blockLeft = block.x;
+    const blockRight = block.x + block.width;
+
+    // Check vertical overlap (must be beside the block, not above/below)
+    const verticalOverlap = playerBottom > blockTop + 8 && playerTop < blockBottom - 4;
+
+    // Check horizontal proximity
+    const pushingRight = this.vx > 0 && playerRight >= blockLeft && playerRight <= blockLeft + 10;
+    const pushingLeft = this.vx < 0 && playerLeft <= blockRight && playerLeft >= blockRight - 10;
+
+    return verticalOverlap && (pushingRight || pushingLeft);
+  }
+
+  /**
+   * Start the dissolve animation when entering door
+   */
+  startDissolve() {
+    if (this.isDissolving) return;
+    this.isDissolving = true;
+    this.dissolveProgress = 0;
+    this.vx = 0;
+    this.vy = 0;
+    console.log('Player dissolving into door...');
+  }
+
+  /**
+   * Called when player enters the exit door (after dissolve completes)
+   */
+  onDoorEnter() {
+    // Dispatch event for the app to handle navigation
+    if (!this._doorEnterDebounce) {
+      this._doorEnterDebounce = true;
+      console.log('Player entered door - transitioning to white screen');
+
+      // Dispatch custom event with dissolve flag for white screen transition
+      window.dispatchEvent(new CustomEvent('studyBuddyDoorEnter', {
+        detail: {
+          lessonId: this.engine.room?.currentLessonId,
+          withTransition: true
+        }
+      }));
+
+      // Reset debounce after a short delay
+      setTimeout(() => {
+        this._doorEnterDebounce = false;
+        this.isDissolving = false;
+        this.dissolveProgress = 0;
+      }, 1500);
+    }
+  }
+
   render(ctx) {
+    // Apply camera offset if in a room
+    const cameraX = this.engine.room?.cameraX || 0;
+    const drawX = this.x - cameraX;
+
     // Debug: Show frame info (remove this after testing)
     if (window.debugSprites) {
       ctx.fillStyle = 'white';
       ctx.font = '12px monospace';
-      ctx.fillText(`State: ${this.state}`, this.x, this.y - 20);
-      ctx.fillText(`Frame: ${this.frameIndex} (base: ${this.baseFrameIndex})`, this.x, this.y - 5);
+      ctx.fillText(`State: ${this.state}`, drawX, this.y - 20);
+      ctx.fillText(`Frame: ${this.frameIndex} (base: ${this.baseFrameIndex})`, drawX, this.y - 5);
     }
 
-    this.spriteSheet.drawFrame(ctx, this.frameIndex, this.x, this.y, this.scale, this.hue);
+    // Apply dissolve effect
+    if (this.isDissolving) {
+      ctx.save();
+      ctx.globalAlpha = 1 - this.dissolveProgress;
+    }
+
+    this.spriteSheet.drawFrame(ctx, this.frameIndex, drawX, this.y, this.scale, this.hue);
+
+    if (this.isDissolving) {
+      ctx.restore();
+    }
   }
+
   setHue(hue) {
     this.hue = hue;
     localStorage.setItem('spriteColorHue', hue.toString());
+  }
+
+  /**
+   * Get label spec for name display (with camera offset)
+   */
+  getLabelSpec() {
+    if (!window.currentUsername) return null;
+    const width = this.spriteSheet.frameWidth * this.scale;
+    const centerX = this.x + width / 2;
+    return {
+      text: window.currentUsername,
+      x: centerX,
+      y: this.y,
+      isGold: false
+    };
   }
 }

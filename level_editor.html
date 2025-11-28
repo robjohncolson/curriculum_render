@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Buddy Level Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #16213e;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      max-height: 100vh;
+    }
+
+    .sidebar h1 {
+      font-size: 18px;
+      color: #4ecca3;
+      border-bottom: 1px solid #4ecca3;
+      padding-bottom: 10px;
+    }
+
+    .sidebar h2 {
+      font-size: 14px;
+      color: #888;
+      margin-top: 10px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .control-group input[type="number"],
+    .control-group input[type="text"],
+    .control-group select {
+      background: #0f3460;
+      border: 1px solid #4ecca3;
+      color: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+
+    .range-value {
+      font-size: 12px;
+      color: #4ecca3;
+      text-align: right;
+    }
+
+    button {
+      background: #4ecca3;
+      color: #1a1a2e;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #3db892;
+    }
+
+    button.secondary {
+      background: #0f3460;
+      color: #4ecca3;
+      border: 1px solid #4ecca3;
+    }
+
+    button.secondary:hover {
+      background: #1a4a7a;
+    }
+
+    button.danger {
+      background: #e94560;
+      color: #fff;
+    }
+
+    button.danger:hover {
+      background: #d63850;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .button-row button {
+      flex: 1;
+    }
+
+    /* Main canvas area */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar .unit-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar select {
+      background: #0f3460;
+      border: 1px solid #4ecca3;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .canvas-container {
+      flex: 1;
+      background: #0f0f23;
+      border: 2px solid #4ecca3;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #levelCanvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    /* Draggable indicators */
+    .drag-handle {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: #e94560;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: grab;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .drag-handle.door {
+      background: #4ecca3;
+    }
+
+    .drag-handle.cliff {
+      background: #f39c12;
+      width: 12px;
+      height: 40px;
+      border-radius: 4px;
+    }
+
+    .drag-handle.spawn {
+      background: #9b59b6;
+    }
+
+    /* Instructions */
+    .instructions {
+      background: #0f3460;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .instructions h3 {
+      color: #4ecca3;
+      margin-bottom: 8px;
+    }
+
+    .instructions kbd {
+      background: #1a1a2e;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    /* JSON output area */
+    .json-output {
+      background: #0a0a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #888;
+      padding: 8px 0;
+      border-top: 1px solid #333;
+    }
+
+    .status-bar .coords {
+      color: #4ecca3;
+    }
+
+    /* Level list */
+    .level-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .level-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: #0f3460;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .level-item:hover {
+      background: #1a4a7a;
+    }
+
+    .level-item.active {
+      border: 1px solid #4ecca3;
+    }
+
+    .level-item .delete-btn {
+      background: none;
+      border: none;
+      color: #e94560;
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 14px;
+    }
+
+    /* Test mode overlay */
+    .test-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      padding: 10px 16px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 100;
+    }
+
+    .test-overlay.hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h1>Level Editor</h1>
+
+    <div class="control-group">
+      <label>Current Level</label>
+      <select id="levelSelect">
+        <option value="unit1">Unit 1</option>
+        <option value="unit2">Unit 2</option>
+        <option value="unit3" selected>Unit 3</option>
+        <option value="unit4">Unit 4</option>
+        <option value="unit5">Unit 5</option>
+        <option value="unit6">Unit 6</option>
+        <option value="unit7">Unit 7</option>
+        <option value="unit8">Unit 8</option>
+        <option value="unit9">Unit 9</option>
+      </select>
+    </div>
+
+    <h2>Room Settings</h2>
+    <div class="control-group">
+      <label>Room Width: <span id="roomWidthVal">1200</span>px</label>
+      <input type="range" id="roomWidth" min="800" max="2000" value="1200" step="50">
+    </div>
+
+    <h2>Incline/Ramp Settings</h2>
+    <div class="control-group">
+      <label>Incline Start X: <span id="inclineStartXVal">50</span>px</label>
+      <input type="range" id="inclineStartX" min="0" max="400" value="50" step="10">
+    </div>
+    <div class="control-group">
+      <label>Incline End X (Cliff Edge): <span id="cliffEdgeXVal">800</span>px</label>
+      <input type="range" id="cliffEdgeX" min="400" max="1600" value="800" step="10">
+    </div>
+    <div class="control-group">
+      <label>Cliff Height: <span id="cliffHeightVal">250</span>px</label>
+      <input type="range" id="cliffHeight" min="100" max="400" value="250" step="10">
+    </div>
+
+    <h2>Door Settings</h2>
+    <div class="control-group">
+      <label>Door X: <span id="doorXVal">1080</span>px</label>
+      <input type="range" id="doorX" min="500" max="1800" value="1080" step="10">
+    </div>
+    <div class="control-group">
+      <label>Extra Elevation: <span id="doorElevationVal">30</span>px</label>
+      <input type="range" id="doorElevation" min="0" max="100" value="30" step="5">
+    </div>
+
+    <h2>Block Spawn (Independent)</h2>
+    <div class="control-group">
+      <label>Spawn X: <span id="spawnXVal">650</span>px</label>
+      <input type="range" id="spawnX" min="100" max="1500" value="650" step="10">
+    </div>
+    <div class="control-group">
+      <label>Spawn Y: <span id="spawnYVal">200</span>px from ground</label>
+      <input type="range" id="spawnY" min="50" max="400" value="200" step="10">
+    </div>
+
+    <div class="button-row">
+      <button id="testBtn">Test Play</button>
+      <button id="stopTestBtn" class="secondary" disabled>Stop Test</button>
+    </div>
+
+    <h2>Export/Import</h2>
+    <div class="button-row">
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn" class="secondary">Import JSON</button>
+    </div>
+    <div class="button-row">
+      <button id="copyBtn" class="secondary">Copy to Clipboard</button>
+    </div>
+
+    <div class="instructions">
+      <h3>Instructions</h3>
+      <p>Drag elements on canvas or use sliders.</p>
+      <p><kbd>Space</kbd> - Test play toggle</p>
+      <p><kbd>1-9</kbd> - Switch unit level</p>
+      <p><kbd>S</kbd> - Save current level</p>
+      <p><kbd>E</kbd> - Export all levels</p>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="toolbar">
+      <span>Editing: <strong id="currentLevelName">Unit 3</strong></span>
+      <span style="color: #888">|</span>
+      <span>Blocks needed: <strong id="blocksNeeded">2</strong></span>
+      <span style="color: #888">|</span>
+      <span>Door height: <strong id="doorHeightDisplay">0</strong>px</span>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="levelCanvas"></canvas>
+      <div class="test-overlay hidden" id="testOverlay">
+        <strong>TEST MODE</strong> - Press Space or Esc to exit<br>
+        Arrow keys / WASD to move
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span>Mouse: <span class="coords" id="mouseCoords">0, 0</span></span>
+      <span id="statusText">Ready</span>
+    </div>
+
+    <h2 style="margin-top: 10px; font-size: 14px; color: #888;">JSON Output</h2>
+    <div class="json-output" id="jsonOutput">{}</div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json" style="display: none">
+
+  <!-- Load game dependencies for test mode -->
+  <script src="js/sprite_sheet.js"></script>
+  <script src="js/canvas_engine.js"></script>
+  <script src="js/entities/exit_door.js"></script>
+  <script src="js/entities/unit_block.js"></script>
+  <script src="js/entities/player_sprite.js"></script>
+  <script src="js/study_buddy_room.js"></script>
+
+  <script>
+    // Level Editor Application
+    class LevelEditor {
+      constructor() {
+        this.canvas = document.getElementById('levelCanvas');
+        this.ctx = this.canvas.getContext('2d');
+
+        // Default level data for all units
+        // blockSpawn is now independent: { x, y } where y is distance from ground
+        this.levels = {
+          unit1: { roomWidth: 1200, incline: null, door: { x: 1080, elevation: 0 }, blockSpawn: null },
+          unit2: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit3: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit4: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit5: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit6: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit7: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit8: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+          unit9: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
+        };
+
+        this.currentLevel = 'unit3';
+        this.groundHeight = 50;
+        this.viewportHeight = 500;
+
+        // Dragging state
+        this.dragging = null;
+        this.dragOffset = { x: 0, y: 0 };
+
+        // Test mode state
+        this.testMode = false;
+        this.testEngine = null;
+        this.testRoom = null;
+
+        // Camera offset for preview
+        this.cameraX = 0;
+
+        // Current scale factor (set during render)
+        this.scale = 1;
+
+        this.init();
+      }
+
+      init() {
+        this.setupCanvas();
+        this.bindControls();
+        this.bindEvents();
+        this.loadFromLocalStorage();
+        this.updateControlsFromLevel();
+        this.render();
+      }
+
+      setupCanvas() {
+        const container = this.canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+        this.viewportHeight = rect.height;
+      }
+
+      get groundY() {
+        return this.viewportHeight - this.groundHeight;
+      }
+
+      get level() {
+        return this.levels[this.currentLevel];
+      }
+
+      get unitNumber() {
+        return parseInt(this.currentLevel.replace('unit', ''));
+      }
+
+      get blocksNeeded() {
+        return Math.max(0, this.unitNumber - 1);
+      }
+
+      bindControls() {
+        // Level selector
+        document.getElementById('levelSelect').addEventListener('change', (e) => {
+          this.currentLevel = e.target.value;
+          this.updateControlsFromLevel();
+          this.render();
+        });
+
+        // Sliders
+        const sliders = ['roomWidth', 'inclineStartX', 'cliffEdgeX', 'cliffHeight', 'doorX', 'doorElevation', 'spawnX', 'spawnY'];
+        sliders.forEach(id => {
+          const slider = document.getElementById(id);
+          slider.addEventListener('input', () => this.onSliderChange(id, slider.value));
+        });
+
+        // Buttons
+        document.getElementById('testBtn').addEventListener('click', () => this.startTestMode());
+        document.getElementById('stopTestBtn').addEventListener('click', () => this.stopTestMode());
+        document.getElementById('exportBtn').addEventListener('click', () => this.exportLevels());
+        document.getElementById('importBtn').addEventListener('click', () => this.importLevels());
+        document.getElementById('copyBtn').addEventListener('click', () => this.copyToClipboard());
+
+        // File input
+        document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileImport(e));
+      }
+
+      bindEvents() {
+        // Mouse events for dragging
+        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.canvas.addEventListener('mouseup', () => this.onMouseUp());
+        this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.onKeyDown(e));
+
+        // Window resize
+        window.addEventListener('resize', () => {
+          this.setupCanvas();
+          this.render();
+        });
+      }
+
+      onSliderChange(id, value) {
+        value = parseInt(value);
+        const level = this.level;
+
+        switch (id) {
+          case 'roomWidth':
+            level.roomWidth = value;
+            document.getElementById('roomWidthVal').textContent = value;
+            break;
+          case 'inclineStartX':
+            if (level.incline) level.incline.startX = value;
+            document.getElementById('inclineStartXVal').textContent = value;
+            break;
+          case 'cliffEdgeX':
+            if (level.incline) level.incline.endX = value;
+            document.getElementById('cliffEdgeXVal').textContent = value;
+            break;
+          case 'cliffHeight':
+            if (level.incline) level.incline.height = value;
+            document.getElementById('cliffHeightVal').textContent = value;
+            break;
+          case 'doorX':
+            level.door.x = value;
+            document.getElementById('doorXVal').textContent = value;
+            break;
+          case 'doorElevation':
+            level.door.elevation = value;
+            document.getElementById('doorElevationVal').textContent = value;
+            break;
+          case 'spawnX':
+            if (level.blockSpawn) level.blockSpawn.x = value;
+            document.getElementById('spawnXVal').textContent = value;
+            break;
+          case 'spawnY':
+            if (level.blockSpawn) level.blockSpawn.y = value;
+            document.getElementById('spawnYVal').textContent = value;
+            break;
+        }
+
+        this.saveToLocalStorage();
+        this.updateDisplayInfo();
+        this.render();
+      }
+
+      updateControlsFromLevel() {
+        const level = this.level;
+        const unitNum = this.unitNumber;
+
+        document.getElementById('currentLevelName').textContent = `Unit ${unitNum}`;
+        document.getElementById('blocksNeeded').textContent = this.blocksNeeded;
+
+        document.getElementById('roomWidth').value = level.roomWidth;
+        document.getElementById('roomWidthVal').textContent = level.roomWidth;
+
+        // Incline controls
+        if (level.incline) {
+          document.getElementById('inclineStartX').value = level.incline.startX;
+          document.getElementById('inclineStartXVal').textContent = level.incline.startX;
+          document.getElementById('cliffEdgeX').value = level.incline.endX;
+          document.getElementById('cliffEdgeXVal').textContent = level.incline.endX;
+          document.getElementById('cliffHeight').value = level.incline.height;
+          document.getElementById('cliffHeightVal').textContent = level.incline.height;
+          document.getElementById('inclineStartX').disabled = false;
+          document.getElementById('cliffEdgeX').disabled = false;
+          document.getElementById('cliffHeight').disabled = false;
+        } else {
+          document.getElementById('inclineStartX').disabled = true;
+          document.getElementById('cliffEdgeX').disabled = true;
+          document.getElementById('cliffHeight').disabled = true;
+        }
+
+        // Door controls
+        document.getElementById('doorX').value = level.door.x;
+        document.getElementById('doorXVal').textContent = level.door.x;
+        document.getElementById('doorElevation').value = level.door.elevation;
+        document.getElementById('doorElevationVal').textContent = level.door.elevation;
+
+        // Block spawn controls (independent x, y)
+        if (level.blockSpawn) {
+          document.getElementById('spawnX').value = level.blockSpawn.x;
+          document.getElementById('spawnXVal').textContent = level.blockSpawn.x;
+          document.getElementById('spawnY').value = level.blockSpawn.y;
+          document.getElementById('spawnYVal').textContent = level.blockSpawn.y;
+          document.getElementById('spawnX').disabled = false;
+          document.getElementById('spawnY').disabled = false;
+        } else {
+          document.getElementById('spawnX').disabled = true;
+          document.getElementById('spawnY').disabled = true;
+        }
+
+        this.updateDisplayInfo();
+        this.updateJSONOutput();
+      }
+
+      updateDisplayInfo() {
+        const blockHeight = 48;
+        const doorHeight = this.blocksNeeded * blockHeight + this.level.door.elevation;
+        document.getElementById('doorHeightDisplay').textContent = doorHeight;
+      }
+
+      updateJSONOutput() {
+        const output = JSON.stringify(this.levels, null, 2);
+        document.getElementById('jsonOutput').textContent = output;
+      }
+
+      /**
+       * Convert screen coordinates to world coordinates
+       */
+      screenToWorld(screenX, screenY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = screenX - rect.left;
+        const canvasY = screenY - rect.top;
+        // Account for scale - divide by scale to get world coords
+        const worldX = canvasX / this.scale;
+        const worldY = canvasY;
+        return { x: worldX, y: worldY };
+      }
+
+      onMouseDown(e) {
+        if (this.testMode) return;
+
+        const { x, y } = this.screenToWorld(e.clientX, e.clientY);
+        const hitRadius = 40 / this.scale; // Adjust hit radius based on scale
+        const level = this.level;
+
+        console.log(`Mouse down at world coords: ${x.toFixed(0)}, ${y.toFixed(0)}, scale: ${this.scale.toFixed(2)}`);
+
+        // Check if clicking on door (bigger hit area)
+        const doorPos = this.getDoorPosition();
+        const doorCenterX = doorPos.x + 25;
+        const doorCenterY = doorPos.y + 34;
+        if (this.isNear(x, y, doorCenterX, doorCenterY, hitRadius)) {
+          this.dragging = 'door';
+          this.setStatus('Dragging door...');
+          console.log('Started dragging door');
+          return;
+        }
+
+        // Check if clicking on incline start (green handle at bottom-left of ramp)
+        if (level.incline) {
+          const inclineStartY = this.groundY;
+          if (this.isNear(x, y, level.incline.startX, inclineStartY - 20, hitRadius)) {
+            this.dragging = 'inclineStart';
+            this.setStatus('Dragging incline start...');
+            console.log('Started dragging incline start');
+            return;
+          }
+
+          // Check if clicking on cliff edge (the orange vertical bar at end of incline)
+          const cliffTopY = this.groundY - level.incline.height;
+          if (Math.abs(x - level.incline.endX) < hitRadius &&
+              y >= cliffTopY - 20 && y <= this.groundY + 20) {
+            this.dragging = 'cliffEnd';
+            this.setStatus('Dragging cliff edge...');
+            console.log('Started dragging cliff edge');
+            return;
+          }
+        }
+
+        // Check if clicking on spawn point (purple area - now independent)
+        if (level.blockSpawn) {
+          const spawnX = level.blockSpawn.x;
+          const spawnY = this.groundY - level.blockSpawn.y;
+          if (this.isNear(x, y, spawnX, spawnY, hitRadius)) {
+            this.dragging = 'spawn';
+            this.setStatus('Dragging spawn point...');
+            console.log('Started dragging spawn');
+            return;
+          }
+        }
+      }
+
+      onMouseMove(e) {
+        const { x, y } = this.screenToWorld(e.clientX, e.clientY);
+        const level = this.level;
+
+        document.getElementById('mouseCoords').textContent = `${Math.round(x)}, ${Math.round(y)}`;
+
+        // Update cursor based on what we're hovering
+        if (!this.dragging) {
+          let cursor = 'crosshair';
+          const hitRadius = 40 / this.scale;
+
+          // Check door hover
+          const doorPos = this.getDoorPosition();
+          if (this.isNear(x, y, doorPos.x + 25, doorPos.y + 34, hitRadius)) {
+            cursor = 'grab';
+          }
+
+          // Check incline handles
+          if (level.incline) {
+            // Incline start hover
+            if (this.isNear(x, y, level.incline.startX, this.groundY - 20, hitRadius)) {
+              cursor = 'ew-resize';
+            }
+            // Cliff edge hover
+            const cliffTopY = this.groundY - level.incline.height;
+            if (Math.abs(x - level.incline.endX) < hitRadius &&
+                y >= cliffTopY - 20 && y <= this.groundY + 20) {
+              cursor = 'ew-resize';
+            }
+          }
+
+          // Check spawn hover (independent position)
+          if (level.blockSpawn) {
+            const spawnY = this.groundY - level.blockSpawn.y;
+            if (this.isNear(x, y, level.blockSpawn.x, spawnY, hitRadius)) {
+              cursor = 'move';
+            }
+          }
+
+          this.canvas.style.cursor = cursor;
+          return;
+        }
+
+        // We're dragging
+        this.canvas.style.cursor = 'grabbing';
+
+        switch (this.dragging) {
+          case 'door':
+            level.door.x = Math.max(100, Math.min(level.roomWidth - 60, x - 25));
+            document.getElementById('doorX').value = Math.round(level.door.x);
+            document.getElementById('doorXVal').textContent = Math.round(level.door.x);
+            break;
+
+          case 'inclineStart':
+            if (level.incline) {
+              // Keep start to the left of the end
+              level.incline.startX = Math.max(0, Math.min(level.incline.endX - 100, x));
+              document.getElementById('inclineStartX').value = Math.round(level.incline.startX);
+              document.getElementById('inclineStartXVal').textContent = Math.round(level.incline.startX);
+            }
+            break;
+
+          case 'cliffEnd':
+            if (level.incline) {
+              // Keep end to the right of the start
+              level.incline.endX = Math.max(level.incline.startX + 100, Math.min(level.roomWidth - 200, x));
+              document.getElementById('cliffEdgeX').value = Math.round(level.incline.endX);
+              document.getElementById('cliffEdgeXVal').textContent = Math.round(level.incline.endX);
+            }
+            break;
+
+          case 'spawn':
+            if (level.blockSpawn) {
+              // Spawn can be anywhere in the room
+              level.blockSpawn.x = Math.max(50, Math.min(level.roomWidth - 50, x));
+              level.blockSpawn.y = Math.max(50, Math.min(400, this.groundY - y));
+              document.getElementById('spawnX').value = Math.round(level.blockSpawn.x);
+              document.getElementById('spawnXVal').textContent = Math.round(level.blockSpawn.x);
+              document.getElementById('spawnY').value = Math.round(level.blockSpawn.y);
+              document.getElementById('spawnYVal').textContent = Math.round(level.blockSpawn.y);
+            }
+            break;
+        }
+
+        this.saveToLocalStorage();
+        this.updateJSONOutput();
+        this.render();
+      }
+
+      onMouseUp() {
+        if (this.dragging) {
+          this.setStatus('Ready');
+          console.log('Stopped dragging');
+        }
+        this.dragging = null;
+        this.canvas.style.cursor = 'crosshair';
+      }
+
+      onKeyDown(e) {
+        // Number keys 1-9 to switch levels
+        if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.metaKey) {
+          const unitNum = parseInt(e.key);
+          this.currentLevel = `unit${unitNum}`;
+          document.getElementById('levelSelect').value = this.currentLevel;
+          this.updateControlsFromLevel();
+          this.render();
+          return;
+        }
+
+        switch (e.key.toLowerCase()) {
+          case ' ':
+            e.preventDefault();
+            if (this.testMode) {
+              this.stopTestMode();
+            } else {
+              this.startTestMode();
+            }
+            break;
+          case 'escape':
+            if (this.testMode) this.stopTestMode();
+            break;
+          case 's':
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              this.saveToLocalStorage();
+              this.setStatus('Saved to local storage');
+            }
+            break;
+          case 'e':
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              this.exportLevels();
+            }
+            break;
+        }
+      }
+
+      isNear(x1, y1, x2, y2, threshold) {
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        return Math.sqrt(dx * dx + dy * dy) < threshold;
+      }
+
+      getDoorPosition() {
+        const level = this.level;
+        const blockHeight = 48;
+        const doorElevation = this.blocksNeeded * blockHeight + level.door.elevation;
+        const doorBottomY = this.groundY - doorElevation;
+        return { x: level.door.x, y: doorBottomY - 68 };
+      }
+
+      render() {
+        if (this.testMode) return;
+
+        const ctx = this.ctx;
+        const level = this.level;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+
+        // Clear
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, width, height);
+
+        // Calculate scale to fit room in viewport - store for mouse handling
+        this.scale = Math.min(1, width / level.roomWidth);
+        this.cameraX = 0;
+
+        ctx.save();
+        ctx.scale(this.scale, 1);
+
+        // Draw ground
+        ctx.fillStyle = '#2d2d44';
+        ctx.fillRect(0, this.groundY, level.roomWidth, this.groundHeight);
+
+        // Draw grid
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < level.roomWidth; x += 50) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < height; y += 50) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(level.roomWidth, y);
+          ctx.stroke();
+        }
+
+        // Draw incline/ramp if exists
+        if (level.incline) {
+          const cliffTopY = this.groundY - level.incline.height;
+
+          // Ramp line
+          ctx.strokeStyle = '#f39c12';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([10, 5]);
+          ctx.beginPath();
+          ctx.moveTo(level.incline.startX, this.groundY);
+          ctx.lineTo(level.incline.endX, cliffTopY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // === INCLINE START HANDLE (green) ===
+          ctx.fillStyle = '#2ecc71';
+          ctx.beginPath();
+          ctx.arc(level.incline.startX, this.groundY - 20, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Arrow on handle
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('⟷', level.incline.startX, this.groundY - 16);
+
+          // Label
+          ctx.fillStyle = '#2ecc71';
+          ctx.font = '11px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`Start x=${level.incline.startX}`, level.incline.startX - 20, this.groundY - 45);
+
+          // === CLIFF EDGE HANDLE (orange) - vertical drop ===
+          ctx.strokeStyle = '#e74c3c';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(level.incline.endX, cliffTopY);
+          ctx.lineTo(level.incline.endX, this.groundY);
+          ctx.stroke();
+
+          // Cliff edge DRAG HANDLE
+          const handleWidth = 24;
+          const handleHeight = Math.min(level.incline.height, 80);
+          const handleY = cliffTopY + (level.incline.height - handleHeight) / 2;
+
+          ctx.fillStyle = '#f39c12';
+          ctx.beginPath();
+          ctx.roundRect(level.incline.endX - handleWidth/2, handleY, handleWidth, handleHeight, 6);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Drag arrows on handle
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('⟷', level.incline.endX, handleY + handleHeight/2 + 5);
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`Cliff Edge (drag!)`, level.incline.endX + 20, cliffTopY + 20);
+          ctx.fillText(`x=${level.incline.endX}, h=${level.incline.height}`, level.incline.endX + 20, cliffTopY + 35);
+        }
+
+        // Draw block spawn area (independent of incline)
+        if (level.blockSpawn) {
+          const spawnX = level.blockSpawn.x;
+          const spawnY = this.groundY - level.blockSpawn.y;
+
+          // Spawn area background
+          ctx.fillStyle = 'rgba(155, 89, 182, 0.3)';
+          ctx.fillRect(spawnX - 50, spawnY - 50, 100, 100);
+
+          ctx.strokeStyle = '#9b59b6';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(spawnX - 50, spawnY - 50, 100, 100);
+
+          // Spawn DRAG HANDLE - center of spawn area
+          ctx.beginPath();
+          ctx.arc(spawnX, spawnY, 16, 0, Math.PI * 2);
+          ctx.fillStyle = '#9b59b6';
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Move icon
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('✥', spawnX, spawnY + 4);
+
+          // Label
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`Block Spawn (drag)`, spawnX - 50, spawnY - 60);
+          ctx.fillText(`x=${spawnX}, y=${level.blockSpawn.y}`, spawnX - 50, spawnY - 75);
+        }
+
+        // Draw door
+        const doorPos = this.getDoorPosition();
+        this.drawDoor(ctx, doorPos.x, doorPos.y);
+
+        // Door label
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px monospace';
+        const blockHeight = 48;
+        const totalHeight = this.blocksNeeded * blockHeight + level.door.elevation;
+        ctx.fillText(`Door (drag me!)`, doorPos.x - 10, doorPos.y - 10);
+        ctx.fillText(`x=${Math.round(level.door.x)}, h=${totalHeight}px`, doorPos.x - 10, doorPos.y - 25);
+        ctx.fillText(`${this.blocksNeeded} blocks + ${level.door.elevation}px extra`, doorPos.x - 10, doorPos.y - 40);
+
+        // Draw sample blocks to show scale
+        if (this.blocksNeeded > 0) {
+          const blockWidth = 40;
+          for (let i = 0; i < Math.min(this.blocksNeeded, 3); i++) {
+            const bx = doorPos.x + 60;
+            const by = this.groundY - (i + 1) * blockHeight;
+
+            ctx.fillStyle = '#f5f5f0';
+            ctx.strokeStyle = '#4ecca3';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, blockWidth, blockHeight, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(i + 1, bx + blockWidth / 2, by + blockHeight / 2 + 5);
+            ctx.textAlign = 'left';
+          }
+
+          // Label
+          ctx.fillStyle = '#888';
+          ctx.font = '11px monospace';
+          ctx.fillText('Sample stack', doorPos.x + 55, this.groundY + 15);
+        }
+
+        // Draw room boundaries
+        ctx.strokeStyle = '#4ecca3';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.strokeRect(0, 0, level.roomWidth, height);
+
+        ctx.restore();
+
+        this.updateJSONOutput();
+      }
+
+      drawDoor(ctx, x, y) {
+        const width = 50;
+        const height = 68;
+        const archRadius = width / 2;
+
+        // Outline
+        ctx.fillStyle = 'rgba(80, 80, 80, 0.9)';
+        ctx.beginPath();
+        ctx.moveTo(x - 3, y + height + 3);
+        ctx.lineTo(x - 3, y + archRadius);
+        ctx.arc(x + archRadius, y + archRadius, archRadius + 3, Math.PI, 0, false);
+        ctx.lineTo(x + width + 3, y + height + 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner door
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
+        ctx.beginPath();
+        ctx.moveTo(x, y + height);
+        ctx.lineTo(x, y + archRadius);
+        ctx.arc(x + archRadius, y + archRadius, archRadius, Math.PI, 0, false);
+        ctx.lineTo(x + width, y + height);
+        ctx.closePath();
+        ctx.fill();
+
+        // DRAG HANDLE - big obvious circle in center
+        ctx.beginPath();
+        ctx.arc(x + width / 2, y + height / 2, 14, 0, Math.PI * 2);
+        ctx.fillStyle = '#4ecca3';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Move icon on handle
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✥', x + width / 2, y + height / 2 + 4);
+        ctx.textAlign = 'left';
+      }
+
+      // Test mode - play the level
+      async startTestMode() {
+        if (this.testMode) return;
+
+        this.testMode = true;
+        document.getElementById('testBtn').disabled = true;
+        document.getElementById('stopTestBtn').disabled = false;
+        document.getElementById('testOverlay').classList.remove('hidden');
+
+        // Create test engine
+        this.testEngine = new CanvasEngine(this.canvas);
+
+        // Load sprite sheet
+        const spriteSheet = new SpriteSheet('img/sprite_sheet.png', 32, 32, 11);
+        await spriteSheet.load();
+
+        // Create player
+        const player = new PlayerSprite(spriteSheet, 100, this.groundY - 100);
+        player.engine = this.testEngine;
+        this.testEngine.addEntity('player', player);
+
+        // Create room with current level settings
+        this.testRoom = new StudyBuddyRoom(this.testEngine, { roomWidth: this.level.roomWidth });
+
+        // Override room initialization with our level data
+        this.applyLevelToRoom(this.testRoom);
+
+        this.testEngine.start();
+        this.setStatus('Test mode active - press Space to exit');
+      }
+
+      applyLevelToRoom(room) {
+        const level = this.level;
+        const blockHeight = 48;
+        const blockWidth = 40;
+        const unitNumber = this.unitNumber;
+
+        room.currentLessonId = `U${unitNumber}-L1`;
+        room.currentUnitNumber = unitNumber;
+        room.blocksNeededForDoor = this.blocksNeeded;
+
+        if (level.cliff) {
+          room.cliffEdgeX = level.cliff.edgeX;
+          room.cliffHeight = level.cliff.height;
+          room.cliffTopY = this.groundY - level.cliff.height;
+
+          // Create incline
+          room.incline = {
+            startX: 50,
+            endX: level.cliff.edgeX,
+            startY: this.groundY,
+            endY: room.cliffTopY,
+            width: level.cliff.edgeX - 50,
+            height: level.cliff.height
+          };
+
+          // Create door
+          const doorElevation = this.blocksNeeded * blockHeight + level.door.elevation;
+          const doorBottomY = this.groundY - doorElevation;
+          room.door = new ExitDoor(level.door.x, doorBottomY - 68);
+          room.door.engine = this.testEngine;
+
+          // Create blocks on cliff
+          const completedUnits = [];
+          for (let i = 1; i < unitNumber; i++) {
+            completedUnits.push(i);
+          }
+
+          if (completedUnits.length > 0 && level.blockSpawn) {
+            const spawnX = level.cliff.edgeX + level.blockSpawn.xOffset;
+            room.blocks = [];
+
+            const units = [...completedUnits].sort((a, b) => a - b);
+            const rows = room.calculatePyramidRows(units.length);
+            const blockGap = 8;
+            const baseY = room.cliffTopY - blockHeight;
+
+            let unitIndex = 0;
+            rows.forEach((rowCount, rowIndex) => {
+              const rowWidth = rowCount * blockWidth + (rowCount - 1) * blockGap;
+              const rowStartX = spawnX + (rows[0] * (blockWidth + blockGap) - rowWidth) / 2;
+              const rowY = baseY - rowIndex * (blockHeight + 4);
+
+              for (let col = 0; col < rowCount && unitIndex < units.length; col++) {
+                const block = new UnitBlock(
+                  units[unitIndex],
+                  180, // Default hue
+                  rowStartX + col * (blockWidth + blockGap),
+                  rowY
+                );
+                block.engine = this.testEngine;
+                room.blocks.push(block);
+                this.testEngine.addEntity(`block_${room.blocks.length - 1}`, block);
+                unitIndex++;
+              }
+            });
+          }
+        } else {
+          // Unit 1 - no cliff
+          room.cliffEdgeX = null;
+          room.cliffHeight = 0;
+          room.cliffTopY = null;
+          room.incline = null;
+
+          room.door = new ExitDoor(level.door.x, this.groundY - 68);
+          room.door.engine = this.testEngine;
+        }
+      }
+
+      stopTestMode() {
+        if (!this.testMode) return;
+
+        this.testMode = false;
+        document.getElementById('testBtn').disabled = false;
+        document.getElementById('stopTestBtn').disabled = true;
+        document.getElementById('testOverlay').classList.add('hidden');
+
+        if (this.testEngine) {
+          this.testEngine.stop();
+          // Clean up entities
+          const player = this.testEngine.entities.get('player');
+          if (player && player.onRemoved) player.onRemoved();
+          this.testEngine = null;
+        }
+
+        if (this.testRoom) {
+          this.testRoom.destroy();
+          this.testRoom = null;
+        }
+
+        this.render();
+        this.setStatus('Ready');
+      }
+
+      exportLevels() {
+        const json = JSON.stringify(this.levels, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'study_buddy_levels.json';
+        a.click();
+
+        URL.revokeObjectURL(url);
+        this.setStatus('Exported levels to study_buddy_levels.json');
+      }
+
+      importLevels() {
+        document.getElementById('fileInput').click();
+      }
+
+      handleFileImport(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+
+            // Merge imported levels
+            for (const key in imported) {
+              if (this.levels.hasOwnProperty(key)) {
+                this.levels[key] = imported[key];
+              }
+            }
+
+            this.saveToLocalStorage();
+            this.updateControlsFromLevel();
+            this.render();
+            this.setStatus('Imported levels successfully');
+          } catch (err) {
+            this.setStatus('Error importing: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+
+        // Reset file input
+        e.target.value = '';
+      }
+
+      copyToClipboard() {
+        const json = JSON.stringify(this.levels, null, 2);
+        navigator.clipboard.writeText(json).then(() => {
+          this.setStatus('Copied to clipboard');
+        }).catch(err => {
+          this.setStatus('Failed to copy: ' + err.message);
+        });
+      }
+
+      saveToLocalStorage() {
+        localStorage.setItem('studyBuddyLevels', JSON.stringify(this.levels));
+      }
+
+      loadFromLocalStorage() {
+        const saved = localStorage.getItem('studyBuddyLevels');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            for (const key in parsed) {
+              if (this.levels.hasOwnProperty(key)) {
+                this.levels[key] = parsed[key];
+              }
+            }
+          } catch (e) {
+            console.error('Failed to load saved levels:', e);
+          }
+        }
+      }
+
+      setStatus(text) {
+        document.getElementById('statusText').textContent = text;
+      }
+    }
+
+    // Initialize editor when page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      window.levelEditor = new LevelEditor();
+    });
+  </script>
+</body>
+</html>

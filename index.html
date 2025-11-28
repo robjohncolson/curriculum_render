@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AP Stats Consensus Quiz</title>
 
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
@@ -23,40 +27,56 @@
     <script src="js/canvas_engine.js"></script>
     <script src="js/entities/player_sprite.js"></script>
     <script src="js/entities/peer_sprite.js"></script>
+    <script src="js/entities/unit_block.js"></script>
+    <script src="js/entities/exit_door.js"></script>
+    <script src="js/entities/menu_door.js"></script>
+    <script src="js/study_buddy_room.js"></script>
     <script src="js/sprite_manager.js"></script>
 
 </head>
+
 <body>
     <canvas id="spriteCanvas"></canvas>
     <div class="container">
-        <h1>🧮 AP Statistics Consensus Quiz</h1>
+        <div class="header-row">
+            <h1><img src="img/icons/icon_stats.png" alt="" class="header-icon"> AP Statistics Consensus Quiz</h1>
+        </div>
         <div id="messageArea"></div>
         <div id="restoreStatusBanner" class="message success" style="display: none;"></div>
         <div id="questionsContainer"></div>
     </div>
 
-    <!-- Unified Floating Action Button -->
+    <!-- Unified Floating Action Button (main button hidden - use menu door in game instead) -->
     <div class="fab-container">
-        <button class="fab-main" onclick="toggleFabMenu()" title="Menu">
+        <button class="fab-main" onclick="toggleFabMenu()" title="Menu" style="display: none;">
             <span class="fab-icon">☰</span>
             <span class="fab-icon-close" style="display: none;">✕</span>
         </button>
         <div class="fab-menu" style="display: none;">
-            <button class="fab-item sprite-config-toggle" onclick="showSpriteConfigModal()" title="Sprite settings">
-                <span class="fab-item-icon">🎮</span>
-                <span class="fab-item-label">Sprite</span>
+            <button class="fab-item user-mgmt-button" onclick="showUserManagementModal()">
+                <img src="img/icons/icon_user.png" alt="Account" class="fab-item-icon">
+                <span class="fab-item-label">ACCOUNT</span>
             </button>
-            <button class="fab-item share-button" onclick="showShareModal()" title="Share this app">
-                <span class="fab-item-icon">📤</span>
-                <span class="fab-item-label">Share</span>
+            <button class="fab-item sprite-config-toggle" onclick="showSpriteConfigModal()">
+                <img src="img/icons/icon_sprite.png" alt="Sprite" class="fab-item-icon">
+                <span class="fab-item-label">SPRITE</span>
             </button>
-            <button class="fab-item sync-button" onclick="showSyncModal()" title="Sync & Export Data">
-                <span class="fab-item-icon">💾</span>
-                <span class="fab-item-label">Sync</span>
+            <button class="fab-item share-button" onclick="showShareModal()">
+                <img src="img/icons/icon_share.png" alt="Share" class="fab-item-icon">
+                <span class="fab-item-label">SHARE</span>
             </button>
-            <button class="fab-item theme-toggle" onclick="toggleTheme()" title="Toggle theme">
-                <span class="fab-item-icon">🌙</span>
-                <span class="fab-item-label">Theme</span>
+            <button class="fab-item sync-button" onclick="showSyncModal()">
+                <img src="img/icons/icon_sync.png" alt="Sync" class="fab-item-icon">
+                <span class="fab-item-label">SYNC</span>
+            </button>
+            <button class="fab-item theme-toggle" onclick="toggleTheme()">
+                <img src="img/icons/icon_theme.png" alt="Theme" class="fab-item-icon">
+                <span class="fab-item-label">THEME</span>
+            </button>
+            <!-- Teacher Dashboard - hidden by default, shown only in teacher mode -->
+            <button class="fab-item teacher-dashboard-button" id="fabTeacherDashboard" onclick="showTeacherDashboard()" style="display: none;">
+                <img src="img/icons/icon_teacher.png" alt="Dashboard" class="fab-item-icon">
+                <span class="fab-item-label">TEACHER</span>
             </button>
         </div>
     </div>
@@ -71,9 +91,25 @@
             <div class="sync-section">
                 <h3><i class="fas fa-user"></i> Student Actions</h3>
                 <div id="turboModeNotice" class="turbo-mode-notice" style="display: none;">
-                    <i class="fas fa-sync-alt"></i>
-                    <strong>Live Sync Active!</strong>
-                    <p>Your answers are being automatically synced to the cloud. Manual backups are optional.</p>
+                    <div class="sync-status-header">
+                        <span class="sync-pulse"></span>
+                        <strong>Live Sync Active</strong>
+                    </div>
+                    <div class="sync-stats">
+                        <div class="sync-stat">
+                            <span class="sync-stat-label">Last sync</span>
+                            <span class="sync-stat-value" id="syncLastTime">—</span>
+                        </div>
+                        <div class="sync-stat">
+                            <span class="sync-stat-label">Answers synced</span>
+                            <span class="sync-stat-value" id="syncAnswerCount">—</span>
+                        </div>
+                        <div class="sync-stat">
+                            <span class="sync-stat-label">Connection</span>
+                            <span class="sync-stat-value" id="syncConnectionStatus">Checking...</span>
+                        </div>
+                    </div>
+                    <p class="sync-reassurance">Your answers are automatically saved to the cloud. Manual backups are optional.</p>
                 </div>
                 <div class="sync-buttons">
                     <button id="saveBtn" class="modal-btn">
@@ -90,16 +126,6 @@
                             <small>Import answers from a backup file</small>
                         </span>
                     </button>
-                    <button id="cloudRestoreBtn" class="modal-btn" style="display: none;">
-                        <i class="fas fa-cloud-download-alt"></i>
-                        <span>
-                            <strong>Restore from Cloud</strong>
-                            <small>Use your Supabase backup (turbo mode)</small>
-                        </span>
-                    </button>
-                </div>
-                <div id="cloudRestoreHelper" class="helper-text" style="display: none; margin-top: 8px;">
-                    <i class="fas fa-info-circle"></i> Turbo mode must be active to restore from the cloud.
                 </div>
                 <div id="autoExportContainer" class="auto-export-control" style="display: none; margin-top: 12px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
@@ -109,11 +135,12 @@
                             <small>Beta: Save updates to a chosen folder automatically</small>
                         </span>
                     </label>
-                    <small id="autoExportSupportNote" class="helper-text" style="display: block; margin-top: 6px;"></small>
+                    <small id="autoExportSupportNote" class="helper-text"
+                        style="display: block; margin-top: 6px;"></small>
                 </div>
             </div>
 
-            <div class="sync-section">
+            <div class="sync-section" id="teacherActionsSection" style="display: none;">
                 <h3><i class="fas fa-chalkboard-teacher"></i> Teacher Actions</h3>
                 <div class="sync-buttons">
                     <button id="masterExportBtn" class="modal-btn">
@@ -161,7 +188,8 @@
                 <div class="share-section">
                     <h3>🌐 Visit the Website</h3>
                     <div class="share-url-container">
-                        <input type="text" id="websiteUrl" class="share-url-input" value="https://robjohncolson.github.io/curriculum_render" readonly>
+                        <input type="text" id="websiteUrl" class="share-url-input"
+                            value="https://robjohncolson.github.io/curriculum_render" readonly>
                         <button class="copy-btn" onclick="copyToClipboard('websiteUrl', 'Website URL')">📋 Copy</button>
                     </div>
                     <div class="qr-code-container" id="websiteQR"></div>
@@ -172,7 +200,8 @@
                 <div class="share-section">
                     <h3>💻 View Source Code</h3>
                     <div class="share-url-container">
-                        <input type="text" id="githubUrl" class="share-url-input" value="https://github.com/robjohncolson/curriculum_render" readonly>
+                        <input type="text" id="githubUrl" class="share-url-input"
+                            value="https://github.com/robjohncolson/curriculum_render" readonly>
                         <button class="copy-btn" onclick="copyToClipboard('githubUrl', 'GitHub URL')">📋 Copy</button>
                     </div>
                     <div class="qr-code-container" id="githubQR"></div>
@@ -186,7 +215,8 @@
                     <h3 id="locationTitle">📍 Current Location</h3>
                     <div class="share-url-container">
                         <input type="text" id="currentLocation" class="share-url-input" value="" readonly>
-                        <button class="copy-btn" onclick="copyToClipboard('currentLocation', 'Current location')">📋 Copy</button>
+                        <button class="copy-btn" onclick="copyToClipboard('currentLocation', 'Current location')">📋
+                            Copy</button>
                     </div>
                     <p class="share-instruction" id="locationDescription">Loading location...</p>
                     <div id="locationInfo" class="location-info" style="display: none;">
@@ -203,10 +233,61 @@
         </div>
     </div>
 
+    <!-- Restore Progress Modal -->
+    <div id="restoreModal" class="modal restore-modal" style="display: none;">
+        <div class="modal-content restore-modal-content">
+            <div class="restore-icon">🔄</div>
+            <h2>Restoring Your Data</h2>
+            <p class="restore-message">Fetching your answers from the cloud...</p>
+            <div class="restore-progress-container">
+                <div class="restore-progress-bar">
+                    <div class="restore-progress-fill" style="width: 0%"></div>
+                </div>
+                <span class="restore-progress-text">0%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div id="userManagementModal" class="modal um-modal" style="display: none;">
+        <div class="modal-content um-modal-content">
+            <span class="close-modal" onclick="closeUserManagementModal()">&times;</span>
+            <div id="userManagementContent">
+                <!-- Content dynamically rendered by user_management.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Modal -->
+    <div id="teacherDashboardModal" class="modal td-modal" style="display: none;">
+        <div class="modal-content td-modal-content">
+            <span class="close-modal" onclick="closeTeacherDashboard()">&times;</span>
+            <div id="teacherDashboardContent">
+                <!-- Content dynamically rendered by teacher_dashboard.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
+    <script src="data/levels.js"></script>
     <script src="data/chart_questions.js"></script>
+
+    <!-- IndexedDB layer (must load before data_manager and auth) -->
+    <script src="js/lib/dexie.min.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/sync_status.js"></script>
+    <script src="js/restore_ui.js"></script>
+    <script src="js/toast.js"></script>
+    <script src="js/frq_grader.js"></script>
+
+    <!-- User management (must load before auth) -->
+    <script src="js/user_management.js"></script>
+    <script src="js/teacher_dashboard.js"></script>
+
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
     <script src="js/chart_registry.js"></script>
@@ -393,7 +474,7 @@
         }
 
         // Push answer to Supabase
-        window.pushAnswerToSupabase = async function(username, questionId, answerValue, timestamp) {
+        window.pushAnswerToSupabase = async function (username, questionId, answerValue, timestamp) {
             if (!turboModeActive || !supabase) return false;
 
             try {
@@ -524,6 +605,11 @@
                 const currentUser = localStorage.getItem('consensusUsername');
                 if (!currentUser) return null;
 
+                // Update sync status to show we're syncing
+                if (window.SyncStatus) {
+                    window.SyncStatus.setState('syncing-cloud');
+                }
+
                 // OPTIMIZATION 1: Build query with server-side filtering
                 let query = supabase
                     .from('answers')
@@ -532,6 +618,7 @@
                     .order('timestamp', { ascending: false });
 
                 // OPTIMIZATION 2: Incremental fetch - only get data newer than last sync
+                const isInitialSync = !lastPeerDataTimestamp;
                 if (lastPeerDataTimestamp) {
                     query = query.gt('timestamp', lastPeerDataTimestamp);
                     console.log(`🔄 Incremental sync from timestamp: ${lastPeerDataTimestamp}`);
@@ -546,6 +633,9 @@
                 // OPTIMIZATION 3: Early return if no new data
                 if (!data || data.length === 0) {
                     console.log('✅ No new peer data (already up to date)');
+                    if (window.SyncStatus) {
+                        window.SyncStatus.setState('synced-cloud');
+                    }
                     return null;
                 }
 
@@ -569,10 +659,19 @@
                     console.log(`✅ Updated last sync timestamp: ${lastPeerDataTimestamp}`);
                 }
 
+                // Update sync status with results
+                if (window.SyncStatus) {
+                    window.SyncStatus.recordPull(data.length, Object.keys(peerData).length);
+                    window.SyncStatus.setState('synced-cloud');
+                }
+
                 console.log(`✅ Pulled ${data.length} NEW answers from ${Object.keys(peerData).length} users (incremental sync)`);
                 return peerData;
             } catch (error) {
                 console.log(`⚠️ Failed to pull peer data: ${error.message}`);
+                if (window.SyncStatus) {
+                    window.SyncStatus.setState('error', 'Sync failed');
+                }
                 return null;
             }
         }
@@ -694,7 +793,7 @@
             }
         }
 
-        // Update peer data timestamp display
+        // Update peer data timestamp display (creates element if needed, then delegates to SyncStatus)
         function updatePeerDataTimestamp() {
             // Find or create the timestamp display element
             let timestampDisplay = document.getElementById('peerDataTimestamp');
@@ -707,71 +806,27 @@
                     timestampDisplay.id = 'peerDataTimestamp';
                     timestampDisplay.style.cssText = `
                         padding: 8px 12px;
-                        background: var(--bg-secondary, #f5f5f5);
-                        border-radius: 4px;
-                        font-size: 12px;
-                        color: var(--text-secondary, #666);
+                        background: var(--bg-tertiary);
+                        border: 3px solid var(--border-primary);
+                        font-family: var(--font-body);
+                        font-size: 14px;
+                        color: var(--text-secondary);
                         margin-bottom: 10px;
                         text-align: center;
+                        box-shadow: var(--shadow-light);
                     `;
                     messageArea.appendChild(timestampDisplay);
                 }
             }
 
-            if (!timestampDisplay) return;
-
-            // Determine the most recent peer data timestamp
-            let mostRecentTimestamp = lastPeerDataTimestamp;
-
-            // Check localStorage for peer data timestamps
-            const allKeys = Object.keys(localStorage);
-            const peerKeys = allKeys.filter(key => key.startsWith('answers_'));
-            const currentUser = localStorage.getItem('consensusUsername');
-
-            for (const key of peerKeys) {
-                const username = key.replace('answers_', '');
-                if (username !== currentUser) {
-                    try {
-                        const answers = JSON.parse(localStorage.getItem(key) || '{}');
-                        for (const answerData of Object.values(answers)) {
-                            const timestamp = answerData.timestamp;
-                            if (timestamp && (!mostRecentTimestamp || timestamp > mostRecentTimestamp)) {
-                                mostRecentTimestamp = timestamp;
-                            }
-                        }
-                    } catch (e) {}
+            // Let SyncStatus handle the display update
+            if (window.SyncStatus) {
+                // Update lastCloudSync if we have peer data
+                if (lastPeerDataTimestamp && (!SyncStatus.lastCloudSync || lastPeerDataTimestamp > SyncStatus.lastCloudSync)) {
+                    SyncStatus.lastCloudSync = lastPeerDataTimestamp;
                 }
-            }
-
-            // Format the timestamp
-            if (mostRecentTimestamp) {
-                const now = Date.now();
-                const diff = now - mostRecentTimestamp;
-                const date = new Date(mostRecentTimestamp);
-
-                let displayText = '';
-                if (diff < 60000) { // Less than 1 minute
-                    displayText = 'Just now';
-                } else if (diff < 3600000) { // Less than 1 hour
-                    const minutes = Math.floor(diff / 60000);
-                    displayText = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-                } else if (diff < 86400000) { // Less than 1 day
-                    const hours = Math.floor(diff / 3600000);
-                    displayText = `${hours} hour${hours > 1 ? 's' : ''} ago`;
-                } else if (diff < 172800000) { // Less than 2 days
-                    displayText = `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                } else {
-                    displayText = date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
-
-                timestampDisplay.innerHTML = `📊 Peer data current as of: <strong>${displayText}</strong>`;
-
-                // Add turbo mode indicator if active
-                if (turboModeActive) {
-                    timestampDisplay.innerHTML += ' <span style="color: #27ae60;">🚀</span>';
-                }
-            } else {
-                timestampDisplay.innerHTML = '📊 No peer data available yet';
+                SyncStatus.setConnected(turboModeActive);
+                SyncStatus.updateUnifiedDisplay();
             }
         }
 
@@ -937,76 +992,76 @@
             }
         }
 
-// --- START: NEW Real-Time Update Handling System ---
+        // --- START: NEW Real-Time Update Handling System ---
 
-/**
- * Ensures the global classData object and its user structure are initialized.
- */
-function ensureClassDataInitialized() {
-    if (!classData || typeof classData !== 'object') classData = { users: {} };
-    if (!classData.users || typeof classData.users !== 'object') classData.users = {};
-}
-
-/**
- * Merges a new peer answer into all relevant state stores (in-memory, localStorage).
- * This acts as the single source of truth for state mutation from real-time events.
- * @param {object} detail - The event detail containing the new answer data.
- * @returns {boolean} - True if the state was updated, false otherwise.
- */
-function mergePeerAnswer(detail) {
-    const { username, question_id, answer_value, timestamp } = detail;
-    ensureClassDataInitialized();
-
-    if (!classData.users[username]) {
-        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
-    }
-
-    const existingAnswer = classData.users[username].answers[question_id];
-    const existingTimestamp = classData.users[username].timestamps[question_id] || existingAnswer?.timestamp || 0;
-
-    if (timestamp > existingTimestamp) {
-        // 1. Update in-memory `classData`
-        classData.users[username].answers[question_id] = { value: answer_value, timestamp: timestamp };
-        classData.users[username].timestamps[question_id] = timestamp;
-        saveClassData(); // Persists the whole classData object
-
-        // 2. Update legacy `answers_[username]` key for backward compatibility
-        const legacyKey = `answers_${username}`;
-        const legacyAnswers = JSON.parse(localStorage.getItem(legacyKey) || '{}');
-        legacyAnswers[question_id] = { value: answer_value, timestamp: timestamp };
-        localStorage.setItem(legacyKey, JSON.stringify(legacyAnswers));
-
-        console.log(`[State Update] Merged new answer for ${username} on ${question_id}`);
-        return true;
-    }
-
-    console.log(`[State Update] Ignored stale answer for ${username} on ${question_id}`);
-    return false;
-}
-
-/**
- * Refreshes the UI for a specific question ID, but only if it's currently rendered.
- * @param {string} questionId The ID of the question to potentially refresh.
- */
-function refreshQuestionIfVisible(questionId) {
-    const question = (currentQuestions || []).find(q => q && q.id === questionId);
-    if (!question) return;
-
-    console.log(`[UI Refresh] Question ${questionId} is visible. Refreshing...`);
-    try {
-        if (question.type === 'multiple-choice' && typeof renderMCQDistribution === 'function') {
-            renderMCQDistribution(questionId);
-        } else if (question.type === 'free-response' && typeof renderFRQResponses === 'function') {
-            renderFRQResponses(questionId);
-        } else if (typeof populatePeerResponses === 'function') {
-            populatePeerResponses(questionId, question.type);
+        /**
+         * Ensures the global classData object and its user structure are initialized.
+         */
+        function ensureClassDataInitialized() {
+            if (!classData || typeof classData !== 'object') classData = { users: {} };
+            if (!classData.users || typeof classData.users !== 'object') classData.users = {};
         }
-    } catch (error) {
-        console.error(`[UI Refresh] Error during refresh for question ${questionId}:`, error);
-    }
-}
 
-// --- END: NEW Real-Time Update Handling System ---
+        /**
+         * Merges a new peer answer into all relevant state stores (in-memory, localStorage).
+         * This acts as the single source of truth for state mutation from real-time events.
+         * @param {object} detail - The event detail containing the new answer data.
+         * @returns {boolean} - True if the state was updated, false otherwise.
+         */
+        function mergePeerAnswer(detail) {
+            const { username, question_id, answer_value, timestamp } = detail;
+            ensureClassDataInitialized();
+
+            if (!classData.users[username]) {
+                classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+            }
+
+            const existingAnswer = classData.users[username].answers[question_id];
+            const existingTimestamp = classData.users[username].timestamps[question_id] || existingAnswer?.timestamp || 0;
+
+            if (timestamp > existingTimestamp) {
+                // 1. Update in-memory `classData`
+                classData.users[username].answers[question_id] = { value: answer_value, timestamp: timestamp };
+                classData.users[username].timestamps[question_id] = timestamp;
+                saveClassData(); // Persists the whole classData object
+
+                // 2. Update legacy `answers_[username]` key for backward compatibility
+                const legacyKey = `answers_${username}`;
+                const legacyAnswers = JSON.parse(localStorage.getItem(legacyKey) || '{}');
+                legacyAnswers[question_id] = { value: answer_value, timestamp: timestamp };
+                localStorage.setItem(legacyKey, JSON.stringify(legacyAnswers));
+
+                console.log(`[State Update] Merged new answer for ${username} on ${question_id}`);
+                return true;
+            }
+
+            console.log(`[State Update] Ignored stale answer for ${username} on ${question_id}`);
+            return false;
+        }
+
+        /**
+         * Refreshes the UI for a specific question ID, but only if it's currently rendered.
+         * @param {string} questionId The ID of the question to potentially refresh.
+         */
+        function refreshQuestionIfVisible(questionId) {
+            const question = (currentQuestions || []).find(q => q && q.id === questionId);
+            if (!question) return;
+
+            console.log(`[UI Refresh] Question ${questionId} is visible. Refreshing...`);
+            try {
+                if (question.type === 'multiple-choice' && typeof renderMCQDistribution === 'function') {
+                    renderMCQDistribution(questionId);
+                } else if (question.type === 'free-response' && typeof renderFRQResponses === 'function') {
+                    renderFRQResponses(questionId);
+                } else if (typeof populatePeerResponses === 'function') {
+                    populatePeerResponses(questionId, question.type);
+                }
+            } catch (error) {
+                console.error(`[UI Refresh] Error during refresh for question ${questionId}:`, error);
+            }
+        }
+
+        // --- END: NEW Real-Time Update Handling System ---
 
         async function initializeTurboMode() {
             // Test connection
@@ -1082,8 +1137,8 @@ function refreshQuestionIfVisible(questionId) {
         // Username Generation - moved to js/auth.js
 
         // Global variables
-        let currentUsername = null;
-        let classData = null;
+        // NOTE: currentUsername and classData are initialized in js/db.js
+        // Do not re-declare them here
         let currentUnit = null;
         let currentLesson = null;
         let currentQuestions = [];
@@ -1105,7 +1160,7 @@ function refreshQuestionIfVisible(questionId) {
             }
         }
 
-        window.getChartSubmissionPayload = function(questionId, usernameOverride) {
+        window.getChartSubmissionPayload = function (questionId, usernameOverride) {
             const username = usernameOverride || currentUsername || localStorage.getItem('consensusUsername') || '';
             return getChartPayloadForUser(username.trim(), questionId);
         };
@@ -1170,7 +1225,7 @@ function refreshQuestionIfVisible(questionId) {
 
                 // Get just the directory path (remove index.html)
                 const directoryPath = localPath.substring(0, localPath.lastIndexOf('/')) ||
-                                    localPath.substring(0, localPath.lastIndexOf('\\'));
+                    localPath.substring(0, localPath.lastIndexOf('\\'));
 
                 locationInput.value = directoryPath || localPath;
                 locationDescription.innerHTML = '🖥️ Running from your local computer';
@@ -1183,16 +1238,7 @@ function refreshQuestionIfVisible(questionId) {
                         <li>Upload the folder to a shared drive</li>
                         <li>Or use the GitHub repository above</li>
                     </ul>
-                    <button onclick="openLocalFolder()" style="
-                        margin-top: 15px;
-                        background: white;
-                        color: #e67e22;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 5px;
-                        cursor: pointer;
-                        font-weight: bold;
-                    ">📂 Open Folder Location</button>
+                    <button onclick="openLocalFolder()" class="retro-btn">OPEN FOLDER</button>
                 `;
                 locationInfo.style.display = 'block';
             } else {
@@ -1274,9 +1320,9 @@ function refreshQuestionIfVisible(questionId) {
                 showMessage(`${label} copied to clipboard!`, 'success');
             } catch (err) {
                 // Fallback for newer browsers
-                navigator.clipboard.writeText(input.value).then(function() {
+                navigator.clipboard.writeText(input.value).then(function () {
                     showMessage(`${label} copied to clipboard!`, 'success');
-                }, function(err) {
+                }, function (err) {
                     showMessage('Failed to copy URL', 'error');
                 });
             }
@@ -1400,7 +1446,7 @@ function refreshQuestionIfVisible(questionId) {
         function canRetry(questionId) {
             // Detect question type - FRQs always allow unlimited retries
             const q = currentQuestions.find(q => q.id === questionId) ||
-                      EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+                EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             const isFRQ = q && q.type === 'free-response';
 
             // FRQs have unlimited retries
@@ -1468,7 +1514,7 @@ function refreshQuestionIfVisible(questionId) {
         }
 
 
-       
+
 
 
 
@@ -1476,12 +1522,12 @@ function refreshQuestionIfVisible(questionId) {
         // Username prompting and session management - moved to js/auth.js
 
         // Function to import username from file
-        window.importUsernameFromFile = function(event) {
+        window.importUsernameFromFile = function (event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
 
@@ -1586,7 +1632,7 @@ function refreshQuestionIfVisible(questionId) {
             document.body.appendChild(modal);
         }
 
-        window.selectUsername = function(username) {
+        window.selectUsername = function (username) {
             document.querySelector('.modal').remove();
 
             // If we have pending import data, import it first
@@ -1599,7 +1645,7 @@ function refreshQuestionIfVisible(questionId) {
             }
         }
 
-        window.closeUsernameSelection = function() {
+        window.closeUsernameSelection = function () {
             document.querySelector('.modal').remove();
             pendingImportData = null;
             pendingUsernameDisplayMap = {};
@@ -1646,41 +1692,41 @@ function refreshQuestionIfVisible(questionId) {
             document.body.appendChild(modal);
             modal.style.display = 'block';
 
-           // --- Start of New Code for Phase 3 (Revised) ---
+            // --- Start of New Code for Phase 3 (Revised) ---
 
-// Attach the event listener for the "Continue to Import" button now that it exists in the DOM.
-const continueBtn = document.getElementById('continueWithUsernameBtn');
-if (continueBtn) {
-    continueBtn.onclick = function() {
-        const usernameInput = document.getElementById('manualUsernameInput');
-        const username = usernameInput.value.trim();
+            // Attach the event listener for the "Continue to Import" button now that it exists in the DOM.
+            const continueBtn = document.getElementById('continueWithUsernameBtn');
+            if (continueBtn) {
+                continueBtn.onclick = function () {
+                    const usernameInput = document.getElementById('manualUsernameInput');
+                    const username = usernameInput.value.trim();
 
-        // 1. Validate that the username is not empty.
-        if (!username) {
-            // Use the existing showMessage function for consistent UI feedback.
-            if (typeof showMessage === 'function') {
-                showMessage('Please enter a username to continue.', 'error');
-            } else {
-                alert('Please enter a username to continue.');
+                    // 1. Validate that the username is not empty.
+                    if (!username) {
+                        // Use the existing showMessage function for consistent UI feedback.
+                        if (typeof showMessage === 'function') {
+                            showMessage('Please enter a username to continue.', 'error');
+                        } else {
+                            alert('Please enter a username to continue.');
+                        }
+                        return;
+                    }
+
+                    // 2. Call the existing `acceptUsername` function to establish the session.
+                    // CRITICAL: We use the username with its original capitalization to match the "Fruit_Animal" format.
+                    acceptUsername(username);
+
+                    // 3. Close the modal.
+                    closeRestoreOptionsModal();
+
+                    // 4. Display a helpful guidance message to the user.
+                    if (typeof showMessage === 'function') {
+                        showMessage(`Welcome, ${username}! Use the Sync button (⚡️) to import your personal backup file.`, 'info');
+                    }
+                };
             }
-            return;
-        }
-        
-        // 2. Call the existing `acceptUsername` function to establish the session.
-        // CRITICAL: We use the username with its original capitalization to match the "Fruit_Animal" format.
-        acceptUsername(username);
-        
-        // 3. Close the modal.
-        closeRestoreOptionsModal();
 
-        // 4. Display a helpful guidance message to the user.
-        if (typeof showMessage === 'function') {
-            showMessage(`Welcome, ${username}! Use the Sync button (⚡️) to import your personal backup file.`, 'info');
-        }
-    };
-}
-
-// --- End of New Code for Phase 3 (Revised) ---
+            // --- End of New Code for Phase 3 (Revised) ---
 
             // Automatically focus the input field for a better user experience
             const usernameInput = document.getElementById('manualUsernameInput');
@@ -1699,330 +1745,330 @@ if (continueBtn) {
         // --- End of New Code for Phase 2 (Revised) ---/
         // / --- Start of mergePersonalData Function for Phase 4.1 ---
 
-  /**
-   * Merges two user data objects with non-destructive timestamp-based logic.
-   * This function implements the approved merge rules for handling multiple personal backup imports.
-   * 
-   * @param {Object} existingUserData - The current user's data from classData.users[username]
-   * @param {Object} newUserData - The incoming user data from an imported file
-   * @returns {Object} The merged user data object with the most recent/relevant information
-   */
-  function mergePersonalData(existingUserData, newUserData) {
-      try {
-          console.log('=== Starting mergePersonalData ===');
+        /**
+         * Merges two user data objects with non-destructive timestamp-based logic.
+         * This function implements the approved merge rules for handling multiple personal backup imports.
+         * 
+         * @param {Object} existingUserData - The current user's data from classData.users[username]
+         * @param {Object} newUserData - The incoming user data from an imported file
+         * @returns {Object} The merged user data object with the most recent/relevant information
+         */
+        function mergePersonalData(existingUserData, newUserData) {
+            try {
+                console.log('=== Starting mergePersonalData ===');
 
-          // 1. Initialization and Edge Cases
-          // If no existing data, return the new data immediately
-          if (!existingUserData || Object.keys(existingUserData).length === 0) {
-              console.log('No existing data found, returning new data as-is');
-              return newUserData || {};
-          }
+                // 1. Initialization and Edge Cases
+                // If no existing data, return the new data immediately
+                if (!existingUserData || Object.keys(existingUserData).length === 0) {
+                    console.log('No existing data found, returning new data as-is');
+                    return newUserData || {};
+                }
 
-          // If no new data, return existing data
-          if (!newUserData || Object.keys(newUserData).length === 0) {
-              console.log('No new data to merge, returning existing data');
-              return existingUserData;
-          }
+                // If no new data, return existing data
+                if (!newUserData || Object.keys(newUserData).length === 0) {
+                    console.log('No new data to merge, returning existing data');
+                    return existingUserData;
+                }
 
-          // Create a deep copy of existingUserData to avoid mutations
-          let mergedUserData = JSON.parse(JSON.stringify(existingUserData));
+                // Create a deep copy of existingUserData to avoid mutations
+                let mergedUserData = JSON.parse(JSON.stringify(existingUserData));
 
-          // Ensure all primary keys exist on mergedUserData
-          mergedUserData.answers = mergedUserData.answers || {};
-          mergedUserData.reasons = mergedUserData.reasons || {};
-          mergedUserData.timestamps = mergedUserData.timestamps || {};
-          mergedUserData.attempts = mergedUserData.attempts || {};
-          mergedUserData.progress = mergedUserData.progress || {};
-          mergedUserData.badges = mergedUserData.badges || {};
-          mergedUserData.preferences = mergedUserData.preferences || {};
+                // Ensure all primary keys exist on mergedUserData
+                mergedUserData.answers = mergedUserData.answers || {};
+                mergedUserData.reasons = mergedUserData.reasons || {};
+                mergedUserData.timestamps = mergedUserData.timestamps || {};
+                mergedUserData.attempts = mergedUserData.attempts || {};
+                mergedUserData.progress = mergedUserData.progress || {};
+                mergedUserData.badges = mergedUserData.badges || {};
+                mergedUserData.preferences = mergedUserData.preferences || {};
 
-          // Also ensure newUserData has these structures for safe access
-          newUserData.answers = newUserData.answers || {};
-          newUserData.reasons = newUserData.reasons || {};
-          newUserData.timestamps = newUserData.timestamps || {};
-          newUserData.attempts = newUserData.attempts || {};
-          newUserData.progress = newUserData.progress || {};
+                // Also ensure newUserData has these structures for safe access
+                newUserData.answers = newUserData.answers || {};
+                newUserData.reasons = newUserData.reasons || {};
+                newUserData.timestamps = newUserData.timestamps || {};
+                newUserData.attempts = newUserData.attempts || {};
+                newUserData.progress = newUserData.progress || {};
 
-          // 2. Merge Answers, Timestamps, and Reasons
-          console.log('Merging answers based on timestamps...');
-          let answersUpdated = 0;
+                // 2. Merge Answers, Timestamps, and Reasons
+                console.log('Merging answers based on timestamps...');
+                let answersUpdated = 0;
 
-          for (const questionId in newUserData.answers) {
-              try {
-                  const newAnswer = newUserData.answers[questionId];
-                  const existingAnswer = mergedUserData.answers[questionId];
+                for (const questionId in newUserData.answers) {
+                    try {
+                        const newAnswer = newUserData.answers[questionId];
+                        const existingAnswer = mergedUserData.answers[questionId];
 
-                  // Extract timestamps - handle both direct timestamps and answer objects with timestamp property
-                  let newTimestamp = null;
-                  let existingTimestamp = null;
+                        // Extract timestamps - handle both direct timestamps and answer objects with timestamp property
+                        let newTimestamp = null;
+                        let existingTimestamp = null;
 
-                  // Check for timestamp in various possible locations
-                  if (newAnswer && typeof newAnswer === 'object' && newAnswer.timestamp) {
-                      newTimestamp = newAnswer.timestamp;
-                  } else if (newUserData.timestamps && newUserData.timestamps[questionId]) {
-                      newTimestamp = newUserData.timestamps[questionId];
-                  }
+                        // Check for timestamp in various possible locations
+                        if (newAnswer && typeof newAnswer === 'object' && newAnswer.timestamp) {
+                            newTimestamp = newAnswer.timestamp;
+                        } else if (newUserData.timestamps && newUserData.timestamps[questionId]) {
+                            newTimestamp = newUserData.timestamps[questionId];
+                        }
 
-                  if (existingAnswer && typeof existingAnswer === 'object' && existingAnswer.timestamp) {
-                      existingTimestamp = existingAnswer.timestamp;
-                  } else if (mergedUserData.timestamps && mergedUserData.timestamps[questionId]) {
-                      existingTimestamp = mergedUserData.timestamps[questionId];
-                  }
+                        if (existingAnswer && typeof existingAnswer === 'object' && existingAnswer.timestamp) {
+                            existingTimestamp = existingAnswer.timestamp;
+                        } else if (mergedUserData.timestamps && mergedUserData.timestamps[questionId]) {
+                            existingTimestamp = mergedUserData.timestamps[questionId];
+                        }
 
-                  // Convert timestamps to numbers for comparison
-                  newTimestamp = Number(newTimestamp) || 0;
-                  existingTimestamp = Number(existingTimestamp) || 0;
+                        // Convert timestamps to numbers for comparison
+                        newTimestamp = Number(newTimestamp) || 0;
+                        existingTimestamp = Number(existingTimestamp) || 0;
 
-                  // Rule: If new answer is more recent (or no existing answer), update all related fields
-                  if (!existingAnswer || newTimestamp > existingTimestamp) {
-                      mergedUserData.answers[questionId] = newAnswer;
-                      mergedUserData.timestamps[questionId] = newTimestamp || newUserData.timestamps[questionId];
+                        // Rule: If new answer is more recent (or no existing answer), update all related fields
+                        if (!existingAnswer || newTimestamp > existingTimestamp) {
+                            mergedUserData.answers[questionId] = newAnswer;
+                            mergedUserData.timestamps[questionId] = newTimestamp || newUserData.timestamps[questionId];
 
-                      // Update reason if it exists for this question
-                      if (newUserData.reasons && newUserData.reasons[questionId]) {
-                          mergedUserData.reasons[questionId] = newUserData.reasons[questionId];
-                      }
+                            // Update reason if it exists for this question
+                            if (newUserData.reasons && newUserData.reasons[questionId]) {
+                                mergedUserData.reasons[questionId] = newUserData.reasons[questionId];
+                            }
 
-                      answersUpdated++;
-                      console.log(`  Updated ${questionId}: timestamp ${newTimestamp} > ${existingTimestamp}`);
-                  } else if (newTimestamp === existingTimestamp && existingTimestamp > 0) {
-                      // Edge Case: If timestamps are identical, preserve existing data
-                      console.log(`  Preserved ${questionId}: timestamps identical (${existingTimestamp})`);
-                  }
+                            answersUpdated++;
+                            console.log(`  Updated ${questionId}: timestamp ${newTimestamp} > ${existingTimestamp}`);
+                        } else if (newTimestamp === existingTimestamp && existingTimestamp > 0) {
+                            // Edge Case: If timestamps are identical, preserve existing data
+                            console.log(`  Preserved ${questionId}: timestamps identical (${existingTimestamp})`);
+                        }
 
-              } catch (answerError) {
-                  console.error(`Error merging answer for ${questionId}:`, answerError);
-                  // Continue processing other answers
-              }
-          }
+                    } catch (answerError) {
+                        console.error(`Error merging answer for ${questionId}:`, answerError);
+                        // Continue processing other answers
+                    }
+                }
 
-          console.log(`Updated ${answersUpdated} answers based on timestamps`);
+                console.log(`Updated ${answersUpdated} answers based on timestamps`);
 
-          // 3. Merge Attempts
-          console.log('Merging attempt counts...');
-          let attemptsUpdated = 0;
+                // 3. Merge Attempts
+                console.log('Merging attempt counts...');
+                let attemptsUpdated = 0;
 
-          for (const questionId in newUserData.attempts) {
-              const existingAttempts = Number(mergedUserData.attempts[questionId]) || 0;
-              const newAttempts = Number(newUserData.attempts[questionId]) || 0;
+                for (const questionId in newUserData.attempts) {
+                    const existingAttempts = Number(mergedUserData.attempts[questionId]) || 0;
+                    const newAttempts = Number(newUserData.attempts[questionId]) || 0;
 
-              // Rule: Keep the highest attempt count
-              const maxAttempts = Math.max(existingAttempts, newAttempts);
+                    // Rule: Keep the highest attempt count
+                    const maxAttempts = Math.max(existingAttempts, newAttempts);
 
-              if (maxAttempts !== existingAttempts) {
-                  mergedUserData.attempts[questionId] = maxAttempts;
-                  attemptsUpdated++;
-                  console.log(`  Updated attempts for ${questionId}: ${existingAttempts} -> ${maxAttempts}`);
-              }
-          }
+                    if (maxAttempts !== existingAttempts) {
+                        mergedUserData.attempts[questionId] = maxAttempts;
+                        attemptsUpdated++;
+                        console.log(`  Updated attempts for ${questionId}: ${existingAttempts} -> ${maxAttempts}`);
+                    }
+                }
 
-          // Also check for attempts in existing data that aren't in new data
-          for (const questionId in mergedUserData.attempts) {
-              if (!(questionId in newUserData.attempts)) {
-                  // Keep existing attempts for questions not in new data
-                  console.log(`  Preserved attempts for ${questionId}: ${mergedUserData.attempts[questionId]}`);
-              }
-          }
+                // Also check for attempts in existing data that aren't in new data
+                for (const questionId in mergedUserData.attempts) {
+                    if (!(questionId in newUserData.attempts)) {
+                        // Keep existing attempts for questions not in new data
+                        console.log(`  Preserved attempts for ${questionId}: ${mergedUserData.attempts[questionId]}`);
+                    }
+                }
 
-          console.log(`Updated ${attemptsUpdated} attempt counts`);
+                console.log(`Updated ${attemptsUpdated} attempt counts`);
 
-          // 4. Merge Progress
-          console.log('Merging progress indicators...');
-          let progressUpdated = 0;
+                // 4. Merge Progress
+                console.log('Merging progress indicators...');
+                let progressUpdated = 0;
 
-          for (const key in newUserData.progress) {
-              const existingProgress = Number(mergedUserData.progress[key]) || 0;
-              const newProgress = Number(newUserData.progress[key]) || 0;
+                for (const key in newUserData.progress) {
+                    const existingProgress = Number(mergedUserData.progress[key]) || 0;
+                    const newProgress = Number(newUserData.progress[key]) || 0;
 
-              // Rule: Keep the maximum progress value
-              const maxProgress = Math.max(existingProgress, newProgress);
+                    // Rule: Keep the maximum progress value
+                    const maxProgress = Math.max(existingProgress, newProgress);
 
-              if (maxProgress !== existingProgress) {
-                  mergedUserData.progress[key] = maxProgress;
-                  progressUpdated++;
-                  console.log(`  Updated progress.${key}: ${existingProgress} -> ${maxProgress}`);
-              }
-          }
+                    if (maxProgress !== existingProgress) {
+                        mergedUserData.progress[key] = maxProgress;
+                        progressUpdated++;
+                        console.log(`  Updated progress.${key}: ${existingProgress} -> ${maxProgress}`);
+                    }
+                }
 
-          console.log(`Updated ${progressUpdated} progress indicators`);
+                console.log(`Updated ${progressUpdated} progress indicators`);
 
-          // 5. Merge Badges (bonus: merge unique badges, keeping earliest timestamp)
-          if (newUserData.badges) {
-              console.log('Merging badges...');
-              mergedUserData.badges = mergedUserData.badges || {};
+                // 5. Merge Badges (bonus: merge unique badges, keeping earliest timestamp)
+                if (newUserData.badges) {
+                    console.log('Merging badges...');
+                    mergedUserData.badges = mergedUserData.badges || {};
 
-              for (const badge in newUserData.badges) {
-                  if (!mergedUserData.badges[badge]) {
-                      // New badge not in existing data
-                      mergedUserData.badges[badge] = newUserData.badges[badge];
-                      console.log(`  Added new badge: ${badge}`);
-                  } else {
-                      // Badge exists - keep the one with earlier timestamp (first earned)
-                      const existingBadgeTime = mergedUserData.badges[badge].earnedAt || 0;
-                      const newBadgeTime = newUserData.badges[badge].earnedAt || 0;
+                    for (const badge in newUserData.badges) {
+                        if (!mergedUserData.badges[badge]) {
+                            // New badge not in existing data
+                            mergedUserData.badges[badge] = newUserData.badges[badge];
+                            console.log(`  Added new badge: ${badge}`);
+                        } else {
+                            // Badge exists - keep the one with earlier timestamp (first earned)
+                            const existingBadgeTime = mergedUserData.badges[badge].earnedAt || 0;
+                            const newBadgeTime = newUserData.badges[badge].earnedAt || 0;
 
-                      if (newBadgeTime && (!existingBadgeTime || newBadgeTime < existingBadgeTime)) {
-                          mergedUserData.badges[badge] = newUserData.badges[badge];
-                          console.log(`  Updated badge ${badge} with earlier timestamp`);
-                      }
-                  }
-              }
-          }
+                            if (newBadgeTime && (!existingBadgeTime || newBadgeTime < existingBadgeTime)) {
+                                mergedUserData.badges[badge] = newUserData.badges[badge];
+                                console.log(`  Updated badge ${badge} with earlier timestamp`);
+                            }
+                        }
+                    }
+                }
 
-          // 6. Merge Preferences (use most recent)
-          if (newUserData.preferences) {
-              // For preferences, we'll take the entire new preferences object if it exists
-              // as preferences are typically set as a complete unit
-              mergedUserData.preferences = newUserData.preferences;
-              console.log('Updated user preferences with latest values');
-          }
+                // 6. Merge Preferences (use most recent)
+                if (newUserData.preferences) {
+                    // For preferences, we'll take the entire new preferences object if it exists
+                    // as preferences are typically set as a complete unit
+                    mergedUserData.preferences = newUserData.preferences;
+                    console.log('Updated user preferences with latest values');
+                }
 
-          console.log('=== Merge complete ===');
-          console.log(`Final merged data contains ${Object.keys(mergedUserData.answers).length} answers`);
+                console.log('=== Merge complete ===');
+                console.log(`Final merged data contains ${Object.keys(mergedUserData.answers).length} answers`);
 
-          return mergedUserData;
+                return mergedUserData;
 
-      } catch (error) {
-          console.error('Fatal error in mergePersonalData:', error);
-          console.error('Stack trace:', error.stack);
+            } catch (error) {
+                console.error('Fatal error in mergePersonalData:', error);
+                console.error('Stack trace:', error.stack);
 
-          // In case of catastrophic failure, preserve existing data
-          console.log('Returning existing data due to merge error');
-          return existingUserData || {};
-      }
-  }
+                // In case of catastrophic failure, preserve existing data
+                console.log('Returning existing data due to merge error');
+                return existingUserData || {};
+            }
+        }
 
-  // --- End of mergePersonalData Function for Phase 4.1 ---
-    // --- Start of importAndMergePersonalData Function for Phase 4.2 ---
+        // --- End of mergePersonalData Function for Phase 4.1 ---
+        // --- Start of importAndMergePersonalData Function for Phase 4.2 ---
 
-  /**
-   * Wrapper function that imports personal data with non-destructive merging.
-   * This function handles the integration of imported data using the mergePersonalData logic.
-   * 
-   * @param {Object} importedData - The imported user data object from a JSON file
-   */
-   function importAndMergePersonalData(importedData) {
-      console.log('=== Starting importAndMergePersonalData ===');
+        /**
+         * Wrapper function that imports personal data with non-destructive merging.
+         * This function handles the integration of imported data using the mergePersonalData logic.
+         * 
+         * @param {Object} importedData - The imported user data object from a JSON file
+         */
+        function importAndMergePersonalData(importedData) {
+            console.log('=== Starting importAndMergePersonalData ===');
 
-      try {
-          // 1. Get the currentUsername - if not set, show error and return
-          if (!currentUsername) {
-              showMessage('No username set. Please establish a session first.', 'error');
-              console.error('No currentUsername set');
-              return;
-          }
+            try {
+                // 1. Get the currentUsername - if not set, show error and return
+                if (!currentUsername) {
+                    showMessage('No username set. Please establish a session first.', 'error');
+                    console.error('No currentUsername set');
+                    return;
+                }
 
-          console.log('Processing import for username:', currentUsername);
+                console.log('Processing import for username:', currentUsername);
 
-          // 2. Load the entire classData object from localStorage
-          let classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                // 2. Load the entire classData object from localStorage
+                let classData = JSON.parse(localStorage.getItem('classData') || '{}');
 
-          // Ensure classData has the users object
-          if (!classData.users) {
-              classData.users = {};
-          }
+                // Ensure classData has the users object
+                if (!classData.users) {
+                    classData.users = {};
+                }
 
-          // 3. Safely access the user's existing data slice
-          let existingUserData = classData.users[currentUsername] || {};
-          console.log('Existing user data keys:', Object.keys(existingUserData));
+                // 3. Safely access the user's existing data slice
+                let existingUserData = classData.users[currentUsername] || {};
+                console.log('Existing user data keys:', Object.keys(existingUserData));
 
-          // 4. Prepare the imported data for merging
-          // First, check if importedData has the user's data nested inside
-          let dataToMerge = null;
+                // 4. Prepare the imported data for merging
+                // First, check if importedData has the user's data nested inside
+                let dataToMerge = null;
 
-          // Handle different import formats
-          if (importedData.users && importedData.users[currentUsername]) {
-              // Data is in master export format with users object
-              dataToMerge = importedData.users[currentUsername];
-              console.log('Found user data in users object');
-            } else if (importedData.username && importedData.username === currentUsername && importedData.users && importedData.users[currentUsername]) {
-      // Personal export format with username field
-      dataToMerge = importedData.users[currentUsername];
-      console.log('Found user data in personal export format');
-          } else if (importedData.username === currentUsername && importedData.answers) {
-              // Data is in personal export format
-              dataToMerge = {
-                  answers: importedData.answers || {},
-                  reasons: importedData.reasons || {},
-                  timestamps: importedData.timestamps || {},
-                  attempts: importedData.attempts || {},
-                  progress: importedData.progress || {},
-                  badges: importedData.badges || {},
-                  preferences: importedData.preferences || {}
-              };
-              console.log('Using personal export format');
-          } else if (importedData.answers) {
-              // Direct data object format
-              dataToMerge = importedData;
-              console.log('Using direct data format');
-          } else {
-              showMessage('Could not find data for your username in the imported file.', 'error');
-              console.error('No matching data found for username:', currentUsername);
-              return;
-          }
+                // Handle different import formats
+                if (importedData.users && importedData.users[currentUsername]) {
+                    // Data is in master export format with users object
+                    dataToMerge = importedData.users[currentUsername];
+                    console.log('Found user data in users object');
+                } else if (importedData.username && importedData.username === currentUsername && importedData.users && importedData.users[currentUsername]) {
+                    // Personal export format with username field
+                    dataToMerge = importedData.users[currentUsername];
+                    console.log('Found user data in personal export format');
+                } else if (importedData.username === currentUsername && importedData.answers) {
+                    // Data is in personal export format
+                    dataToMerge = {
+                        answers: importedData.answers || {},
+                        reasons: importedData.reasons || {},
+                        timestamps: importedData.timestamps || {},
+                        attempts: importedData.attempts || {},
+                        progress: importedData.progress || {},
+                        badges: importedData.badges || {},
+                        preferences: importedData.preferences || {}
+                    };
+                    console.log('Using personal export format');
+                } else if (importedData.answers) {
+                    // Direct data object format
+                    dataToMerge = importedData;
+                    console.log('Using direct data format');
+                } else {
+                    showMessage('Could not find data for your username in the imported file.', 'error');
+                    console.error('No matching data found for username:', currentUsername);
+                    return;
+                }
 
-          // Migrate answers to standard format if the function exists
-          if (typeof migrateAnswersToStandardFormat === 'function' && dataToMerge.answers) {
-              console.log('Migrating answers to standard format...');
-              dataToMerge.answers = migrateAnswersToStandardFormat(dataToMerge.answers);
-          }
+                // Migrate answers to standard format if the function exists
+                if (typeof migrateAnswersToStandardFormat === 'function' && dataToMerge.answers) {
+                    console.log('Migrating answers to standard format...');
+                    dataToMerge.answers = migrateAnswersToStandardFormat(dataToMerge.answers);
+                }
 
-          // 5. Call mergePersonalData to merge the data
-          console.log('Calling mergePersonalData...');
-          let mergedUserData = mergePersonalData(existingUserData, dataToMerge);
+                // 5. Call mergePersonalData to merge the data
+                console.log('Calling mergePersonalData...');
+                let mergedUserData = mergePersonalData(existingUserData, dataToMerge);
 
-          // 6. Update the main data structure in memory
-          classData.users[currentUsername] = mergedUserData;
-          console.log('Updated classData.users for', currentUsername);
+                // 6. Update the main data structure in memory
+                classData.users[currentUsername] = mergedUserData;
+                console.log('Updated classData.users for', currentUsername);
 
-          // 7. Save the entire updated classData object back to localStorage
-          localStorage.setItem('classData', JSON.stringify(classData));
-          console.log('Saved updated classData to localStorage');
+                // 7. Save the entire updated classData object back to localStorage
+                localStorage.setItem('classData', JSON.stringify(classData));
+                console.log('Saved updated classData to localStorage');
 
-          // 8. Call initClassData() to refresh global variables from the new state
-          if (typeof initClassData === 'function') {
-              initClassData();
-              console.log('Reinitialized class data');
-          }
+                // 8. Call initClassData() to refresh global variables from the new state
+                if (typeof initClassData === 'function') {
+                    initClassData();
+                    console.log('Reinitialized class data');
+                }
 
-          // 9. Refresh the UI with the merged data
-          // Try to refresh visualizations if the function exists
-          if (typeof refreshAllVisualizations === 'function') {
-              refreshAllVisualizations();
-              console.log('Refreshed all visualizations');
-          } else if (typeof updateProgressDisplay === 'function') {
-              updateProgressDisplay();
-              console.log('Updated progress display');
-          }
+                // 9. Refresh the UI with the merged data
+                // Try to refresh visualizations if the function exists
+                if (typeof refreshAllVisualizations === 'function') {
+                    refreshAllVisualizations();
+                    console.log('Refreshed all visualizations');
+                } else if (typeof updateProgressDisplay === 'function') {
+                    updateProgressDisplay();
+                    console.log('Updated progress display');
+                }
 
-          // If we're on a question page, reload it to show the merged data
-          if (typeof currentQuestionId !== 'undefined' && currentQuestionId) {
-              if (typeof loadQuestion === 'function') {
-                  // Extract topic and question number from currentQuestionId if possible
-                  const parts = currentQuestionId.split('-');
-                  if (parts.length >= 3) {
-                      const topic = parts[0] + '-' + parts[1];
-                      const questionNum = parseInt(parts[2].replace('Q', ''));
-                      loadQuestion(topic, questionNum);
-                      console.log('Reloaded current question');
-                  }
-              }
-          }
+                // If we're on a question page, reload it to show the merged data
+                if (typeof currentQuestionId !== 'undefined' && currentQuestionId) {
+                    if (typeof loadQuestion === 'function') {
+                        // Extract topic and question number from currentQuestionId if possible
+                        const parts = currentQuestionId.split('-');
+                        if (parts.length >= 3) {
+                            const topic = parts[0] + '-' + parts[1];
+                            const questionNum = parseInt(parts[2].replace('Q', ''));
+                            loadQuestion(topic, questionNum);
+                            console.log('Reloaded current question');
+                        }
+                    }
+                }
 
-          // 10. Show success message
-          const answerCount = Object.keys(mergedUserData.answers || {}).length;
-          showMessage(`Successfully merged your personal data! You now have ${answerCount} answers.`, 'success');
-          console.log('=== Merge complete ===');
-          console.log(`Final data contains ${answerCount} answers`);
+                // 10. Show success message
+                const answerCount = Object.keys(mergedUserData.answers || {}).length;
+                showMessage(`Successfully merged your personal data! You now have ${answerCount} answers.`, 'success');
+                console.log('=== Merge complete ===');
+                console.log(`Final data contains ${answerCount} answers`);
 
-      } catch (error) {
-          console.error('Error in importAndMergePersonalData:', error);
-          console.error('Stack trace:', error.stack);
-          showMessage('Error merging personal data: ' + error.message, 'error');
-      }
-  }
+            } catch (error) {
+                console.error('Error in importAndMergePersonalData:', error);
+                console.error('Stack trace:', error.stack);
+                showMessage('Error merging personal data: ' + error.message, 'error');
+            }
+        }
 
-  // --- End of importAndMergePersonalData Function for Phase 4.2 ---
+        // --- End of importAndMergePersonalData Function for Phase 4.2 ---
 
         async function restoreFromCloudByUsername() {
             if (!window.FEATURE_FLAGS.restoreFromCloud) {
@@ -2427,7 +2473,7 @@ if (continueBtn) {
         let csvMappingData = null;
         let masterDataForCSV = null;
 
-        window.showCSVImportModal = function() {
+        window.showCSVImportModal = function () {
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.display = 'block';
@@ -2488,7 +2534,7 @@ if (continueBtn) {
             document.body.appendChild(modal);
         }
 
-        window.closeCSVImportModal = function() {
+        window.closeCSVImportModal = function () {
             const modal = document.getElementById('csvImportModal');
             if (modal) {
                 modal.remove();
@@ -2497,13 +2543,13 @@ if (continueBtn) {
             masterDataForCSV = null;
         }
 
-        window.loadMasterDataFile = function(event) {
+        window.loadMasterDataFile = function (event) {
             console.log('=== loadMasterDataFile called ===');
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     masterDataForCSV = JSON.parse(e.target.result);
                     console.log('Master data loaded:', masterDataForCSV);
@@ -2522,7 +2568,7 @@ if (continueBtn) {
         }
 
         // New function to import all peer data directly
-        window.importAllPeerData = function() {
+        window.importAllPeerData = function () {
             if (!masterDataForCSV) {
                 showMessage('No master data loaded', 'error');
                 return;
@@ -2534,12 +2580,12 @@ if (continueBtn) {
             closeCSVImportModal();
         }
 
-        window.loadCSVMappingFile = function(event) {
+        window.loadCSVMappingFile = function (event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const csvText = e.target.result;
                     csvMappingData = parseCSVMapping(csvText);
@@ -2658,7 +2704,7 @@ if (continueBtn) {
             }
         }
 
-        window.processCSVImport = function() {
+        window.processCSVImport = function () {
             const selectedIndex = document.getElementById('studentNameSelect').value;
             if (!selectedIndex || !csvMappingData || !masterDataForCSV) {
                 showMessage('Please complete all steps first', 'error');
@@ -2727,7 +2773,7 @@ if (continueBtn) {
         }
 
         // Global ESC Key Handler for All Modals
-        document.addEventListener('keydown', function(event) {
+        document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 // Find any open modal and close it
                 const modals = [
@@ -2824,7 +2870,7 @@ if (continueBtn) {
 
         // Unified Sync Modal System
 
-        window.closeSyncModal = function() {
+        window.closeSyncModal = function () {
             const modal = document.getElementById('unifiedSyncModal');
             if (modal) {
                 modal.remove();
@@ -2864,7 +2910,7 @@ if (continueBtn) {
         // }
 
         // Load unit
-        window.loadUnit = async function(unitNumber) {
+        window.loadUnit = async function (unitNumber) {
             const btn = document.getElementById(`unit-btn-${unitNumber}`);
             if (btn) {
                 btn.classList.add('loading');
@@ -2879,7 +2925,7 @@ if (continueBtn) {
                 const data = await response.json();
                 currentUnit = unitNumber;
                 allUnitQuestions = Array.isArray(data) ? data : (data.questions || []);
-                
+
                 renderLessonSelector();
                 showMessage(`Unit ${unitNumber} loaded successfully!`, 'success');
             } catch (error) {
@@ -2892,20 +2938,20 @@ if (continueBtn) {
         }
 
         // Render lesson selector
-function renderLessonSelector(unitInfo) {
-    const questionsContainer = document.getElementById('questionsContainer');
-    
-    // If unitInfo provided (from file load), use it
-    if (unitInfo && unitInfo.lessonNumbers) {
-        let lessonButtonsHtml = '';
-        
-        unitInfo.lessonNumbers.forEach(lessonNum => {
-            const questions = unitInfo.lessons[lessonNum];
-            const isCompleted = questions.every(q => isQuestionAnswered(q.id));
-            const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
-            const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
+        function renderLessonSelector(unitInfo) {
+            const questionsContainer = document.getElementById('questionsContainer');
 
-            lessonButtonsHtml += `
+            // If unitInfo provided (from file load), use it
+            if (unitInfo && unitInfo.lessonNumbers) {
+                let lessonButtonsHtml = '';
+
+                unitInfo.lessonNumbers.forEach(lessonNum => {
+                    const questions = unitInfo.lessons[lessonNum];
+                    const isCompleted = questions.every(q => isQuestionAnswered(q.id));
+                    const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
+                    const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
+
+                    lessonButtonsHtml += `
                 <button onclick="loadLesson('${lessonNum}')"
                         class="lesson-btn ${isCompleted ? 'completed' : ''}"
                         id="${buttonId}">
@@ -2913,10 +2959,9 @@ function renderLessonSelector(unitInfo) {
                     <small>${questions.length} questions</small>
                 </button>
             `;
-        });
-        
-        questionsContainer.innerHTML = `
-            <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                });
+
+                questionsContainer.innerHTML = `
             <div class="lesson-selector">
                 <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
                 <p>Select a lesson to begin:</p>
@@ -2925,41 +2970,40 @@ function renderLessonSelector(unitInfo) {
                 </div>
             </div>
         `;
-        return;
-    }
-    
-    // Old fallback code for when called without unitInfo
-    const unit = unitStructure[currentUnit];
-    if (!unit) return;
-    
-    let lessonButtonsHtml = '';
-    
-    // Group questions by lesson
-    const lessonGroups = {};
-    allUnitQuestions.forEach(q => {
-        const match = q.id.match(/L(\d+)/);
-        if (match) {
-            const lessonNum = parseInt(match[1]);
-            if (!lessonGroups[lessonNum]) {
-                lessonGroups[lessonNum] = [];
+                return;
             }
-            lessonGroups[lessonNum].push(q);
-        }
-    });
-    
-    for (let i = 1; i <= unit.lessons; i++) {
-        const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
-        const isCompleted = checkLessonCompleted(currentUnit, i);
-        lessonButtonsHtml += `
+
+            // Old fallback code for when called without unitInfo
+            const unit = unitStructure[currentUnit];
+            if (!unit) return;
+
+            let lessonButtonsHtml = '';
+
+            // Group questions by lesson
+            const lessonGroups = {};
+            allUnitQuestions.forEach(q => {
+                const match = q.id.match(/L(\d+)/);
+                if (match) {
+                    const lessonNum = parseInt(match[1]);
+                    if (!lessonGroups[lessonNum]) {
+                        lessonGroups[lessonNum] = [];
+                    }
+                    lessonGroups[lessonNum].push(q);
+                }
+            });
+
+            for (let i = 1; i <= unit.lessons; i++) {
+                const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
+                const isCompleted = checkLessonCompleted(currentUnit, i);
+                lessonButtonsHtml += `
             <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
                 Lesson ${i}<br>
                 <small>${questionCount} questions</small>
             </button>
         `;
-    }
-    
-    questionsContainer.innerHTML = `
-        <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+            }
+
+            questionsContainer.innerHTML = `
         <div class="lesson-selector">
             <h3>Unit ${currentUnit}: ${unit.name}</h3>
             <p>Select a lesson to begin:</p>
@@ -2968,7 +3012,7 @@ function renderLessonSelector(unitInfo) {
             </div>
         </div>
     `;
-}
+        }
 
         // Check if lesson is completed
         function checkLessonCompleted(unitNum, lessonNum) {
@@ -2976,14 +3020,14 @@ function renderLessonSelector(unitInfo) {
                 const match = q.id.match(/L(\d+)/);
                 return match && parseInt(match[1]) === lessonNum;
             });
-            
+
             if (lessonQuestions.length === 0) return false;
-            
+
             return lessonQuestions.every(q => isQuestionAnswered(q.id));
         }
 
         // Load lesson
-        window.loadLesson = function(lessonNumber) {
+        window.loadLesson = function (lessonNumber) {
             currentLesson = lessonNumber;
 
             // TASK 4.1: Clean up activity listeners before loading new lesson
@@ -3011,7 +3055,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Back to units
-        window.backToUnits = function() {
+        window.backToUnits = function () {
             // TASK 4.1: Clean up activity listeners before returning to units
             cleanupActivityTracking();
 
@@ -3032,7 +3076,12 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Back to lessons
-        window.backToLessons = function() {
+        window.backToLessons = function () {
+            // Destroy Study Buddy room when leaving lesson
+            if (typeof destroyStudyBuddyRoom === 'function') {
+                destroyStudyBuddyRoom();
+            }
+
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -3053,9 +3102,8 @@ function renderLessonSelector(unitInfo) {
         // Render quiz
         function renderQuiz() {
             const questionsContainer = document.getElementById('questionsContainer');
-            
+
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
@@ -3065,12 +3113,12 @@ function renderLessonSelector(unitInfo) {
                 <div id="questions-list"></div>
                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
             `;
-            
+
             const questionsList = document.getElementById('questions-list');
-            
+
             // Show loading message
             document.getElementById('loading-msg').style.display = 'block';
-            
+
             // Render all questions for the lesson with a small delay for animation
             setTimeout(() => {
                 // Collect all chart tasks for batch rendering
@@ -3287,7 +3335,7 @@ function renderLessonSelector(unitInfo) {
                                     value: parsed.series[0].values[i] || 0
                                 }));
                             }
-                        } catch(e) {
+                        } catch (e) {
                             // Not valid JSON, ignore
                         }
                     }
@@ -3297,19 +3345,19 @@ function renderLessonSelector(unitInfo) {
                             <label><strong>Create your histogram:</strong></label>
                             <div id="graph-input-${question.id}" class="graph-input">
                                 ${graphData.length > 0 ?
-                                    graphData.map((row, i) => `
+                            graphData.map((row, i) => `
                                         <div class="graph-row" data-index="${i}">
                                             <input type="text" class="label" placeholder="Bar Label" value="${row.label}" ${isDisabled ? 'disabled' : ''}>
                                             <input type="number" class="value" placeholder="Frequency" value="${row.value}" ${isDisabled ? 'disabled' : ''}>
                                             ${!isDisabled ? `<button type="button" class="remove-row" onclick="removeGraphRow('${question.id}', ${i})">Remove</button>` : ''}
                                         </div>
                                     `).join('') :
-                                    `<div class="graph-row" data-index="0">
+                            `<div class="graph-row" data-index="0">
                                         <input type="text" class="label" placeholder="Bar Label" ${isDisabled ? 'disabled' : ''}>
                                         <input type="number" class="value" placeholder="Frequency" ${isDisabled ? 'disabled' : ''}>
                                         ${!isDisabled ? '<button type="button" class="remove-row" onclick="removeGraphRow(\'' + question.id + '\', 0)">Remove</button>' : ''}
                                     </div>`
-                                }
+                        }
                             </div>
                             ${!isDisabled ? `<button type="button" onclick="addGraphRow('${question.id}')" class="add-bar-btn">Add Bar</button>` : ''}
                             ${chartMetadata ? `
@@ -3361,15 +3409,15 @@ function renderLessonSelector(unitInfo) {
                             <div class="reason-wrapper">
                                 <label class="reason-label">
                                     ${attempts > 0 && !canRetryQuestion ?
-                                        'Your explanation (required for retry):' :
-                                        'Explain your reasoning (optional but enables retry):'}
+                        'Your explanation (required for retry):' :
+                        'Explain your reasoning (optional but enables retry):'}
                                 </label>
                                 <textarea
                                     id="reason-${question.id}"
                                     class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
                                     placeholder="${attempts > 0 && !canRetryQuestion ?
-                                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
-                                        'Explain why you chose this answer...'}"
+                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
+                        'Explain why you chose this answer...'}"
                                     ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
                                 >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
                             </div>
@@ -3416,11 +3464,14 @@ function renderLessonSelector(unitInfo) {
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
                         </div>
-
-                        <!-- FRQ Solution Container -->
-                        <div id="frq-solution-${question.id}" class="frq-solution-container" style="display:none"></div>
                 `;
             }
+
+            // For FRQs, the solution container goes in the sidebar
+            const frqSolutionInSidebar = question.type === 'free-response' ? `
+                            <!-- FRQ Solution Container (in sidebar for better layout) -->
+                            <div id="frq-solution-${question.id}" class="frq-solution-container frq-solution-sidebar" style="display:none"></div>
+            ` : '';
 
             html += `
                     </div>
@@ -3438,6 +3489,7 @@ function renderLessonSelector(unitInfo) {
                                     ${isAnswered ? '<div class="peer-loading">Loading peer responses...</div>' : '<div class="peer-hint">Answer the question to see peer responses</div>'}
                                 </div>
                             </div>
+                            ${frqSolutionInSidebar}
                         </div>
                     </div>
                 </div>
@@ -3448,6 +3500,12 @@ function renderLessonSelector(unitInfo) {
                 if (typeof window.renderChartWizardPreview === 'function') {
                     window.renderChartWizardPreview(question.id);
                 }
+
+                // Add AI grading button for FRQ questions with rubrics
+                if (question.type === 'free-response' && window.FRQGrader?.addButton) {
+                    window.FRQGrader.addButton(question.id, question);
+                }
+
                 if (isAnswered) {
                     populatePeerResponses(question.id, question.type);
 
@@ -3528,8 +3586,8 @@ function renderLessonSelector(unitInfo) {
             const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
             const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
             const answerKeyRevealed = (answerKeySection && answerKeySection.style.display === 'block') ||
-                                    (cbSection && cbSection.style.display === 'block') ||
-                                    (frqSolutionSection && frqSolutionSection.style.display !== 'none');
+                (cbSection && cbSection.style.display === 'block') ||
+                (frqSolutionSection && frqSolutionSection.style.display !== 'none');
 
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeySection exists: ${!!answerKeySection}, cbSection exists: ${!!cbSection}`);
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeyRevealed: ${answerKeyRevealed}`);
@@ -3752,71 +3810,71 @@ function renderLessonSelector(unitInfo) {
 
             return { html, chartTasks };
         }
-        
+
         // Render chart placeholder (actual rendering happens later)
-          // FIXED: Table rendering to handle both object and array formats
-          function renderTable(table) {
-              if (!table) return '';
+        // FIXED: Table rendering to handle both object and array formats
+        function renderTable(table) {
+            if (!table) return '';
 
-              let tableHtml = '<div class="table-container"><table>';
+            let tableHtml = '<div class="table-container"><table>';
 
-              // Handle object format (with headers and rows properties)
-              if (table.headers && table.rows) {
-                  // Render headers
-                  tableHtml += '<thead><tr>';
-                  table.headers.forEach(header => {
-                      tableHtml += `<th>${header}</th>`;
-                  });
-                  tableHtml += '</tr></thead>';
+            // Handle object format (with headers and rows properties)
+            if (table.headers && table.rows) {
+                // Render headers
+                tableHtml += '<thead><tr>';
+                table.headers.forEach(header => {
+                    tableHtml += `<th>${header}</th>`;
+                });
+                tableHtml += '</tr></thead>';
 
-                  // Render rows
-                  if (table.rows && table.rows.length > 0) {
-                      tableHtml += '<tbody>';
-                      table.rows.forEach(row => {
-                          tableHtml += '<tr>';
-                          row.forEach(cell => {
-                              tableHtml += `<td>${cell}</td>`;
-                          });
-                          tableHtml += '</tr>';
-                      });
-                      tableHtml += '</tbody>';
-                  }
-              }
-              // Handle array format (legacy)
-              else if (Array.isArray(table) && table.length > 0) {
-                  const headers = table[0];
-                  const rows = table.slice(1);
+                // Render rows
+                if (table.rows && table.rows.length > 0) {
+                    tableHtml += '<tbody>';
+                    table.rows.forEach(row => {
+                        tableHtml += '<tr>';
+                        row.forEach(cell => {
+                            tableHtml += `<td>${cell}</td>`;
+                        });
+                        tableHtml += '</tr>';
+                    });
+                    tableHtml += '</tbody>';
+                }
+            }
+            // Handle array format (legacy)
+            else if (Array.isArray(table) && table.length > 0) {
+                const headers = table[0];
+                const rows = table.slice(1);
 
-                  // Headers
-                  tableHtml += '<thead><tr>';
-                  headers.forEach(header => {
-                      tableHtml += `<th>${header}</th>`;
-                  });
-                  tableHtml += '</tr></thead>';
+                // Headers
+                tableHtml += '<thead><tr>';
+                headers.forEach(header => {
+                    tableHtml += `<th>${header}</th>`;
+                });
+                tableHtml += '</tr></thead>';
 
-                  // Rows
-                  if (rows.length > 0) {
-                      tableHtml += '<tbody>';
-                      rows.forEach(row => {
-                          tableHtml += '<tr>';
-                          row.forEach(cell => {
-                              tableHtml += `<td>${cell}</td>`;
-                          });
-                          tableHtml += '</tr>';
-                      });
-                      tableHtml += '</tbody>';
-                  }
-              }
+                // Rows
+                if (rows.length > 0) {
+                    tableHtml += '<tbody>';
+                    rows.forEach(row => {
+                        tableHtml += '<tr>';
+                        row.forEach(cell => {
+                            tableHtml += `<td>${cell}</td>`;
+                        });
+                        tableHtml += '</tr>';
+                    });
+                    tableHtml += '</tbody>';
+                }
+            }
 
-              tableHtml += '</table></div>';
+            tableHtml += '</table></div>';
 
-              return tableHtml;
-          }
+            return tableHtml;
+        }
 
 
 
         // Submit answer
-        window.submitAnswer = function(questionId, questionType) {
+        window.submitAnswer = function (questionId, questionType) {
             if (!currentUsername) {
                 showMessage('Please enter your username first!', 'error');
                 return;
@@ -4086,7 +4144,7 @@ function renderLessonSelector(unitInfo) {
             if (chartInstances[chartId]) {
                 try {
                     chartInstances[chartId].destroy();
-                } catch(e) {
+                } catch (e) {
                     console.log('Error destroying chart:', e);
                 }
                 delete chartInstances[chartId];
@@ -4135,7 +4193,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // Graph input helper: Add a new row for histogram data entry
-        window.addGraphRow = function(questionId) {
+        window.addGraphRow = function (questionId) {
             const container = document.getElementById(`graph-input-${questionId}`);
             const index = container.children.length;
             const row = document.createElement('div');
@@ -4150,7 +4208,7 @@ function renderLessonSelector(unitInfo) {
         };
 
         // Graph input helper: Remove a row from histogram data entry
-        window.removeGraphRow = function(questionId, index) {
+        window.removeGraphRow = function (questionId, index) {
             const container = document.getElementById(`graph-input-${questionId}`);
             const row = container.querySelector(`[data-index="${index}"]`);
             if (row && container.children.length > 1) {
@@ -4160,43 +4218,43 @@ function renderLessonSelector(unitInfo) {
 
         // Show dotplot
         function showDotplot(questionId, questionType) {
-    const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
-    if (!dotplotSection) return;
+            const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
+            if (!dotplotSection) return;
 
-    // Ensure the section has all required containers
-    if (!document.getElementById(`dotplot-${questionId}`)) {
-        dotplotSection.innerHTML = `
+            // Ensure the section has all required containers
+            if (!document.getElementById(`dotplot-${questionId}`)) {
+                dotplotSection.innerHTML = `
             <canvas id="dotplot-${questionId}" width="400" height="200"></canvas>
             <div id="consensus-${questionId}"></div>
             <div class="contributors-list" id="contributors-${questionId}"></div>
         `;
-    }
+            }
 
-    // Always destroy existing chart first to force refresh
-    if (chartInstances[`dotplot-${questionId}`]) {
-        chartInstances[`dotplot-${questionId}`].destroy();
-        delete chartInstances[`dotplot-${questionId}`];
-    }
+            // Always destroy existing chart first to force refresh
+            if (chartInstances[`dotplot-${questionId}`]) {
+                chartInstances[`dotplot-${questionId}`].destroy();
+                delete chartInstances[`dotplot-${questionId}`];
+            }
 
-    // Show the section with animation
-    if (!dotplotSection.classList.contains('show')) {
-        dotplotSection.classList.add('show');
-        dotplotSection.style.opacity = '0';
-        setTimeout(() => {
-            dotplotSection.style.transition = 'opacity 0.3s ease';
-            dotplotSection.style.opacity = '1';
-        }, 10);
-    }
+            // Show the section with animation
+            if (!dotplotSection.classList.contains('show')) {
+                dotplotSection.classList.add('show');
+                dotplotSection.style.opacity = '0';
+                setTimeout(() => {
+                    dotplotSection.style.transition = 'opacity 0.3s ease';
+                    dotplotSection.style.opacity = '1';
+                }, 10);
+            }
 
-    // Render with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        if (questionType === 'multiple-choice') {
-            renderMCQDistribution(questionId);
-        } else {
-            renderFRQResponses(questionId);
+            // Render with a small delay to ensure DOM is ready
+            setTimeout(() => {
+                if (questionType === 'multiple-choice') {
+                    renderMCQDistribution(questionId);
+                } else {
+                    renderFRQResponses(questionId);
+                }
+            }, 50);
         }
-    }, 50);
-}
 
         // Render MCQ distribution
         function renderMCQDistribution(questionId) {
@@ -4252,10 +4310,10 @@ function renderLessonSelector(unitInfo) {
 
             // Destroy existing chart if any
             // Destroy existing chart if any
-if (chartInstances[`dotplot-${questionId}`]) {
-    chartInstances[`dotplot-${questionId}`].destroy();
-    delete chartInstances[`dotplot-${questionId}`];  // Add just this line
-}
+            if (chartInstances[`dotplot-${questionId}`]) {
+                chartInstances[`dotplot-${questionId}`].destroy();
+                delete chartInstances[`dotplot-${questionId}`];  // Add just this line
+            }
             // Create bar chart with relative frequencies
             chartInstances[`dotplot-${questionId}`] = new Chart(ctx, {
                 type: 'bar',
@@ -4288,7 +4346,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             max: 1,
                             ticks: {
                                 stepSize: 0.1,
-                                callback: function(value) {
+                                callback: function (value) {
                                     return (value * 100).toFixed(0) + '%';
                                 }
                             },
@@ -4310,7 +4368,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     const value = context.parsed.y;
                                     const percentage = (value * 100).toFixed(1);
                                     const count = counts[context.dataIndex];
@@ -4507,7 +4565,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             // JSON but not a chart
                             answerHtml = peer.response;
                         }
-                    } catch(e) {
+                    } catch (e) {
                         // Not JSON - regular text response
                         answerHtml = peer.response;
                     }
@@ -4518,7 +4576,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <div class="peer-frq-answer">${answerHtml}</div>
                             ${peer.username !== currentUsername ? `
                                 <div class="frq-vote-widget">
-                                    ${[1,2,3,4,5].map(score => `
+                                    ${[1, 2, 3, 4, 5].map(score => `
                                         <span class="star ${currentUserVote >= score ? 'active' : ''}"
                                               data-question-id="${questionId}"
                                               data-username="${peer.username}"
@@ -4542,9 +4600,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <div class="peer-name">${peer.username}${badgeText}</div>
                             <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
                             ${hasReason ?
-                                `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
-                                '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
-                            }
+                            `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+                            '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
+                        }
                         </div>
                     `;
                 }
@@ -4554,7 +4612,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // Attach click handlers to star voting elements (using event delegation for robustness)
             peerReasoningContent.querySelectorAll('.star').forEach(star => {
-                star.onclick = function() {
+                star.onclick = function () {
                     const qId = this.dataset.questionId;
                     const uname = this.dataset.username;
                     const score = parseInt(this.dataset.score);
@@ -4570,9 +4628,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const canvas = document.getElementById(`dotplot-${questionId}`);
             const consensusDiv = document.getElementById(`consensus-${questionId}`);
             const contributorsDiv = document.getElementById(`contributors-${questionId}`);
-            
+
             if (canvas) canvas.style.display = 'none';
-            
+
             const responses = [];
             for (let username in classData.users) {
                 const userAnswer = classData.users[username].answers?.[questionId];
@@ -4586,7 +4644,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     });
                 }
             }
-            
+
             if (consensusDiv) {
                 if (responses.length > 1) {
                     consensusDiv.innerHTML = `
@@ -4602,7 +4660,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     `;
                 }
             }
-            
+
             if (contributorsDiv) {
                 let html = '<h4>Responses:</h4>';
                 responses.forEach(r => {
@@ -4646,7 +4704,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Vote on FRQ responses with star rating
-        window.voteOnFRQ = function(questionId, targetUsername, score) {
+        window.voteOnFRQ = function (questionId, targetUsername, score) {
             // Initialize data structures
             if (!classData.users[currentUsername].votes) {
                 classData.users[currentUsername].votes = {};
@@ -4696,7 +4754,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         };
 
         // Add explanation retroactively to enable retry
-        window.addExplanationToRetry = function(questionId) {
+        window.addExplanationToRetry = function (questionId) {
             const reasonTextarea = document.getElementById(`reason-${questionId}`);
             const addExplanationBtn = document.getElementById(`add-explanation-${questionId}`);
             const submitBtn = document.getElementById(`submit-${questionId}`);
@@ -4922,126 +4980,138 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Display FRQ solution (parts, calculations, rubric)
+        // Display FRQ solution button (collapsed by default)
+        // The full solution only expands when user clicks the button
         function displayFRQSolution(questionId) {
             const container = document.getElementById(`frq-solution-${questionId}`);
             if (!container) return;
 
             const question = currentQuestions.find(q => q.id === questionId) ||
-                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+                EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             if (!question?.solution) return;
 
-            const solution = question.solution;
+            // Check if already rendered (avoid duplicate buttons)
+            if (container.dataset.rendered === 'true') return;
+            container.dataset.rendered = 'true';
 
-            // Track charts that need to be rendered (for two-phase rendering)
-            const chartsToRender = [];
-
-            // Build parts HTML
-            const partsHtml = (solution.parts || []).map(part => {
-                // Build calculations list
-                const calcHtml = part.calculations?.length ?
-                    `<ul class="frq-calculations">${part.calculations.map(c => `<li>${c}</li>`).join('')}</ul>` : '';
-
-                // Build attachments (charts/tables)
-                let attachmentsHtml = '';
-                if (part.attachments) {
-                    const attachId = `${questionId}-solution-${part.partId}`;
-                    const canvasId = `chart-${attachId}`;
-
-                    if (part.attachments.chartType) {
-                        // Use two-phase rendering: generate HTML immediately, defer canvas drawing
-                        if (typeof window.charts?.getChartHtml === 'function') {
-                            // NEW: Use two-phase rendering to avoid race condition
-                            attachmentsHtml = `<div class="frq-solution-chart">${window.charts.getChartHtml(part.attachments, canvasId)}</div>`;
-                            // Track this chart for Phase 2 rendering
-                            chartsToRender.push({ chartData: part.attachments, canvasId });
-                        } else {
-                            // FALLBACK: Old approach (deprecated)
-                            attachmentsHtml = `<div id="${canvasId}" class="frq-solution-chart"></div>`;
-                            setTimeout(() => {
-                                const chartContainer = document.getElementById(canvasId);
-                                if (chartContainer && typeof renderChart === 'function') {
-                                    chartContainer.innerHTML = renderChart(part.attachments, attachId);
-                                }
-                            }, 100);
-                        }
-                    }
-                    if (part.attachments.table) {
-                        attachmentsHtml += renderTable(part.attachments.table);
-                    }
-                }
-
-                return `
-                    <section class="frq-solution-part">
-                        <h5>Part (${part.partId})</h5>
-                        ${part.description ? `<div class="frq-part-desc">${part.description}</div>` : ''}
-                        <div class="frq-part-response">${part.response || ''}</div>
-                        ${calcHtml}
-                        ${attachmentsHtml}
-                    </section>
-                `;
-            }).join('');
-
-            // Build rubric table
-            let rubricHtml = '';
-            if (solution.scoring) {
-                const rubricRows = (solution.scoring.rubric || []).map(r => `
-                    <tr>
-                        <td>${r.part}</td>
-                        <td>${r.maxPoints}</td>
-                        <td>${r.criteria ? `<ul>${r.criteria.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}</td>
-                        <td>${r.scoringNotes || ''}</td>
-                    </tr>
-                `).join('');
-
-                rubricHtml = `
-                    <section class="frq-rubric">
-                        <h5>Scoring Rubric (Total: ${solution.scoring.totalPoints} points)</h5>
-                        <table class="frq-rubric-table">
-                            <thead>
-                                <tr>
-                                    <th>Part</th>
-                                    <th>Max Points</th>
-                                    <th>Criteria</th>
-                                    <th>Scoring Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rubricRows}</tbody>
-                        </table>
-                    </section>
-                `;
-            }
-
-            // Inject HTML and show
+            // Just show a button to view the scoring guide (collapsed by default)
             container.innerHTML = `
-                <div class="frq-solution-header">
-                    <span class="solution-icon">📊</span> Official Scoring Guide
-                </div>
-                <div class="frq-solution-parts">${partsHtml}</div>
-                ${rubricHtml}
+                <button class="frq-solution-toggle-btn" onclick="toggleFRQSolution('${questionId}')">
+                    📋 View Scoring Guide
+                </button>
+                <div class="frq-solution-content" id="frq-solution-content-${questionId}" style="display:none"></div>
             `;
             container.style.display = 'block';
+        }
 
-            // Phase 2: Render charts now that DOM is ready
-            if (chartsToRender.length > 0 && typeof window.charts?.renderChartNow === 'function') {
-                // Use requestAnimationFrame to ensure DOM has fully updated
-                requestAnimationFrame(() => {
-                    chartsToRender.forEach(({ chartData, canvasId }) => {
-                        window.charts.renderChartNow(chartData, canvasId);
-                    });
-                });
+        // Toggle and render the full FRQ solution content
+        function toggleFRQSolution(questionId) {
+            const contentDiv = document.getElementById(`frq-solution-content-${questionId}`);
+            const toggleBtn = contentDiv?.parentElement?.querySelector('.frq-solution-toggle-btn');
+            if (!contentDiv) return;
+
+            // If already visible, just hide
+            if (contentDiv.style.display !== 'none') {
+                contentDiv.style.display = 'none';
+                if (toggleBtn) toggleBtn.textContent = '📋 View Scoring Guide';
+                return;
             }
 
-            // Trigger MathJax rendering
-            // (Chart rendering handled by Phase 2 code above)
-            if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
+            // If not yet rendered, build the content
+            if (!contentDiv.dataset.rendered) {
+                const question = currentQuestions.find(q => q.id === questionId) ||
+                    EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+                if (!question?.solution) return;
+
+                const solution = question.solution;
+                const chartsToRender = [];
+
+                // Build parts HTML (compact for sidebar)
+                const partsHtml = (solution.parts || []).map(part => {
+                    const calcHtml = part.calculations?.length ?
+                        `<ul class="frq-calculations">${part.calculations.map(c => `<li>${c}</li>`).join('')}</ul>` : '';
+
+                    let attachmentsHtml = '';
+                    if (part.attachments) {
+                        const attachId = `${questionId}-solution-${part.partId}`;
+                        const canvasId = `chart-${attachId}`;
+
+                        if (part.attachments.chartType && typeof window.charts?.getChartHtml === 'function') {
+                            attachmentsHtml = `<div class="frq-solution-chart">${window.charts.getChartHtml(part.attachments, canvasId)}</div>`;
+                            chartsToRender.push({ chartData: part.attachments, canvasId });
+                        }
+                        if (part.attachments.table) {
+                            attachmentsHtml += renderTable(part.attachments.table);
+                        }
+                    }
+
+                    return `
+                        <section class="frq-solution-part">
+                            <h5>Part (${part.partId})</h5>
+                            ${part.description ? `<div class="frq-part-desc">${part.description}</div>` : ''}
+                            <div class="frq-part-response">${part.response || ''}</div>
+                            ${calcHtml}
+                            ${attachmentsHtml}
+                        </section>
+                    `;
+                }).join('');
+
+                // Build rubric table
+                let rubricHtml = '';
+                if (solution.scoring) {
+                    const rubricRows = (solution.scoring.rubric || []).map(r => `
+                        <tr>
+                            <td>${r.part}</td>
+                            <td>${r.maxPoints}</td>
+                            <td>${r.criteria ? `<ul>${r.criteria.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}</td>
+                            <td>${r.scoringNotes || ''}</td>
+                        </tr>
+                    `).join('');
+
+                    rubricHtml = `
+                        <section class="frq-rubric">
+                            <h5>Rubric (${solution.scoring.totalPoints} pts)</h5>
+                            <table class="frq-rubric-table">
+                                <thead>
+                                    <tr><th>Part</th><th>Pts</th><th>Criteria</th><th>Notes</th></tr>
+                                </thead>
+                                <tbody>${rubricRows}</tbody>
+                            </table>
+                        </section>
+                    `;
+                }
+
+                contentDiv.innerHTML = `
+                    <div class="frq-solution-header">
+                        <span class="solution-icon">📊</span> Official Scoring Guide
+                    </div>
+                    <div class="frq-solution-parts">${partsHtml}</div>
+                    ${rubricHtml}
+                `;
+                contentDiv.dataset.rendered = 'true';
+
+                // Render charts after DOM ready
+                if (chartsToRender.length > 0 && typeof window.charts?.renderChartNow === 'function') {
+                    requestAnimationFrame(() => {
+                        chartsToRender.forEach(({ chartData, canvasId }) => {
+                            window.charts.renderChartNow(chartData, canvasId);
+                        });
+                    });
+                }
+
+                if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
+            }
+
+            // Show the content and update button
+            contentDiv.style.display = 'block';
+            if (toggleBtn) toggleBtn.textContent = '📋 Hide Scoring Guide';
         }
 
         // Display answer key with timer-based logic
         function displayAnswerKey(questionId, isCorrect, hasExplanation, attemptNumber) {
             // Check if this is an FRQ - if so, display solution immediately
             const question = currentQuestions.find(q => q.id === questionId) ||
-                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+                EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             if (question?.type === 'free-response') {
                 displayFRQSolution(questionId);
                 return; // Skip MCQ timing logic
@@ -5153,7 +5223,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Vote FRQ function
-        window.voteFRQ = function(questionId, targetUser, voteType) {
+        window.voteFRQ = function (questionId, targetUser, voteType) {
             if (!classData.users[currentUsername].votes) {
                 classData.users[currentUsername].votes = {};
             }
@@ -5263,13 +5333,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
 
         // Import class data
-        window.importClassData = function(event) {
+        window.importClassData = function (event) {
             console.log('=== importClassData called (sync modal) ===');
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
                     console.log('Sync modal - imported data:', importedData);
@@ -5443,10 +5513,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
             messageDiv.textContent = text;
-            
+
             messageArea.innerHTML = '';
             messageArea.appendChild(messageDiv);
-            
+
             setTimeout(() => {
                 messageDiv.style.opacity = '0';
                 setTimeout(() => messageArea.innerHTML = '', 300);
@@ -5474,7 +5544,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Close FAB menu when clicking outside
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const fabContainer = document.querySelector('.fab-container');
             if (fabContainer && !fabContainer.contains(event.target)) {
                 const fabMenu = document.querySelector('.fab-menu');
@@ -5511,37 +5581,32 @@ if (chartInstances[`dotplot-${questionId}`]) {
             switch (theme) {
                 case 'light':
                     // Current: Light. Next is Light Grayscale.
-                    if (themeIcon) themeIcon.textContent = '🎨';
-                    if (themeLabel) themeLabel.textContent = 'Grayscale';
+                    if (themeLabel) themeLabel.textContent = 'LIGHT';
                     nextThemeDescription = 'Switch to Light Grayscale';
                     break;
                 case 'light-gray':
                     // Current: Light Grayscale. Next is Dark.
                     body.classList.add('grayscale-enabled');
-                    if (themeIcon) themeIcon.textContent = '🌙';
-                    if (themeLabel) themeLabel.textContent = 'Dark Mode';
+                    if (themeLabel) themeLabel.textContent = 'GRAYSCALE';
                     nextThemeDescription = 'Switch to Dark Mode';
                     break;
                 case 'dark':
                     // Current: Dark. Next is Dark Grayscale.
                     body.classList.add('dark-theme');
-                    if (themeIcon) themeIcon.textContent = '🎨';
-                    if (themeLabel) themeLabel.textContent = 'Dark Gray';
+                    if (themeLabel) themeLabel.textContent = 'DARK';
                     nextThemeDescription = 'Switch to Dark Grayscale';
                     break;
                 case 'dark-gray':
                     // Current: Dark Gray. Next is Light.
                     body.classList.add('dark-theme');
                     body.classList.add('grayscale-enabled');
-                    if (themeIcon) themeIcon.textContent = '☀️';
-                    if (themeLabel) themeLabel.textContent = 'Light Mode';
+                    if (themeLabel) themeLabel.textContent = 'DARK GRAY';
                     nextThemeDescription = 'Switch to Light Mode';
                     break;
                 default:
                     // Fallback to light theme if state is invalid
                     theme = 'light';
-                    if (themeIcon) themeIcon.textContent = '🎨';
-                    if (themeLabel) themeLabel.textContent = 'Grayscale';
+                    if (themeLabel) themeLabel.textContent = 'LIGHT';
                     nextThemeDescription = 'Switch to Light Grayscale';
                     break;
             }
@@ -5564,7 +5629,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        window.toggleTheme = function() {
+        window.toggleTheme = function () {
             const themeCycle = ['light', 'light-gray', 'dark', 'dark-gray'];
             const currentIndex = themeCycle.indexOf(currentTheme);
             const nextIndex = (currentIndex + 1) % themeCycle.length;
@@ -5572,14 +5637,62 @@ if (chartInstances[`dotplot-${questionId}`]) {
             applyTheme(newTheme);
         }
 
+        // ESC key handler to close modals
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // Check modals in order of z-index (highest first)
+                const userMgmtModal = document.getElementById('userManagementModal');
+                if (userMgmtModal && userMgmtModal.style.display !== 'none') {
+                    if (typeof closeUserManagementModal === 'function') {
+                        closeUserManagementModal();
+                    }
+                    return;
+                }
+
+                const spriteModal = document.getElementById('spriteConfigModal');
+                if (spriteModal && spriteModal.style.display !== 'none') {
+                    if (typeof closeSpriteConfigModal === 'function') {
+                        closeSpriteConfigModal();
+                    }
+                    return;
+                }
+
+                const syncModal = document.getElementById('syncModal');
+                if (syncModal && syncModal.style.display !== 'none') {
+                    syncModal.style.display = 'none';
+                    return;
+                }
+
+                const shareModal = document.getElementById('shareModal');
+                if (shareModal && shareModal.style.display !== 'none') {
+                    shareModal.style.display = 'none';
+                    return;
+                }
+
+                const teacherDashboard = document.getElementById('teacherDashboardModal');
+                if (teacherDashboard && teacherDashboard.style.display !== 'none') {
+                    if (typeof closeTeacherDashboard === 'function') {
+                        closeTeacherDashboard();
+                    }
+                    return;
+                }
+
+                // Close FAB menu if open
+                const fabMenu = document.querySelector('.fab-menu');
+                if (fabMenu && fabMenu.style.display !== 'none') {
+                    fabMenu.style.display = 'none';
+                    return;
+                }
+            }
+        });
 
         // Initialize on load
-        window.onload = function() {
+        window.onload = async function () {
             initTheme();
 
-            // Check localStorage support
+            // Check localStorage support (still used for some things)
             if (!window.localStorage) {
-                showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
+                showMessage('Warning: LocalStorage is not available. Some features may not work.', 'error');
             }
 
             // Initialize Railway WebSocket connection for real-time presence
@@ -5588,7 +5701,37 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 console.log('🚂 Railway connection initialized for real-time presence');
             }
 
-            promptUsername();
+            // Start the app with async initialization
+            await startApp();
+        }
+
+        /**
+         * Main application startup
+         * Initializes IndexedDB, then proceeds with user authentication
+         */
+        async function startApp() {
+            try {
+                // Initialize IndexedDB (runs migration if needed)
+                await AppDB.init();
+                console.log('✅ Database initialized');
+
+                // Initialize sync status
+                if (window.SyncStatus) {
+                    SyncStatus.init();
+                }
+
+                // Proceed with username workflow
+                await promptUsername();
+
+            } catch (error) {
+                console.error('Failed to start app:', error);
+                showMessage('Failed to initialize the app. Please refresh the page.', 'error');
+
+                // Fall back to showing the welcome screen anyway
+                if (typeof showWelcomeScreen === 'function') {
+                    showWelcomeScreen();
+                }
+            }
         }
 
         // Lazy loading charts removed - using immediate two-phase rendering instead
@@ -5609,7 +5752,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
 
         // Add this if it doesn't already exist
-        if(!window.turboModeListenerAttached) {
+        if (!window.turboModeListenerAttached) {
             window.addEventListener('turboModeChanged', (e) => {
                 const enabled = !!(e && e.detail && e.detail.enabled);
                 if (typeof turboModeActive !== 'undefined') {
@@ -5823,8 +5966,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             questionsContainer.innerHTML = `
                 <div class="curriculum-overview">
-                    <h2>📚 AP Statistics Curriculum</h2>
-                    <p style="text-align: center; color: #666;">Loaded ${sortedUnits.length} units</p>
                     <div class="units-grid">
                         ${unitsHtml}
                     </div>
@@ -5833,10 +5974,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 </div>
             `;
+
+            // Initialize Study Buddy room for unit select screen (door goes to logout)
+            if (typeof initStudyBuddyRoomForUnitSelect === 'function') {
+                initStudyBuddyRoomForUnitSelect();
+            }
         }
 
         // Function to select a unit
-        window.selectUnit = function(unitNumber) {
+        window.selectUnit = function (unitNumber) {
             currentUnit = unitNumber;
             const unitData = allCurriculumData[unitNumber];
             allUnitQuestions = unitData.questions;
@@ -5846,7 +5992,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Modify backToUnits function to go back to unit menu instead
-        window.backToUnits = function() {
+        window.backToUnits = function () {
+            // Destroy Study Buddy room when going back to units
+            if (typeof destroyStudyBuddyRoom === 'function') {
+                destroyStudyBuddyRoom();
+            }
+
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -5946,7 +6097,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
                 questionsContainer.innerHTML = `
-                    <button onclick="backToUnits()" class="back-button">← Back to Units</button>
                     <div class="lesson-selector">
                         <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
                         <p>Select a lesson to begin:</p>
@@ -5954,14 +6104,17 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             ${lessonButtonsHtml}
                         </div>
                     </div>
-
-                    <!-- Sync Modal -->
                 `;
+
+                // Initialize Study Buddy room for lesson selector (door goes to units)
+                if (typeof initStudyBuddyRoomForLessonSelect === 'function') {
+                    initStudyBuddyRoomForLessonSelect(currentUnit);
+                }
             }
         }
 
         // Modified loadLesson to show video resources at the top
-        window.loadLessonWithResources = async function(lessonNumber) {
+        window.loadLessonWithResources = async function (lessonNumber) {
             currentLesson = lessonNumber;
 
             // Get questions for this lesson
@@ -5999,14 +6152,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         if (hasVideos || hasBlookets || hasPdfs) {
                             videoSection = `
                                 <div class="resources-section">
-                                    <h3>📚 Lesson Resources: ${topic.description}</h3>
+                                    <h3><img src="img/icons/icon_curriculum.png" alt="" class="header-icon"> Lesson Resources: ${topic.description}</h3>
                             `;
 
                             if (hasPdfs) {
                                 videoSection += '<div class="pdf-resources">';
                                 topic.pdfs.forEach((pdf, index) => {
-                                    const worksheetLabel = topic.pdfs.length > 1 
-                                        ? `📄 Follow-Along Worksheet ${index + 1}:` 
+                                    const worksheetLabel = topic.pdfs.length > 1
+                                        ? `📄 Follow-Along Worksheet ${index + 1}:`
                                         : '📄 Follow-Along Worksheet:';
                                     videoSection += `
                                         <div class="pdf-item">
@@ -6064,7 +6217,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Render quiz with resources
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
@@ -6112,6 +6264,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 if (window.MathJax) {
                     MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
+                }
+
+                // Initialize Study Buddy room for this lesson
+                // Room is always present while student works on a lesson
+                const lessonId = `U${currentUnit}-L${lessonNumber}`;
+                if (typeof initStudyBuddyRoom === 'function') {
+                    initStudyBuddyRoom(lessonId);
                 }
             }, 100);
         }
@@ -6275,14 +6434,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
         window.loadLesson = loadLessonWithResources;
 
         // Sync modal handlers
-        window.openSyncModal = function() {
+        window.openSyncModal = function () {
             const modal = document.getElementById('syncModal');
             if (modal) {
                 modal.style.display = 'block';
             }
         }
 
-        window.closeSyncModal = function() {
+        window.closeSyncModal = function () {
             const modal = document.getElementById('syncModal');
             if (modal) {
                 modal.style.display = 'none';
@@ -6290,7 +6449,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Close modal when clicking outside or on close button
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const modal = document.getElementById('syncModal');
             if (event.target === modal || event.target.classList.contains('close-modal')) {
                 closeSyncModal();
@@ -6298,7 +6457,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         });
 
         // Tab switching functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Handle tab clicks
             const tabs = document.querySelectorAll('.sync-tab');
             const tabContents = document.querySelectorAll('.sync-tab-content');
@@ -6329,7 +6488,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Handle auto-sync toggle
             const autoSyncToggle = document.getElementById('autoSyncToggle');
             if (autoSyncToggle) {
-                autoSyncToggle.addEventListener('change', function() {
+                autoSyncToggle.addEventListener('change', function () {
                     if (window.cloudSync) {
                         cloudSync.toggleAutoSync();
                     }
@@ -6359,7 +6518,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                 : 'Choose a folder to enable automatic Recovery Pack exports.';
                         }
                         autoExportToggle.checked = false;
-                        autoExportToggle.addEventListener('change', async function() {
+                        autoExportToggle.addEventListener('change', async function () {
                             if (this.checked) {
                                 const enabled = await recoveryAutoExport.enable();
                                 if (!enabled) {
@@ -6388,7 +6547,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
 
             // Two-way sync button
-            document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function() {
+            document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function () {
                 if (window.cloudSync) {
                     this.disabled = true;
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
@@ -6410,10 +6569,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
         });
 
         // Sync button functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
 
             // Handle Save button click (personal export)
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (event.target.id === 'saveBtn' || event.target.closest('#saveBtn')) {
                     exportPersonal();
                     closeSyncModal();
@@ -6421,7 +6580,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             });
 
             // Handle Open button click (smart import)
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (event.target.id === 'openBtn' || event.target.closest('#openBtn')) {
                     // Create hidden file input for smart import
                     let smartImportInput = document.getElementById('smartImportFile');
@@ -6439,7 +6598,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             });
 
-            document.addEventListener('click', async function(event) {
+            document.addEventListener('click', async function (event) {
                 if (event.target.id === 'cloudRestoreBtn' || event.target.closest('#cloudRestoreBtn')) {
                     event.preventDefault();
                     if (typeof restoreFromCloudByUsername === 'function') {
@@ -6449,7 +6608,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             });
 
-            document.addEventListener('click', async function(event) {
+            document.addEventListener('click', async function (event) {
                 if (event.target.id === 'classPacksBtn' || event.target.closest('#classPacksBtn')) {
                     event.preventDefault();
                     if (typeof window.generateClassPacks === 'function') {
@@ -6459,7 +6618,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             });
 
             // Handle Master Import button click
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (event.target.id === 'masterImportBtn' || event.target.closest('#masterImportBtn')) {
                     event.preventDefault(); // Prevent any default behavior
                     event.stopPropagation(); // Stop event bubbling
@@ -6473,7 +6632,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         masterImportInput.accept = '.json';
                         masterImportInput.id = 'masterImportFile';
                         masterImportInput.style.display = 'none';
-                        masterImportInput.addEventListener('change', function(fileEvent) {
+                        masterImportInput.addEventListener('change', function (fileEvent) {
                             fileEvent.preventDefault(); // Prevent any default behavior
                             console.log('Master import file selected');
                             const file = fileEvent.target.files[0];
@@ -6483,13 +6642,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             fileEvent.target.value = '';
 
                             const reader = new FileReader();
-                            reader.onload = function(e) {
+                            reader.onload = function (e) {
                                 try {
                                     const data = JSON.parse(e.target.result);
                                     console.log('Master import - calling importMasterData with:', data);
 
                                     // Prevent ALL forms of page refresh/navigation
-                                    window.onbeforeunload = function(e) {
+                                    window.onbeforeunload = function (e) {
                                         console.log('Preventing page refresh during import...');
                                         return 'Import in progress, are you sure you want to leave?';
                                     };
@@ -6597,62 +6756,62 @@ if (chartInstances[`dotplot-${questionId}`]) {
             });
 
             // Handle Master Export button click
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (event.target.id === 'masterExportBtn' || event.target.closest('#masterExportBtn')) {
                     exportMasterData();
                     closeSyncModal();
                 }
             });
         });
-  // --- File Type Detection Functions ---
+        // --- File Type Detection Functions ---
 
-  /**
-   * Detects if the imported data is a personal data file
-   * Personal files have username and users object with the user's data
-   */
-   function isPersonalDataFile(data) {
-      // Check for personal export format
-      if (data.username && data.users && data.users[data.username]) {
-          return true;
-      }
+        /**
+         * Detects if the imported data is a personal data file
+         * Personal files have username and users object with the user's data
+         */
+        function isPersonalDataFile(data) {
+            // Check for personal export format
+            if (data.username && data.users && data.users[data.username]) {
+                return true;
+            }
 
-      // Check for single user export with answers directly
-      if (data.username && data.answers) {
-          return true;
-      }
+            // Check for single user export with answers directly
+            if (data.username && data.answers) {
+                return true;
+            }
 
-      // Check if it has a single user in users object
-      if (data.users && Object.keys(data.users).length === 1) {
-          return true;
-      }
+            // Check if it has a single user in users object
+            if (data.users && Object.keys(data.users).length === 1) {
+                return true;
+            }
 
-      return false;
-  }
+            return false;
+        }
 
-  /**
-   * Detects if the imported data is a master data file
-   * Master files have multiple users or explicit master export type
-   */
-  function isMasterDataFile(data) {
-      // Check for explicit master export type
-      if (data.exportType === 'master_database') {
-          return true;
-      }
+        /**
+         * Detects if the imported data is a master data file
+         * Master files have multiple users or explicit master export type
+         */
+        function isMasterDataFile(data) {
+            // Check for explicit master export type
+            if (data.exportType === 'master_database') {
+                return true;
+            }
 
-      // Check for multiple users
-      if (data.users && Object.keys(data.users).length > 1) {
-          return true;
-      }
+            // Check for multiple users
+            if (data.users && Object.keys(data.users).length > 1) {
+                return true;
+            }
 
-      // Check for master export format with allUsers
-      if (data.allUsers && Array.isArray(data.allUsers)) {
-          return true;
-      }
+            // Check for master export format with allUsers
+            if (data.allUsers && Array.isArray(data.allUsers)) {
+                return true;
+            }
 
-      return false;
-  }
+            return false;
+        }
 
-  // --- End of File Type Detection Functions ---
+        // --- End of File Type Detection Functions ---
         // Smart Import Function - Auto-detects file type
         async function handleSmartImport(event) {
             console.log('handleSmartImport called', event);
@@ -6664,7 +6823,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
 
             const reader = new FileReader();
-            reader.onload = async function(e) {
+            reader.onload = async function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
 
@@ -6713,52 +6872,52 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         return;
                     }
 
-  // Direct detection logic without external functions
-  let isPersonalFile = false;
-  let isMasterFile = false;
+                    // Direct detection logic without external functions
+                    let isPersonalFile = false;
+                    let isMasterFile = false;
 
-  // Check for personal file formats
-  if (data.username && data.users && data.users[data.username]) {
-      // Standard personal export format
-      isPersonalFile = true;
-      console.log('Detected: Personal export format with username and users');
-  } else if (data.username && data.answers) {
-      // Alternative personal format with direct answers
-      isPersonalFile = true;
-      console.log('Detected: Personal format with direct answers');
-  } else if (data.users && Object.keys(data.users).length === 1) {
-      // Single user export
-      isPersonalFile = true;
-      console.log('Detected: Single user export format');
-  } else if (data.users && Object.keys(data.users).length > 1) {
-      // Multiple users - master file
-      isMasterFile = true;
-      console.log('Detected: Master file with multiple users');
-  } else if (data.exportType === 'master_database') {
-      // Explicit master export
-      isMasterFile = true;
-      console.log('Detected: Master database export');
-  }
+                    // Check for personal file formats
+                    if (data.username && data.users && data.users[data.username]) {
+                        // Standard personal export format
+                        isPersonalFile = true;
+                        console.log('Detected: Personal export format with username and users');
+                    } else if (data.username && data.answers) {
+                        // Alternative personal format with direct answers
+                        isPersonalFile = true;
+                        console.log('Detected: Personal format with direct answers');
+                    } else if (data.users && Object.keys(data.users).length === 1) {
+                        // Single user export
+                        isPersonalFile = true;
+                        console.log('Detected: Single user export format');
+                    } else if (data.users && Object.keys(data.users).length > 1) {
+                        // Multiple users - master file
+                        isMasterFile = true;
+                        console.log('Detected: Master file with multiple users');
+                    } else if (data.exportType === 'master_database') {
+                        // Explicit master export
+                        isMasterFile = true;
+                        console.log('Detected: Master database export');
+                    }
 
-  console.log('File import debug - isPersonalFile:', isPersonalFile);
-  console.log('File import debug - isMasterFile:', isMasterFile);
+                    console.log('File import debug - isPersonalFile:', isPersonalFile);
+                    console.log('File import debug - isMasterFile:', isMasterFile);
 
-  // Process based on file type
-  if (isPersonalFile) {
-      console.log('Processing as personal data file...');
-      importAndMergePersonalData(data);
-      // Message is handled inside importAndMergePersonalData
-      return;
-  } else if (isMasterFile) {
-      console.log('Processing as master data file...');
-      importMasterData(data);
-      showMessage('✅ Master data imported successfully!', 'success');
-      return;
-  } else {
-      console.error('File structure does not match expected formats');
-      console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
-      showMessage('⚠️ Unrecognized file format. Please check your file.', 'error');
-  }
+                    // Process based on file type
+                    if (isPersonalFile) {
+                        console.log('Processing as personal data file...');
+                        importAndMergePersonalData(data);
+                        // Message is handled inside importAndMergePersonalData
+                        return;
+                    } else if (isMasterFile) {
+                        console.log('Processing as master data file...');
+                        importMasterData(data);
+                        showMessage('✅ Master data imported successfully!', 'success');
+                        return;
+                    } else {
+                        console.error('File structure does not match expected formats');
+                        console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
+                        showMessage('⚠️ Unrecognized file format. Please check your file.', 'error');
+                    }
 
                     // Store the data temporarily to survive refresh
                     if (isMasterDataFile(data)) {
@@ -6774,8 +6933,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         if (isPersonalDataFile(data)) {
                             console.log('Detected: Personal data file');
                             importAndMergePersonalData(data);
-  // Message is now handled inside importAndMergePersonalData for better feedback
-                          } else if (isMasterDataFile(data)) {
+                            // Message is now handled inside importAndMergePersonalData for better feedback
+                        } else if (isMasterDataFile(data)) {
                             console.log('Detected: Master database file');
                             importMasterData(data);
                             showMessage('✅ Master database imported successfully!', 'success');
@@ -6797,16 +6956,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
         function isPersonalDataFile(data) {
             // Personal data files typically have a single user's answers and progress
             return (data.answers && typeof data.answers === 'object') ||
-                   (data.username && data.exportType === 'personal') ||
-                   (data.progress && !data.students && !data.allUsers);
+                (data.username && data.exportType === 'personal') ||
+                (data.progress && !data.students && !data.allUsers);
         }
 
         function isMasterDataFile(data) {
             // Master data files have multiple users or class-wide data
             return !!(data.students ||
-                     data.allUsers ||
-                     data.exportType === 'master_database' ||
-                     (data.users && Object.keys(data.users).length > 1));
+                data.allUsers ||
+                data.exportType === 'master_database' ||
+                (data.users && Object.keys(data.users).length > 1));
         }
 
         // Backward compatibility migration function
@@ -7002,7 +7161,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Update references from masterExportBtn to totalExportBtn
-        window.exportMasterData = window.exportMasterData || function() {
+        window.exportMasterData = window.exportMasterData || function () {
             // Get ALL data from localStorage, not filtered by user
             const masterData = {
                 exportTime: new Date().toISOString(),
@@ -7052,10 +7211,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Initialize sync functionality
         function initializeSyncModal() {
-            // Update current user display
+            // Update current user display - check multiple sources
             const currentUserDisplay = document.getElementById('currentUserDisplay');
             if (currentUserDisplay) {
-                currentUserDisplay.textContent = localStorage.getItem('consensusUsername') || 'Unknown';
+                const username = window.currentUsername
+                    || localStorage.getItem('consensusUsername')
+                    || 'Not logged in';
+                currentUserDisplay.textContent = username;
             }
 
             // Show/hide turbo mode notice based on sync status
@@ -7064,21 +7226,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 turboModeNotice.style.display = turboModeActive ? 'block' : 'none';
             }
 
-            const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
-            const cloudRestoreHelper = document.getElementById('cloudRestoreHelper');
-            const shouldShowCloud = !!(window.FEATURE_FLAGS.restoreFromCloud && turboModeActive && supabase);
-            if (cloudRestoreBtn) {
-                cloudRestoreBtn.style.display = shouldShowCloud ? 'flex' : 'none';
-            }
-            if (cloudRestoreHelper) {
-                if (window.FEATURE_FLAGS.restoreFromCloud) {
-                    cloudRestoreHelper.style.display = 'block';
-                    cloudRestoreHelper.innerHTML = shouldShowCloud
-                        ? '<i class="fas fa-cloud"></i> Cloud restore ready: pull your latest answers from Supabase.'
-                        : '<i class="fas fa-info-circle"></i> Turbo mode must be active to restore from the cloud.';
-                } else {
-                    cloudRestoreHelper.style.display = 'none';
-                }
+            // Update sync stats display when modal opens
+            if (window.SyncStatus) {
+                window.SyncStatus.updateSyncStats();
             }
 
             const classPacksBtn = document.getElementById('classPacksBtn');
@@ -7191,7 +7341,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Run migration on existing data
             migrateExistingAnswersData();
 
@@ -7212,14 +7362,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const shareModal = document.getElementById('shareModal');
             if (shareModal) {
                 // Close modal when clicking outside
-                window.addEventListener('click', function(event) {
+                window.addEventListener('click', function (event) {
                     if (event.target === shareModal) {
                         closeShareModal();
                     }
                 });
 
                 // Close modal with ESC key
-                document.addEventListener('keydown', function(event) {
+                document.addEventListener('keydown', function (event) {
                     if (event.key === 'Escape' && shareModal.style.display === 'block') {
                         closeShareModal();
                     }
@@ -7266,35 +7416,25 @@ if (chartInstances[`dotplot-${questionId}`]) {
     <div id="spriteConfigModal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeSpriteConfigModal()">&times;</span>
-            <h2>🎮 Sprite Configuration</h2>
+            <h2>SPRITE COLOR</h2>
 
             <div class="sprite-config-section">
-                <h3>Enable Sprites</h3>
-                <label class="switch">
-                    <input type="checkbox" id="spritesEnabledToggle" checked>
-                    <span class="slider round"></span>
-                </label>
-            </div>
-
-            <div class="sprite-config-section">
-                <h3>Sprite Color</h3>
                 <div class="color-picker">
-                    <label for="spriteHueSlider">Hue: <span id="hueValue">0</span>°</label>
+                    <label for="spriteHueSlider">HUE: <span id="hueValue">0</span></label>
                     <input type="range" id="spriteHueSlider" min="0" max="360" value="0" step="1">
                     <div class="color-preview">
-                        <div id="spriteColorPreview" style="width: 50px; height: 50px; border-radius: 5px; margin: 10px 0;"></div>
+                        <div id="spriteColorPreview"></div>
                     </div>
                 </div>
 
                 <div class="sprite-preview-section">
-                    <h4>Preview</h4>
-                    <canvas id="spritePreviewCanvas" width="100" height="100" style="border: 1px solid #ccc; border-radius: 5px;"></canvas>
+                    <canvas id="spritePreviewCanvas" width="100" height="100"></canvas>
                 </div>
             </div>
 
             <div class="modal-buttons">
-                <button class="modal-btn save-btn" onclick="saveSpriteConfig()">Save Settings</button>
-                <button class="modal-btn cancel-btn" onclick="closeSpriteConfigModal()">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveSpriteConfig()">SAVE</button>
+                <button class="modal-btn cancel-btn" onclick="closeSpriteConfigModal()">CANCEL</button>
             </div>
         </div>
     </div>
@@ -7304,7 +7444,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
     <script>
         // Sprite system globals
-        let canvasEngine, playerSprite, spriteSheet, spriteManager;
+        let canvasEngine, playerSprite, spriteSheet, spriteManager, studyBuddyRoom;
 
         // Initialize sprite system
         document.addEventListener('DOMContentLoaded', () => {
@@ -7326,12 +7466,365 @@ if (chartInstances[`dotplot-${questionId}`]) {
             spriteManager = new SpriteManager(canvasEngine, spriteSheet);
             window.spriteManager = spriteManager; // Expose globally for early listeners
 
-            // Check if sprites are enabled
-            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
-            if (spritesEnabled) {
-                canvasEngine.start();
-            }
+            // Always start the canvas engine (sprites always enabled)
+            canvasEngine.start();
+
+            // Listen for door enter event (to navigate back)
+            window.addEventListener('studyBuddyDoorEnter', (e) => {
+                if (!studyBuddyRoom) return;
+
+                if (studyBuddyRoom.isUnitSelectRoom) {
+                    // Door from unit select → logout with confirmation
+                    console.log('Door entered from unit select, prompting logout');
+                    if (confirm('Are you sure you want to log out?')) {
+                        // Destroy the study buddy room first
+                        destroyStudyBuddyRoom();
+
+                        // Clear the username from storage (both localStorage and IndexedDB)
+                        localStorage.removeItem('consensusUsername');
+                        if (typeof AppDB !== 'undefined' && AppDB.setStoredUsername) {
+                            AppDB.setStoredUsername(null);
+                        }
+
+                        // Clear current username global
+                        window.currentUsername = null;
+
+                        // Show the onboarding/login prompt
+                        if (typeof showUsernamePrompt === 'function') {
+                            showUsernamePrompt();
+                        } else {
+                            // Fallback: reload the page
+                            location.reload();
+                        }
+                    } else {
+                        // User cancelled - respawn player at start position away from door
+                        playerSprite.x = 100;
+                        playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
+                    }
+                } else if (studyBuddyRoom.isLessonSelectRoom) {
+                    // Door from lesson select → unit select
+                    console.log('Door entered from lesson select, returning to units');
+                    if (typeof backToUnits === 'function') {
+                        backToUnits();
+                    }
+                } else {
+                    // Door from lesson → lesson select
+                    console.log('Door entered from lesson, returning to lesson select');
+                    if (typeof backToLessons === 'function') {
+                        backToLessons();
+                    }
+                }
+            });
+
+            // Listen for peer position updates
+            window.addEventListener('studyBuddyPeerUpdate', (e) => {
+                if (!studyBuddyRoom || !spriteSheet) return;
+                const { username, lessonId, position, blockPositions, hue, completedUnits } = e.detail;
+
+                // Only show peers on the EXACT same screen (lesson, lesson select, or unit select)
+                if (studyBuddyRoom.currentLessonId !== lessonId) return;
+
+                // Update or add peer
+                if (studyBuddyRoom.peers.has(username)) {
+                    studyBuddyRoom.updatePeer(username, position, blockPositions);
+                } else {
+                    studyBuddyRoom.addPeer(username, spriteSheet, hue, completedUnits, position, blockPositions);
+                }
+            });
+
+            // Listen for peer joining
+            window.addEventListener('studyBuddyPeerJoined', (e) => {
+                if (!studyBuddyRoom || !spriteSheet) return;
+                const { username, lessonId, position, blockPositions, hue, completedUnits } = e.detail;
+
+                // Only show peers on the EXACT same screen
+                if (studyBuddyRoom.currentLessonId !== lessonId) return;
+
+                console.log(`Peer ${username} joined ${lessonId}`);
+                studyBuddyRoom.addPeer(username, spriteSheet, hue, completedUnits, position, blockPositions);
+            });
+
+            // Listen for peer leaving
+            window.addEventListener('studyBuddyPeerLeft', (e) => {
+                if (!studyBuddyRoom) return;
+                const { username, lessonId } = e.detail;
+
+                // Only process if peer was on our exact screen
+                if (studyBuddyRoom.currentLessonId !== lessonId) return;
+
+                console.log(`Peer ${username} left ${lessonId}`);
+                studyBuddyRoom.removePeer(username);
+            });
+
+            // Listen for menu door enter event (toggles FAB menu)
+            window.addEventListener('studyBuddyMenuDoorEnter', (e) => {
+                console.log('Menu door entered, toggling FAB menu');
+                if (typeof toggleFabMenu === 'function') {
+                    toggleFabMenu();
+                }
+            });
         });
+
+        /**
+         * Get the player's actually completed units from progress data
+         * A unit is "completed" when all questions in that unit have been answered
+         * @returns {Array} Array of completed unit numbers
+         */
+        function getPlayerCompletedUnits() {
+            const completedUnits = [];
+
+            // Check each unit (1-9) for completion
+            for (let unitNum = 1; unitNum <= 9; unitNum++) {
+                // Get all questions for this unit from the curriculum
+                if (typeof allUnitQuestions !== 'undefined' && allUnitQuestions.length > 0) {
+                    const unitQuestions = allUnitQuestions.filter(q => {
+                        const match = q.id.match(/U(\d+)-/);
+                        return match && parseInt(match[1], 10) === unitNum;
+                    });
+
+                    // If there are questions and all are answered, unit is complete
+                    if (unitQuestions.length > 0 && unitQuestions.every(q => isQuestionAnswered(q.id))) {
+                        completedUnits.push(unitNum);
+                    }
+                }
+            }
+
+            return completedUnits;
+        }
+
+        /**
+         * Initialize Study Buddy room for a lesson
+         * Uses Unit 1 level config (flat ground, door at ground level)
+         * Blocks only appear if player has actually completed units
+         * @param {string} lessonId - The lesson ID (e.g., "U2-L3-Q01")
+         * @param {Array} overrideCompletedUnits - Optional array of completed units (for testing)
+         */
+        function initStudyBuddyRoom(lessonId, overrideCompletedUnits) {
+            if (!canvasEngine || !playerSprite) {
+                console.warn('Sprite system not initialized');
+                return;
+            }
+
+            // Parse unit number from lesson ID (for display/logging only)
+            const unitMatch = lessonId.match(/U(\d+)/i);
+            const unitNumber = unitMatch ? parseInt(unitMatch[1], 10) : 1;
+
+            // Get player's ACTUALLY completed units from progress data
+            // Only use override for testing purposes
+            let completedUnits;
+            if (overrideCompletedUnits) {
+                completedUnits = overrideCompletedUnits;
+            } else {
+                completedUnits = getPlayerCompletedUnits();
+            }
+
+            // Get player hue
+            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+
+            // Create or reinitialize the room
+            if (studyBuddyRoom) {
+                studyBuddyRoom.destroy();
+            }
+            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
+                roomWidth: 1200
+            });
+
+            // Always use Unit 1 level config (flat ground, door at ground level)
+            // Blocks come from actually completed units, not from level design
+            studyBuddyRoom.initialize(lessonId, 1, completedUnits, playerHue);
+
+            // Reset player position
+            playerSprite.x = 100;
+            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
+
+            console.log(`Study Buddy room initialized for ${lessonId} (Unit ${unitNumber})`);
+            console.log(`Player has ${completedUnits.length} completed units:`, completedUnits);
+            console.log(`Door position: x=${studyBuddyRoom.door?.x || 'N/A'}`);
+            console.log(`Use arrow keys to move. Walk right to find the door.`);
+
+            // Notify server that we joined this lesson
+            if (window.railwayClient && window.railwayClient.joinBuddyRoom) {
+                const syncData = studyBuddyRoom.getSyncData(playerSprite);
+                window.railwayClient.joinBuddyRoom(
+                    lessonId,
+                    syncData.position,
+                    syncData.blockPositions,
+                    playerHue,
+                    completedUnits
+                );
+            }
+
+            // Start position sync interval (send position updates ~10x per second)
+            if (window.buddyPositionInterval) {
+                clearInterval(window.buddyPositionInterval);
+            }
+            window.buddyPositionInterval = setInterval(() => {
+                if (studyBuddyRoom && playerSprite && window.railwayClient && window.railwayClient.sendBuddyPosition) {
+                    const syncData = studyBuddyRoom.getSyncData(playerSprite);
+                    window.railwayClient.sendBuddyPosition(
+                        lessonId,
+                        syncData.position,
+                        syncData.blockPositions,
+                        playerHue,
+                        completedUnits
+                    );
+                }
+            }, 100); // 10 Hz position updates
+
+            return studyBuddyRoom;
+        }
+
+        /**
+         * Destroy Study Buddy room (return to normal sprite mode)
+         */
+        function destroyStudyBuddyRoom() {
+            // Stop position sync interval
+            if (window.buddyPositionInterval) {
+                clearInterval(window.buddyPositionInterval);
+                window.buddyPositionInterval = null;
+            }
+
+            // Notify server we're leaving
+            if (studyBuddyRoom && window.railwayClient && window.railwayClient.leaveBuddyRoom) {
+                window.railwayClient.leaveBuddyRoom(studyBuddyRoom.currentLessonId);
+            }
+
+            if (studyBuddyRoom) {
+                studyBuddyRoom.destroy();
+                studyBuddyRoom = null;
+                console.log('Study Buddy room destroyed');
+            }
+        }
+
+        /**
+         * Initialize Study Buddy room for the lesson selector screen
+         * Always uses Unit 1 level (flat ground, door at ground level, no blocks)
+         * Door takes player back to unit selector
+         * @param {number} unitNumber - Current unit number (for display only)
+         */
+        function initStudyBuddyRoomForLessonSelect(unitNumber) {
+            if (!canvasEngine || !playerSprite) {
+                console.warn('Sprite system not initialized');
+                return;
+            }
+
+            // Get player hue
+            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+
+            // Create or reinitialize the room
+            if (studyBuddyRoom) {
+                studyBuddyRoom.destroy();
+            }
+            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
+                roomWidth: 1200
+            });
+
+            // Use a special lesson ID for lesson select screen
+            const lessonSelectId = `U${unitNumber}-LessonSelect`;
+
+            // Always use Unit 1 level config (flat, no blocks, door at ground)
+            // Pass empty completedUnits array - no blocks on lesson select screen
+            studyBuddyRoom.initialize(lessonSelectId, 1, [], playerHue);
+
+            // Mark this as a "lesson select" room - door goes to units
+            studyBuddyRoom.isLessonSelectRoom = true;
+
+            // Reset player position
+            playerSprite.x = 100;
+            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
+
+            console.log(`Study Buddy room initialized for lesson selector (Unit ${unitNumber}, using flat level)`);
+
+            return studyBuddyRoom;
+        }
+
+        /**
+         * Initialize Study Buddy room for the unit selector screen
+         * Always uses Unit 1 level (flat ground, door at ground level, no blocks)
+         * Door triggers logout confirmation
+         */
+        function initStudyBuddyRoomForUnitSelect() {
+            if (!canvasEngine || !playerSprite) {
+                console.warn('Sprite system not initialized');
+                return;
+            }
+
+            // Get player hue
+            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+
+            // Create or reinitialize the room
+            if (studyBuddyRoom) {
+                studyBuddyRoom.destroy();
+            }
+            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
+                roomWidth: 1200
+            });
+
+            // Use a special ID for unit select screen
+            const unitSelectId = 'UnitSelect';
+
+            // Always use Unit 1 level config (flat, no blocks, door at ground)
+            studyBuddyRoom.initialize(unitSelectId, 1, [], playerHue);
+
+            // Mark this as a "unit select" room - door triggers logout
+            studyBuddyRoom.isUnitSelectRoom = true;
+
+            // Reset player position
+            playerSprite.x = 100;
+            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
+
+            console.log('Study Buddy room initialized for unit selector');
+
+            return studyBuddyRoom;
+        }
+
+        /**
+         * Test function - create room with fake completed units
+         * @param {number} unit - Unit number to test (default 3)
+         */
+        function testStudyBuddyRoom(unit = 3) {
+            // Enable debug mode
+            window.debugStudyBuddy = true;
+
+            // Create completed units array (all units before this one)
+            const completedUnits = [];
+            for (let i = 1; i < unit; i++) {
+                completedUnits.push(i);
+            }
+
+            // Create room for specified unit
+            initStudyBuddyRoom(`U${unit}-L1-Q01`, completedUnits);
+
+            const blocksNeeded = unit - 1;
+            console.log('=== STUDY BUDDY TEST MODE ===');
+            console.log(`Unit ${unit}: Need ${blocksNeeded} stacked block(s) + jump to reach door`);
+            console.log(`You have ${completedUnits.length} completed unit blocks on top of cliff`);
+            console.log('');
+            console.log('Gameplay:');
+            console.log('  1. Walk up the cliff ramp (invisible but functional)');
+            console.log('  2. Push blocks off the cliff edge into the pit');
+            console.log('  3. Blocks cannot be pushed back up the cliff');
+            console.log('  4. Stack blocks in the pit to reach the floating door');
+            console.log('  5. Jump from top of block stack to enter door');
+            console.log('');
+            console.log('Controls:');
+            console.log('  Arrow keys / WASD - Move and jump');
+            console.log('  Push blocks by walking into them');
+            console.log('');
+            console.log('Test commands:');
+            console.log('  testStudyBuddyRoom(1) - Unit 1 (door at ground level, no blocks)');
+            console.log('  testStudyBuddyRoom(2) - Unit 2 (need 1 block + jump)');
+            console.log('  testStudyBuddyRoom(3) - Unit 3 (need 2 blocks + jump)');
+            console.log('  testStudyBuddyRoom(4) - Unit 4 (need 3 blocks + jump)');
+            console.log('  destroyStudyBuddyRoom() - exit room mode');
+        }
+
+        // Expose globally for testing
+        window.initStudyBuddyRoom = initStudyBuddyRoom;
+        window.initStudyBuddyRoomForLessonSelect = initStudyBuddyRoomForLessonSelect;
+        window.initStudyBuddyRoomForUnitSelect = initStudyBuddyRoomForUnitSelect;
+        window.destroyStudyBuddyRoom = destroyStudyBuddyRoom;
+        window.testStudyBuddyRoom = testStudyBuddyRoom;
 
         // Sprite configuration modal functions
         function showSpriteConfigModal() {
@@ -7340,11 +7833,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             modal.style.display = 'block';
 
-            // Load current settings
-            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
+            // Load current hue setting
             const hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
-
-            document.getElementById('spritesEnabledToggle').checked = spritesEnabled;
             document.getElementById('spriteHueSlider').value = hue;
 
             updateSpriteConfigPreview();
@@ -7360,41 +7850,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
             document.getElementById('hueValue').textContent = hue;
 
             const preview = document.getElementById('spriteColorPreview');
-            preview.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+            if (preview) {
+                preview.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+            }
 
             const canvas = document.getElementById('spritePreviewCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (spriteSheet && spriteSheet.loaded) {
-                ctx.save();
-                ctx.filter = `hue-rotate(${hue}deg)`;
-                // Draw frame 0 centered in preview canvas
-                spriteSheet.drawFrame(ctx, 0, 10, 2, 1, 0);
-                ctx.restore();
+                if (spriteSheet && spriteSheet.loaded) {
+                    // Draw frame 0 centered in preview canvas with hue applied
+                    spriteSheet.drawFrame(ctx, 0, 10, 2, 1, parseInt(hue, 10));
+                }
             }
         }
 
         function saveSpriteConfig() {
-            const spritesEnabled = document.getElementById('spritesEnabledToggle').checked;
             const hue = parseInt(document.getElementById('spriteHueSlider').value, 10);
 
-            localStorage.setItem('spritesEnabled', spritesEnabled.toString());
             localStorage.setItem('spriteColorHue', hue.toString());
 
-            // Apply settings
+            // Apply hue to player sprite immediately
             if (playerSprite) {
                 playerSprite.setHue(hue);
-            }
-
-            if (spritesEnabled) {
-                if (canvasEngine && !canvasEngine.running) {
-                    canvasEngine.start();
-                }
-            } else {
-                if (canvasEngine && canvasEngine.running) {
-                    canvasEngine.stop();
-                }
             }
 
             closeSpriteConfigModal();
@@ -7418,4 +7897,5 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
     </script>
 </body>
+
 </html>

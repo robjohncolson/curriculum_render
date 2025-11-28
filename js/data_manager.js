@@ -2,6 +2,7 @@
 // Part of AP Statistics Consensus Quiz
 // Dependencies: Requires global variables (currentUsername, classData, allCurriculumData)
 //               Requires functions from other modules (showMessage, renderUnitMenu, detectUnitAndLessons)
+//               Requires js/db.js for IndexedDB operations (AppDB)
 // This module handles "what is their data" - import, export, merging, and persistence
 
 // ========================================
@@ -9,31 +10,38 @@
 // ========================================
 
 /**
- * Initializes or loads class data structure from localStorage
+ * Initializes or loads class data structure from IndexedDB
  * Creates user entry if it doesn't exist for current username
+ * NOTE: This function assumes initDB() has already been called (in startApp)
+ * @returns {Promise<void>}
  */
-function initClassData() {
-    let classDataStr = localStorage.getItem('classData');
-    classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+async function initClassData() {
+    // Load all users from IndexedDB into memory
+    await AppDB.loadAllUsers();
 
-    if (!classData.users[currentUsername]) {
+    // Ensure current user exists
+    if (currentUsername && !classData.users[currentUsername]) {
         classData.users[currentUsername] = {
             answers: {},
             reasons: {},
             timestamps: {},
             attempts: {},
             charts: {},
-            // TASK 3.3: Real-time activity tracking for pig system
+            // Real-time activity tracking for sprite system
             currentActivity: {
-                state: 'idle',        // idle, viewing, answering, submitted
-                questionId: null,     // Current question being viewed/answered
-                lastUpdate: Date.now() // Timestamp of last activity change
+                state: 'idle',
+                questionId: null,
+                lastUpdate: Date.now()
             }
         };
-    } else {
-        // TASK 4.1: Migrate existing users to have currentActivity field
+        await saveClassData();
+    } else if (currentUsername && classData.users[currentUsername]) {
+        // Migrate existing users to have required fields
+        let needsSave = false;
+
         if (!classData.users[currentUsername].charts) {
             classData.users[currentUsername].charts = {};
+            needsSave = true;
         }
         if (!classData.users[currentUsername].currentActivity) {
             classData.users[currentUsername].currentActivity = {
@@ -42,22 +50,90 @@ function initClassData() {
                 lastUpdate: Date.now()
             };
             console.log(`✅ Migrated ${currentUsername} to include currentActivity field`);
+            needsSave = true;
+        }
+
+        if (needsSave) {
+            await saveClassData();
         }
     }
-
-    saveClassData();
 }
 
 /**
- * Saves class data to localStorage with error handling
+ * Saves current user's data to IndexedDB
+ * Only writes the current user's record, not all users
+ * @returns {Promise<void>}
  */
-function saveClassData() {
-    try {
-        localStorage.setItem('classData', JSON.stringify(classData));
-    } catch(e) {
-        console.log("Storage quota exceeded");
-        showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
+async function saveClassData() {
+    if (!currentUsername) {
+        console.warn('saveClassData called but no currentUsername set');
+        return;
     }
+
+    try {
+        // Update sync status to "saving"
+        if (window.SyncStatus) {
+            SyncStatus.setState('saving');
+        }
+
+        await AppDB.saveUserData(currentUsername);
+
+        // Update sync status to "saved"
+        if (window.SyncStatus) {
+            SyncStatus.setState('saved-local');
+        }
+
+        // Show toast on save (but not too frequently)
+        if (window._lastSaveToast && Date.now() - window._lastSaveToast < 2000) {
+            // Skip toast if we just showed one
+        } else if (window.showToast) {
+            // Only show toast for explicit saves, not automatic ones
+            // This is controlled by the caller
+        }
+    } catch (e) {
+        console.error('Failed to save data:', e);
+        if (window.SyncStatus) {
+            SyncStatus.setState('error', 'Save failed');
+        }
+        if (typeof showMessage === 'function') {
+            showMessage('Warning: Failed to save data. Please try again.', 'error');
+        }
+    }
+}
+
+/**
+ * Saves current user's data and shows a toast notification
+ * Use this for explicit user-triggered saves
+ * @returns {Promise<void>}
+ */
+async function saveClassDataWithToast() {
+    await saveClassData();
+    window._lastSaveToast = Date.now();
+    if (window.showToast) {
+        showToast('Progress saved', 'success');
+    }
+}
+
+/**
+ * Saves a specific user's data to IndexedDB
+ * @param {string} username - The username to save
+ * @returns {Promise<void>}
+ */
+async function saveUserData(username) {
+    if (!username || !classData.users[username]) {
+        console.warn('saveUserData called with invalid username:', username);
+        return;
+    }
+    await AppDB.saveUserData(username);
+}
+
+/**
+ * Saves multiple users' data to IndexedDB
+ * @param {string[]} usernames - Array of usernames to save
+ * @returns {Promise<void>}
+ */
+async function saveMultipleUsers(usernames) {
+    await AppDB.saveMultipleUsers(usernames);
 }
 
 /**
@@ -185,19 +261,18 @@ window.buildRecoveryPack = async function(username = currentUsername) {
         throw new Error('No username available for Recovery Pack export.');
     }
 
-    if (typeof initClassData === 'function') {
+    // Ensure we have the latest data loaded
+    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
         try {
-            initClassData();
+            await AppDB.loadAllUsers();
         } catch (error) {
-            console.warn('RECOVERY: initClassData failed during buildRecoveryPack', error);
+            console.warn('RECOVERY: Failed to load from IndexedDB, using in-memory data', error);
         }
     }
 
     const nowISO = new Date().toISOString();
-    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
-    const userSlice = (classDataSnapshot.users && classDataSnapshot.users[username])
-        || (classData && classData.users && classData.users[username])
-        || {};
+    // Use in-memory classData which is now backed by IndexedDB
+    const userSlice = (classData && classData.users && classData.users[username]) || {};
 
     const userState = {
         answers: JSON.parse(localStorage.getItem(`answers_${username}`) || '{}'),
@@ -342,16 +417,16 @@ window.generateClassPacks = async function() {
         return;
     }
 
-    if (typeof initClassData === 'function') {
+    // Ensure we have the latest data loaded from IndexedDB
+    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
         try {
-            initClassData();
+            await AppDB.loadAllUsers();
         } catch (error) {
-            console.warn('RECOVERY: initClassData failed during class pack generation', error);
+            console.warn('RECOVERY: Failed to load from IndexedDB', error);
         }
     }
 
-    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
-    const usernames = Object.keys(classDataSnapshot.users || {});
+    const usernames = Object.keys(classData.users || {});
     if (usernames.length === 0) {
         showMessage('No class data available for pack generation.', 'error');
         return;
@@ -394,45 +469,43 @@ window.generateClassPacks = async function() {
  * Exports complete master database with all users' data to JSON file
  * Exposed to window for onclick handlers
  */
-window.exportMasterData = function() {
-    // Get ALL data from localStorage, not filtered by user
+window.exportMasterData = async function() {
+    // Ensure we have the latest data from IndexedDB
+    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
+        try {
+            await AppDB.loadAllUsers();
+        } catch (error) {
+            console.warn('Failed to load from IndexedDB, using in-memory data', error);
+        }
+    }
+
+    // Build master data from in-memory classData (backed by IndexedDB)
     const masterData = {
         timestamp: new Date().toISOString(),
         exportType: 'master_database',
-        allUsers: Object.keys(localStorage)
-            .filter(key => key.includes('_username') || key.includes('answers_'))
-            .map(key => key.split('_')[1])
-            .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
+        allUsers: Object.keys(classData.users || {}),
 
-        // Get all class data without filtering
-        classData: JSON.parse(localStorage.getItem('classData') || '{}'),
+        // Get all class data
+        classData: { users: classData.users || {} },
 
-        // Get all answers from all users
+        // Get all answers from all users (extracted from classData for compatibility)
         allAnswers: {},
 
         // Get all progress from all users
         allProgress: {},
 
-        // Get any other data structures you have
-        consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}'),
-
-        // Include raw localStorage for complete backup
-        rawLocalStorage: {}
+        // Consensus data if available
+        consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}')
     };
 
-    // Collect all answers for all users
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('answers_')) {
-            const username = key.replace('answers_', '');
-            masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
+    // Extract answers and progress from classData for backward compatibility
+    Object.entries(classData.users || {}).forEach(([username, userData]) => {
+        if (userData.answers) {
+            masterData.allAnswers[username] = userData.answers;
         }
-        if (key.startsWith('progress_')) {
-            const username = key.replace('progress_', '');
-            masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
+        if (userData.progress) {
+            masterData.allProgress[username] = userData.progress;
         }
-
-        // Store everything in raw format too
-        masterData.rawLocalStorage[key] = localStorage.getItem(key);
     });
 
     // Create and download the file
@@ -682,27 +755,56 @@ function mergePersonalData(existingUserData, newUserData) {
 /**
  * Imports personal data for current user with standardization
  * @param {Object} data - Personal data file contents
+ * @returns {Promise<void>}
  */
-function importPersonalData(data) {
+async function importPersonalData(data) {
     if (!currentUsername) {
         showMessage('❌ Please select a username first.', 'error');
         return;
     }
 
+    // Ensure user exists in classData
+    if (!classData.users[currentUsername]) {
+        classData.users[currentUsername] = {
+            answers: {},
+            reasons: {},
+            timestamps: {},
+            attempts: {},
+            charts: {},
+            currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
+        };
+    }
+
     // Import answers with standardization
     if (data.answers) {
         const standardizedAnswers = migrateAnswersToStandardFormat(data.answers);
-        localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(standardizedAnswers));
+        Object.assign(classData.users[currentUsername].answers, standardizedAnswers);
         console.log(`✓ Imported personal answers for ${currentUsername} (standardized format)`);
     }
 
-    // Import progress
-    if (data.progress) {
-        localStorage.setItem(`progress_${currentUsername}`, JSON.stringify(data.progress));
+    // Import other fields
+    if (data.reasons) {
+        Object.assign(classData.users[currentUsername].reasons, data.reasons);
+    }
+    if (data.timestamps) {
+        Object.assign(classData.users[currentUsername].timestamps, data.timestamps);
+    }
+    if (data.attempts) {
+        Object.assign(classData.users[currentUsername].attempts, data.attempts);
+    }
+    if (data.charts) {
+        Object.assign(classData.users[currentUsername].charts, data.charts);
+    }
+
+    // Save to IndexedDB
+    await saveClassData();
+
+    // Show success toast
+    if (window.showToast) {
+        showToast('Data imported successfully', 'success');
     }
 
     // Reinitialize to show imported data
-    initClassData();
     if (typeof renderUnitMenu === 'function') {
         renderUnitMenu();
     }
@@ -713,160 +815,128 @@ function importPersonalData(data) {
  * Handles both single-user restoration and multi-user peer import
  * @param {Object} data - Master database file contents
  * @param {string} targetUsername - Optional username for single-user restoration
+ * @returns {Promise<void>}
  */
-function importMasterData(data, targetUsername = null) {
+async function importMasterData(data, targetUsername = null) {
     console.log('=== importMasterData called ===');
-    console.log('Data passed to importMasterData:', data);
     console.log('Target username for restoration:', targetUsername);
 
-    // Use existing master data import functionality
-    if (typeof mergeMasterData === 'function') {
-        console.log('Found mergeMasterData function, using it');
-        mergeMasterData(data);
-    } else {
-        console.warn('No mergeMasterData function found, attempting basic import...');
-        console.log('Import data structure:', data);
-        console.log('Data keys:', Object.keys(data));
-        console.log('Has students property:', !!data.students);
-        console.log('Has allUsers property:', !!data.allUsers);
-        console.log('Has users property:', !!data.users);
-
-        // Try different possible structures
-        let userData = null;
-        if (data.students) {
-            userData = data.students;
-            console.log('Using data.students:', userData);
-        } else if (data.allUsers) {
-            userData = data.allUsers;
-            console.log('Using data.allUsers:', userData);
-        } else if (data.users) {
-            userData = data.users;
-            console.log('Using data.users:', userData);
-        }
-
-        if (userData) {
-            // Check if this is single-user restoration (from username screen)
-            if (targetUsername && userData[targetUsername]) {
-                console.log(`SINGLE-USER RESTORATION: Importing only data for ${targetUsername}`);
-                const userInfo = userData[targetUsername];
-
-                if (userInfo.answers) {
-                    // STANDARDIZATION FIX: Use migration function for consistency
-                    const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
-                    localStorage.setItem(`answers_${targetUsername}`, JSON.stringify(standardizedAnswers));
-                    console.log(`✓ Restored answers for ${targetUsername} (standardized format)`);
-                }
-                if (userInfo.progress) {
-                    localStorage.setItem(`progress_${targetUsername}`, JSON.stringify(userInfo.progress));
-                    console.log(`✓ Restored progress for ${targetUsername}`);
-                }
-                if (userInfo.reasons) {
-                    localStorage.setItem(`reasons_${targetUsername}`, JSON.stringify(userInfo.reasons));
-                    console.log(`✓ Restored reasons for ${targetUsername}`);
-                }
-                if (userInfo.timestamps) {
-                    localStorage.setItem(`timestamps_${targetUsername}`, JSON.stringify(userInfo.timestamps));
-                    console.log(`✓ Restored timestamps for ${targetUsername}`);
-                }
-                if (userInfo.attempts) {
-                    localStorage.setItem(`attempts_${targetUsername}`, JSON.stringify(userInfo.attempts));
-                    console.log(`✓ Restored attempts for ${targetUsername}`);
-                }
-
-                console.log(`=== Single-user restoration completed for ${targetUsername} ===`);
-                return;
-            }
-
-            // Otherwise, do multi-user peer import
-            console.log('MULTI-USER PEER IMPORT: Importing data for', Object.keys(userData).length, 'students');
-            console.log('Student usernames:', Object.keys(userData));
-
-            // Get or create classData structure for peer display
-            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-            if (!classData.users) classData.users = {};
-
-            Object.entries(userData).forEach(([username, userInfo]) => {
-                console.log(`Processing user: ${username}`, userInfo);
-
-                if (userInfo.answers) {
-                    // STANDARDIZATION FIX: Use migration function for consistency
-                    const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
-
-                    // Store individual keys (for existing functionality)
-                    const key = `answers_${username}`;
-                    localStorage.setItem(key, JSON.stringify(standardizedAnswers));
-                    console.log(`✓ Stored answers for ${username} in ${key} (standardized format)`);
-
-                    // ALSO store in classData structure (for peer display)
-                    if (!classData.users[username]) {
-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
-                    } else if (!classData.users[username].charts) {
-                        classData.users[username].charts = {};
-                    }
-                    Object.assign(classData.users[username].answers, standardizedAnswers);
-                    console.log(`✓ Added ${username} to classData structure`);
-                } else {
-                    console.log(`⚠ No answers found for ${username}`);
-                }
-
-                if (userInfo.progress) {
-                    const key = `progress_${username}`;
-                    localStorage.setItem(key, JSON.stringify(userInfo.progress));
-                    console.log(`✓ Stored progress for ${username} in ${key}`);
-                }
-
-                if (userInfo.reasons) {
-                    localStorage.setItem(`reasons_${username}`, JSON.stringify(userInfo.reasons));
-                    if (classData.users[username]) {
-                        Object.assign(classData.users[username].reasons, userInfo.reasons);
-                    }
-                }
-
-                if (userInfo.timestamps) {
-                    localStorage.setItem(`timestamps_${username}`, JSON.stringify(userInfo.timestamps));
-                    if (classData.users[username]) {
-                        Object.assign(classData.users[username].timestamps, userInfo.timestamps);
-                    }
-                }
-
-                if (userInfo.attempts) {
-                    localStorage.setItem(`attempts_${username}`, JSON.stringify(userInfo.attempts));
-                    if (classData.users[username]) {
-                        Object.assign(classData.users[username].attempts, userInfo.attempts);
-                    }
-                }
-
-                if (userInfo.charts) {
-                    if (!classData.users[username]) {
-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
-                    }
-                    if (!classData.users[username].charts) {
-                        classData.users[username].charts = {};
-                    }
-                    Object.assign(classData.users[username].charts, userInfo.charts);
-                }
-            });
-
-            // Save the updated classData structure
-            localStorage.setItem('classData', JSON.stringify(classData));
-            console.log(`✓ Updated classData with ${Object.keys(classData.users).length} users`);
-
-            // CRITICAL: Refresh the global classData variable
-            window.classData = classData;
-
-            // Reinitialize to show imported data
-            if (typeof initClassData === 'function') {
-                console.log('Calling initClassData()');
-                initClassData();
-            }
-            if (typeof renderUnitMenu === 'function') {
-                console.log('Calling renderUnitMenu()');
-                renderUnitMenu();
-            }
-            console.log('=== Master data import completed ===');
-        } else {
-            console.warn('❌ No students data found in import file');
-            console.log('Available data keys:', Object.keys(data));
-        }
+    // Try different possible structures for user data
+    let userData = null;
+    if (data.classData && data.classData.users) {
+        userData = data.classData.users;
+        console.log('Using data.classData.users');
+    } else if (data.students) {
+        userData = data.students;
+        console.log('Using data.students');
+    } else if (data.users) {
+        userData = data.users;
+        console.log('Using data.users');
     }
+
+    if (!userData) {
+        console.warn('❌ No user data found in import file');
+        console.log('Available data keys:', Object.keys(data));
+        showMessage('Invalid import file format', 'error');
+        return;
+    }
+
+    // Single-user restoration
+    if (targetUsername && userData[targetUsername]) {
+        console.log(`SINGLE-USER RESTORATION: Importing only data for ${targetUsername}`);
+        const userInfo = userData[targetUsername];
+
+        // Ensure user exists in classData
+        if (!classData.users[targetUsername]) {
+            classData.users[targetUsername] = {
+                answers: {},
+                reasons: {},
+                timestamps: {},
+                attempts: {},
+                charts: {},
+                currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
+            };
+        }
+
+        // Merge in the imported data
+        if (userInfo.answers) {
+            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+            Object.assign(classData.users[targetUsername].answers, standardizedAnswers);
+            console.log(`✓ Restored answers for ${targetUsername}`);
+        }
+        if (userInfo.reasons) {
+            Object.assign(classData.users[targetUsername].reasons, userInfo.reasons);
+        }
+        if (userInfo.timestamps) {
+            Object.assign(classData.users[targetUsername].timestamps, userInfo.timestamps);
+        }
+        if (userInfo.attempts) {
+            Object.assign(classData.users[targetUsername].attempts, userInfo.attempts);
+        }
+        if (userInfo.charts) {
+            Object.assign(classData.users[targetUsername].charts, userInfo.charts);
+        }
+
+        // Save to IndexedDB
+        await AppDB.saveUserData(targetUsername);
+        console.log(`=== Single-user restoration completed for ${targetUsername} ===`);
+
+        if (window.showToast) {
+            showToast('Data restored successfully', 'success');
+        }
+        return;
+    }
+
+    // Multi-user peer import
+    console.log('MULTI-USER PEER IMPORT: Importing data for', Object.keys(userData).length, 'students');
+    const importedUsernames = [];
+
+    for (const [username, userInfo] of Object.entries(userData)) {
+        // Ensure user exists in classData
+        if (!classData.users[username]) {
+            classData.users[username] = {
+                answers: {},
+                reasons: {},
+                timestamps: {},
+                attempts: {},
+                charts: {},
+                currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
+            };
+        }
+
+        // Merge in the imported data
+        if (userInfo.answers) {
+            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+            Object.assign(classData.users[username].answers, standardizedAnswers);
+        }
+        if (userInfo.reasons) {
+            Object.assign(classData.users[username].reasons, userInfo.reasons);
+        }
+        if (userInfo.timestamps) {
+            Object.assign(classData.users[username].timestamps, userInfo.timestamps);
+        }
+        if (userInfo.attempts) {
+            Object.assign(classData.users[username].attempts, userInfo.attempts);
+        }
+        if (userInfo.charts) {
+            Object.assign(classData.users[username].charts, userInfo.charts);
+        }
+
+        importedUsernames.push(username);
+    }
+
+    // Save all imported users to IndexedDB
+    await saveMultipleUsers(importedUsernames);
+    console.log(`✓ Imported ${importedUsernames.length} users to IndexedDB`);
+
+    // Reinitialize to show imported data
+    if (typeof renderUnitMenu === 'function') {
+        renderUnitMenu();
+    }
+
+    if (window.showToast) {
+        showToast(`Imported ${importedUsernames.length} students`, 'success');
+    }
+
+    console.log('=== Master data import completed ===');
 }

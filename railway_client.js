@@ -1,9 +1,10 @@
 // Railway Server Integration for AP Stats Turbo Mode
   // This replaces direct Supabase calls with Railway server calls
 
-  // Configuration
-  const RAILWAY_SERVER_URL = window.RAILWAY_SERVER_URL || 'https://your-app.up.railway.app';
-  const USE_RAILWAY = window.USE_RAILWAY || false;
+  // Configuration - use values from railway_config.js (loaded via window)
+  // Do NOT redeclare these constants - they're already declared in railway_config.js
+  const RC_RAILWAY_SERVER_URL = window.RAILWAY_SERVER_URL || 'https://your-app.up.railway.app';
+  const RC_USE_RAILWAY = window.USE_RAILWAY || false;
 
   // WebSocket connection
   let ws = null;
@@ -13,7 +14,7 @@
 
   // Initialize Railway connection
   function initializeRailwayConnection() {
-      if (!USE_RAILWAY) {
+      if (!RC_USE_RAILWAY) {
           console.log('Railway server disabled, using direct Supabase');
           return false;
       }
@@ -29,7 +30,7 @@
       }
 
       // Test REST API connection
-      fetch(`${RAILWAY_SERVER_URL}/health`)
+      fetch(`${RC_RAILWAY_SERVER_URL}/health`)
           .then(res => res.json())
           .then(data => {
               console.log('✅ Railway server connected:', data);
@@ -45,9 +46,9 @@
 
   // Connect to WebSocket for real-time updates
   function connectWebSocket() {
-      if (!USE_RAILWAY) return;
+      if (!RC_USE_RAILWAY) return;
 
-      const wsUrl = RAILWAY_SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+      const wsUrl = RC_RAILWAY_SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
       try {
           ws = new WebSocket(wsUrl);
@@ -55,6 +56,12 @@
           ws.onopen = () => {
               console.log('🔌 WebSocket connected to Railway server');
               wsConnected = true;
+
+              // Update SyncStatus connection state
+              if (window.SyncStatus) {
+                  window.SyncStatus.setConnected(true);
+                  window.SyncStatus.startStatsUpdates();
+              }
 
               // Enable turbo mode when WebSocket connects
               window.dispatchEvent(new CustomEvent('turboModeChanged', {
@@ -102,6 +109,11 @@
               console.log('WebSocket disconnected');
               wsConnected = false;
 
+              // Update SyncStatus connection state
+              if (window.SyncStatus) {
+                  window.SyncStatus.setConnected(false);
+              }
+
               // Disable turbo mode when WebSocket disconnects
               window.dispatchEvent(new CustomEvent('turboModeChanged', {
                   detail: { enabled: false }
@@ -123,6 +135,11 @@
           ws.onerror = (error) => {
               console.error('WebSocket error:', error);
               wsConnected = false;
+
+              // Update SyncStatus connection state
+              if (window.SyncStatus) {
+                  window.SyncStatus.setConnected(false);
+              }
 
               // Disable turbo mode when WebSocket errors
               window.dispatchEvent(new CustomEvent('turboModeChanged', {
@@ -201,6 +218,50 @@
               // Keep-alive response
               break;
 
+          case 'buddy_position':
+              // Another user's sprite/block position update
+              if (data.username && data.lessonId) {
+                  window.dispatchEvent(new CustomEvent('studyBuddyPeerUpdate', {
+                      detail: {
+                          username: data.username,
+                          lessonId: data.lessonId,
+                          position: data.position,
+                          blockPositions: data.blockPositions,
+                          hue: data.hue,
+                          completedUnits: data.completedUnits
+                      }
+                  }));
+              }
+              break;
+
+          case 'buddy_joined':
+              // Another user joined the same lesson
+              if (data.username && data.lessonId) {
+                  window.dispatchEvent(new CustomEvent('studyBuddyPeerJoined', {
+                      detail: {
+                          username: data.username,
+                          lessonId: data.lessonId,
+                          position: data.position,
+                          blockPositions: data.blockPositions,
+                          hue: data.hue,
+                          completedUnits: data.completedUnits
+                      }
+                  }));
+              }
+              break;
+
+          case 'buddy_left':
+              // Another user left the lesson
+              if (data.username && data.lessonId) {
+                  window.dispatchEvent(new CustomEvent('studyBuddyPeerLeft', {
+                      detail: {
+                          username: data.username,
+                          lessonId: data.lessonId
+                      }
+                  }));
+              }
+              break;
+
           default:
               console.log('Unknown WebSocket message type:', data.type);
       }
@@ -211,7 +272,7 @@
       const fallbackSubmit = typeof window.originalPushAnswer === 'function'
           ? window.originalPushAnswer
           : null;
-      if (!USE_RAILWAY) {
+      if (!RC_USE_RAILWAY) {
           // Fall back to direct Supabase
           return fallbackSubmit ? fallbackSubmit(username, questionId, answerValue, timestamp) : false;
       }
@@ -224,7 +285,7 @@
               timestamp: timestamp
           };
           console.log(`[Railway] submit ${questionId}: payload ready (${typeof answerValue})`);
-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/submit-answer`, {
+          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/submit-answer`, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
@@ -236,6 +297,11 @@
 
           if (result.success) {
               console.log(`✅ Answer synced via Railway (broadcast to ${result.broadcast} clients)`);
+              // Update sync stats
+              if (window.SyncStatus) {
+                  window.SyncStatus.incrementSyncCount(1);
+                  window.SyncStatus.setState('synced-cloud');
+              }
               return true;  // SUCCESS - Don't fall back!
           } else {
               throw new Error(result.error || 'Railway sync failed');
@@ -249,15 +315,15 @@
 
   // Pull peer data from Railway server
   async function pullPeerDataFromRailway(since = 0) {
-      if (!USE_RAILWAY) {
+      if (!RC_USE_RAILWAY) {
           // Fall back to direct Supabase
           return pullPeerDataFromSupabase();
       }
 
       try {
           const url = since > 0
-              ? `${RAILWAY_SERVER_URL}/api/peer-data?since=${since}`
-              : `${RAILWAY_SERVER_URL}/api/peer-data`;
+              ? `${RC_RAILWAY_SERVER_URL}/api/peer-data?since=${since}`
+              : `${RC_RAILWAY_SERVER_URL}/api/peer-data`;
 
           const response = await fetch(url);
           const result = await response.json();
@@ -305,10 +371,10 @@
 
   // Get question statistics from Railway
   async function getQuestionStats(questionId) {
-      if (!USE_RAILWAY) return null;
+      if (!RC_USE_RAILWAY) return null;
 
       try {
-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/question-stats/${questionId}`);
+          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/question-stats/${questionId}`);
           const stats = await response.json();
 
           console.log(`📊 Stats for ${questionId}:`, stats);
@@ -322,7 +388,7 @@
 
   // Batch submit answers via Railway
   async function batchSubmitViaRailway(answers) {
-      if (!USE_RAILWAY) {
+      if (!RC_USE_RAILWAY) {
           // Fall back to direct batch push
           return batchPushAnswersToSupabase(answers);
       }
@@ -337,7 +403,7 @@
                   : answer.timestamp
           }));
           console.log(`[Railway] batch submit: ${normalized.length} answers`);
-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/batch-submit`, {
+          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/batch-submit`, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
@@ -349,6 +415,11 @@
 
           if (result.success) {
               console.log(`✅ Batch synced ${result.count} answers via Railway`);
+              // Update sync stats
+              if (window.SyncStatus) {
+                  window.SyncStatus.incrementSyncCount(result.count);
+                  window.SyncStatus.setState('synced-cloud');
+              }
               return result.count;
           } else {
               throw new Error(result.error);
@@ -361,7 +432,7 @@
   }
 
   // Override existing functions when Railway is enabled
-  if (USE_RAILWAY) {
+  if (RC_USE_RAILWAY) {
       console.log('🚂 Railway mode enabled - overriding sync functions');
 
       // NOTE: Original functions are now captured inside initializeRailwayConnection()
@@ -383,6 +454,75 @@
       });
   }
 
+  // Study Buddy position sync functions
+
+  /**
+   * Send position update to all peers on the same lesson
+   * @param {string} lessonId - Current lesson ID
+   * @param {Object} position - Player position { x, y }
+   * @param {Array} blockPositions - Block positions [{ x, y, unitNumber }, ...]
+   * @param {number} hue - Player's sprite hue
+   * @param {Array} completedUnits - Player's completed units
+   */
+  function sendBuddyPosition(lessonId, position, blockPositions, hue, completedUnits) {
+      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+      if (!username || !lessonId) return;
+
+      ws.send(JSON.stringify({
+          type: 'buddy_position',
+          username,
+          lessonId,
+          position,
+          blockPositions,
+          hue,
+          completedUnits
+      }));
+  }
+
+  /**
+   * Join a lesson room (notify peers)
+   * @param {string} lessonId - Lesson to join
+   * @param {Object} position - Initial position
+   * @param {Array} blockPositions - Initial block positions
+   * @param {number} hue - Sprite hue
+   * @param {Array} completedUnits - Completed units
+   */
+  function joinBuddyRoom(lessonId, position, blockPositions, hue, completedUnits) {
+      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+      if (!username || !lessonId) return;
+
+      ws.send(JSON.stringify({
+          type: 'buddy_join',
+          username,
+          lessonId,
+          position,
+          blockPositions,
+          hue,
+          completedUnits
+      }));
+  }
+
+  /**
+   * Leave a lesson room (notify peers)
+   * @param {string} lessonId - Lesson to leave
+   */
+  function leaveBuddyRoom(lessonId) {
+      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+      if (!username || !lessonId) return;
+
+      ws.send(JSON.stringify({
+          type: 'buddy_leave',
+          username,
+          lessonId
+      }));
+  }
+
   // Export functions for external use
   window.railwayClient = {
       initialize: initializeRailwayConnection,
@@ -391,7 +531,11 @@
       pullPeerData: pullPeerDataFromRailway,
       getStats: getQuestionStats,
       batchSubmit: batchSubmitViaRailway,
-      isConnected: () => wsConnected
+      isConnected: () => wsConnected,
+      // Study Buddy sync
+      sendBuddyPosition,
+      joinBuddyRoom,
+      leaveBuddyRoom
   };
 
   console.log('🚂 Railway client loaded. Set USE_RAILWAY=true to enable.');
