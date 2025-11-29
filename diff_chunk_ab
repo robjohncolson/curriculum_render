@@ -1,0 +1,4000 @@
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    width: 50px;
++    height: 50px;
+     font-size: 24px;
+     cursor: pointer;
+-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+-    transition: all 0.3s ease;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
+     z-index: 1000;
++    display: flex;
++    align-items: center;
++    justify-content: center;
+ }
+ 
+ .share-button:hover {
+-    transform: scale(1.1) rotate(10deg);
+-    background: #8e44ad;
+-    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++    background: #7a3996;
+ }
+ 
+-/* Share Modal Styles */
++.share-button:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.fab-main {
++    width: 56px;
++    height: 56px;
++    background: var(--accent-primary);
++    border-radius: 0;
++    border: 2px solid var(--border-primary);
++    color: white;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    cursor: pointer;
++    box-shadow: var(--shadow-medium);
++    transition: all 0.1s steps(2);
++    z-index: 10001;
++    font-family: var(--font-header);
++    font-size: 24px;
++}
++
++.fab-main:hover {
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-heavy);
++    background: var(--accent-primary-hover);
++}
++
++.fab-main.active {
++    background: var(--accent-danger);
++    transform: rotate(0deg);
++}
++
++
++
++/* Share Modal Styles - Retro Theme */
+ .share-modal-content {
+     max-width: 700px;
+-    padding: 30px;
++    padding: 20px;
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-medium);
++}
++
++.share-modal-content h2 {
++    font-family: var(--font-header);
++    font-size: 24px;
++    text-transform: uppercase;
++    letter-spacing: 2px;
++    margin: 0 0 20px 0;
++    color: var(--text-primary);
++    text-align: center;
+ }
+ 
+ .share-description {
+     text-align: center;
+-    margin-bottom: 30px;
+-    padding: 20px;
+-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+-    color: white;
+-    border-radius: 10px;
++    margin-bottom: 20px;
++    padding: 15px;
++    background: var(--bg-tertiary);
++    color: var(--text-primary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+ }
+ 
+ .share-description p {
+     margin: 5px 0;
++    font-family: var(--font-header);
++    font-size: 12px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
+ }
+ 
+ .share-sections {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+-    gap: 30px;
+-    margin: 30px 0;
++    gap: 20px;
++    margin: 20px 0;
+ }
+ 
+ @media (max-width: 768px) {
+@@ -3235,133 +4056,107 @@ body.dark-theme .user-actions {
+ }
+ 
+ .share-section {
+-    padding: 20px;
+-    background: #f8f9fa;
+-    border-radius: 10px;
++    padding: 15px;
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+     text-align: center;
+ }
+ 
+ .share-section h3 {
+     margin-top: 0;
+-    color: #2c3e50;
+-    font-size: 18px;
++    color: var(--text-primary);
++    font-family: var(--font-header);
++    font-size: 16px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
+ }
+ 
+ .share-url-container {
+     display: flex;
+-    gap: 10px;
+-    margin: 15px 0;
++    gap: 8px;
++    margin: 12px 0;
+ }
+ 
+ .share-url-input {
+     flex: 1;
+-    padding: 10px;
+-    border: 1px solid #ddd;
+-    border-radius: 5px;
+-    font-size: 12px;
+-    background: white;
++    padding: 8px 10px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    font-family: var(--font-header);
++    font-size: 11px;
++    background: var(--bg-secondary);
++    color: var(--text-primary);
+ }
+ 
+ .copy-btn {
+-    padding: 10px 15px;
+-    background: #3498db;
++    padding: 8px 12px;
++    background: var(--accent-primary);
+     color: white;
+-    border: none;
+-    border-radius: 5px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+     cursor: pointer;
+-    font-size: 14px;
+-    transition: background 0.3s ease;
++    font-family: var(--font-header);
++    font-size: 12px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    box-shadow: 3px 3px 0 var(--border-primary);
+ }
+ 
+ .copy-btn:hover {
+-    background: #2980b9;
++    transform: translate(-2px, -2px);
++    box-shadow: 5px 5px 0 var(--border-primary);
++}
++
++.copy-btn:active {
++    transform: translate(1px, 1px);
++    box-shadow: 1px 1px 0 var(--border-primary);
+ }
+ 
+ .qr-code-container {
+     display: flex;
+     justify-content: center;
+-    margin: 20px 0;
+-    padding: 20px;
+-    background: white;
+-    border-radius: 10px;
+-    min-height: 200px;
++    margin: 15px 0;
++    padding: 15px;
++    background: var(--bg-secondary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    min-height: 180px;
+     align-items: center;
+ }
+ 
+ .qr-code-container canvas {
+-    border: 2px solid #3498db;
+-    border-radius: 5px;
+-    padding: 10px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    padding: 8px;
+     background: white;
+ }
+ 
+ .share-instruction {
+-    font-size: 12px;
+-    color: #666;
++    font-family: var(--font-header);
++    font-size: 10px;
++    color: var(--text-secondary);
+     margin-top: 10px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
+ }
+ 
+ .share-footer {
+     text-align: center;
+-    margin-top: 20px;
+-    padding-top: 20px;
+-    border-top: 1px solid #e0e0e0;
+-    color: #666;
++    margin-top: 15px;
++    padding-top: 15px;
++    border-top: 3px solid var(--border-primary);
++    color: var(--text-secondary);
+ }
+ 
+ .share-footer small {
+     display: block;
+     margin: 5px 0;
+-}
+-
+-/* Dark mode styles for share modal */
+-body.dark-theme .share-modal-content {
+-    background: #2a2a2a;
+-    color: #e0e0e0;
+-}
+-
+-body.dark-theme .share-section {
+-    background: #1a1a1a;
+-}
+-
+-body.dark-theme .share-section h3 {
+-    color: #ff69b4;
+-}
+-
+-body.dark-theme .share-url-input {
+-    background: #333;
+-    color: #e0e0e0;
+-    border-color: #444;
+-}
+-
+-body.dark-theme .copy-btn {
+-    background: #ff69b4;
+-    color: #2a2a2a;
+-}
+-
+-body.dark-theme .copy-btn:hover {
+-    background: #ff1493;
+-}
+-
+-body.dark-theme .qr-code-container {
+-    background: #333;
+-}
+-
+-body.dark-theme .share-instruction {
+-    color: #aaa;
+-}
+-
+-body.dark-theme .share-footer {
+-    border-top-color: #444;
+-    color: #aaa;
+-}
+-
+-body.dark-theme .share-button {
+-    background: #ff69b4;
+-}
+-
+-body.dark-theme .share-button:hover {
+-    background: #ff1493;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
+ }
+ 
+ /* Message Area Styles */
+@@ -3378,7 +4173,7 @@ body.dark-theme .share-button:hover {
+     font-size: 14px;
+     font-weight: 500;
+     animation: slideIn 0.3s ease;
+-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
++    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+ }
+ 
+ @keyframes slideIn {
+@@ -3386,6 +4181,7 @@ body.dark-theme .share-button:hover {
+         transform: translateX(100%);
+         opacity: 0;
+     }
++
+     to {
+         transform: translateX(0);
+         opacity: 1;
+@@ -3507,7 +4303,7 @@ body.dark-theme .local-notice {
+     #localFileSection {
+         margin-top: 20px;
+     }
+-    
++
+     .local-file-section .share-url-input {
+         font-size: 10px;
+     }
+@@ -3665,7 +4461,7 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+     .current-location-wrapper {
+         margin-top: 20px;
+     }
+-    
++
+     .current-location-section .share-url-input {
+         font-size: 10px;
+     }
+@@ -3675,6 +4471,399 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+    WIZARD-STYLE ONBOARDING (Task 2.1)
+    ======================================== */
+ 
++/* ========================================
++   NEW ONBOARDING STYLES - RETRO 8-BIT THEME
++   ======================================== */
++
++.onboarding-container {
++    display: flex;
++    justify-content: center;
++    align-items: center;
++    min-height: 60vh;
++    padding: 20px;
++}
++
++.onboarding-card {
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-heavy);
++    max-width: 500px;
++    width: 100%;
++    overflow: hidden;
++}
++
++.onboarding-header {
++    background: var(--accent-primary);
++    color: var(--text-inverse);
++    padding: 20px;
++    text-align: center;
++    position: relative;
++    border-bottom: 4px solid var(--border-primary);
++}
++
++.onboarding-header h1 {
++    font-family: var(--font-header);
++    font-size: 14px;
++    margin: 0 0 8px 0;
++    text-transform: uppercase;
++    letter-spacing: 1px;
++}
++
++.onboarding-header h2 {
++    font-family: var(--font-header);
++    font-size: 12px;
++    margin: 0;
++    text-transform: uppercase;
++}
++
++.onboarding-subtitle {
++    font-family: var(--font-body);
++    font-size: 16px;
++    opacity: 0.9;
++    margin: 0;
++}
++
++.onboarding-back-btn {
++    position: absolute;
++    left: 12px;
++    top: 50%;
++    transform: translateY(-50%);
++    background: #555555;
++    color: #ffffff;
++    border: 3px solid var(--border-primary);
++    padding: 8px 12px;
++    border-radius: 0;
++    cursor: pointer;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.2);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.onboarding-back-btn:hover {
++    background: #5f6c6d;
++    transform: translateY(-50%) translate(-2px, -2px);
++    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.2);
++}
++
++.onboarding-back-btn:active {
++    transform: translateY(-50%) translate(0, 0);
++    box-shadow: none;
++}
++
++.onboarding-content {
++    padding: 25px;
++}
++
++.onboarding-prompt {
++    text-align: center;
++    font-family: var(--font-body);
++    font-size: 18px;
++    color: var(--text-secondary);
++    margin-bottom: 25px;
++}
++
++.onboarding-options {
++    display: flex;
++    flex-direction: column;
++    gap: 15px;
++}
++
++.onboarding-option-btn {
++    display: flex;
++    align-items: center;
++    gap: 15px;
++    padding: 15px 20px;
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--bg-secondary);
++    cursor: pointer;
++    text-align: left;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.onboarding-option-btn:hover {
++    background: var(--bg-tertiary);
++    transform: translate(-3px, -3px);
++    box-shadow: var(--shadow-medium);
++    border-color: var(--accent-primary);
++}
++
++.onboarding-option-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.onboarding-option-btn.teacher-option {
++    border-color: var(--accent-info);
++}
++
++.onboarding-option-btn.teacher-option:hover {
++    border-color: var(--accent-info);
++    background: var(--bg-tertiary);
++}
++
++.option-icon {
++    min-width: 44px;
++    width: 44px;
++    height: 48px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++}
++
++.option-icon img {
++    width: 44px;
++    height: 48px;
++    object-fit: contain;
++    image-rendering: pixelated;
++}
++
++.option-text {
++    flex: 1;
++}
++
++.option-text strong {
++    display: block;
++    font-family: var(--font-header);
++    font-size: 11px;
++    color: var(--text-primary);
++    margin-bottom: 4px;
++    text-transform: uppercase;
++}
++
++.option-text small {
++    font-family: var(--font-body);
++    color: var(--text-secondary);
++    font-size: 16px;
++}
++
++.onboarding-footer {
++    padding: 15px 25px;
++    background: var(--bg-tertiary);
++    text-align: center;
++    border-top: 4px solid var(--border-primary);
++}
++
++.onboarding-hint {
++    margin: 0;
++    font-family: var(--font-body);
++    font-size: 16px;
++    color: var(--text-tertiary);
++}
++
++/* Onboarding Form Styles */
++.onboarding-form-section {
++    margin-bottom: 20px;
++}
++
++.onboarding-label {
++    display: block;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    color: var(--text-primary);
++    margin-bottom: 8px;
++}
++
++.onboarding-input,
++.onboarding-select {
++    width: 100%;
++    padding: 12px 14px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    font-family: var(--font-body);
++    font-size: 18px;
++    background: var(--bg-secondary);
++    color: var(--text-primary);
++    box-sizing: border-box;
++    transition: border-color 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.onboarding-input:focus,
++.onboarding-select:focus {
++    outline: none;
++    border-color: var(--accent-primary);
++    box-shadow: var(--shadow-light);
++}
++
++.onboarding-field-hint {
++    font-family: var(--font-body);
++    font-size: 14px;
++    color: var(--text-tertiary);
++    margin: 6px 0 0 0;
++}
++
++.username-generator-row {
++    display: flex;
++    gap: 10px;
++    align-items: center;
++}
++
++.generated-username {
++    flex: 1;
++    padding: 12px 14px;
++    border: 3px solid var(--accent-primary);
++    border-radius: 0;
++    font-family: var(--font-header);
++    font-size: 11px;
++    color: var(--accent-primary);
++    background: var(--bg-tertiary);
++    text-align: center;
++    text-transform: uppercase;
++    transition: opacity 0.15s;
++    box-shadow: var(--shadow-light);
++}
++
++.reroll-btn {
++    padding: 12px 16px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--bg-secondary);
++    cursor: pointer;
++    font-size: 1.2em;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.reroll-btn:hover {
++    background: var(--bg-tertiary);
++    transform: translate(-2px, -2px) rotate(180deg);
++    box-shadow: var(--shadow-medium);
++}
++
++.reroll-btn:active {
++    transform: rotate(180deg);
++    box-shadow: none;
++}
++
++.onboarding-error {
++    background: var(--accent-danger);
++    border: 3px solid var(--border-primary);
++    color: white;
++    padding: 12px 14px;
++    border-radius: 0;
++    margin-bottom: 16px;
++    font-family: var(--font-body);
++    font-size: 16px;
++}
++
++.onboarding-submit-btn {
++    width: 100%;
++    padding: 15px 20px;
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--accent-success);
++    color: var(--text-inverse);
++    font-family: var(--font-header);
++    font-size: 12px;
++    text-transform: uppercase;
++    cursor: pointer;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.onboarding-submit-btn:hover {
++    background: var(--accent-success-hover);
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++}
++
++.onboarding-submit-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.onboarding-divider {
++    display: flex;
++    align-items: center;
++    margin: 20px 0;
++    color: var(--text-tertiary);
++}
++
++.onboarding-divider::before,
++.onboarding-divider::after {
++    content: '';
++    flex: 1;
++    height: 3px;
++    background: var(--border-secondary);
++}
++
++.onboarding-divider span {
++    padding: 0 12px;
++    font-family: var(--font-body);
++    font-size: 16px;
++}
++
++.onboarding-secondary-btn {
++    width: 100%;
++    padding: 12px 20px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--bg-secondary);
++    color: var(--text-secondary);
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    cursor: pointer;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.onboarding-secondary-btn:hover {
++    background: var(--bg-tertiary);
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++}
++
++.onboarding-secondary-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++/* Dark theme for onboarding */
++body.dark-theme .onboarding-card {
++    background: var(--bg-secondary);
++    border-color: var(--border-primary);
++}
++
++body.dark-theme .onboarding-option-btn {
++    background: var(--bg-tertiary);
++    border-color: var(--border-primary);
++}
++
++body.dark-theme .onboarding-option-btn:hover {
++    background: var(--bg-primary);
++}
++
++body.dark-theme .onboarding-option-btn.teacher-option:hover {
++    background: var(--bg-primary);
++}
++
++body.dark-theme .generated-username {
++    background: var(--bg-primary);
++}
++
++body.dark-theme .onboarding-error {
++    background: var(--accent-danger);
++    border-color: var(--border-primary);
++    color: white;
++}
++
++body.dark-theme .onboarding-input,
++body.dark-theme .onboarding-select {
++    background: var(--bg-tertiary);
++    border-color: var(--border-primary);
++    color: var(--text-primary);
++}
++
++/* ========================================
++   LEGACY WELCOME WIZARD (keeping for compatibility)
++   ======================================== */
++
+ /* Welcome Wizard Container */
+ .welcome-wizard {
+     max-width: 600px;
+@@ -3701,11 +4890,11 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+     color: var(--text-primary, #333);
+ }
+ 
+-/* Wizard Choice Buttons */
++/* Wizard Choice Buttons - RETRO 8-BIT THEME */
+ .wizard-choices {
+     display: flex;
+     flex-direction: column;
+-    gap: 20px;
++    gap: 15px;
+     margin-bottom: 30px;
+ }
+ 
+@@ -3713,30 +4902,37 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+     display: flex;
+     align-items: center;
+     gap: 20px;
+-    padding: 25px 30px;
+-    border: 2px solid var(--border-color, #ddd);
+-    border-radius: 12px;
+-    background: var(--bg-primary, white);
++    padding: 20px 25px;
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--bg-secondary);
+     cursor: pointer;
+-    transition: all 0.3s ease;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
+     text-align: left;
+-    min-height: 100px;
++    min-height: 80px;
++    box-shadow: var(--shadow-light);
+ }
+ 
+ .wizard-button:hover {
+-    transform: translateY(-3px);
+-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+-    border-color: var(--accent-color, #3498db);
++    transform: translate(-3px, -3px);
++    box-shadow: var(--shadow-medium);
++    border-color: var(--accent-primary);
++    background: var(--bg-tertiary);
++}
++
++.wizard-button:active {
++    transform: translate(0, 0);
++    box-shadow: none;
+ }
+ 
+ .wizard-button.primary {
+-    border-color: var(--primary-color, #3498db);
+-    background: var(--bg-primary, white);
++    border-color: var(--accent-primary);
++    background: var(--bg-secondary);
+ }
+ 
+ .wizard-button.primary:hover {
+-    background: var(--primary-color-light, #e3f2fd);
+-    border-color: var(--primary-color, #3498db);
++    background: var(--bg-tertiary);
++    border-color: var(--accent-primary);
+ }
+ 
+ .wizard-button.secondary:hover {
+@@ -3945,11 +5141,12 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
+ .recent-username-chip {
+     padding: 10px 20px;
+     background: var(--bg-secondary, #f5f5f5);
+-    border: 1px solid var(--border-color, #ddd);
+-    border-radius: 20px;
++    border: 2px solid var(--border-primary);
++    border-radius: 0;
+     cursor: pointer;
+     font-size: 1em;
+-    transition: all 0.2s ease;
++    transition: all 0.1s steps(2);
++    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+ }
+ 
+ .recent-username-chip:hover {
+@@ -4013,6 +5210,7 @@ body.dark-theme .recent-username-btn-large {
+ 
+ /* Mobile Responsive */
+ @media (max-width: 768px) {
++
+     .welcome-wizard,
+     .new-student-flow,
+     .returning-student-flow {
+@@ -4099,78 +5297,32 @@ body.dark-theme .recent-username-btn-large {
+ }
+ 
+ /* Sprite Configuration Modal */
++/* Sprite Config Modal - Retro Theme */
+ #spriteConfigModal .modal-content {
+-    max-width: 500px;
+-    padding: 30px;
++    max-width: 400px;
++    padding: 20px;
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-medium);
++}
++
++#spriteConfigModal h2 {
++    font-family: var(--font-header);
++    font-size: 16px;
++    text-align: center;
++    margin-bottom: 20px;
++    color: var(--text-primary);
+ }
+ 
+ .sprite-config-section {
+-    margin: 25px 0;
+-    padding: 20px;
+-    background: rgba(255, 255, 255, 0.05);
+-    border-radius: 8px;
+-    border: 1px solid rgba(255, 255, 255, 0.1);
++    margin: 20px 0;
++    padding: 15px;
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-secondary);
+ }
+ 
+-.sprite-config-section h3 {
+-    margin-top: 0;
+-    margin-bottom: 15px;
+-    color: var(--text-color);
+-}
+-
+-/* Enable/Disable Switch */
+-.switch {
+-    position: relative;
+-    display: inline-block;
+-    width: 60px;
+-    height: 34px;
+-}
+-
+-.switch input {
+-    opacity: 0;
+-    width: 0;
+-    height: 0;
+-}
+-
+-.slider {
+-    position: absolute;
+-    cursor: pointer;
+-    top: 0;
+-    left: 0;
+-    right: 0;
+-    bottom: 0;
+-    background-color: #ccc;
+-    transition: 0.4s;
+-}
+-
+-.slider:before {
+-    position: absolute;
+-    content: "";
+-    height: 26px;
+-    width: 26px;
+-    left: 4px;
+-    bottom: 4px;
+-    background-color: white;
+-    transition: 0.4s;
+-}
+-
+-input:checked + .slider {
+-    background-color: #667eea;
+-}
+-
+-input:checked + .slider:before {
+-    transform: translateX(26px);
+-}
+-
+-.slider.round {
+-    border-radius: 34px;
+-}
+-
+-.slider.round:before {
+-    border-radius: 50%;
+-}
+-
+-/* Color Picker */
++/* Color Picker - Retro Style */
+ .color-picker {
+     margin: 15px 0;
+ }
+@@ -4178,42 +5330,45 @@ input:checked + .slider:before {
+ .color-picker label {
+     display: block;
+     margin-bottom: 10px;
+-    font-weight: 500;
++    font-family: var(--font-header);
++    font-size: 12px;
++    color: var(--text-primary);
+ }
+ 
+ #spriteHueSlider {
+     width: 100%;
+-    height: 8px;
+-    border-radius: 4px;
++    height: 12px;
+     background: linear-gradient(to right,
+-        hsl(0, 70%, 50%) 0%,
+-        hsl(60, 70%, 50%) 16.66%,
+-        hsl(120, 70%, 50%) 33.33%,
+-        hsl(180, 70%, 50%) 50%,
+-        hsl(240, 70%, 50%) 66.66%,
+-        hsl(300, 70%, 50%) 83.33%,
+-        hsl(360, 70%, 50%) 100%);
++            hsl(0, 70%, 50%) 0%,
++            hsl(60, 70%, 50%) 16.66%,
++            hsl(120, 70%, 50%) 33.33%,
++            hsl(180, 70%, 50%) 50%,
++            hsl(240, 70%, 50%) 66.66%,
++            hsl(300, 70%, 50%) 83.33%,
++            hsl(360, 70%, 50%) 100%);
+     outline: none;
+     -webkit-appearance: none;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+ }
+ 
+ #spriteHueSlider::-webkit-slider-thumb {
+     -webkit-appearance: none;
+     appearance: none;
+     width: 20px;
+-    height: 20px;
+-    background: white;
+-    border: 2px solid #333;
+-    border-radius: 50%;
++    height: 24px;
++    background: var(--bg-secondary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+     cursor: pointer;
+ }
+ 
+ #spriteHueSlider::-moz-range-thumb {
+     width: 20px;
+-    height: 20px;
+-    background: white;
+-    border: 2px solid #333;
+-    border-radius: 50%;
++    height: 24px;
++    background: var(--bg-secondary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+     cursor: pointer;
+ }
+ 
+@@ -4225,7 +5380,9 @@ input:checked + .slider:before {
+ }
+ 
+ #spriteColorPreview {
+-    border: 2px solid rgba(255, 255, 255, 0.3);
++    width: 50px;
++    height: 50px;
++    border: 3px solid var(--border-primary);
+ }
+ 
+ /* Sprite Preview Section */
+@@ -4234,38 +5391,58 @@ input:checked + .slider:before {
+     margin-top: 20px;
+ }
+ 
+-.sprite-preview-section h4 {
+-    margin-bottom: 10px;
+-}
+-
+ #spritePreviewCanvas {
+-    background: rgba(0, 0, 0, 0.1);
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-primary);
+     image-rendering: pixelated;
+     image-rendering: -moz-crisp-edges;
+     image-rendering: crisp-edges;
+ }
+ 
+-/* Dark mode adjustments */
+-[data-theme="dark"] #spriteConfigModal .modal-content {
+-    background: #2a2a2a;
+-    color: #e0e0e0;
++/* Modal buttons - Retro Style */
++#spriteConfigModal .modal-buttons {
++    display: flex;
++    gap: 10px;
++    justify-content: center;
++    margin-top: 20px;
+ }
+ 
+-[data-theme="dark"] .sprite-config-section {
+-    background: rgba(255, 255, 255, 0.05);
+-    border-color: rgba(255, 255, 255, 0.2);
++#spriteConfigModal .modal-btn {
++    font-family: var(--font-header);
++    font-size: 12px;
++    padding: 10px 20px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    cursor: pointer;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    box-shadow: var(--shadow-light);
+ }
+ 
+-[data-theme="dark"] #spritePreviewCanvas {
+-    background: rgba(255, 255, 255, 0.1);
+-    border-color: rgba(255, 255, 255, 0.3);
++#spriteConfigModal .save-btn {
++    background: var(--accent-success);
++    color: var(--text-inverse);
++}
++
++#spriteConfigModal .cancel-btn {
++    background: var(--bg-tertiary);
++    color: var(--text-primary);
++}
++
++#spriteConfigModal .modal-btn:hover {
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++}
++
++#spriteConfigModal .modal-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
+ }
+ 
+ /* Floating Action Button (FAB) Menu System */
+ .fab-container {
+     position: fixed;
+     bottom: 20px;
+-    right: 20px;
++    left: 20px;
+     z-index: 1002;
+ }
+ 
+@@ -4331,13 +5508,14 @@ body.dark-theme .fab-main.active {
+     justify-content: center;
+     width: 56px;
+     height: 56px;
++    padding: 8px;
+     background: var(--bg-secondary);
+-    border: 1px solid var(--border-secondary);
+-    border-radius: 50%;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
+     cursor: pointer;
+-    box-shadow: 0 2px 8px var(--shadow-light);
+-    transition: all 0.3s ease;
+-    animation: slideUp 0.3s ease forwards;
++    box-shadow: var(--shadow-light);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    animation: slideUp 0.2s steps(4) forwards;
+     opacity: 0;
+     position: relative;
+ }
+@@ -4357,27 +5535,39 @@ body.dark-theme .fab-main.active {
+         transform: translateY(20px);
+         opacity: 0;
+     }
++
+     to {
+         transform: translateY(0);
+         opacity: 1;
+     }
+ }
+ 
+-.fab-item:nth-child(1) { animation-delay: 0.05s; }
+-.fab-item:nth-child(2) { animation-delay: 0.1s; }
+-.fab-item:nth-child(3) { animation-delay: 0.15s; }
+-.fab-item:nth-child(4) { animation-delay: 0.2s; }
++.fab-item:nth-child(1) {
++    animation-delay: 0.05s;
++}
++
++.fab-item:nth-child(2) {
++    animation-delay: 0.1s;
++}
++
++.fab-item:nth-child(3) {
++    animation-delay: 0.15s;
++}
++
++.fab-item:nth-child(4) {
++    animation-delay: 0.2s;
++}
+ 
+ .fab-item:hover {
+-    transform: scale(1.1);
+-    box-shadow: 0 4px 12px var(--shadow-medium);
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
+     background: var(--accent-primary);
+     color: var(--text-inverse);
+ }
+ 
+-.fab-item:hover .fab-item-label {
+-    opacity: 1;
+-    transform: translateX(-70px);
++.fab-item:active {
++    transform: translate(0, 0);
++    box-shadow: none;
+ }
+ 
+ body.dark-theme .fab-item {
+@@ -4393,23 +5583,30 @@ body.dark-theme .fab-item:hover {
+ }
+ 
+ .fab-item-icon {
+-    font-size: 24px;
++    width: 40px;
++    height: 44px;
++    object-fit: contain;
++    image-rendering: pixelated;
+ }
+ 
+ .fab-item-label {
+     position: absolute;
+-    right: 70px;
++    left: 70px;
+     background: var(--bg-tertiary);
+     color: var(--text-primary);
+-    padding: 6px 12px;
+-    border-radius: 6px;
+-    font-size: 14px;
+-    font-weight: 500;
++    padding: 6px 10px;
++    border: 3px solid var(--border-primary);
++    font-family: var(--font-header);
++    font-size: 10px;
+     white-space: nowrap;
+     opacity: 0;
+     pointer-events: none;
+-    transition: all 0.3s ease;
+-    box-shadow: 0 2px 8px var(--shadow-medium);
++    transition: opacity 0.1s steps(2);
++    box-shadow: var(--shadow-light);
++}
++
++.fab-item:hover .fab-item-label {
++    opacity: 1;
+ }
+ 
+ .fab-icon,
+@@ -4429,14 +5626,21 @@ button.sprite-config-toggle:not(.fab-item) {
+ 
+ /* Mobile adjustments for FAB */
+ @media (max-width: 480px) {
+-    .fab-item-label {
+-        right: 60px;
+-        font-size: 12px;
+-        padding: 4px 8px;
++    .fab-item {
++        width: 48px;
++        height: 48px;
++        padding: 6px;
+     }
+ 
+-    .fab-item:hover .fab-item-label {
+-        transform: translateX(-60px);
++    .fab-item-icon {
++        width: 32px;
++        height: 36px;
++    }
++
++    .fab-item-label {
++        left: 58px;
++        font-size: 9px;
++        padding: 4px 8px;
+     }
+ }
+ 
+@@ -4451,7 +5655,8 @@ body.grayscale-enabled .container,
+ body.grayscale-enabled .fab-container,
+ body.grayscale-enabled .modal {
+     filter: grayscale(100%);
+-    -webkit-filter: grayscale(100%); /* For Safari compatibility */
++    -webkit-filter: grayscale(100%);
++    /* For Safari compatibility */
+ }
+ 
+ /* --- START: FRQ Enhancement Styles --- */
+@@ -4470,9 +5675,11 @@ body.grayscale-enabled .modal {
+     padding: 15px;
+     margin: 10px 0;
+     background: var(--bg-tertiary);
+-    border-radius: 8px;
++    border-radius: 0;
++    border: 2px solid var(--border-secondary);
+     word-wrap: break-word;
+     color: var(--text-primary);
++    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+ }
+ 
+ .peer-frq-reasoning {
+@@ -4488,7 +5695,8 @@ body.grayscale-enabled .modal {
+ .peer-frq-reasoning.hidden {
+     background: var(--bg-tertiary);
+     padding: 10px;
+-    border-radius: 4px;
++    border-radius: 0;
++    border: 1px dashed var(--border-secondary);
+ }
+ 
+ /* Star Voting System */
+@@ -4527,7 +5735,8 @@ body.grayscale-enabled .modal {
+ .graph-input {
+     background: var(--bg-tertiary);
+     padding: 15px;
+-    border-radius: 8px;
++    border-radius: 0;
++    border: 2px solid var(--border-primary);
+     margin: 10px 0;
+ }
+ 
+@@ -4687,34 +5896,585 @@ body.grayscale-enabled .modal {
+     margin: 15px 0;
+ }
+ 
+-/* Dark mode support */
+-.dark-mode .frq-solution-container {
++/* Dark mode support for FRQ Solution */
++body.dark-theme .frq-solution-container {
+     background: #2d2d2d;
+     border-color: #4caf50;
++    color: #e0e0e0;
+ }
+ 
+-.dark-mode .frq-solution-part {
++body.dark-theme .frq-solution-header {
++    color: #4caf50;
++    border-bottom-color: #4caf50;
++}
++
++body.dark-theme .frq-solution-part {
+     background: #1e1e1e;
++    color: #e0e0e0;
+ }
+ 
+-.dark-mode .frq-part-response {
++body.dark-theme .frq-solution-part h5 {
++    color: #64b5f6;
++}
++
++body.dark-theme .frq-part-desc {
++    color: #b0b0b0;
++}
++
++body.dark-theme .frq-part-response {
+     background: #1a3a4a;
++    color: #e0e0e0;
+ }
+ 
+-.dark-mode .frq-calculations li {
++body.dark-theme .frq-calculations li {
+     background: #2d2d2d;
++    color: #e0e0e0;
+ }
+ 
+-.dark-mode .frq-rubric {
++body.dark-theme .frq-rubric {
+     background: #1e1e1e;
++    color: #e0e0e0;
+ }
+ 
+-.dark-mode .frq-rubric-table th {
++body.dark-theme .frq-rubric h5 {
++    color: #ef5350;
++}
++
++body.dark-theme .frq-rubric-table {
++    color: #e0e0e0;
++}
++
++body.dark-theme .frq-rubric-table th {
++    background: #2d2d2d;
++    color: #e0e0e0;
++    border-bottom-color: #555;
++}
++
++body.dark-theme .frq-rubric-table td {
++    border-bottom-color: #444;
++}
++
++body.dark-theme .frq-rubric-table tr:nth-child(even) {
+     background: #2d2d2d;
+ }
+ 
+-.dark-mode .frq-rubric-table tr:nth-child(even) {
+-    background: #2d2d2d;
++/* FRQ Solution in Sidebar - Compact Layout */
++.frq-solution-sidebar {
++    margin-top: 15px;
++    padding: 12px;
++    font-size: 0.9em;
++    max-height: 600px;
++    overflow-y: auto;
++}
++
++.frq-solution-sidebar .frq-solution-header {
++    font-size: 1em;
++    margin-bottom: 10px;
++    padding-bottom: 8px;
++}
++
++.frq-solution-sidebar .frq-solution-part {
++    margin: 10px 0;
++    padding: 10px;
++}
++
++.frq-solution-sidebar .frq-solution-part h5 {
++    font-size: 0.95em;
++    margin-bottom: 6px;
++}
++
++.frq-solution-sidebar .frq-part-desc {
++    font-size: 0.85em;
++    margin-bottom: 6px;
++}
++
++.frq-solution-sidebar .frq-part-response {
++    font-size: 0.9em;
++    padding: 8px;
++}
++
++.frq-solution-sidebar .frq-calculations {
++    font-size: 0.85em;
++    padding-left: 15px;
++}
++
++.frq-solution-sidebar .frq-calculations li {
++    padding: 3px 6px;
++    margin: 3px 0;
++}
++
++/* Compact rubric table in sidebar */
++.frq-solution-sidebar .frq-rubric {
++    padding: 10px;
++    margin-top: 10px;
++}
++
++.frq-solution-sidebar .frq-rubric h5 {
++    font-size: 0.95em;
++    margin-bottom: 8px;
++}
++
++.frq-solution-sidebar .frq-rubric-table {
++    font-size: 0.8em;
++}
++
++.frq-solution-sidebar .frq-rubric-table th,
++.frq-solution-sidebar .frq-rubric-table td {
++    padding: 5px;
++}
++
++.frq-solution-sidebar .frq-rubric-table ul {
++    padding-left: 15px;
++    margin: 0;
++}
++
++/* Hide chart containers in sidebar to save space - they're already in main column */
++.frq-solution-sidebar .frq-solution-chart {
++    display: none;
++}
++
++/* Collapsible sections for sidebar */
++.frq-solution-sidebar .frq-solution-part {
++    border-left-width: 2px;
++}
++
++/* FRQ Solution Toggle Button */
++.frq-solution-toggle-btn {
++    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
++    color: white;
++    border: none;
++    border-radius: 6px;
++    padding: 8px 16px;
++    font-size: 0.85em;
++    cursor: pointer;
++    margin: 10px 0;
++    transition: all 0.2s ease;
++    width: 100%;
++    text-align: left;
++}
++
++.frq-solution-toggle-btn:hover {
++    background: linear-gradient(135deg, #5a6268 0%, #3d4246 100%);
++    transform: translateY(-1px);
++}
++
++body.dark-theme .frq-solution-toggle-btn {
++    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
++}
++
++body.dark-theme .frq-solution-toggle-btn:hover {
++    background: linear-gradient(135deg, #5a6a7a 0%, #3d4a5a 100%);
++}
++
++/* FRQ Solution Content (collapsible) */
++.frq-solution-content {
++    margin-top: 10px;
++    animation: slideDown 0.3s ease-out;
++}
++
++@keyframes slideDown {
++    from { opacity: 0; max-height: 0; }
++    to { opacity: 1; max-height: 2000px; }
++}
++
++/* ========================================
++   FRQ AI GRADING STYLES
++   ======================================== */
++
++/* AI Grade Button - Clean, simple design */
++.ai-grade-btn {
++    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
++    color: white;
++    border: none;
++    border-radius: 8px;
++    padding: 12px 24px;
++    font-family: inherit;
++    font-size: 14px;
++    font-weight: 600;
++    cursor: pointer;
++    margin: 10px 0;
++    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
++    transition: all 0.2s ease;
++    display: inline-flex;
++    align-items: center;
++    gap: 8px;
++}
++
++.ai-grade-btn:hover {
++    transform: translateY(-2px);
++    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
++    background: linear-gradient(135deg, #9d74f7 0%, #8b5cf6 100%);
++}
++
++.ai-grade-btn:active {
++    transform: translateY(0);
++    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
++}
++
++.ai-grade-btn:disabled {
++    opacity: 0.5;
++    cursor: not-allowed;
++    transform: none;
++    box-shadow: none;
++}
++
++body.dark-theme .ai-grade-btn {
++    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
++}
++
++/* AI Grading Controls Container */
++.ai-grading-controls {
++    display: flex;
++    align-items: center;
++    gap: 10px;
++    margin: 12px 0;
++    flex-wrap: wrap;
++}
++
++/* Model Selector Dropdown */
++.ai-model-select {
++    padding: 10px 14px;
++    border: 2px solid #e0e0e0;
++    border-radius: 8px;
++    font-family: inherit;
++    font-size: 13px;
++    background: white;
++    color: #333;
++    cursor: pointer;
++    min-width: 180px;
++    transition: all 0.2s ease;
++}
++
++.ai-model-select:hover {
++    border-color: #8b5cf6;
++}
++
++.ai-model-select:focus {
++    outline: none;
++    border-color: #8b5cf6;
++    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
++}
++
++body.dark-theme .ai-model-select {
++    background: #2a2a3e;
++    color: #e0e0e0;
++    border-color: #444;
++}
++
++body.dark-theme .ai-model-select:hover {
++    border-color: #8b5cf6;
++}
++
++body.dark-theme .ai-model-select:focus {
++    border-color: #8b5cf6;
++    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
++}
++
++/* Grade Results Container */
++.frq-grade-results {
++    margin-top: 20px;
++    padding: 0;
++}
++
++/* Grading Loading State */
++.frq-grading-loading {
++    text-align: center;
++    padding: 30px;
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-secondary);
++    border-radius: 0;
++}
++
++.frq-loading-spinner {
++    width: 40px;
++    height: 40px;
++    border: 4px solid var(--border-secondary);
++    border-top-color: var(--accent-info);
++    animation: frq-spin 0.8s steps(8) infinite;
++    margin: 0 auto 15px;
++}
++
++@keyframes frq-spin {
++    to { transform: rotate(360deg); }
++}
++
++.frq-grading-loading p {
++    font-family: var(--font-body);
++    font-size: 18px;
++    margin: 5px 0;
++    color: var(--text-primary);
++}
++
++.frq-loading-hint {
++    font-size: 14px !important;
++    color: var(--text-tertiary) !important;
++}
++
++/* Grading Error State */
++.frq-grading-error {
++    padding: 20px;
++    background: var(--bg-secondary);
++    border: 3px solid var(--accent-danger);
++    border-radius: 0;
++    text-align: center;
++}
++
++.frq-grading-error p {
++    color: var(--accent-danger);
++    font-family: var(--font-body);
++    font-size: 16px;
++    margin: 0 0 10px 0;
++}
++
++.frq-retry-btn {
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    padding: 8px 16px;
++    font-family: var(--font-body);
++    font-size: 14px;
++    text-transform: uppercase;
++    cursor: pointer;
++    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
++}
++
++.frq-retry-btn:hover {
++    transform: translate(-2px, -2px);
++    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
++}
++
++/* Grade Result Display */
++.frq-grade-result {
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    overflow: hidden;
++    box-shadow: var(--shadow-medium);
++}
++
++/* Score Header */
++.frq-grade-header {
++    display: flex;
++    justify-content: space-between;
++    align-items: center;
++    padding: 15px 20px;
++    border-bottom: 4px solid var(--border-primary);
++}
++
++.frq-grade-header.excellent {
++    background: var(--accent-success);
++    color: var(--text-inverse);
++}
++
++.frq-grade-header.good {
++    background: var(--accent-primary);
++    color: var(--text-inverse);
++}
++
++.frq-grade-header.fair {
++    background: var(--accent-warning);
++    color: var(--text-inverse);
++}
++
++.frq-grade-header.needs-work {
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++}
++
++.frq-score {
++    font-family: var(--font-header);
++}
++
++.frq-score-value {
++    font-size: 24px;
++}
++
++.frq-score-max {
++    font-size: 16px;
++    opacity: 0.8;
++}
++
++.frq-score-percent {
++    font-family: var(--font-header);
++    font-size: 18px;
++}
++
++/* Individual Part Grades */
++.frq-grade-parts {
++    padding: 15px;
++}
++
++.frq-grade-part {
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-secondary);
++    border-radius: 0;
++    padding: 12px;
++    margin-bottom: 10px;
++}
++
++.frq-grade-part:last-child {
++    margin-bottom: 0;
++}
++
++.frq-grade-part.e {
++    border-left: 6px solid var(--accent-success);
++}
++
++.frq-grade-part.p {
++    border-left: 6px solid var(--accent-warning);
++}
++
++.frq-grade-part.i {
++    border-left: 6px solid var(--accent-danger);
++}
++
++.frq-part-header {
++    display: flex;
++    align-items: center;
++    gap: 10px;
++    margin-bottom: 8px;
++}
++
++.frq-part-label {
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    color: var(--text-primary);
++}
++
++.frq-part-score {
++    font-family: var(--font-header);
++    font-size: 12px;
++    padding: 2px 8px;
++    border-radius: 0;
++    border: 2px solid currentColor;
++}
++
++.frq-part-score.score-e {
++    background: var(--accent-success);
++    color: var(--text-inverse);
++    border-color: var(--accent-success);
++}
++
++.frq-part-score.score-p {
++    background: var(--accent-warning);
++    color: var(--text-inverse);
++    border-color: var(--accent-warning);
++}
++
++.frq-part-score.score-i {
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++    border-color: var(--accent-danger);
++}
++
++.frq-part-points {
++    font-family: var(--font-body);
++    font-size: 14px;
++    color: var(--text-secondary);
++    margin-left: auto;
++}
++
++.frq-part-feedback {
++    font-family: var(--font-body);
++    font-size: 16px;
++    color: var(--text-secondary);
++    line-height: 1.4;
++}
++
++/* Grade Summary */
++.frq-grade-summary {
++    padding: 15px;
++    border-top: 3px solid var(--border-secondary);
++}
++
++.frq-overall-feedback {
++    font-family: var(--font-body);
++    font-size: 16px;
++    color: var(--text-primary);
++    margin-bottom: 15px;
++    line-height: 1.4;
++}
++
++.frq-strengths,
++.frq-improvements {
++    margin-bottom: 10px;
++}
++
++.frq-strengths strong,
++.frq-improvements strong {
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    display: block;
++    margin-bottom: 5px;
++}
++
++.frq-strengths strong {
++    color: var(--accent-success);
++}
++
++.frq-improvements strong {
++    color: var(--accent-warning);
++}
++
++.frq-strengths ul,
++.frq-improvements ul {
++    margin: 0;
++    padding-left: 20px;
++}
++
++.frq-strengths li,
++.frq-improvements li {
++    font-family: var(--font-body);
++    font-size: 14px;
++    color: var(--text-secondary);
++    margin-bottom: 3px;
++}
++
++/* Grade Metadata */
++.frq-grade-meta {
++    padding: 10px 15px;
++    background: var(--bg-tertiary);
++    border-top: 3px solid var(--border-secondary);
++    font-family: var(--font-body);
++    font-size: 12px;
++    color: var(--text-tertiary);
++    display: flex;
++    justify-content: space-between;
++    align-items: center;
++}
++
++.frq-grade-model {
++    background: rgba(139, 92, 246, 0.15);
++    color: #8b5cf6;
++    padding: 2px 8px;
++    border-radius: 4px;
++    font-weight: 500;
++}
++
++body.dark-theme .frq-grade-model {
++    background: rgba(139, 92, 246, 0.25);
++    color: #a78bfa;
++}
++
++.frq-grade-time {
++    opacity: 0.7;
++}
++
++/* Dark theme adjustments */
++body.dark-theme .frq-grade-result {
++    border-color: var(--border-primary);
++}
++
++body.dark-theme .frq-grade-part {
++    background: var(--bg-primary);
++    border-color: var(--border-secondary);
++}
++
++body.dark-theme .frq-grading-loading {
++    background: var(--bg-primary);
+ }
+ 
+ /* --- END: Added Grayscale Theme Styles --- */
+@@ -4759,18 +6519,26 @@ body.grayscale-enabled .modal {
+ }
+ 
+ .pdf-link {
+-    color: #e74c3c;
++    color: white;
+     text-decoration: none;
+-    font-weight: 500;
+-    padding: 6px 12px;
+-    background: rgba(231, 76, 60, 0.1);
+-    border-radius: 4px;
+-    transition: all 0.3s ease;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    padding: 8px 16px;
++    background: var(--accent-danger);
++    border: 2px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-light);
++    transition: all 0.1s steps(2);
++    display: inline-block;
+ }
+ 
+ .pdf-link:hover {
+-    background: rgba(231, 76, 60, 0.2);
+-    transform: translateY(-2px);
++    background: #c0392b;
++    /* Darker red */
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++    color: white;
+ }
+ 
+ /* Video Resources */
+@@ -4795,27 +6563,35 @@ body.grayscale-enabled .modal {
+ }
+ 
+ .video-link {
+-    color: #3498db;
++    color: white;
+     text-decoration: none;
+-    font-weight: 500;
+-    padding: 6px 12px;
+-    background: rgba(52, 152, 219, 0.1);
+-    border-radius: 4px;
+-    transition: all 0.3s ease;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    padding: 8px 16px;
++    background: var(--accent-primary);
++    border: 2px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-light);
++    transition: all 0.1s steps(2);
++    display: inline-block;
+ }
+ 
+ .video-link:hover {
+-    background: rgba(52, 152, 219, 0.2);
+-    transform: translateY(-2px);
++    background: var(--accent-primary-hover);
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++    color: white;
+ }
+ 
+ .video-link.alt {
+-    color: #9b59b6;
+-    background: rgba(155, 89, 182, 0.1);
++    background: var(--accent-info);
++    color: white;
+ }
+ 
+ .video-link.alt:hover {
+-    background: rgba(155, 89, 182, 0.2);
++    background: #9b59b6;
++    /* Lighter purple */
+ }
+ 
+ /* Blooket Resources */
+@@ -4829,44 +6605,1122 @@ body.grayscale-enabled .modal {
+     gap: 10px;
+     padding: 10px;
+     background: var(--bg-secondary);
+-    border-radius: 6px;
+-    border-left: 4px solid #f39c12;
++    border: 2px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-light);
+     margin-bottom: 8px;
+ }
+ 
+ .blooket-number {
+     font-weight: 600;
+     color: var(--text-primary);
++    font-family: var(--font-header);
++    font-size: 12px;
+ }
+ 
+ .blooket-link {
+-    color: #f39c12;
++    color: white;
+     text-decoration: none;
+-    font-weight: 500;
+-    padding: 6px 12px;
+-    background: rgba(243, 156, 18, 0.1);
+-    border-radius: 4px;
+-    transition: all 0.3s ease;
++    font-family: var(--font-header);
++    font-size: 10px;
++    text-transform: uppercase;
++    padding: 8px 16px;
++    background: var(--accent-warning);
++    border: 2px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-light);
++    transition: all 0.1s steps(2);
++    display: inline-block;
+ }
+ 
+ .blooket-link:hover {
+-    background: rgba(243, 156, 18, 0.2);
+-    transform: translateY(-2px);
++    background: #f1c40f;
++    transform: translate(-2px, -2px);
++    box-shadow: var(--shadow-medium);
++    color: white;
+ }
+ 
+ /* Dark theme adjustments for resources */
+-body.dark-theme .pdf-link {
+-    color: #ff6b6b;
++/* Dark theme adjustments for resources */
++body.dark-theme .pdf-link,
++body.dark-theme .video-link,
++body.dark-theme .video-link.alt,
++body.dark-theme .blooket-link {
++    border-color: var(--border-primary);
++    /* White border in dark mode */
++    color: #333 !important;
++    /* Dark Grey text by default for contrast against bright buttons */
+ }
+ 
++/* Hover states for dark mode - text gets "brighter" (White or Black) */
++body.dark-theme .pdf-link:hover,
++body.dark-theme .video-link:hover,
++body.dark-theme .video-link.alt:hover {
++    color: white !important;
++}
++
++body.dark-theme .blooket-link:hover {
++    color: black !important;
++    /* Keep black for yellow button */
++}
++
++/* In dark mode, let's keep the buttons bright/colored */
+ body.dark-theme .video-link {
+-    color: #5bc0de;
++    background: var(--accent-primary);
+ }
+ 
+ body.dark-theme .video-link.alt {
+-    color: #c39bd3;
++    background: var(--accent-info);
+ }
+ 
+ body.dark-theme .blooket-link {
+-    color: #ffd700;
++    background: var(--accent-warning);
+ }
++
++/* ========================================
++   SYNC STATUS BADGE
++   ======================================== */
++
++.header-row {
++    display: flex;
++    justify-content: space-between;
++    align-items: center;
++    flex-wrap: wrap;
++    gap: 10px;
++}
++
++.header-row h1 {
++    margin: 0;
++}
++
++.sync-status-badge {
++    display: flex;
++    align-items: center;
++    gap: 6px;
++    font-size: 12px;
++    padding: 6px 12px;
++    border-radius: 16px;
++    background: var(--bg-secondary, #f5f5f5);
++    color: var(--text-secondary, #666);
++    transition: all 0.3s ease;
++    white-space: nowrap;
++}
++
++.sync-status-badge .sync-icon {
++    font-size: 10px;
++    transition: color 0.3s ease;
++}
++
++/* Saved locally - green dot */
++.sync-status-badge.saved-local .sync-icon {
++    color: #22c55e;
++}
++
++/* Synced to cloud - green with cloud icon */
++.sync-status-badge.synced-cloud .sync-icon {
++    color: #22c55e;
++}
++
++/* Saving/syncing - spinning animation */
++.sync-status-badge.saving .sync-icon,
++.sync-status-badge.syncing-cloud .sync-icon {
++    color: #6b7280;
++    animation: spin 1s linear infinite;
++}
++
++/* Offline - orange warning */
++.sync-status-badge.offline .sync-icon {
++    color: #f97316;
++}
++
++/* Error - red */
++.sync-status-badge.error .sync-icon {
++    color: #ef4444;
++}
++
++.sync-status-badge.error {
++    background: #fef2f2;
++    color: #991b1b;
++}
++
++@keyframes spin {
++    from { transform: rotate(0deg); }
++    to { transform: rotate(360deg); }
++}
++
++/* Dark theme adjustments */
++body.dark-theme .sync-status-badge,
++body.dark-gray-theme .sync-status-badge {
++    background: var(--bg-tertiary, #333);
++    color: var(--text-secondary, #aaa);
++}
++
++body.dark-theme .sync-status-badge.error,
++body.dark-gray-theme .sync-status-badge.error {
++    background: #450a0a;
++    color: #fca5a5;
++}
++
++/* ========================================
++   RESTORE PROGRESS MODAL
++   ======================================== */
++
++.restore-modal {
++    display: flex;
++    justify-content: center;
++    align-items: center;
++}
++
++.restore-modal-content {
++    text-align: center;
++    padding: 40px;
++    max-width: 400px;
++    border-radius: 16px;
++}
++
++.restore-icon {
++    font-size: 48px;
++    margin-bottom: 16px;
++    animation: pulse 1.5s ease-in-out infinite;
++}
++
++@keyframes pulse {
++    0%, 100% { transform: scale(1); opacity: 1; }
++    50% { transform: scale(1.1); opacity: 0.8; }
++}
++
++.restore-message {
++    color: var(--text-secondary, #666);
++    margin-bottom: 8px;
++}
++
++.restore-progress-container {
++    margin-top: 24px;
++}
++
++.restore-progress-bar {
++    height: 8px;
++    background: var(--bg-secondary, #e5e7eb);
++    border-radius: 4px;
++    overflow: hidden;
++}
++
++.restore-progress-fill {
++    height: 100%;
++    background: linear-gradient(90deg, #3b82f6, #22c55e);
++    border-radius: 4px;
++    transition: width 0.3s ease;
++}
++
++.restore-progress-text {
++    display: block;
++    margin-top: 8px;
++    font-size: 14px;
++    color: var(--text-secondary, #666);
++}
++
++/* ========================================
++   TOAST NOTIFICATIONS - RETRO 8-BIT THEME
++   ======================================== */
++
++.toast-container {
++    position: fixed;
++    bottom: 100px; /* Above FAB */
++    right: 20px;
++    z-index: 10000;
++    display: flex;
++    flex-direction: column;
++    gap: 10px;
++    pointer-events: none;
++}
++
++.toast {
++    padding: 12px 16px;
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    box-shadow: var(--shadow-medium);
++    font-family: var(--font-body);
++    font-size: 18px;
++    display: flex;
++    align-items: center;
++    gap: 12px;
++    animation: toastSlideIn 0.2s steps(4);
++    pointer-events: auto;
++    cursor: pointer;
++    max-width: 320px;
++    color: var(--text-primary);
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.toast:hover {
++    transform: translate(-3px, -3px);
++    box-shadow: var(--shadow-heavy);
++}
++
++.toast:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.toast-icon {
++    font-family: var(--font-header);
++    font-size: 14px;
++    flex-shrink: 0;
++    width: 24px;
++    height: 24px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    border: 3px solid currentColor;
++    border-radius: 0;
++}
++
++.toast-message {
++    flex: 1;
++    text-transform: uppercase;
++    letter-spacing: 0.5px;
++}
++
++.toast.success {
++    border-color: var(--accent-success);
++    background: var(--bg-secondary);
++}
++
++.toast.success .toast-icon {
++    color: var(--accent-success);
++    background: var(--accent-success);
++    color: var(--text-inverse);
++    border-color: var(--accent-success);
++}
++
++.toast.info {
++    border-color: var(--accent-primary);
++    background: var(--bg-secondary);
++}
++
++.toast.info .toast-icon {
++    color: var(--accent-primary);
++    background: var(--accent-primary);
++    color: var(--text-inverse);
++    border-color: var(--accent-primary);
++}
++
++.toast.warning {
++    border-color: var(--accent-warning);
++    background: var(--bg-secondary);
++}
++
++.toast.warning .toast-icon {
++    color: var(--accent-warning);
++    background: var(--accent-warning);
++    color: var(--text-inverse);
++    border-color: var(--accent-warning);
++}
++
++.toast.error {
++    border-color: var(--accent-danger);
++    background: var(--bg-secondary);
++}
++
++.toast.error .toast-icon {
++    color: var(--accent-danger);
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++    border-color: var(--accent-danger);
++}
++
++.toast-hiding {
++    animation: toastFadeOut 0.2s steps(4) forwards;
++}
++
++@keyframes toastSlideIn {
++    0% {
++        transform: translateX(100%);
++        opacity: 0;
++    }
++    50% {
++        opacity: 0.5;
++    }
++    100% {
++        transform: translateX(0);
++        opacity: 1;
++    }
++}
++
++@keyframes toastFadeOut {
++    0% {
++        opacity: 1;
++        transform: translateX(0);
++    }
++    100% {
++        opacity: 0;
++        transform: translateX(20px);
++    }
++}
++
++/* Dark theme toast adjustments - already handled by CSS variables */
++
++/* Mobile adjustments for toasts */
++@media (max-width: 480px) {
++    .toast-container {
++        left: 10px;
++        right: 10px;
++        bottom: 90px;
++    }
++
++    .toast {
++        max-width: none;
++        font-size: 16px;
++    }
++
++    .toast-icon {
++        width: 20px;
++        height: 20px;
++        font-size: 12px;
++    }
++
++    .sync-status-badge {
++        font-size: 11px;
++        padding: 4px 8px;
++    }
++}
++
++/* ========================================
++   USER MANAGEMENT MODAL STYLES - RETRO 8-BIT THEME
++   ======================================== */
++
++.um-modal {
++    z-index: 10001;
++}
++
++.um-modal-content {
++    max-width: 450px;
++    width: 90%;
++    padding: 25px;
++    border-radius: 0;
++    border: 4px solid var(--border-primary);
++    box-shadow: var(--shadow-heavy);
++    background: var(--bg-secondary);
++    overflow: hidden;
++}
++
++/* Close button in retro style */
++.um-modal .close-modal {
++    font-family: var(--font-header);
++    font-size: 20px;
++    border: 3px solid var(--border-primary);
++    background: var(--bg-secondary);
++    width: 32px;
++    height: 32px;
++    line-height: 28px;
++    text-align: center;
++    border-radius: 0;
++    cursor: pointer;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
++}
++
++.um-modal .close-modal:hover {
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++    border-color: var(--accent-danger);
++    transform: translate(-2px, -2px);
++    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
++}
++
++/* Choice Step */
++.um-choice-step {
++    text-align: center;
++}
++
++.um-choice-step h2 {
++    font-family: var(--font-header);
++    margin: 0 0 10px 0;
++    font-size: 12px;
++    color: var(--text-primary);
++    text-transform: uppercase;
++}
++
++.um-choice-step p {
++    font-family: var(--font-body);
++    margin: 0 0 25px 0;
++    font-size: 16px;
++    color: var(--text-secondary);
++}
++
++.um-options {
++    display: flex;
++    flex-direction: column;
++    gap: 12px;
++    margin-bottom: 20px;
++}
++
++.um-option-btn {
++    display: flex;
++    align-items: center;
++    gap: 15px;
++    padding: 15px 20px;
++    background: var(--bg-secondary);
++    border: 4px solid var(--border-primary);
++    border-radius: 0;
++    cursor: pointer;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    text-align: left;
++    box-shadow: var(--shadow-light);
++}
++
++.um-option-btn:hover {
++    border-color: var(--accent-primary);
++    background: var(--bg-tertiary);
++    transform: translate(-3px, -3px);
++    box-shadow: var(--shadow-medium);
++}
++
++.um-option-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.um-option-icon {
++    min-width: 44px;
++    width: 44px;
++    height: 48px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++}
++
++.um-option-icon img {
++    width: 44px;
++    height: 48px;
++    object-fit: contain;
++    image-rendering: pixelated;
++}
++
++.um-option-text {
++    font-family: var(--font-header);
++    font-size: 10px;
++    font-weight: 600;
++    color: var(--text-primary);
++    display: block;
++    text-transform: uppercase;
++}
++
++.um-option-desc {
++    font-family: var(--font-header);
++    font-size: 9px;
++    text-transform: uppercase;
++    letter-spacing: 0.5px;
++    color: var(--text-secondary);
++    display: block;
++    margin-top: 4px;
++}
++
++.um-option-teacher {
++    border-style: dashed;
++    border-color: var(--accent-info);
++    opacity: 0.9;
++}
++
++.um-option-teacher:hover {
++    opacity: 1;
++    border-color: var(--accent-info);
++}
++
++/* Form Elements */
++.um-form {
++    text-align: left;
++}
++
++.um-field {
++    margin-bottom: 20px;
++}
++
++.um-field label {
++    display: block;
++    font-family: var(--font-header);
++    font-weight: 600;
++    font-size: 10px;
++    text-transform: uppercase;
++    margin-bottom: 8px;
++    color: var(--text-primary);
++}
++
++.um-field input,
++.um-field select {
++    width: 100%;
++    padding: 12px 14px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    font-family: var(--font-body);
++    font-size: 18px;
++    background: var(--bg-secondary);
++    color: var(--text-primary);
++    box-sizing: border-box;
++    transition: border-color 0.1s steps(2), box-shadow 0.1s steps(2);
++}
++
++.um-field input:focus,
++.um-field select:focus {
++    outline: none;
++    border-color: var(--accent-primary);
++    box-shadow: 0 0 0 2px rgba(41, 128, 185, 0.2);
++}
++
++.um-hint {
++    font-family: var(--font-body);
++    font-size: 14px;
++    color: var(--text-tertiary);
++    margin-top: 6px;
++}
++
++/* Username generator in modal */
++.um-username-generator {
++    display: flex;
++    gap: 10px;
++    align-items: center;
++}
++
++.um-generated-username {
++    flex: 1;
++    padding: 12px 14px;
++    border: 3px solid var(--accent-primary);
++    border-radius: 0;
++    font-family: var(--font-header);
++    font-size: 12px;
++    font-weight: 600;
++    color: var(--accent-primary);
++    background: var(--bg-tertiary);
++    text-align: center;
++    text-transform: uppercase;
++    letter-spacing: 1px;
++    transition: opacity 0.1s steps(2);
++}
++
++.um-reroll-btn {
++    padding: 12px 16px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    background: var(--bg-secondary);
++    cursor: pointer;
++    font-size: 1.2em;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
++}
++
++.um-reroll-btn:hover {
++    background: var(--bg-tertiary);
++    border-color: var(--accent-primary);
++    transform: translate(-2px, -2px) rotate(180deg);
++    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.2);
++}
++
++.um-reroll-btn:active {
++    transform: translate(0, 0) rotate(180deg);
++    box-shadow: none;
++}
++
++body.dark-theme .um-generated-username {
++    background: var(--bg-primary);
++}
++
++/* Buttons - RETRO 8-BIT THEME */
++.um-btn {
++    padding: 12px 24px;
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++    font-family: var(--font-body);
++    font-size: 16px;
++    font-weight: 600;
++    cursor: pointer;
++    transition: transform 0.1s steps(2), box-shadow 0.1s steps(2);
++    text-transform: uppercase;
++    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
++}
++
++.um-btn:hover {
++    transform: translate(-2px, -2px);
++    box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.2);
++}
++
++.um-btn:active {
++    transform: translate(0, 0);
++    box-shadow: none;
++}
++
++.um-btn-primary {
++    background: var(--accent-primary);
++    color: var(--text-inverse);
++    border-color: var(--accent-primary);
++}
++
++.um-btn-primary:hover {
++    background: var(--accent-primary-hover);
++}
++
++.um-btn-primary:disabled {
++    opacity: 0.5;
++    cursor: not-allowed;
++    transform: none;
++    box-shadow: none;
++}
++
++.um-btn-secondary {
++    background: var(--bg-secondary);
++    color: var(--text-primary);
++    border-color: var(--border-primary);
++}
++
++.um-btn-secondary:hover {
++    background: var(--bg-tertiary);
++}
++
++.um-btn-text {
++    background: transparent;
++    color: var(--text-secondary);
++    padding: 8px 16px;
++    border: none;
++    box-shadow: none;
++}
++
++.um-btn-text:hover {
++    color: var(--text-primary);
++    transform: none;
++    box-shadow: none;
++    text-decoration: underline;
++}
++
++.um-btn-danger {
++    background: var(--accent-danger);
++    color: var(--text-inverse);
++    border-color: var(--accent-danger);
++}
++
++.um-btn-danger:hover {
++    background: #a12828;
++}
++
++.um-current-user {
++    font-family: var(--font-header);
++    font-size: 11px;
++    text-transform: uppercase;
++    letter-spacing: 1px;
++    color: var(--text-secondary);
++    margin-bottom: 20px;
++    padding: 12px;
++    background: var(--bg-tertiary);
++    border: 3px solid var(--border-primary);
++    border-radius: 0;
++}
++
++.um-current-user strong {
++    font-family: var(--font-header);
++    font-size: 12px;
++    color: var(--accent-primary);
++    text-transform: uppercase;
++    letter-spacing: 1px;
++}
++
++.um-bottom-actions {
++    display: flex;
++    justify-content: center;
++    gap: 12px;
++    margin-top: 20px;
++    padding-top: 15px;
++    border-top: 3px solid var(--border-secondary);
++}
++
++.um-actions {
++    display: flex;
++    justify-content: space-between;
++    gap: 12px;
++    margin-top: 25px;
++}
++
++/* Error */
++.um-error {
++    background: var(--bg-secondary);
++    color: var(--accent-danger);
++    padding: 12px;
++    border-radius: 0;
++    border: 3px solid var(--accent-danger);
++    margin-top: 15px;
++    font-family: var(--font-body);
++    font-size: 16px;
++}
++
++/* Step specific */
++.um-existing-step h2,
++.um-new-step h2,
++.um-password-setup-step h2,
++.um-teacher-step h2 {
++    font-family: var(--font-header);
++    margin: 0 0 10px 0;
++    font-size: 12px;
++    color: var(--text-primary);
++    text-transform: uppercase;
++}
++
++.um-existing-step > p,
++.um-new-step > p,
++.um-password-setup-step > p,
++.um-teacher-step > p {
++    font-family: var(--font-body);
++    margin: 0 0 25px 0;
++    font-size: 16px;
++    color: var(--text-secondary);
++}
++
++/* ========================================
++   TEACHER DASHBOARD MODAL STYLES
++   ======================================== */
++
++.td-modal {
++    z-index: 10002;
++}
++
++.td-modal-content {
++    max-width: 800px;
++    width: 95%;
++    max-height: 90vh;
++    padding: 25px;
++    border-radius: 16px;
++    overflow-y: auto;
++}
++
++.td-main {
++    min-height: 400px;
++}
++
++.td-header {
++    text-align: center;
++    margin-bottom: 20px;
++}
++
++.td-header h2 {
++    margin: 0 0 5px 0;
++    font-size: 24px;
++    color: var(--text-primary);
++}
++
++.td-header p {
++    margin: 0;
++    color: var(--text-secondary);
++}
++
++/* Tabs */
++.td-tabs {
++    display: flex;
++    gap: 5px;
++    border-bottom: 2px solid var(--border-color, #e9ecef);
++    margin-bottom: 20px;
++}
++
++.td-tab {
++    padding: 12px 20px;
++    background: transparent;
++    border: none;
++    border-bottom: 3px solid transparent;
++    margin-bottom: -2px;
++    cursor: pointer;
++    font-size: 14px;
++    font-weight: 500;
++    color: var(--text-secondary);
++    transition: all 0.2s ease;
++}
++
++.td-tab:hover {
++    color: var(--text-primary);
++}
++
++.td-tab-active {
++    color: var(--primary-color, #4a90d9);
++    border-bottom-color: var(--primary-color, #4a90d9);
++}
++
++/* Table */
++.td-table {
++    width: 100%;
++    border-collapse: collapse;
++    font-size: 14px;
++}
++
++.td-table th,
++.td-table td {
++    padding: 12px;
++    text-align: left;
++    border-bottom: 1px solid var(--border-color, #e9ecef);
++}
++
++.td-table th {
++    background: var(--bg-secondary, #f8f9fa);
++    font-weight: 600;
++    color: var(--text-primary);
++}
++
++.td-table td code {
++    background: var(--bg-tertiary, #e9ecef);
++    padding: 2px 6px;
++    border-radius: 4px;
++    font-size: 13px;
++}
++
++.td-table-small {
++    font-size: 13px;
++}
++
++.td-table-small th,
++.td-table-small td {
++    padding: 8px;
++}
++
++/* Password status */
++.td-password-status {
++    padding: 4px 8px;
++    border-radius: 4px;
++    font-size: 12px;
++    font-weight: 500;
++}
++
++.td-password-status.has-password {
++    background: #dcfce7;
++    color: #166534;
++}
++
++.td-password-status.no-password {
++    background: #fef3c7;
++    color: #92400e;
++}
++
++/* Actions */
++.td-actions {
++    display: flex;
++    gap: 6px;
++}
++
++.td-btn-small {
++    padding: 6px 10px;
++    border: none;
++    border-radius: 6px;
++    background: var(--bg-secondary, #f8f9fa);
++    cursor: pointer;
++    font-size: 14px;
++    transition: all 0.2s ease;
++}
++
++.td-btn-small:hover {
++    background: var(--bg-tertiary, #e9ecef);
++}
++
++.td-btn-danger-small:hover {
++    background: #fee2e2;
++}
++
++/* Buttons */
++.td-btn {
++    padding: 10px 20px;
++    border: none;
++    border-radius: 8px;
++    font-size: 14px;
++    font-weight: 600;
++    cursor: pointer;
++    transition: all 0.2s ease;
++}
++
++.td-btn-primary {
++    background: var(--primary-color, #4a90d9);
++    color: white;
++}
++
++.td-btn-primary:hover {
++    background: var(--primary-hover, #3a7bc8);
++}
++
++.td-btn-secondary {
++    background: var(--bg-secondary, #f8f9fa);
++    color: var(--text-primary);
++    border: 1px solid var(--border-color, #e9ecef);
++}
++
++.td-btn-secondary:hover {
++    background: var(--bg-tertiary, #e9ecef);
++}
++
++.td-btn-danger {
++    background: #fee2e2;
++    color: #dc2626;
++    border: 1px solid #fecaca;
++}
++
++.td-btn-danger:hover {
++    background: #fecaca;
++}
++
++/* Footer */
++.td-footer {
++    display: flex;
++    justify-content: space-between;
++    margin-top: 25px;
++    padding-top: 20px;
++    border-top: 1px solid var(--border-color, #e9ecef);
++}
++
++/* Data tab */
++.td-data-section {
++    padding: 20px;
++    background: var(--bg-secondary, #f8f9fa);
++    border-radius: 12px;
++    margin-bottom: 15px;
++}
++
++.td-data-section h3 {
++    margin: 0 0 8px 0;
++    font-size: 16px;
++    color: var(--text-primary);
++}
++
++.td-data-section p {
++    margin: 0 0 15px 0;
++    font-size: 14px;
++    color: var(--text-secondary);
++}
++
++/* Import tab */
++.td-import-section {
++    padding: 20px;
++    background: var(--bg-secondary, #f8f9fa);
++    border-radius: 12px;
++    margin-bottom: 15px;
++}
++
++.td-import-section h3 {
++    margin: 0 0 8px 0;
++    font-size: 16px;
++    color: var(--text-primary);
++}
++
++.td-import-section p {
++    margin: 0 0 10px 0;
++    font-size: 14px;
++    color: var(--text-secondary);
++}
++
++.td-import-preview {
++    background: var(--bg-primary, #fff);
++    border: 1px solid var(--border-color, #e9ecef);
++    border-radius: 8px;
++    padding: 15px;
++    margin: 15px 0;
++    max-height: 200px;
++    overflow-y: auto;
++}
++
++.td-import-preview h4 {
++    margin: 0 0 10px 0;
++    font-size: 14px;
++}
++
++.td-import-actions {
++    display: flex;
++    gap: 10px;
++}
++
++.td-form-inline {
++    display: flex;
++    gap: 10px;
++    align-items: center;
++}
++
++.td-form-inline input {
++    flex: 1;
++    padding: 10px 12px;
++    border: 1px solid var(--border-color, #e9ecef);
++    border-radius: 6px;
++    font-size: 14px;
++}
++
++/* Empty state */
++.td-empty {
++    text-align: center;
++    padding: 40px 20px;
++    color: var(--text-secondary);
++}
++
++/* Loading */
++.td-loading {
++    text-align: center;
++    padding: 40px 20px;
++    color: var(--text-secondary);
++}
++
++/* Error */
++.td-error {
++    text-align: center;
++    padding: 40px 20px;
++    color: #dc2626;
++}
++
++/* Roster scroll */
++.td-roster {
++    max-height: 400px;
++    overflow-y: auto;
++}
++
++/* Dark theme adjustments */
++body.dark-theme .um-option-btn,
++body.dark-gray-theme .um-option-btn {
++    background: var(--bg-secondary);
++    border-color: var(--border-color);
++}
++
++body.dark-theme .um-error,
++body.dark-gray-theme .um-error {
++    background: #7f1d1d;
++    color: #fecaca;
++}
++
++body.dark-theme .td-password-status.has-password,
++body.dark-gray-theme .td-password-status.has-password {
++    background: #14532d;
++    color: #86efac;
++}
++
++body.dark-theme .td-password-status.no-password,
++body.dark-gray-theme .td-password-status.no-password {
++    background: #78350f;
++    color: #fcd34d;
++}
++
++/* Mobile responsive */
++@media (max-width: 600px) {
++    .um-modal-content {
++        padding: 20px;
++    }
++
++    .td-modal-content {
++        padding: 15px;
++    }
++
++    .td-tabs {
++        flex-wrap: wrap;
++    }
++
++    .td-tab {
++        padding: 10px 15px;
++        font-size: 13px;
++    }
++
++    .td-form-inline {
++        flex-direction: column;
++    }
++
++    .td-footer {
++        flex-direction: column;
++        gap: 10px;
++    }
++
++    .td-footer .td-btn {
++        width: 100%;
++    }
++}
+\ No newline at end of file
+diff --git a/data/levels.js b/data/levels.js
+new file mode 100644
+index 0000000..a0761c2
+--- /dev/null
++++ b/data/levels.js
+@@ -0,0 +1,80 @@
++/**
++ * Study Buddy Level Definitions
++ *
++ * Each unit has its own level configuration that defines:
++ * - roomWidth: Total width of the room in pixels
++ * - incline: { startX, endX, height } - The ramp from ground to cliff top
++ *   - startX: Where the incline starts (bottom)
++ *   - endX: Where the incline ends (cliff edge / drop-off point)
++ *   - height: How tall the cliff is
++ *   - null for Unit 1 (no incline needed)
++ * - door: { x, elevation } - Door X position and extra elevation above block stack
++ * - blockSpawn: { x, y } - Independent spawn position
++ *   - x: Absolute X position in room
++ *   - y: Height from ground level
++ *   - null for Unit 1 (no blocks)
++ *
++ * This file can be edited by the Level Editor (level_editor.html)
++ */
++
++const STUDY_BUDDY_LEVELS = {
++  "unit1": {
++    "roomWidth": 1200,
++    "incline": null,
++    "door": { "x": 1080, "elevation": 0 },
++    "blockSpawn": null
++  },
++  "unit2": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit3": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit4": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit5": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit6": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit7": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit8": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  },
++  "unit9": {
++    "roomWidth": 1200,
++    "incline": { "startX": 50, "endX": 800, "height": 250 },
++    "door": { "x": 1080, "elevation": 30 },
++    "blockSpawn": { "x": 650, "y": 250 }
++  }
++};
++
++// Export for browser
++if (typeof window !== 'undefined') {
++  window.STUDY_BUDDY_LEVELS = STUDY_BUDDY_LEVELS;
++}
+diff --git a/docs/answers_rows.csv b/docs/answers_rows.csv
+index c1bb5a6..019ccd6 100644
+--- a/docs/answers_rows.csv
++++ b/docs/answers_rows.csv
+@@ -1,789 +1,1040 @@
+-id,username,question_id,answer_value,timestamp,created_at,updated_at
+-1,test_user,test_q1,A,1759209161956,2025-09-30 04:20:16.078989+00,2025-10-18 13:18:10.46745+00
+-4,test_user,test_q2,C,1759206226635,2025-09-30 04:24:14.43888+00,2025-10-18 13:18:10.545691+00
+-5,teacher_man,U1-L3-Q01,A,1759206257769,2025-09-30 04:24:45.77927+00,2025-10-17 17:56:00.402056+00
+-7,Apricot_Fox,U1-L3-Q01,E,1757684456314,2025-09-30 04:28:49.901448+00,2025-10-18 13:16:24.409685+00
+-8,Apricot_Fox,U1-L3-Q02,B,1757684459618,2025-09-30 04:28:50.009391+00,2025-10-18 13:16:24.246044+00
+-9,Apricot_Fox,U1-L3-Q03,E,1757684465748,2025-09-30 04:28:50.136452+00,2025-10-18 13:16:24.144844+00
+-10,Apricot_Fox,U1-L4-Q01,C,1757943008325,2025-09-30 04:28:50.258984+00,2025-10-18 13:16:24.066125+00
+-11,Apricot_Fox,U1-L4-Q02,D,1757943011671,2025-09-30 04:28:50.427065+00,2025-10-18 13:16:23.962637+00
+-12,Apricot_Fox,U1-L4-Q03,A,1757943013583,2025-09-30 04:28:50.528971+00,2025-10-18 13:16:23.860696+00
+-13,Apricot_Fox,U1-L4-Q04,B,1757943015483,2025-09-30 04:28:50.633976+00,2025-10-18 13:16:23.746387+00
+-14,Apricot_Fox,U1-L4-Q05,A,1757943017972,2025-09-30 04:28:50.738449+00,2025-10-18 13:16:23.636141+00
+-15,Apricot_Fox,U1-L4-Q06,D,1757943020140,2025-09-30 04:28:50.856853+00,2025-10-18 13:16:23.500195+00
+-16,Apricot_Dog,U1-L3-Q01,E,1757684012225,2025-09-30 04:28:58.981984+00,2025-10-18 18:06:21.666135+00
+-17,Apricot_Dog,U1-L3-Q02,B,1757684150046,2025-09-30 04:28:59.101241+00,2025-10-18 18:06:21.24438+00
+-18,Apricot_Dog,U1-L3-Q03,E,1757684259295,2025-09-30 04:28:59.231558+00,2025-10-18 18:06:16.328317+00
+-19,Apricot_Dog,U1-L4-Q01,C,1757942032798,2025-09-30 04:28:59.349411+00,2025-10-18 18:06:16.103659+00
+-20,Apricot_Dog,U1-L4-Q03,A,1757942546149,2025-09-30 04:28:59.455595+00,2025-10-18 18:06:06.543479+00
+-21,Apricot_Dog,U1-L4-Q04,B,1757942678152,2025-09-30 04:28:59.596416+00,2025-10-18 18:06:01.765187+00
+-22,Apricot_Dog,U1-L4-Q05,E,1757943309529,2025-09-30 04:28:59.704921+00,2025-10-18 18:05:59.310937+00
+-23,Apricot_Dog,U1-L4-Q02,D,1757943323112,2025-09-30 04:28:59.822569+00,2025-10-18 18:05:41.522293+00
+-24,Apricot_Dog,U1-L4-Q06,D,1757943436089,2025-09-30 04:28:59.94697+00,2025-10-18 18:05:35.582513+00
+-25,Apricot_Dog,U1-L2-Q01,B,1757965978629,2025-09-30 04:29:00.064095+00,2025-10-18 18:05:22.078325+00
+-26,Apricot_Dog,U1-L2-Q02,E,1757965992637,2025-09-30 04:29:00.189933+00,2025-10-18 18:05:21.959433+00
+-27,Apricot_Dog,U1-L2-Q03,B,1757966000379,2025-09-30 04:29:00.317499+00,2025-10-18 18:05:21.869246+00
+-28,Banana_Goat,U1-L3-Q01,E,1760664460737,2025-09-30 04:29:02.560363+00,2025-10-18 18:09:15.800812+00
+-29,Banana_Goat,U1-L3-Q02,B,1760664510529,2025-09-30 04:29:02.676819+00,2025-10-18 18:09:15.592364+00
+-30,Banana_Goat,U1-L3-Q03,E,1760664516090,2025-09-30 04:29:02.78343+00,2025-10-18 18:09:15.407213+00
+-31,Apple_Monkey,U2-L2-Q01,E,1757683895063,2025-09-30 04:29:06.326266+00,2025-10-17 17:56:45.709309+00
+-32,Apple_Monkey,U1-L2-Q01,B,1757684023766,2025-09-30 04:29:06.441912+00,2025-10-17 17:56:45.607975+00
+-33,Apple_Monkey,U1-L2-Q02,E,1757684040958,2025-09-30 04:29:06.546083+00,2025-10-17 17:56:45.525573+00
+-34,Apple_Monkey,U1-L2-Q03,B,1757684052880,2025-09-30 04:29:06.65585+00,2025-10-17 17:56:45.339012+00
+-35,Apple_Monkey,U1-L3-Q03,E,1757684188382,2025-09-30 04:29:06.765624+00,2025-10-17 17:56:45.23475+00
+-36,Apple_Monkey,U1-L3-Q01,E,1757684204269,2025-09-30 04:29:06.87334+00,2025-10-17 17:56:45.158076+00
+-37,Apple_Monkey,U1-L3-Q02,B,1757684212610,2025-09-30 04:29:06.975975+00,2025-10-17 17:56:45.07974+00
+-38,Apple_Monkey,U1-L4-Q01,C,1757814304913,2025-09-30 04:29:07.070418+00,2025-10-17 17:56:44.981124+00
+-39,Apple_Monkey,U1-L4-Q02,E,1757816164459,2025-09-30 04:29:07.179802+00,2025-10-17 17:56:44.803454+00
+-40,Apple_Monkey,U1-L4-Q03,A,1757816170979,2025-09-30 04:29:07.291677+00,2025-10-17 17:56:44.698342+00
+-41,Apple_Monkey,U1-L4-Q04,B,1757816181342,2025-09-30 04:29:07.403399+00,2025-10-17 17:56:44.504998+00
+-42,Apple_Monkey,U1-L4-Q05,E,1757816187593,2025-09-30 04:29:07.517289+00,2025-10-17 17:56:44.160144+00
+-43,Apple_Monkey,U1-L4-Q06,D,1757816194295,2025-09-30 04:29:07.63039+00,2025-10-17 17:56:44.077545+00
+-44,Apple_Monkey,U1-L5-Q01,C,1757816632685,2025-09-30 04:29:07.749679+00,2025-10-17 17:56:43.98011+00
+-45,Apple_Monkey,U1-L5-Q02,E,1757816638530,2025-09-30 04:29:07.852603+00,2025-10-17 17:56:43.87447+00
+-46,Apple_Monkey,U1-L5-Q03,D,1757816651849,2025-09-30 04:29:07.965388+00,2025-10-17 17:56:43.766167+00
+-47,Apple_Monkey,U1-L6-Q03,D,1757897551515,2025-09-30 04:29:08.08204+00,2025-10-17 17:56:43.671446+00
+-48,Apple_Monkey,U1-L6-Q01,B,1757897609049,2025-09-30 04:29:08.196597+00,2025-10-17 17:56:43.560049+00
+-49,Apple_Monkey,U1-L6-Q02,D,1757897697557,2025-09-30 04:29:08.30306+00,2025-10-17 17:56:43.395646+00
+-50,Guava_Cat,U1-L2-Q01,B,1757683616691,2025-09-30 04:29:11.10156+00,2025-10-18 13:15:42.400612+00
+-51,Guava_Cat,U1-L2-Q02,E,1757683654977,2025-09-30 04:29:11.202677+00,2025-10-18 13:15:42.071644+00
+-52,Guava_Cat,U1-L2-Q03,B,1757683662926,2025-09-30 04:29:11.320092+00,2025-10-18 13:15:41.980316+00
+-53,Guava_Cat,U1-L3-Q01,E,1757683703934,2025-09-30 04:29:11.44006+00,2025-10-18 13:15:41.763416+00
+-54,Guava_Cat,U1-L3-Q02,B,1757683734289,2025-09-30 04:29:11.543848+00,2025-10-18 13:15:41.491632+00
+-55,Guava_Cat,U1-L3-Q03,E,1757683828224,2025-09-30 04:29:11.652562+00,2025-10-18 13:15:41.057325+00
+-56,Guava_Cat,U1-L4-Q01,C,1757683875484,2025-09-30 04:29:11.752177+00,2025-10-18 13:15:40.906798+00
+-57,Guava_Cat,U1-L4-Q02,C,1757683914516,2025-09-30 04:29:11.862983+00,2025-10-18 13:15:40.741295+00
+-58,Guava_Cat,U1-L4-Q03,A,1757683992146,2025-09-30 04:29:11.978285+00,2025-10-18 13:15:40.174084+00
+-59,Guava_Cat,U1-L4-Q04,B,1757684101157,2025-09-30 04:29:12.092062+00,2025-10-18 13:15:40.038759+00
+-60,Guava_Cat,U1-L4-Q05,C,1757684261839,2025-09-30 04:29:12.202277+00,2025-10-18 13:15:39.129763+00
+-61,Guava_Cat,U1-L4-Q06,A,1757684295319,2025-09-30 04:29:12.342289+00,2025-10-18 13:15:38.945855+00
+-62,Plum_Iguana,U1-L3-Q01,E,1757701156797,2025-09-30 04:29:14.56474+00,2025-10-18 13:18:07.077684+00
+-63,Plum_Iguana,U1-L3-Q02,A,1757701207441,2025-09-30 04:29:14.671485+00,2025-10-18 13:18:06.788046+00
+-64,Plum_Iguana,U1-L3-Q03,E,1757701210915,2025-09-30 04:29:14.779151+00,2025-10-18 13:18:06.682905+00
+-65,Apple_Rabbit,U1-L2-Q01,B,1757683639793,2025-09-30 04:29:17.281462+00,2025-10-17 17:54:54.110508+00
+-66,Apple_Rabbit,U1-L2-Q02,E,1757683678357,2025-09-30 04:29:17.375794+00,2025-10-17 17:54:53.99406+00
+-67,Apple_Rabbit,U1-L2-Q03,B,1757683740521,2025-09-30 04:29:17.484625+00,2025-10-17 17:54:53.913716+00
+-68,Apple_Rabbit,U1-L3-Q03,E,1757683800760,2025-09-30 04:29:17.596266+00,2025-10-17 17:54:53.841276+00
+-69,Apple_Rabbit,U1-L3-Q01,E,1757683806403,2025-09-30 04:29:17.71571+00,2025-10-17 17:54:53.705448+00
+-70,Apple_Rabbit,U1-L3-Q02,B,1757683809760,2025-09-30 04:29:17.836505+00,2025-10-17 17:54:53.61413+00
+-71,Papaya_Fox,U1-L3-Q01,E,1757699076408,2025-09-30 04:29:21.574066+00,2025-10-18 18:05:01.320291+00
+-72,Papaya_Fox,U1-L3-Q02,B,1757699129382,2025-09-30 04:29:21.686613+00,2025-10-18 18:05:01.234832+00
+-73,Papaya_Fox,U1-L3-Q03,E,1757699172806,2025-09-30 04:29:21.795747+00,2025-10-18 18:05:01.114131+00
+-74,Papaya_Goat,U1-L3-Q01,E,1757699297305,2025-09-30 04:29:28.907212+00,2025-10-18 18:11:06.873223+00
+-75,Papaya_Goat,U1-L3-Q02,B,1757699839889,2025-09-30 04:29:29.019428+00,2025-10-18 18:11:06.766847+00
+-76,Papaya_Goat,U1-L3-Q03,E,1757700126147,2025-09-30 04:29:29.131535+00,2025-10-18 18:11:06.660055+00
+-77,Grape_Newt,U1-L3-Q01,A,1757700503932,2025-09-30 04:29:29.972267+00,2025-10-18 18:10:58.118725+00
+-78,Grape_Newt,U1-L3-Q02,A,1757700534007,2025-09-30 04:29:30.077521+00,2025-10-18 18:10:57.676727+00
+-79,Grape_Newt,U1-L3-Q03,E,1757700695762,2025-09-30 04:29:30.186759+00,2025-10-18 18:10:56.843724+00
+-80,Kiwi_Panda,U1-L2-Q01,B,1757699021157,2025-09-30 04:29:30.372648+00,2025-10-17 17:56:35.394743+00
+-81,Kiwi_Panda,U1-L2-Q02,E,1757699253475,2025-09-30 04:29:30.48328+00,2025-10-17 17:56:35.264763+00
+-82,Kiwi_Panda,U1-L2-Q03,B,1757699395922,2025-09-30 04:29:30.590878+00,2025-10-17 17:56:35.126814+00
+-83,Kiwi_Panda,U1-L3-Q02,B,1757700739917,2025-09-30 04:29:30.70579+00,2025-10-17 17:56:34.893316+00
+-84,Kiwi_Panda,U1-L3-Q01,E,1757701142109,2025-09-30 04:29:30.815918+00,2025-10-17 17:56:34.760767+00
+-85,Kiwi_Panda,U1-L3-Q03,E,1757948539947,2025-09-30 04:29:30.925498+00,2025-10-17 17:56:34.645283+00
+-86,Grape_Fox,U1-L3-Q01,E,1757699076408,2025-09-30 04:29:33.502492+00,2025-10-17 17:56:40.490621+00
+-87,Grape_Fox,U1-L3-Q02,B,1757699129382,2025-09-30 04:29:33.685413+00,2025-10-17 17:56:40.319203+00
+-88,Grape_Fox,U1-L3-Q03,E,1757699172806,2025-09-30 04:29:33.817748+00,2025-10-17 17:56:40.095291+00
+-89,papaya_goat,U1-L3-Q01,E,1757699297305,2025-09-30 04:29:38.61122+00,2025-10-18 18:09:04.110987+00
+-90,papaya_goat,U1-L3-Q02,B,1757699839889,2025-09-30 04:29:38.721215+00,2025-10-18 18:09:03.801279+00
+-91,papaya_goat,U1-L3-Q03,E,1757700126147,2025-09-30 04:29:38.854436+00,2025-10-18 18:09:03.679191+00
+-92,Lemon_Monkey,U1-L3-Q01,E,1757698959605,2025-09-30 04:29:40.443118+00,2025-10-18 18:09:06.330663+00
+-93,Lemon_Monkey,U1-L3-Q03,E,1757699467562,2025-09-30 04:29:40.558267+00,2025-10-18 18:09:06.250795+00
+-94,Lemon_Monkey,U1-L3-Q02,B,1757699489907,2025-09-30 04:29:40.678917+00,2025-10-18 18:09:06.152183+00
+-95,Apricot_Horse,U1-L4-Q01,C,1757942286046,2025-09-30 04:29:40.78799+00,2025-10-17 17:55:56.678493+00
+-96,Apricot_Horse,U1-L4-Q02,B,1757942263726,2025-09-30 04:29:40.896306+00,2025-10-17 17:55:56.80602+00
+-97,Apricot_Horse,U1-L4-Q03,A,1757942806116,2025-09-30 04:29:41.014985+00,2025-10-17 17:55:56.597245+00
+-98,Apricot_Horse,U1-L4-Q04,B,1757943159611,2025-09-30 04:29:41.122244+00,2025-10-17 17:55:56.506525+00
+-99,Apricot_Horse,U1-L4-Q05,A,1757941984972,2025-09-30 04:29:41.232026+00,2025-10-17 17:55:57.013282+00
+-100,Apricot_Horse,U1-L4-Q06,D,1757942015440,2025-09-30 04:29:41.34231+00,2025-10-17 17:55:56.913538+00
+-101,Mango_Dog,U1-L4-Q01,C,1757699264908,2025-09-30 04:29:43.970997+00,2025-10-17 17:56:04.133439+00
+-102,Mango_Dog,U1-L4-Q02,D,1757699682756,2025-09-30 04:29:44.083502+00,2025-10-17 17:56:04.024409+00
+-103,Mango_Dog,U1-L4-Q03,A,1757700802934,2025-09-30 04:29:44.192346+00,2025-10-17 17:56:03.925217+00
+-104,Mango_Dog,U1-L3-Q01,E,1757701302388,2025-09-30 04:29:44.3218+00,2025-10-17 17:56:03.746059+00
+-105,Mango_Dog,U1-L3-Q02,B,1757902720680,2025-09-30 04:29:44.436611+00,2025-10-17 17:56:03.668864+00
+-106,Mango_Dog,U1-L3-Q03,E,1757902982195,2025-09-30 04:29:44.564199+00,2025-10-17 17:56:03.590339+00
+-107,Lemon_Goat,U1-L5-Q01,C,1758031439835,2025-09-30 04:34:58.822064+00,2025-10-18 13:16:08.236895+00
+-108,Lemon_Goat,U1-L5-Q02,E,1758031554096,2025-09-30 04:34:58.950237+00,2025-10-18 13:16:07.291169+00
+-109,Lemon_Goat,U1-L5-Q03,D,1758205644685,2025-09-30 04:34:59.084614+00,2025-10-18 13:16:04.745021+00
+-110,Lemon_Goat,U1-L7-Q01,B,1758809721901,2025-09-30 04:34:59.216517+00,2025-10-18 13:16:04.609358+00
+-111,Lemon_Goat,U1-L7-Q02,D,1758809990072,2025-09-30 04:34:59.344967+00,2025-10-18 13:16:04.516188+00
+-112,Lemon_Goat,U1-L7-Q03,B,1758810282355,2025-09-30 04:34:59.467231+00,2025-10-18 13:16:04.060966+00
+-113,Lemon_Goat,U1-L7-Q04,B,1758810351117,2025-09-30 04:34:59.585996+00,2025-10-18 13:16:03.967448+00
+-114,Lemon_Goat,U1-L7-Q05,A,1758810371912,2025-09-30 04:34:59.701974+00,2025-10-18 13:16:03.768807+00
+-115,Lemon_Goat,U1-L7-Q06,D,1758810428594,2025-09-30 04:34:59.822755+00,2025-10-18 13:16:03.677738+00
+-116,Lemon_Goat,U1-L8-Q01,C,1758892027664,2025-09-30 04:34:59.956698+00,2025-10-18 13:16:03.590671+00
+-117,Lemon_Goat,U1-L8-Q02,B,1758892355516,2025-09-30 04:35:00.075473+00,2025-10-18 13:16:03.505266+00
+-118,Lemon_Goat,U1-L8-Q03,D,1758892358797,2025-09-30 04:35:00.211335+00,2025-10-18 13:16:03.415984+00
+-119,Apricot_Fox,U1-L5-Q01,C,1758038563391,2025-09-30 04:35:00.336069+00,2025-10-18 13:16:23.382242+00
+-120,Apricot_Fox,U1-L5-Q02,E,1758038565838,2025-09-30 04:35:00.44903+00,2025-10-18 13:16:23.267547+00
+-121,Apricot_Fox,U1-L5-Q03,B,1758038568865,2025-09-30 04:35:00.569781+00,2025-10-18 13:16:23.165382+00
+-122,Apricot_Fox,U1-L6-Q01,A,1758215403999,2025-09-30 04:35:00.691467+00,2025-10-18 13:16:23.074898+00
+-123,Apricot_Fox,U1-L6-Q02,A,1758215406934,2025-09-30 04:35:00.85658+00,2025-10-18 13:16:22.978145+00
+-124,Apricot_Fox,U1-L6-Q03,D,1758215442133,2025-09-30 04:35:00.986134+00,2025-10-18 13:16:22.885344+00
+-125,Apricot_Fox,U1-L2-Q03,B,1758215478185,2025-09-30 04:35:01.109694+00,2025-10-18 13:16:22.757572+00
+-126,Apricot_Fox,U1-L2-Q02,E,1758215479902,2025-09-30 04:35:01.265938+00,2025-10-18 13:16:22.438922+00
+-127,Apricot_Fox,U1-L2-Q01,B,1758215481308,2025-09-30 04:35:01.403553+00,2025-10-18 13:16:22.346878+00
+-128,Apricot_Fox,U1-L7-Q01,B,1758810705231,2025-09-30 04:35:01.507658+00,2025-10-18 13:16:22.26361+00
+-129,Apricot_Fox,U1-L7-Q02,D,1758810707233,2025-09-30 04:35:01.633122+00,2025-10-18 13:16:22.171482+00
+-130,Apricot_Fox,U1-L7-Q03,A,1758810710589,2025-09-30 04:35:01.753803+00,2025-10-18 13:16:22.063388+00
+-131,Apricot_Fox,U1-L7-Q04,E,1758810714599,2025-09-30 04:35:01.891594+00,2025-10-18 13:16:21.953135+00
+-132,Apricot_Fox,U1-L7-Q05,A,1758810717007,2025-09-30 04:35:02.010795+00,2025-10-18 13:16:21.826381+00
+-133,Apricot_Fox,U1-L7-Q06,D,1758810719803,2025-09-30 04:35:02.122971+00,2025-10-18 13:16:21.690564+00
+-134,Apricot_Fox,U1-L8-Q03,C,1758892775125,2025-09-30 04:35:02.243575+00,2025-10-18 13:16:21.564603+00
+-135,Apricot_Fox,U1-L8-Q02,D,1758892778140,2025-09-30 04:35:02.360836+00,2025-10-18 13:16:21.472727+00
+-136,Apricot_Fox,U1-L8-Q01,C,1758892780198,2025-09-30 04:35:02.471303+00,2025-10-18 13:16:21.374096+00
+-137,Apricot_Fox,U1-L9-Q03,D,1759153583535,2025-09-30 04:35:02.590261+00,2025-10-18 13:16:21.272323+00
+-138,Apricot_Fox,U1-L9-Q02,B,1759153585896,2025-09-30 04:35:02.701122+00,2025-10-18 13:16:21.171341+00
+-139,Apricot_Fox,U1-L9-Q01,B,1759153588871,2025-09-30 04:35:02.822822+00,2025-10-18 13:16:21.001731+00
+-140,Berry_Iguana,U1-L3-Q01,E,1757957534723,2025-09-30 04:35:02.942977+00,2025-10-17 17:55:03.408556+00
+-141,Berry_Iguana,U1-L3-Q03,E,1757958137030,2025-09-30 04:35:03.079578+00,2025-10-17 17:55:03.307911+00
+-142,Berry_Iguana,U1-L4-Q01,C,1757958993849,2025-09-30 04:35:03.200504+00,2025-10-17 17:55:03.09742+00
+-143,Berry_Iguana,U1-L4-Q02,E,1757959134513,2025-09-30 04:35:03.401622+00,2025-10-17 17:55:02.796982+00
+-144,Berry_Iguana,U1-L4-Q03,A,1757959350096,2025-09-30 04:35:03.512323+00,2025-10-17 17:55:02.668791+00
+-145,Berry_Iguana,U1-L4-Q04,B,1757959499277,2025-09-30 04:35:03.63492+00,2025-10-17 17:55:02.597715+00
+-146,Berry_Iguana,U1-L4-Q05,C,1757959660192,2025-09-30 04:35:03.785081+00,2025-10-17 17:55:02.516456+00
+-147,Berry_Iguana,U1-L4-Q06,D,1757959840869,2025-09-30 04:35:03.913058+00,2025-10-17 17:55:02.390465+00
+-148,Berry_Iguana,U1-L3-Q02,B,1757959892684,2025-09-30 04:35:04.048178+00,2025-10-17 17:55:02.313702+00
+-149,Berry_Iguana,U1-L5-Q03,D,1758128536509,2025-09-30 04:35:04.162618+00,2025-10-17 17:55:02.110617+00
+-150,Berry_Iguana,U1-L5-Q02,E,1758128204288,2025-09-30 04:35:04.270909+00,2025-10-17 17:55:02.217129+00
+-151,Berry_Iguana,U1-L5-Q01,C,1758128619899,2025-09-30 04:35:04.385369+00,2025-10-17 17:55:01.994166+00
+-152,Papaya_Iguana,U1-L6-Q01,B,1758727640127,2025-09-30 04:35:04.504794+00,2025-10-17 17:55:12.89586+00
+-153,Papaya_Iguana,U1-L6-Q02,A,1758727665687,2025-09-30 04:35:04.625879+00,2025-10-17 17:55:12.711044+00
+-154,Papaya_Iguana,U1-L6-Q03,C,1758727676629,2025-09-30 04:35:04.727379+00,2025-10-17 17:55:12.624974+00
+-155,Papaya_Iguana,U1-L5-Q01,E,1758727689276,2025-09-30 04:35:04.86107+00,2025-10-17 17:55:12.541692+00
+-156,Papaya_Iguana,U1-L5-Q02,D,1758727719254,2025-09-30 04:35:04.975022+00,2025-10-17 17:55:12.437447+00
+-157,Papaya_Iguana,U1-L5-Q03,D,1758727727759,2025-09-30 04:35:05.084178+00,2025-10-17 17:55:12.346387+00
+-158,Papaya_Iguana,U1-L4-Q01,C,1758727768318,2025-09-30 04:35:05.207681+00,2025-10-17 17:55:12.110237+00
+-159,Papaya_Iguana,U1-L4-Q02,A,1758727780086,2025-09-30 04:35:05.320205+00,2025-10-17 17:55:12.012173+00
+-160,Papaya_Iguana,U1-L4-Q03,E,1758727810038,2025-09-30 04:35:05.424743+00,2025-10-17 17:55:11.92863+00
+-161,Papaya_Iguana,U1-L4-Q04,B,1758727825228,2025-09-30 04:35:05.528543+00,2025-10-17 17:55:11.827023+00
+-162,Papaya_Iguana,U1-L4-Q05,C,1758727834509,2025-09-30 04:35:05.631158+00,2025-10-17 17:55:11.726518+00
+-163,Papaya_Iguana,U1-L4-Q06,E,1758727859592,2025-09-30 04:35:05.745778+00,2025-10-17 17:55:11.623987+00
+-164,Papaya_Iguana,U1-L3-Q01,A,1758727874841,2025-09-30 04:35:05.852483+00,2025-10-17 17:55:11.515623+00
+-165,Papaya_Iguana,U1-L3-Q02,B,1758727907132,2025-09-30 04:35:05.967075+00,2025-10-17 17:55:11.423849+00
+-166,Papaya_Iguana,U1-L3-Q03,E,1758727951203,2025-09-30 04:35:06.082033+00,2025-10-17 17:55:11.328488+00
+-167,Papaya_Iguana,U1-L2-Q01,A,1758727971840,2025-09-30 04:35:06.19324+00,2025-10-17 17:55:11.226315+00
+-168,Papaya_Iguana,U1-L2-Q02,E,1758727985246,2025-09-30 04:35:06.316776+00,2025-10-17 17:55:11.118448+00
+-169,Papaya_Iguana,U1-L2-Q03,B,1758727999949,2025-09-30 04:35:06.43239+00,2025-10-17 17:55:10.882905+00
+-170,Papaya_Iguana,U1-L7-Q01,E,1758908117437,2025-09-30 04:35:06.542566+00,2025-10-17 17:55:10.774476+00
+-171,Papaya_Iguana,U1-L7-Q02,D,1758908148124,2025-09-30 04:35:06.650081+00,2025-10-17 17:55:10.686051+00
+-172,Papaya_Iguana,U1-L7-Q03,B,1758908179002,2025-09-30 04:35:06.764187+00,2025-10-17 17:55:10.484423+00
+-173,Papaya_Iguana,U1-L7-Q04,C,1758908390989,2025-09-30 04:35:06.865328+00,2025-10-17 17:55:10.380693+00
+-174,Papaya_Iguana,U1-L7-Q05,E,1758908780360,2025-09-30 04:35:06.98363+00,2025-10-17 17:55:10.279352+00
+-175,Papaya_Iguana,U1-L7-Q06,B,1758908791404,2025-09-30 04:35:07.140755+00,2025-10-17 17:55:10.110907+00
+-176,Papaya_Iguana,U1-L8-Q01,C,1759168990524,2025-09-30 04:35:07.254029+00,2025-10-17 17:55:09.964461+00
+-177,Papaya_Iguana,U1-L8-Q02,A,1759169031177,2025-09-30 04:35:07.364797+00,2025-10-17 17:55:09.837882+00
+-178,Papaya_Iguana,U1-L8-Q03,C,1759169069350,2025-09-30 04:35:07.482538+00,2025-10-17 17:55:09.741436+00
+-179,lemon-eagle,U1-L8-Q01,A,1759169508285,2025-09-30 04:35:07.602433+00,2025-10-18 18:04:21.836025+00
+-180,lemon-eagle,U1-L8-Q02,C,1759169501754,2025-09-30 04:35:07.717431+00,2025-10-18 18:04:30.785586+00
+-181,lemon-eagle,U1-L8-Q03,C,1759169696234,2025-09-30 04:35:07.850624+00,2025-10-18 18:04:21.703524+00
+-182,Apricot_Dog,U1-L5-Q01,C,1758245588699,2025-09-30 04:35:07.996075+00,2025-10-18 18:05:21.767995+00
+-183,Apricot_Dog,U1-L5-Q02,E,1758245609144,2025-09-30 04:35:08.112705+00,2025-10-18 18:05:21.684068+00
+-184,Apricot_Dog,U1-L5-Q03,D,1758245656315,2025-09-30 04:35:08.229207+00,2025-10-18 18:05:21.587787+00
+-185,Apricot_Dog,U1-L6-Q01,A,1758246363942,2025-09-30 04:35:08.376211+00,2025-10-18 18:05:21.496917+00
+-186,Apricot_Dog,U1-L6-Q02,D,1758246560341,2025-09-30 04:35:08.489342+00,2025-10-18 18:05:21.383758+00
+-187,Apricot_Dog,U1-L6-Q03,E,1758246699308,2025-09-30 04:35:08.605958+00,2025-10-18 18:05:16.634871+00
+-188,Apricot_Dog,U1-L7-Q01,B,1758892149589,2025-09-30 04:35:08.749595+00,2025-10-18 18:05:11.868656+00
+-189,Apricot_Dog,U1-L7-Q02,D,1758892161440,2025-09-30 04:35:08.890509+00,2025-10-18 18:05:11.786678+00
+-190,Apricot_Dog,U1-L7-Q03,A,1758892182009,2025-09-30 04:35:09.02663+00,2025-10-18 18:05:11.676107+00
+-191,Apricot_Dog,U1-L7-Q04,B,1758892191303,2025-09-30 04:35:09.151984+00,2025-10-18 18:05:10.388254+00
+-192,Apricot_Dog,U1-L7-Q05,A,1758892199257,2025-09-30 04:35:09.292719+00,2025-10-18 18:05:10.273448+00
+-193,Apricot_Dog,U1-L7-Q06,D,1758892207595,2025-09-30 04:35:09.419066+00,2025-10-18 18:05:10.126273+00
+-194,Apricot_Dog,U1-L8-Q03,C,1758892708801,2025-09-30 04:35:09.526834+00,2025-10-18 18:05:06.28037+00
+-195,Apricot_Dog,U1-L8-Q02,E,1758895162796,2025-09-30 04:35:09.644766+00,2025-10-18 18:05:01.694263+00
+-196,Apricot_Dog,U1-L8-Q01,D,1758895033898,2025-09-30 04:35:09.761059+00,2025-10-18 18:05:03.227878+00
+-197,Apricot_Dog,U1-L9-Q01,B,1759153345848,2025-09-30 04:35:09.883475+00,2025-10-18 18:05:01.584898+00
+-198,Apricot_Dog,U1-L9-Q03,B,1759183599355,2025-09-30 04:35:09.993579+00,2025-10-18 18:05:01.498594+00
+-199,Apricot_Dog,U1-L9-Q02,B,1759183913956,2025-09-30 04:35:10.094124+00,2025-10-18 18:05:01.407581+00
+-200,Banana_Goat,U1-L4-Q01,C,1760664538020,2025-09-30 04:35:10.228922+00,2025-10-18 18:09:15.008363+00
+-201,Banana_Goat,U1-L4-Q02,D,1760664545004,2025-09-30 04:35:10.332394+00,2025-10-18 18:09:13.308523+00
+-202,Banana_Goat,U1-L4-Q03,A,1760664550775,2025-09-30 04:35:10.448845+00,2025-10-18 18:09:13.113737+00
+-203,Banana_Goat,U1-L4-Q04,B,1760664561844,2025-09-30 04:35:10.557908+00,2025-10-18 18:09:12.98477+00
+-204,Banana_Goat,U1-L4-Q05,E,1760664567575,2025-09-30 04:35:10.668535+00,2025-10-18 18:09:12.848744+00
+-205,Banana_Goat,U1-L4-Q06,D,1760664573139,2025-09-30 04:35:10.795407+00,2025-10-18 18:09:12.690026+00
+-206,Banana_Goat,U1-L5-Q03,D,1760664684231,2025-09-30 04:35:10.911809+00,2025-10-18 18:09:12.551098+00
+-207,Banana_Goat,U1-L5-Q02,E,1760664679028,2025-09-30 04:35:11.02377+00,2025-10-18 18:09:12.107633+00
+-208,Banana_Goat,U1-L5-Q01,C,1760664674721,2025-09-30 04:35:11.136842+00,2025-10-18 18:09:12.004233+00
+-209,Banana_Goat,U1-L6-Q03,D,1760664714933,2025-09-30 04:35:11.248285+00,2025-10-18 18:09:11.844711+00
+-210,Banana_Goat,U1-L6-Q02,D,1760664708498,2025-09-30 04:35:11.391767+00,2025-10-18 18:09:11.701045+00
+-211,Banana_Goat,U1-L6-Q01,B,1760664746783,2025-09-30 04:35:11.495148+00,2025-10-18 18:09:11.516482+00
+-212,Banana_Goat,U1-L2-Q03,B,1760664340762,2025-09-30 04:35:11.612925+00,2025-10-18 18:09:11.403452+00
+-213,Banana_Goat,U1-L2-Q02,E,1760664330380,2025-09-30 04:35:11.732029+00,2025-10-18 18:09:11.15706+00
+-214,Banana_Goat,U1-L2-Q01,B,1760664326665,2025-09-30 04:35:11.844802+00,2025-10-18 18:09:11.034885+00
+-215,Banana_Goat,U1-L7-Q01,B,1760664760852,2025-09-30 04:35:11.957814+00,2025-10-18 18:09:10.508916+00
+-216,Banana_Goat,U1-L7-Q02,D,1760664767614,2025-09-30 04:35:12.073159+00,2025-10-18 18:09:08.466451+00
+-217,Banana_Goat,U1-L7-Q03,B,1760664773369,2025-09-30 04:35:12.18278+00,2025-10-18 18:09:07.871372+00
+-218,Banana_Goat,U1-L7-Q04,B,1760664781132,2025-09-30 04:35:12.303289+00,2025-10-18 18:09:07.739057+00
+-219,Banana_Goat,U1-L7-Q05,A,1760664786536,2025-09-30 04:35:12.423453+00,2025-10-18 18:09:07.541399+00
+-220,Banana_Goat,U1-L7-Q06,D,1760664793061,2025-09-30 04:35:12.531235+00,2025-10-18 18:09:07.160143+00
+-221,Banana_Goat,U1-L8-Q01,D,1760664810234,2025-09-30 04:35:12.660585+00,2025-10-18 18:09:07.062439+00
+-222,Banana_Goat,U1-L8-Q02,C,1760664824279,2025-09-30 04:35:12.796179+00,2025-10-18 18:09:06.812435+00
+-223,Banana_Goat,U1-L8-Q03,C,1760664830379,2025-09-30 04:35:12.947615+00,2025-10-18 18:09:06.715842+00
+-224,Banana_Fox,U1-L7-Q03,B,1758810427698,2025-09-30 04:35:13.064991+00,2025-10-17 17:55:59.220406+00
+-225,Banana_Fox,U1-L7-Q04,B,1758810722131,2025-09-30 04:35:13.188632+00,2025-10-17 17:55:59.12353+00
+-226,Banana_Fox,U1-L7-Q01,B,1758810868273,2025-09-30 04:35:13.294581+00,2025-10-17 17:55:59.027376+00
+-227,Banana_Fox,U1-L7-Q02,D,1758810890527,2025-09-30 04:35:13.395769+00,2025-10-17 17:55:58.90061+00
+-228,Banana_Fox,U1-L7-Q06,C,1758811152271,2025-09-30 04:35:13.509699+00,2025-10-17 17:55:58.814432+00
+-229,Banana_Fox,U1-L7-Q05,A,1758811248897,2025-09-30 04:35:13.62321+00,2025-10-17 17:55:58.704432+00
+-230,Apple_Monkey,U1-L7-Q06,C,1758810096385,2025-09-30 04:35:13.729135+00,2025-10-17 17:56:42.742383+00
+-231,Apple_Monkey,U1-L7-Q05,A,1758810056424,2025-09-30 04:35:13.849954+00,2025-10-17 17:56:42.940699+00
+-232,Apple_Monkey,U1-L7-Q04,E,1758810064196,2025-09-30 04:35:13.983836+00,2025-10-17 17:56:42.847608+00
+-233,Apple_Monkey,U1-L7-Q03,B,1758809737018,2025-09-30 04:35:14.135877+00,2025-10-17 17:56:43.26722+00
+-234,Apple_Monkey,U1-L7-Q02,D,1758809739325,2025-09-30 04:35:14.257485+00,2025-10-17 17:56:43.163118+00
+-235,Apple_Monkey,U1-L7-Q01,B,1758809748412,2025-09-30 04:35:14.370281+00,2025-10-17 17:56:43.061667+00
+-236,Coconut_Cat,U1-L3-Q01,E,1758128673817,2025-09-30 04:35:14.479302+00,2025-10-17 17:56:54.223203+00
+-237,Coconut_Cat,U1-L3-Q02,C,1758128984267,2025-09-30 04:35:14.596537+00,2025-10-17 17:56:54.12639+00
+-238,Coconut_Cat,U1-L3-Q03,E,1758129282757,2025-09-30 04:35:14.700632+00,2025-10-17 17:56:53.995354+00
+-239,Coconut_Cat,U1-L6-Q02,D,1758728450643,2025-09-30 04:35:14.805959+00,2025-10-17 17:56:53.783977+00
+-240,Coconut_Cat,U1-L6-Q03,C,1758728500500,2025-09-30 04:35:14.906957+00,2025-10-17 17:56:53.672525+00
+-241,Coconut_Cat,U1-L6-Q01,B,1758728332128,2025-09-30 04:35:15.022077+00,2025-10-17 17:56:53.899777+00
+-242,Coconut_Cat,U1-L2-Q01,B,1758728774688,2025-09-30 04:35:15.140265+00,2025-10-17 17:56:53.583221+00
+-243,Coconut_Cat,U1-L2-Q02,E,1758728852991,2025-09-30 04:35:15.253129+00,2025-10-17 17:56:53.482466+00
+-244,Coconut_Cat,U1-L2-Q03,E,1758728945839,2025-09-30 04:35:15.428938+00,2025-10-17 17:56:53.372362+00
+-245,Coconut_Cat,U1-L4-Q01,E,1758729013285,2025-09-30 04:35:15.554728+00,2025-10-17 17:56:53.279371+00
+-246,Coconut_Cat,U1-L4-Q02,A,1758729088347,2025-09-30 04:35:15.66186+00,2025-10-17 17:56:53.184815+00
+-247,Coconut_Cat,U1-L4-Q03,A,1758729178203,2025-09-30 04:35:15.782329+00,2025-10-17 17:56:53.099445+00
+-248,Coconut_Cat,U1-L4-Q04,B,1758729206196,2025-09-30 04:35:15.908346+00,2025-10-17 17:56:53.010991+00
+-249,Coconut_Cat,U1-L4-Q05,E,1758733333272,2025-09-30 04:35:16.05319+00,2025-10-17 17:56:52.928801+00
+-250,Coconut_Cat,U1-L4-Q06,D,1758733370165,2025-09-30 04:35:16.191032+00,2025-10-17 17:56:52.843321+00
+-251,Coconut_Cat,U1-L5-Q01,D,1758733690864,2025-09-30 04:35:16.314126+00,2025-10-17 17:56:52.766186+00
+-252,Coconut_Cat,U1-L5-Q02,E,1758733759391,2025-09-30 04:35:16.422338+00,2025-10-17 17:56:52.67741+00
+-253,Coconut_Cat,U1-L5-Q03,A,1758733804361,2025-09-30 04:35:16.525923+00,2025-10-17 17:56:52.608961+00
+-254,Guava_Cat,U1-L5-Q01,C,1758031153808,2025-09-30 04:35:16.637999+00,2025-10-18 13:15:38.760996+00
+-255,Guava_Cat,U1-L5-Q02,E,1758031197334,2025-09-30 04:35:16.759413+00,2025-10-18 13:15:38.579374+00
+-256,Guava_Cat,U1-L5-Q03,D,1758031218573,2025-09-30 04:35:16.869994+00,2025-10-18 13:15:38.310068+00
+-257,Guava_Cat,U1-L6-Q01,B,1758031253118,2025-09-30 04:35:17.01029+00,2025-10-18 13:15:38.109875+00
+-258,Guava_Cat,U1-L6-Q03,E,1758031272438,2025-09-30 04:35:17.137407+00,2025-10-18 13:15:37.95574+00
+-259,Guava_Cat,U1-L6-Q02,A,1758031276204,2025-09-30 04:35:17.275215+00,2025-10-18 13:15:37.733603+00
+-260,Mango_Tiger,U1-L6-Q02,E,1758727901622,2025-09-30 04:35:17.38729+00,2025-10-18 13:17:52.224991+00
+-261,Mango_Tiger,U1-L6-Q03,C,1758727912193,2025-09-30 04:35:17.498162+00,2025-10-18 13:17:52.138978+00
+-262,Mango_Tiger,U1-L6-Q01,E,1758728051535,2025-09-30 04:35:17.623926+00,2025-10-18 13:17:52.059793+00
+-263,Mango_Tiger,U1-L7-Q01,B,1758907430143,2025-09-30 04:35:17.78169+00,2025-10-18 13:17:51.743231+00
+-264,Mango_Tiger,U1-L7-Q02,D,1758907467484,2025-09-30 04:35:17.919521+00,2025-10-18 13:17:45.776724+00
+-265,Mango_Tiger,U1-L7-Q04,E,1758907775638,2025-09-30 04:35:18.031593+00,2025-10-18 13:17:45.491287+00
+-266,Mango_Tiger,U1-L7-Q06,B,1758908122896,2025-09-30 04:35:18.144644+00,2025-10-18 13:17:44.994591+00
+-267,Mango_Tiger,U1-L7-Q05,D,1758908173065,2025-09-30 04:35:18.271507+00,2025-10-18 13:17:44.857006+00
+-268,Mango_Tiger,U1-L7-Q03,B,1758908350091,2025-09-30 04:35:18.3795+00,2025-10-18 13:17:44.746051+00
+-269,Mango_Tiger,U1-L8-Q02,D,1759168891661,2025-09-30 04:35:18.496118+00,2025-10-18 13:17:44.612638+00
+-270,Mango_Tiger,U1-L8-Q01,D,1759169065716,2025-09-30 04:35:18.612978+00,2025-10-18 13:17:44.506931+00
+-271,Mango_Tiger,U1-L8-Q03,C,1759169186553,2025-09-30 04:35:18.73196+00,2025-10-18 13:17:44.33841+00
+-272,Plum_Iguana,U1-L4-Q01,C,1757958386209,2025-09-30 04:35:18.840066+00,2025-10-18 13:18:06.268187+00
+-273,Plum_Iguana,U1-L4-Q02,D,1757958389801,2025-09-30 04:35:18.963872+00,2025-10-18 13:18:06.120656+00
+-274,Plum_Iguana,U1-L4-Q03,A,1757958391659,2025-09-30 04:35:19.074428+00,2025-10-18 13:18:05.592961+00
+-275,Plum_Iguana,U1-L4-Q04,B,1757958395012,2025-09-30 04:35:19.195555+00,2025-10-18 13:18:05.481938+00
+-276,Plum_Iguana,U1-L4-Q05,C,1757958398140,2025-09-30 04:35:19.303117+00,2025-10-18 13:18:05.348417+00
+-277,Plum_Iguana,U1-L4-Q06,D,1757958399889,2025-09-30 04:35:19.413589+00,2025-10-18 13:18:05.182222+00
+-278,Plum_Iguana,U1-L5-Q03,B,1758129488489,2025-09-30 04:35:19.536825+00,2025-10-18 13:18:05.073974+00
+-279,Plum_Iguana,U1-L5-Q02,E,1758129491386,2025-09-30 04:35:19.656964+00,2025-10-18 13:18:04.985961+00
+-280,Plum_Iguana,U1-L5-Q01,B,1758129493704,2025-09-30 04:35:19.770913+00,2025-10-18 13:18:02.693582+00
+-281,Plum_Iguana,U1-L6-Q01,B,1758727687188,2025-09-30 04:35:19.887495+00,2025-10-18 13:18:00.987661+00
+-282,Plum_Iguana,U1-L6-Q03,D,1758727727673,2025-09-30 04:35:19.995577+00,2025-10-18 13:18:00.772193+00
+-283,Plum_Iguana,U1-L6-Q02,E,1758727796407,2025-09-30 04:35:20.120095+00,2025-10-18 13:17:57.161375+00
+-284,Plum_Iguana,U1-L7-Q03,B,1758908519808,2025-09-30 04:35:20.22239+00,2025-10-18 13:17:57.030528+00
+-285,Plum_Iguana,U1-L7-Q02,D,1758908528224,2025-09-30 04:35:20.341491+00,2025-10-18 13:17:56.820762+00
+-286,Plum_Iguana,U1-L7-Q01,B,1758908557909,2025-09-30 04:35:20.460148+00,2025-10-18 13:17:56.644859+00
+-287,Plum_Iguana,U1-L7-Q06,A,1758908907500,2025-09-30 04:35:20.571049+00,2025-10-18 13:17:56.470202+00
+-288,Plum_Iguana,U1-L7-Q05,A,1758908910219,2025-09-30 04:35:20.704575+00,2025-10-18 13:17:56.379449+00
+-289,Plum_Iguana,U1-L7-Q04,B,1758908911845,2025-09-30 04:35:20.819504+00,2025-10-18 13:17:56.283269+00
+-290,Plum_Iguana,U1-L8-Q01,D,1759170013593,2025-09-30 04:35:20.921905+00,2025-10-18 13:17:55.84899+00
+-291,Plum_Iguana,U1-L8-Q02,D,1759170039114,2025-09-30 04:35:21.033692+00,2025-10-18 13:17:55.395428+00
+-292,Plum_Iguana,U1-L8-Q03,A,1759170074118,2025-09-30 04:35:21.179933+00,2025-10-18 13:17:55.186405+00
+-293,Apple_Rabbit,U1-L4-Q06,D,1757943401521,2025-09-30 04:35:21.332451+00,2025-10-17 17:54:53.515026+00
+-294,Apple_Rabbit,U1-L4-Q05,E,1757943403365,2025-09-30 04:35:21.441742+00,2025-10-17 17:54:53.424879+00
+-295,Apple_Rabbit,U1-L4-Q04,B,1757943405277,2025-09-30 04:35:21.540872+00,2025-10-17 17:54:53.264935+00
+-296,Apple_Rabbit,U1-L4-Q03,A,1757943407685,2025-09-30 04:35:21.650973+00,2025-10-17 17:54:53.1587+00
+-297,Apple_Rabbit,U1-L4-Q02,D,1757943409770,2025-09-30 04:35:21.761083+00,2025-10-17 17:54:53.060596+00
+-298,Apple_Rabbit,U1-L4-Q01,C,1757943411890,2025-09-30 04:35:21.881009+00,2025-10-17 17:54:52.958579+00
+-299,Apple_Rabbit,U1-L5-Q01,C,1758204280227,2025-09-30 04:35:21.990367+00,2025-10-17 17:54:52.858428+00
+-300,Apple_Rabbit,U1-L5-Q02,E,1758204342964,2025-09-30 04:35:22.116653+00,2025-10-17 17:54:52.754909+00
+-301,Apple_Rabbit,U1-L5-Q03,D,1758204429556,2025-09-30 04:35:22.271559+00,2025-10-17 17:54:52.650601+00
+-302,Apple_Rabbit,U1-L6-Q01,B,1758286859140,2025-09-30 04:35:22.508936+00,2025-10-17 17:54:52.571297+00
+-303,Apple_Rabbit,U1-L6-Q02,E,1758286864964,2025-09-30 04:35:22.611838+00,2025-10-17 17:54:52.453989+00
+-304,Apple_Rabbit,U1-L6-Q03,D,1758286868273,2025-09-30 04:35:22.732755+00,2025-10-17 17:54:52.355445+00
+-305,Apple_Rabbit,U1-L7-Q01,B,1758808972449,2025-09-30 04:35:22.902349+00,2025-10-17 17:54:52.21378+00
+-306,Apple_Rabbit,U1-L7-Q02,D,1758809087651,2025-09-30 04:35:23.028341+00,2025-10-17 17:54:52.061672+00
+-307,Apple_Rabbit,U1-L7-Q03,B,1758809304319,2025-09-30 04:35:23.131058+00,2025-10-17 17:54:51.961084+00
+-308,Apple_Rabbit,U1-L7-Q04,B,1758809357377,2025-09-30 04:35:23.245238+00,2025-10-17 17:54:51.8562+00
+-309,Apple_Rabbit,U1-L7-Q05,A,1758809746705,2025-09-30 04:35:23.349039+00,2025-10-17 17:54:51.77302+00
+-310,Apple_Rabbit,U1-L7-Q06,D,1758810258882,2025-09-30 04:35:23.487541+00,2025-10-17 17:54:51.676785+00
+-311,Apple_Rabbit,U1-L8-Q01,D,1758892099657,2025-09-30 04:35:23.615218+00,2025-10-17 17:54:51.570678+00
+-312,Apple_Rabbit,U1-L8-Q02,C,1758892228485,2025-09-30 04:35:23.729806+00,2025-10-17 17:54:51.462784+00
+-313,Apple_Rabbit,U1-L8-Q03,E,1758892435413,2025-09-30 04:35:23.842745+00,2025-10-17 17:54:51.347971+00
+-314,Apple_Rabbit,U1-L9-Q01,B,1759153231550,2025-09-30 04:35:23.944587+00,2025-10-17 17:54:51.23897+00
+-315,Apple_Rabbit,U1-L9-Q02,B,1759166319697,2025-09-30 04:35:24.052206+00,2025-10-18 13:18:10.718069+00
+-316,Apple_Rabbit,U1-L9-Q03,B,1759166774776,2025-09-30 04:35:24.168635+00,2025-10-18 13:18:10.627469+00
+-317,Lemon_Eagle,U1-L3-Q01,E,1757958187438,2025-09-30 04:35:24.327262+00,2025-10-17 17:55:08.419283+00
+-318,Lemon_Eagle,U1-L3-Q02,B,1757958203146,2025-09-30 04:35:24.456703+00,2025-10-17 17:55:08.257352+00
+-319,Lemon_Eagle,U1-L3-Q03,E,1757958308792,2025-09-30 04:35:24.592452+00,2025-10-17 17:55:08.030539+00
+-320,Lemon_Eagle,U1-L4-Q01,C,1757958913606,2025-09-30 04:35:24.721859+00,2025-10-17 17:55:07.940989+00
+-321,Lemon_Eagle,U1-L4-Q02,E,1757958918443,2025-09-30 04:35:24.864472+00,2025-10-17 17:55:07.834108+00
+-322,Lemon_Eagle,U1-L4-Q03,A,1757959170557,2025-09-30 04:35:24.995004+00,2025-10-17 17:55:07.6437+00
+-323,Lemon_Eagle,U1-L4-Q04,B,1757959312227,2025-09-30 04:35:25.106468+00,2025-10-17 17:55:07.538644+00
+-324,Lemon_Eagle,U1-L4-Q05,D,1757959625955,2025-09-30 04:35:25.221248+00,2025-10-17 17:55:07.448705+00
+-325,Lemon_Eagle,U1-L4-Q06,D,1757959998270,2025-09-30 04:35:25.333362+00,2025-10-17 17:55:07.346886+00
+-326,Papaya_Fox,U1-L4-Q02,E,1757957654841,2025-09-30 04:35:25.437688+00,2025-10-18 18:05:01.030735+00
+-327,Papaya_Fox,U1-L4-Q01,C,1757957668917,2025-09-30 04:35:25.555747+00,2025-10-18 18:05:00.911885+00
+-328,Papaya_Fox,U1-L4-Q03,A,1757957783731,2025-09-30 04:35:25.666275+00,2025-10-18 18:05:00.825454+00
+-329,Papaya_Fox,U1-L4-Q04,B,1757958098522,2025-09-30 04:35:25.799043+00,2025-10-18 18:04:56.768983+00
+-330,Papaya_Fox,U1-L4-Q05,C,1757959070148,2025-09-30 04:35:25.904482+00,2025-10-18 18:04:56.666053+00
+-331,Papaya_Fox,U1-L4-Q06,D,1757959209590,2025-09-30 04:35:26.016427+00,2025-10-18 18:04:56.366462+00
+-332,Papaya_Fox,U1-L5-Q03,D,1758124779191,2025-09-30 04:35:26.122771+00,2025-10-18 18:04:52.399226+00
+-333,Papaya_Fox,U1-L5-Q02,A,1758124781567,2025-09-30 04:35:26.250736+00,2025-10-18 18:04:51.604791+00
+-334,Papaya_Fox,U1-L5-Q01,D,1758124783018,2025-09-30 04:35:26.38039+00,2025-10-18 18:04:51.499995+00
+-335,Papaya_Fox,U1-L6-Q02,A,1758303300259,2025-09-30 04:35:26.491631+00,2025-10-18 18:04:46.827218+00
+-336,Papaya_Fox,U1-L6-Q03,D,1758303413701,2025-09-30 04:35:26.62164+00,2025-10-18 18:04:46.655936+00
+-337,Papaya_Fox,U1-L6-Q01,B,1758303992090,2025-09-30 04:35:26.747092+00,2025-10-18 18:04:46.541185+00
+-338,Papaya_Fox,U1-L7-Q01,A,1758555677112,2025-09-30 04:35:26.884744+00,2025-10-18 18:04:46.396121+00
+-339,lemon_eagle,U1-L7-Q01,B,1758908422557,2025-09-30 04:35:27.038998+00,2025-10-18 18:09:06.070043+00
+-340,lemon_eagle,U1-L7-Q02,D,1758908464470,2025-09-30 04:35:27.199671+00,2025-10-18 18:09:05.959871+00
+-341,lemon_eagle,U1-L7-Q03,A,1758908590476,2025-09-30 04:35:27.368761+00,2025-10-18 18:09:05.842265+00
+-342,lemon_eagle,U1-L7-Q04,B,1758908653781,2025-09-30 04:35:27.480935+00,2025-10-18 18:09:05.746426+00
+-343,lemon_eagle,U1-L7-Q05,A,1758908669191,2025-09-30 04:35:27.594402+00,2025-10-18 18:09:05.647375+00
+-344,lemon_eagle,U1-L7-Q06,D,1758908797560,2025-09-30 04:35:27.71107+00,2025-10-18 18:09:04.599182+00
+-345,Cherry_Monkey,U1-L2-Q03,B,1758136870635,2025-09-30 04:35:27.885184+00,2025-10-18 18:10:55.974628+00
+-346,Cherry_Monkey,U1-L2-Q02,E,1758136874642,2025-09-30 04:35:28.037656+00,2025-10-18 18:10:55.881235+00
+-347,Cherry_Monkey,U1-L2-Q01,B,1758136877563,2025-09-30 04:35:28.194304+00,2025-10-18 18:10:53.343001+00
+-348,Cherry_Monkey,U1-L3-Q02,A,1758137239242,2025-09-30 04:35:28.345884+00,2025-10-18 18:10:52.456294+00
+-349,Cherry_Monkey,U1-L3-Q03,E,1758137242550,2025-09-30 04:35:28.473817+00,2025-10-18 18:10:51.881769+00
+-350,Cherry_Monkey,U1-L3-Q01,C,1758137262240,2025-09-30 04:35:28.590593+00,2025-10-18 18:10:51.79592+00
+-351,Cherry_Monkey,U1-L4-Q01,C,1758137609469,2025-09-30 04:35:28.719603+00,2025-10-18 18:10:51.706987+00
+-352,Cherry_Monkey,U1-L4-Q02,D,1758137611188,2025-09-30 04:35:28.869116+00,2025-10-18 18:10:51.618445+00
+-353,Cherry_Monkey,U1-L4-Q03,A,1758137622517,2025-09-30 04:35:28.979915+00,2025-10-18 18:10:51.541222+00
+-354,Cherry_Monkey,U1-L4-Q04,B,1758137634681,2025-09-30 04:35:29.096841+00,2025-10-18 18:10:51.457871+00
+-355,Cherry_Monkey,U1-L4-Q05,E,1758137648765,2025-09-30 04:35:29.208922+00,2025-10-18 18:10:51.360855+00
+-356,Cherry_Monkey,U1-L4-Q06,D,1758137658877,2025-09-30 04:35:29.334008+00,2025-10-18 18:10:51.268307+00
+-357,Cherry_Monkey,U1-L5-Q01,C,1758137699774,2025-09-30 04:35:29.444763+00,2025-10-18 18:10:46.547713+00
+-358,Cherry_Monkey,U1-L5-Q02,E,1758137703460,2025-09-30 04:35:29.56656+00,2025-10-18 18:10:46.333534+00
+-359,Cherry_Monkey,U1-L5-Q03,D,1758137706676,2025-09-30 04:35:29.677358+00,2025-10-18 18:10:46.220619+00
+-360,Cherry_Monkey,U1-L6-Q01,B,1758727605173,2025-09-30 04:35:29.793657+00,2025-10-18 18:10:46.12921+00
+-361,Cherry_Monkey,U1-L6-Q02,D,1758727609560,2025-09-30 04:35:29.895057+00,2025-10-18 18:10:45.988832+00
+-362,Cherry_Monkey,U1-L6-Q03,D,1758727613195,2025-09-30 04:35:29.999524+00,2025-10-18 18:10:41.863699+00
+-363,Cherry_Monkey,U1-L7-Q01,B,1758907576191,2025-09-30 04:35:30.10584+00,2025-10-18 18:10:41.591858+00
+-364,Cherry_Monkey,U1-L7-Q02,D,1758907672668,2025-09-30 04:35:30.210762+00,2025-10-18 18:10:41.460105+00
+-365,Cherry_Monkey,U1-L7-Q03,B,1758907721051,2025-09-30 04:35:30.323984+00,2025-10-18 18:10:41.264753+00
+-366,Cherry_Monkey,U1-L7-Q04,B,1758907753735,2025-09-30 04:35:30.435022+00,2025-10-18 18:10:40.991278+00
+-367,Cherry_Monkey,U1-L7-Q05,A,1758907792284,2025-09-30 04:35:30.555218+00,2025-10-18 18:10:40.865097+00
+-368,Cherry_Monkey,U1-L7-Q06,D,1758907825314,2025-09-30 04:35:30.678869+00,2025-10-18 18:10:38.117353+00
+-369,Cherry_Monkey,U1-L8-Q01,D,1759169141305,2025-09-30 04:35:30.817518+00,2025-10-18 18:10:37.867968+00
+-370,Cherry_Monkey,U1-L8-Q02,C,1759169162920,2025-09-30 04:35:30.932748+00,2025-10-18 18:10:37.767157+00
+-371,Cherry_Monkey,U1-L8-Q03,C,1759169208218,2025-09-30 04:35:31.053426+00,2025-10-18 18:10:37.189777+00
+-372,Grape_Koala,U1-L4-Q01,C,1757957707132,2025-09-30 04:35:31.167467+00,2025-10-17 17:55:05.877622+00
+-373,Grape_Koala,U1-L4-Q06,E,1757958163264,2025-09-30 04:35:31.279336+00,2025-10-17 17:55:05.643934+00
+-374,Grape_Koala,U1-L4-Q05,C,1757958165451,2025-09-30 04:35:31.388815+00,2025-10-17 17:55:05.502088+00
+-375,Grape_Koala,U1-L4-Q04,D,1757958231569,2025-09-30 04:35:31.512524+00,2025-10-17 17:55:05.404233+00
+-376,Grape_Koala,U1-L4-Q02,E,1757958337574,2025-09-30 04:35:31.660515+00,2025-10-17 17:55:05.301071+00
+-377,Grape_Koala,U1-L4-Q03,A,1757958344804,2025-09-30 04:35:31.766069+00,2025-10-17 17:55:05.222499+00
+-378,Grape_Koala,U1-L5-Q01,C,1758128530143,2025-09-30 04:35:31.880884+00,2025-10-17 17:55:05.106443+00
+-379,Grape_Koala,U1-L5-Q02,E,1758128532157,2025-09-30 04:35:32.001595+00,2025-10-17 17:55:05.013075+00
+-380,Grape_Koala,U1-L5-Q03,D,1758128533607,2025-09-30 04:35:32.110358+00,2025-10-17 17:55:04.878614+00
+-381,Grape_Koala,U1-L6-Q02,C,1758727465931,2025-09-30 04:35:32.226515+00,2025-10-17 17:55:04.789958+00
+-382,Grape_Koala,U1-L6-Q01,B,1758727468610,2025-09-30 04:35:32.346569+00,2025-10-17 17:55:04.707098+00
+-383,Grape_Koala,U1-L6-Q03,C,1758727487544,2025-09-30 04:35:32.468936+00,2025-10-17 17:55:04.621988+00
+-384,Papaya_Goat,U1-L6-Q01,B,1758727631155,2025-09-30 04:35:32.581+00,2025-10-18 18:11:01.286858+00
+-385,Papaya_Goat,U1-L6-Q02,D,1758728006643,2025-09-30 04:35:32.687133+00,2025-10-18 18:11:01.182092+00
+-386,Papaya_Goat,U1-L6-Q03,D,1758728066790,2025-09-30 04:35:32.79123+00,2025-10-18 18:11:01.066074+00
+-387,Papaya_Goat,U1-L4-Q01,C,1757957407082,2025-09-30 04:35:32.885983+00,2025-10-18 18:11:06.561222+00
+-388,Papaya_Goat,U1-L4-Q02,D,1757957472880,2025-09-30 04:35:32.995487+00,2025-10-18 18:11:06.458995+00
+-389,Papaya_Goat,U1-L4-Q03,A,1757957568226,2025-09-30 04:35:33.122038+00,2025-10-18 18:11:06.316915+00
+-390,Papaya_Goat,U1-L4-Q04,B,1757957867709,2025-09-30 04:35:33.231506+00,2025-10-18 18:11:01.72184+00
+-391,Papaya_Goat,U1-L4-Q05,C,1757957950538,2025-09-30 04:35:33.34271+00,2025-10-18 18:11:01.54499+00
+-392,Papaya_Goat,U1-L4-Q06,D,1757958178840,2025-09-30 04:35:33.453534+00,2025-10-18 18:11:01.374611+00
+-393,Kiwi_Panda,U1-L4-Q01,C,1758303714035,2025-09-30 04:35:33.555259+00,2025-10-17 17:56:34.490448+00
+-394,Kiwi_Panda,U1-L4-Q02,E,1758304161972,2025-09-30 04:35:33.659909+00,2025-10-17 17:56:34.362431+00
+-395,Kiwi_Panda,U1-L4-Q03,A,1758305902008,2025-09-30 04:35:33.775935+00,2025-10-17 17:56:34.271376+00
+-396,Kiwi_Panda,U1-L4-Q04,B,1758306012896,2025-09-30 04:35:33.90806+00,2025-10-17 17:56:34.159653+00
+-397,Kiwi_Panda,U1-L4-Q05,A,1758331240613,2025-09-30 04:35:34.026758+00,2025-10-17 17:56:32.410192+00
+-398,Kiwi_Panda,U1-L4-Q06,D,1758331498775,2025-09-30 04:35:34.125388+00,2025-10-17 17:56:32.295664+00
+-399,Kiwi_Panda,U1-L5-Q01,C,1758332113107,2025-09-30 04:35:34.237046+00,2025-10-17 17:56:32.175733+00
+-400,Kiwi_Panda,U1-L5-Q02,E,1758332314531,2025-09-30 04:35:34.342075+00,2025-10-17 17:56:32.060386+00
+-401,Kiwi_Panda,U1-L5-Q03,B,1758332617024,2025-09-30 04:35:34.465337+00,2025-10-17 17:56:31.968569+00
+-402,Kiwi_Panda,U1-L6-Q03,D,1758333189480,2025-09-30 04:35:34.569701+00,2025-10-17 17:56:31.796419+00
+-403,Kiwi_Panda,U1-L6-Q02,D,1758728620425,2025-09-30 04:35:34.669811+00,2025-10-17 17:56:31.551483+00
+-404,Kiwi_Panda,U1-L6-Q01,B,1758336376219,2025-09-30 04:35:34.774385+00,2025-10-17 17:56:31.689857+00
+-405,Kiwi_Panda,U1-L7-Q02,D,1758908093962,2025-09-30 04:35:34.881607+00,2025-10-17 17:56:31.365596+00
+-406,Kiwi_Panda,U1-L7-Q03,B,1758908697676,2025-09-30 04:35:34.989881+00,2025-10-17 17:56:31.061793+00
+-407,Kiwi_Panda,U1-L7-Q01,D,1758909109601,2025-09-30 04:35:35.100175+00,2025-10-17 17:56:30.964184+00
+-408,Kiwi_Panda,U1-L7-Q04,B,1759191505696,2025-09-30 04:35:35.203959+00,2025-10-17 17:56:30.814314+00
+-409,Kiwi_Panda,U1-L7-Q05,A,1759191928176,2025-09-30 04:35:35.306959+00,2025-10-17 17:56:30.648074+00
+-410,Kiwi_Panda,U1-L7-Q06,D,1759192118686,2025-09-30 04:35:35.430705+00,2025-10-17 17:56:30.491258+00
+-411,Kiwi_Panda,U1-L8-Q01,D,1759192467903,2025-09-30 04:35:35.541533+00,2025-10-17 17:56:27.769534+00
+-412,Kiwi_Panda,U1-L8-Q02,D,1759192912076,2025-09-30 04:35:35.650827+00,2025-10-17 17:56:27.48016+00
+-413,Kiwi_Panda,U1-L8-Q03,C,1759193074817,2025-09-30 04:35:35.762776+00,2025-10-17 17:56:26.914502+00
+-414,Grape_Fox,U1-L4-Q02,E,1757957654841,2025-09-30 04:35:35.868239+00,2025-10-17 17:56:39.860177+00
+-415,Grape_Fox,U1-L4-Q01,C,1757957668917,2025-09-30 04:35:35.991769+00,2025-10-17 17:56:39.706133+00
+-416,Grape_Fox,U1-L4-Q03,A,1757957783731,2025-09-30 04:35:36.135571+00,2025-10-17 17:56:39.584687+00
+-417,Grape_Fox,U1-L4-Q04,B,1757958098522,2025-09-30 04:35:36.258742+00,2025-10-17 17:56:39.463508+00
+-418,Grape_Fox,U1-L4-Q05,C,1757959070148,2025-09-30 04:35:36.371618+00,2025-10-17 17:56:39.248752+00
+-419,Grape_Fox,U1-L4-Q06,D,1757959209590,2025-09-30 04:35:36.482085+00,2025-10-17 17:56:39.058621+00
+-420,Grape_Fox,U1-L5-Q03,D,1758125694669,2025-09-30 04:35:36.590042+00,2025-10-17 17:56:38.731754+00
+-421,Grape_Fox,U1-L5-Q02,E,1758125562114,2025-09-30 04:35:36.695435+00,2025-10-17 17:56:38.844988+00
+-422,Grape_Fox,U1-L5-Q01,C,1758125529068,2025-09-30 04:35:36.81133+00,2025-10-17 17:56:38.945217+00
+-423,Grape_Fox,U1-L6-Q02,D,1758727715079,2025-09-30 04:35:36.93932+00,2025-10-17 17:56:38.409497+00
+-424,Grape_Fox,U1-L6-Q03,D,1758727722650,2025-09-30 04:35:37.113985+00,2025-10-17 17:56:38.252047+00
+-425,Grape_Fox,U1-L6-Q01,B,1758727707012,2025-09-30 04:35:37.234815+00,2025-10-17 17:56:38.579362+00
+-426,Grape_Fox,U1-L7-Q01,B,1758907487434,2025-09-30 04:35:37.340618+00,2025-10-17 17:56:38.081843+00
+-427,Grape_Fox,U1-L7-Q02,D,1758907495789,2025-09-30 04:35:37.44551+00,2025-10-17 17:56:37.947228+00
+-428,Grape_Fox,U1-L7-Q03,B,1758907540787,2025-09-30 04:35:37.555858+00,2025-10-17 17:56:37.783469+00
+-429,Grape_Fox,U1-L7-Q04,A,1758908645437,2025-09-30 04:35:37.706867+00,2025-10-17 17:56:37.570851+00
+-430,Grape_Fox,U1-L7-Q05,A,1758910394299,2025-09-30 04:35:37.816152+00,2025-10-17 17:56:37.266999+00
+-431,Grape_Fox,U1-L7-Q06,D,1758944736664,2025-09-30 04:35:37.931268+00,2025-10-17 17:56:37.149403+00
+-432,Grape_Fox,U1-L8-Q01,D,1759198375145,2025-09-30 04:35:38.050105+00,2025-10-17 17:56:37.008167+00
+-433,Grape_Fox,U1-L8-Q02,C,1759198397055,2025-09-30 04:35:38.186799+00,2025-10-17 17:56:36.871422+00
+-434,Grape_Fox,U1-L8-Q03,D,1759198456929,2025-09-30 04:35:38.327235+00,2025-10-17 17:56:36.738304+00
+-435,mango_panda,U1-L6-Q01,B,1758204438885,2025-09-30 04:35:38.451062+00,2025-10-18 13:15:47.445388+00
+-436,mango_panda,U1-L6-Q02,A,1758204441226,2025-09-30 04:35:38.574425+00,2025-10-18 13:15:47.297365+00
+-437,mango_panda,U1-L6-Q03,E,1758204442435,2025-09-30 04:35:38.685228+00,2025-10-18 13:15:46.177092+00
+-438,mango_panda,U1-L7-Q01,C,1758204553422,2025-09-30 04:35:38.804603+00,2025-10-18 13:15:45.947527+00
+-439,mango_panda,U1-L7-Q03,B,1758204573718,2025-09-30 04:35:38.909205+00,2025-10-18 13:15:44.51691+00
+-440,Guava_Wolf,U1-L4-Q01,C,1757960628906,2025-09-30 04:35:39.027161+00,2025-10-18 13:18:09.088977+00
+-441,Guava_Wolf,U1-L4-Q02,E,1757960636504,2025-09-30 04:35:39.147727+00,2025-10-18 13:18:08.993469+00
+-442,Guava_Wolf,U1-L4-Q03,A,1757960643802,2025-09-30 04:35:39.277983+00,2025-10-18 13:18:08.235778+00
+-443,Guava_Wolf,U1-L4-Q04,B,1757960650829,2025-09-30 04:35:39.460258+00,2025-10-18 13:18:08.143072+00
+-444,Guava_Wolf,U1-L4-Q05,D,1757960658166,2025-09-30 04:35:39.614502+00,2025-10-18 13:18:08.061997+00
+-445,Guava_Wolf,U1-L4-Q06,D,1757960664907,2025-09-30 04:35:39.760842+00,2025-10-18 13:18:07.98371+00
+-446,Guava_Wolf,U1-L7-Q01,B,1758908130690,2025-09-30 04:35:39.90389+00,2025-10-18 13:18:07.910223+00
+-447,Guava_Wolf,U1-L7-Q02,D,1758908174568,2025-09-30 04:35:40.047368+00,2025-10-18 13:18:07.822455+00
+-448,Guava_Wolf,U1-L7-Q05,A,1758908443167,2025-09-30 04:35:40.165807+00,2025-10-18 13:18:07.720751+00
+-449,Guava_Wolf,U1-L7-Q04,B,1758908636866,2025-09-30 04:35:40.278898+00,2025-10-18 13:18:07.620639+00
+-450,Guava_Wolf,U1-L7-Q03,B,1758908666902,2025-09-30 04:35:40.410386+00,2025-10-18 13:18:07.547713+00
+-451,Guava_Wolf,U1-L7-Q06,D,1758908966998,2025-09-30 04:35:40.52236+00,2025-10-18 13:18:07.45542+00
+-452,papaya_goat,U1-L4-Q01,C,1757957407082,2025-09-30 04:35:40.653927+00,2025-10-18 18:09:03.564534+00
+-453,papaya_goat,U1-L4-Q02,D,1757957472880,2025-09-30 04:35:40.80782+00,2025-10-18 18:09:03.446565+00
+-454,papaya_goat,U1-L4-Q03,A,1757957568226,2025-09-30 04:35:40.959576+00,2025-10-18 18:09:02.83981+00
+-455,papaya_goat,U1-L4-Q04,B,1757957867709,2025-09-30 04:35:41.084604+00,2025-10-18 18:09:02.701856+00
+-456,papaya_goat,U1-L4-Q05,C,1757957950538,2025-09-30 04:35:41.19485+00,2025-10-18 18:09:01.705126+00
+-457,papaya_goat,U1-L4-Q06,D,1757958178840,2025-09-30 04:35:41.313384+00,2025-10-18 18:09:01.582025+00
+-458,papaya_goat,U1-L7-Q01,B,1758907835678,2025-09-30 04:35:41.452497+00,2025-10-18 18:09:01.49628+00
+-459,papaya_goat,U1-L7-Q02,D,1758908087187,2025-09-30 04:35:41.598879+00,2025-10-18 18:09:01.389506+00
+-460,papaya_goat,U1-L7-Q03,B,1758908488040,2025-09-30 04:35:41.739208+00,2025-10-18 18:08:56.152746+00
+-461,papaya_goat,U1-L7-Q04,B,1758908507799,2025-09-30 04:35:41.862863+00,2025-10-18 18:08:56.064259+00
+-462,papaya_goat,U1-L7-Q05,A,1758908512759,2025-09-30 04:35:41.985993+00,2025-10-18 18:08:55.97741+00
+-463,papaya_goat,U1-L7-Q06,D,1758908576676,2025-09-30 04:35:42.123443+00,2025-10-18 18:08:55.876764+00
+-464,Apricot_Horse,U1-L5-Q02,E,1758204943644,2025-09-30 04:35:42.256854+00,2025-10-17 17:55:56.261441+00
+-465,Apricot_Horse,U1-L5-Q03,D,1758205525864,2025-09-30 04:35:42.437174+00,2025-10-17 17:55:56.168728+00
+-466,Apricot_Horse,U1-L5-Q01,C,1758204613326,2025-09-30 04:35:42.56276+00,2025-10-17 17:55:56.400873+00
+-467,Apricot_Horse,U1-L6-Q01,D,1758287414856,2025-09-30 04:35:42.684761+00,2025-10-17 17:55:55.372308+00
+-468,Apricot_Horse,U1-L6-Q02,D,1758287420013,2025-09-30 04:35:42.793606+00,2025-10-17 17:55:55.256893+00
+-469,Apricot_Horse,U1-L6-Q03,C,1758287422549,2025-09-30 04:35:42.918333+00,2025-10-17 17:55:55.127715+00
+-470,Apricot_Horse,U1-L3-Q02,B,1758287033465,2025-09-30 04:35:43.035407+00,2025-10-17 17:55:56.067634+00
+-471,Apricot_Horse,U1-L3-Q03,E,1758287034908,2025-09-30 04:35:43.171389+00,2025-10-17 17:55:55.978695+00
+-472,Apricot_Horse,U1-L3-Q01,E,1758287037477,2025-09-30 04:35:43.291858+00,2025-10-17 17:55:55.89082+00
+-473,Apricot_Horse,U1-L2-Q03,B,1758287053806,2025-09-30 04:35:43.412439+00,2025-10-17 17:55:55.783036+00
+-474,Apricot_Horse,U1-L2-Q02,E,1758287056234,2025-09-30 04:35:43.526452+00,2025-10-17 17:55:55.688365+00
+-475,Apricot_Horse,U1-L2-Q01,B,1758287057668,2025-09-30 04:35:43.663361+00,2025-10-17 17:55:55.558807+00
+-476,Apricot_Horse,U1-L7-Q01,B,1758809138423,2025-09-30 04:35:43.783152+00,2025-10-17 17:55:55.013417+00
+-477,Apricot_Horse,U1-L7-Q03,B,1758809207994,2025-09-30 04:35:43.906033+00,2025-10-17 17:55:54.921363+00
+-478,Apricot_Horse,U1-L7-Q02,D,1758809233759,2025-09-30 04:35:44.041115+00,2025-10-18 18:11:31.454528+00
+-479,Apricot_Horse,U1-L7-Q04,E,1758809273314,2025-09-30 04:35:44.274596+00,2025-10-18 18:11:27.351816+00
+-480,Apricot_Horse,U1-L7-Q05,A,1758809292955,2025-09-30 04:35:44.429812+00,2025-10-18 18:11:27.06166+00
+-481,Apricot_Horse,U1-L7-Q06,B,1758809354140,2025-09-30 04:35:44.572407+00,2025-10-18 18:11:26.837841+00
+-482,Apricot_Horse,U1-L8-Q01,C,1758892036979,2025-09-30 04:35:44.69112+00,2025-10-18 18:11:26.742512+00
+-483,Apricot_Horse,U1-L8-Q02,B,1758892052673,2025-09-30 04:35:44.836429+00,2025-10-18 18:11:26.628808+00
+-484,Apricot_Horse,U1-L8-Q03,E,1758892087217,2025-09-30 04:35:45.000609+00,2025-10-18 18:11:26.529848+00
+-485,Mango_Dog,U1-L4-Q04,B,1757958143305,2025-09-30 04:35:45.128901+00,2025-10-17 17:56:03.46032+00
+-486,Mango_Dog,U1-L4-Q05,E,1757958983289,2025-09-30 04:35:45.254312+00,2025-10-17 17:56:03.365831+00
+-487,Mango_Dog,U1-L4-Q06,D,1757959394340,2025-09-30 04:35:45.379859+00,2025-10-17 17:56:03.239272+00
+-488,Mango_Dog,U1-L5-Q01,C,1758125663996,2025-09-30 04:35:45.504436+00,2025-10-17 17:56:03.077351+00
+-489,Mango_Dog,U1-L5-Q02,E,1758125772706,2025-09-30 04:35:45.619705+00,2025-10-17 17:56:02.949714+00
+-490,Mango_Dog,U1-L5-Q03,D,1758125881134,2025-09-30 04:35:45.756994+00,2025-10-17 17:56:02.850925+00
+-491,Mango_Dog,U1-L6-Q01,B,1758727511510,2025-09-30 04:35:45.870429+00,2025-10-17 17:56:02.751885+00
+-492,Mango_Dog,U1-L6-Q02,E,1758727895606,2025-09-30 04:35:46.013066+00,2025-10-17 17:56:02.531135+00
+-493,Mango_Dog,U1-L6-Q03,D,1758727879951,2025-09-30 04:35:46.132407+00,2025-10-17 17:56:02.650104+00
+-494,Mango_Dog,U1-L7-Q01,B,1758907692395,2025-09-30 04:35:46.255013+00,2025-10-17 17:56:02.428497+00
+-495,Mango_Dog,U1-L7-Q02,D,1758907896162,2025-09-30 04:35:46.373387+00,2025-10-17 17:56:02.305902+00
+-496,Mango_Dog,U1-L7-Q03,B,1758908349849,2025-09-30 04:35:46.510207+00,2025-10-17 17:56:02.187675+00
+-497,Mango_Dog,U1-L7-Q04,B,1758908994445,2025-09-30 04:35:46.642162+00,2025-10-17 17:56:01.995723+00
+-498,Mango_Dog,U1-L7-Q05,A,1758909097770,2025-09-30 04:35:46.76598+00,2025-10-17 17:56:01.904073+00
+-499,Mango_Dog,U1-L7-Q06,D,1758908914339,2025-09-30 04:35:46.88565+00,2025-10-17 17:56:02.084773+00
+-500,Papaya_Eagle,U1-L6-Q01,D,1758809074807,2025-09-30 04:35:47.009731+00,2025-10-17 17:56:51.669144+00
+-501,Papaya_Eagle,U1-L6-Q02,B,1758809077622,2025-09-30 04:35:47.130741+00,2025-10-17 17:56:51.571435+00
+-502,Papaya_Eagle,U1-L6-Q03,C,1758809080747,2025-09-30 04:35:47.250705+00,2025-10-17 17:56:51.46792+00
+-503,Papaya_Eagle,U1-L7-Q06,C,1758809134560,2025-09-30 04:35:47.40687+00,2025-10-17 17:56:51.333387+00
+-504,Papaya_Eagle,U1-L7-Q05,B,1758809136087,2025-09-30 04:35:47.52222+00,2025-10-17 17:56:51.049305+00
+-505,Papaya_Eagle,U1-L7-Q04,E,1758809138520,2025-09-30 04:35:47.665001+00,2025-10-17 17:56:50.961514+00
+-506,Papaya_Eagle,U1-L7-Q03,C,1758809140108,2025-09-30 04:35:47.788918+00,2025-10-17 17:56:50.868963+00
+-507,Papaya_Eagle,U1-L7-Q02,B,1758809141900,2025-09-30 04:35:47.91846+00,2025-10-17 17:56:50.784965+00
+-508,Papaya_Eagle,U1-L7-Q01,E,1758809143714,2025-09-30 04:35:48.055774+00,2025-10-17 17:56:50.675743+00
+-509,Papaya_Eagle,U1-L8-Q02,B,1758892081120,2025-09-30 04:35:48.189842+00,2025-10-17 17:56:50.575995+00
+-510,Papaya_Eagle,U1-L8-Q01,C,1758892082444,2025-09-30 04:35:48.345696+00,2025-10-17 17:56:50.447915+00
+-511,Papaya_Eagle,U1-L8-Q03,E,1758892147607,2025-09-30 04:35:48.485154+00,2025-10-17 17:56:50.358825+00
+-512,teacher_man,U1-L4-Q01,C,1759209638080,2025-09-30 05:05:52.557844+00,2025-10-17 17:55:59.976657+00
+-513,teacher_man,U1-L4-Q02,B,1759211062812,2025-09-30 05:06:24.633029+00,2025-10-17 17:55:59.873706+00
+-514,teacher_man,U1-L5-Q01,D,1759208836776,2025-09-30 05:07:44.621411+00,2025-10-17 17:56:00.287898+00
+-515,teacher_man,U1-L6-Q01,D,1759208870640,2025-09-30 05:08:18.377906+00,2025-10-17 17:56:00.169567+00
+-518,teacher_man,U1-L2-Q01,E,1759291735401,2025-09-30 05:18:00.165063+00,2025-10-17 17:55:59.318428+00
+-521,apple_rabbit,U1-L2-Q01,B,1757683639793,2025-09-30 05:32:09.637542+00,2025-10-17 17:55:01.89893+00
+-522,apple_rabbit,U1-L2-Q02,E,1757683678357,2025-09-30 05:32:09.743176+00,2025-10-17 17:55:01.802477+00
+-523,apple_rabbit,U1-L2-Q03,B,1757683740521,2025-09-30 05:32:09.82644+00,2025-10-17 17:55:01.713636+00
+-524,apple_rabbit,U1-L3-Q03,E,1757683800760,2025-09-30 05:32:09.906535+00,2025-10-17 17:55:01.588416+00
+-525,apple_rabbit,U1-L3-Q01,E,1757683806403,2025-09-30 05:32:09.978684+00,2025-10-17 17:55:01.486873+00
+-526,apple_rabbit,U1-L3-Q02,B,1757683809760,2025-09-30 05:32:10.054604+00,2025-10-17 17:55:01.378123+00
+-527,apple_rabbit,U1-L4-Q06,D,1757943401521,2025-09-30 05:32:10.133403+00,2025-10-17 17:55:01.266048+00
+-528,apple_rabbit,U1-L4-Q05,E,1757943403365,2025-09-30 05:32:10.221527+00,2025-10-17 17:55:01.187685+00
+-529,apple_rabbit,U1-L4-Q04,B,1757943405277,2025-09-30 05:32:10.312271+00,2025-10-17 17:55:01.089043+00
+-530,apple_rabbit,U1-L4-Q03,A,1757943407685,2025-09-30 05:32:10.424312+00,2025-10-17 17:55:00.939822+00
+-531,apple_rabbit,U1-L4-Q02,D,1757943409770,2025-09-30 05:32:10.855841+00,2025-10-17 17:55:00.79196+00
+-532,apple_rabbit,U1-L4-Q01,C,1757943411890,2025-09-30 05:32:10.958566+00,2025-10-17 17:55:00.674821+00
+-533,apple_rabbit,U1-L5-Q01,C,1758204280227,2025-09-30 05:32:11.063655+00,2025-10-17 17:55:00.58599+00
+-534,apple_rabbit,U1-L5-Q02,E,1758204342964,2025-09-30 05:32:11.15706+00,2025-10-17 17:55:00.471785+00
+-535,apple_rabbit,U1-L5-Q03,D,1758204429556,2025-09-30 05:32:11.232506+00,2025-10-17 17:55:00.347157+00
+-536,teacher_man,U2-L3-Q01,B,1759211183405,2025-09-30 05:46:51.33682+00,2025-10-17 17:55:59.736472+00
+-537,teacher_man,U2-L3-Q02,A,1759211224336,2025-09-30 05:47:32.168696+00,2025-10-17 17:55:59.639659+00
+-538,Plum_iguana,U1-L3-Q01,E,1757701156797,2025-09-30 12:11:39.142881+00,2025-10-18 13:16:20.797251+00
+-539,Plum_iguana,U1-L3-Q02,A,1757701207441,2025-09-30 12:11:39.2837+00,2025-10-18 13:16:20.647144+00
+-540,Plum_iguana,U1-L3-Q03,E,1757701210915,2025-09-30 12:11:39.412249+00,2025-10-18 13:16:20.553274+00
+-541,Plum_iguana,U1-L4-Q01,C,1757958386209,2025-09-30 12:11:39.525286+00,2025-10-18 13:16:20.443903+00
+-542,Plum_iguana,U1-L4-Q02,D,1757958389801,2025-09-30 12:11:39.655438+00,2025-10-18 13:16:20.343679+00
+-543,Plum_iguana,U1-L4-Q03,A,1757958391659,2025-09-30 12:11:39.821559+00,2025-10-18 13:16:20.259202+00
+-544,Plum_iguana,U1-L4-Q04,B,1757958395012,2025-09-30 12:11:39.959668+00,2025-10-18 13:16:20.175259+00
+-545,Plum_iguana,U1-L4-Q06,D,1757958399889,2025-09-30 12:11:55.260197+00,2025-10-18 13:16:19.922201+00
+-546,Kiwi_Monkey,U9-L2-Q04,B,1759240898439,2025-09-30 14:01:38.8904+00,2025-10-17 17:55:20.172158+00
+-547,Kiwi_Monkey,U9-L2-Q05,A,1759240903472,2025-09-30 14:01:43.547878+00,2025-10-17 17:55:20.036447+00
+-548,Kiwi_Monkey,U9-L2-Q06,D,1759240908667,2025-09-30 14:01:48.696066+00,2025-10-17 17:55:19.915455+00
+-549,Kiwi_Monkey,U9-L2-Q08,E,1759240915416,2025-09-30 14:01:55.633646+00,2025-10-17 17:55:19.704563+00
+-550,Kiwi_Monkey,U9-L2-Q07,C,1759240913204,2025-09-30 14:02:08.391382+00,2025-10-17 17:55:19.811911+00
+-551,Kiwi_Monkey,U9-L2-Q09,B,1759240981875,2025-09-30 14:03:02.095274+00,2025-10-17 17:55:19.536013+00
+-553,teacher_man,U1-PC-FRQ-Q02,dfsdf,1759282313981,2025-10-01 01:32:22.455688+00,2025-10-17 17:55:59.519861+00
+-554,teacher_man,U1-PC-MCQ-A-Q01,C,1759282329071,2025-10-01 01:32:37.359535+00,2025-10-17 17:55:59.413664+00
+-555,test_user,U1-L2-Q01,A,1759633509968,2025-10-01 03:00:24.013606+00,2025-10-18 13:18:10.38184+00
+-557,Lime_Lion,U1-L3-Q01,A,1759626677521,2025-10-02 00:29:45.73237+00,2025-10-18 18:08:55.682335+00
+-558,Lime_Lion,U1-L3-Q02,A,1759626688336,2025-10-02 00:32:46.665365+00,2025-10-18 18:08:55.590014+00
+-559,Mango_Dog,U1-L8-Q01,D,1759493202866,2025-10-03 12:06:43.463826+00,2025-10-17 17:56:01.785601+00
+-560,Mango_Dog,U1-L8-Q02,C,1759493208258,2025-10-03 12:06:48.431362+00,2025-10-17 17:56:01.626038+00
+-561,Mango_Dog,U1-L8-Q03,C,1759493214025,2025-10-03 12:06:54.213674+00,2025-10-17 17:56:01.521544+00
+-1304,Papaya_Iguana,U1-L9-Q01,B,1759512845744,2025-10-03 17:34:05.958785+00,2025-10-17 17:55:09.645116+00
+-1307,Papaya_Iguana,U1-L9-Q02,B,1759512884046,2025-10-03 17:34:44.234082+00,2025-10-17 17:55:09.379744+00
+-1308,Grape_Fox,U1-L9-Q01,B,1759512888751,2025-10-03 17:34:49.020198+00,2025-10-17 17:56:36.64831+00
+-1309,Papaya_Iguana,U1-L9-Q03,D,1759512901656,2025-10-03 17:35:01.81533+00,2025-10-17 17:55:09.472859+00
+-1310,Coconut_Cat,U1-L7-Q01,B,1759512911283,2025-10-03 17:35:10.936874+00,2025-10-17 17:56:52.535431+00
+-1311,Plum_iguana,U1-L4-Q05,C,1757958398140,2025-10-03 17:35:17.324535+00,2025-10-18 13:16:20.05355+00
+-1312,Mango_Tiger,U1-L9-Q01,B,1759512952011,2025-10-03 17:35:52.274639+00,2025-10-18 13:17:43.908512+00
+-1313,Grape_Koala,U1-L9-Q01,B,1759512959380,2025-10-03 17:35:59.554126+00,2025-10-17 17:55:04.507197+00
+-1317,Plum_Iguana,U1-L9-Q01,C,1759512907602,2025-10-03 17:36:01.034238+00,2025-10-18 13:17:54.593213+00
+-1318,Banana_Goat,U1-L9-Q01,B,1760664849647,2025-10-03 17:36:23.669695+00,2025-10-18 18:09:06.627378+00
+-1321,Papaya_Goat,U1-L9-Q01,B,1759513000654,2025-10-03 17:36:40.984168+00,2025-10-18 18:10:58.6027+00
+-1322,Cherry_Monkey,U1-L9-Q01,B,1759513025043,2025-10-03 17:37:05.21538+00,2025-10-18 18:10:36.807873+00
+-1323,Plum_iguana,U1-L9-Q01,B,1759513030573,2025-10-03 17:37:10.380573+00,2025-10-18 13:16:19.822843+00
+-1324,Coconut_Cat,U1-L9-Q01,B,1759513044529,2025-10-03 17:37:24.173506+00,2025-10-17 17:56:54.32012+00
+-1325,Papaya_Goat,U1-L9-Q02,E,1759513054738,2025-10-03 17:37:34.932837+00,2025-10-18 18:10:58.421986+00
+-1326,lemon-eagle,U1-L9-Q01,B,1759513060453,2025-10-03 17:37:41.39453+00,2025-10-18 18:04:21.28722+00
+-1327,Mango_Tiger,U1-L9-Q03,B,1759513076463,2025-10-03 17:37:56.713347+00,2025-10-18 13:17:43.573155+00
+-1328,Plum_Iguana,U1-L9-Q02,B,1759513075354,2025-10-03 17:38:10.946917+00,2025-10-18 13:17:54.467198+00
+-1329,Mango_Dog,U1-L9-Q01,B,1759513129863,2025-10-03 17:38:49.852593+00,2025-10-17 17:56:04.236779+00
+-1330,Grape_Koala,U1-L9-Q02,C,1759513135205,2025-10-03 17:38:55.516304+00,2025-10-17 17:55:05.961055+00
+-1331,Berry_Iguana,U1-L9-Q01,B,1759513608044,2025-10-03 17:39:28.234548+00,2025-10-17 17:55:03.588144+00
+-1332,Coconut_Cat,U1-L9-Q02,B,1759513321722,2025-10-03 17:39:34.871764+00,2025-10-17 17:56:54.415733+00
+-1333,Mango_Tiger,U1-L9-Q02,A,1759513176747,2025-10-03 17:39:36.951411+00,2025-10-18 13:17:43.441289+00
+-1334,Grape_Koala,U1-L9-Q03,B,1759513214295,2025-10-03 17:40:14.560115+00,2025-10-17 17:55:06.065535+00
+-1335,Banana_Goat,U1-L9-Q02,B,1760664856428,2025-10-03 17:40:29.643296+00,2025-10-18 18:09:06.526937+00
+-1336,Plum_iguana,U1-L9-Q02,D,1759513268207,2025-10-03 17:41:08.020878+00,2025-10-18 13:16:19.723438+00
+-1337,Papaya_Goat,U1-L9-Q03,B,1759513280939,2025-10-03 17:41:21.275185+00,2025-10-18 18:10:58.30778+00
+-1338,Plum_Iguana,U1-L9-Q03,E,1759513281175,2025-10-03 17:41:36.825576+00,2025-10-18 13:17:53.0354+00
+-1339,Banana_Goat,U1-L9-Q03,B,1760664863046,2025-10-03 17:41:39.039836+00,2025-10-18 18:09:06.429165+00
+-1341,Kiwi_Panda,U1-L9-Q01,B,1759513404491,2025-10-03 17:43:24.728342+00,2025-10-17 17:26:50.312039+00
+-1342,Berry_Iguana,U1-L9-Q02,B,1759513428422,2025-10-03 17:43:48.7639+00,2025-10-17 17:55:04.025023+00
+-1343,Cherry_Monkey,U1-L9-Q02,E,1759513469300,2025-10-03 17:44:29.501798+00,2025-10-18 18:10:36.721041+00
+-1344,Mango_Dog,U1-L9-Q02,B,1759513534151,2025-10-03 17:45:34.185665+00,2025-10-17 17:56:04.676496+00
+-1345,Coconut_Cat,U1-L9-Q03,B,1759513642492,2025-10-03 17:46:30.086651+00,2025-10-17 17:56:54.512817+00
+-1346,Grape_Fox,U1-L9-Q03,B,1759513594397,2025-10-03 17:46:34.669235+00,2025-10-17 17:56:40.697122+00
+-1347,Plum_iguana,U1-L9-Q03,B,1759513600816,2025-10-03 17:46:40.951641+00,2025-10-18 13:16:19.611256+00
+-1350,Kiwi_Panda,U1-L9-Q02,B,1759513772941,2025-10-03 17:47:32.006584+00,2025-10-17 17:26:50.117003+00
+-1351,Mango_Dog,U1-L9-Q03,B,1759513723775,2025-10-03 17:48:43.813188+00,2025-10-17 17:56:04.550333+00
+-1353,lemon-eagle,U1-L9-Q03,B,1759513798471,2025-10-03 17:49:59.273109+00,2025-10-18 18:04:16.198595+00
+-1354,Berry_Iguana,U1-L9-Q03,B,1759513848866,2025-10-03 17:50:49.238686+00,2025-10-17 17:55:03.912919+00
+-1355,Cherry_Monkey,U1-L9-Q03,B,1759513890314,2025-10-03 17:51:30.537376+00,2025-10-18 18:10:36.582459+00
+-1356,Kiwi_Panda,U1-L9-Q03,B,1759513945516,2025-10-03 17:52:25.68113+00,2025-10-17 17:26:49.918341+00
+-1357,lemon-eagle,U1-L9-Q02,A,1759514035603,2025-10-03 17:53:56.436409+00,2025-10-18 18:04:03.104115+00
+-1358,Grape_Fox,U1-L9-Q02,B,1759549965302,2025-10-04 03:52:46.788255+00,2025-10-17 17:56:40.59257+00
+-1359,teacher_man,U1-L3-Q02,B,1759558012329,2025-10-04 06:07:21.318905+00,2025-10-17 17:56:01.415696+00
+-1360,teacher_man,U1-L9-Q01,B,1759635800221,2025-10-04 06:08:03.567424+00,2025-10-17 17:56:00.951839+00
+-1362,Lime_Lion,U1-L2-Q01,D,1759617004126,2025-10-04 22:30:33.035732+00,2025-10-18 18:08:55.790106+00
+-1363,test_peer,q1,A,1759626035750,2025-10-05 01:11:35.691231+00,2025-10-18 18:04:02.952471+00
+-1367,teacher_man,U5-L4-Q01,E,1759633261169,2025-10-05 03:01:30.009064+00,2025-10-17 17:56:01.046273+00
+-1369,test_user,U1-L5-Q01,C,1759633531612,2025-10-05 03:06:00.297641+00,2025-10-18 13:18:10.308092+00
+-1370,test_user,U1-L3-Q01,E,1759633658213,2025-10-05 03:08:06.926639+00,2025-10-18 13:18:10.221211+00
+-1371,test_user,U1-L3-Q02,C,1759633669106,2025-10-05 03:08:17.809575+00,2025-10-18 13:18:10.138331+00
+-1372,test_user,U1-L3-Q03,C,1759633679606,2025-10-05 03:08:28.40292+00,2025-10-18 13:18:10.048581+00
+-1373,test_user,U1-L7-Q01,D,1759633728269,2025-10-05 03:09:17.089639+00,2025-10-18 13:18:09.966516+00
+-1374,Papaya_Cat,U1-L9-Q01,B,1759634537174,2025-10-05 03:22:46.213479+00,2025-10-18 13:18:09.278585+00
+-1375,Papaya_Cat,U1-L9-Q02,B,1759635169944,2025-10-05 03:33:18.853095+00,2025-10-18 13:18:09.185873+00
+-1376,test_user,U1-L9-Q01,B,1759635370826,2025-10-05 03:36:39.67558+00,2025-10-18 13:18:09.885365+00
+-2499,Apple_Monkey,U1-L8-Q01,D,1759792028002,2025-10-06 23:00:25.036561+00,2025-10-17 17:56:47.976004+00
+-2501,Apple_Monkey,U1-L8-Q02,C,1759792101690,2025-10-06 23:07:34.981522+00,2025-10-17 17:56:47.79673+00
+-2503,Apple_Monkey,U1-L8-Q03,C,1759792125998,2025-10-06 23:08:46.455921+00,2025-10-17 17:56:47.677595+00
+-2504,Apple_Monkey,U1-L10-Q01,D,1759793769807,2025-10-06 23:36:10.547392+00,2025-10-17 17:56:47.565516+00
+-2505,Apple_Monkey,U1-L10-Q05,B,1759794825371,2025-10-06 23:48:30.143305+00,2025-10-17 17:56:47.069047+00
+-2506,Apple_Monkey,U1-L10-Q02,A,1759794700231,2025-10-06 23:51:40.845791+00,2025-10-17 17:56:47.374157+00
+-2507,Apple_Monkey,U1-L10-Q03,A,1759794738368,2025-10-06 23:52:18.781776+00,2025-10-17 17:56:47.186313+00
+-2510,Apple_Monkey,U1-L10-Q07,C,1759794859874,2025-10-06 23:54:20.404899+00,2025-10-17 17:56:46.934961+00
+-2511,Apple_Monkey,U1-L10-Q08,A,1759795403206,2025-10-07 00:03:23.850181+00,2025-10-17 17:56:46.682234+00
+-2512,test_verification,test_q1,D,1759250000000,2025-10-07 01:49:00.905399+00,2025-10-18 13:16:19.504727+00
+-2520,Tayberry_Pelican,U1-L3-Q01,A,1759804198717,2025-10-07 02:30:30.263273+00,2025-10-18 13:18:09.533122+00
+-2521,Tayberry_Pelican,U1-L3-Q02,B,1759804209521,2025-10-07 02:30:40.786622+00,2025-10-18 13:18:09.44984+00
+-2522,Tayberry_Pelican,U1-L3-Q03,C,1759804218169,2025-10-07 02:30:49.465346+00,2025-10-18 13:18:09.357522+00
+-2529,Apricot_Horse,U1-L9-Q01,B,1759845587287,2025-10-07 13:59:47.634474+00,2025-10-18 18:11:26.43243+00
+-2530,Apricot_Horse,U1-L9-Q02,A,1759845734979,2025-10-07 14:02:15.46498+00,2025-10-18 18:11:26.339989+00
+-2531,Apricot_Horse,U1-L9-Q03,C,1759845768424,2025-10-07 14:02:48.682047+00,2025-10-18 18:11:26.246759+00
+-2581,Papaya_Eagle,U1-L10-Q01,B,1759846770536,2025-10-07 14:19:30.919667+00,2025-10-17 17:56:52.426397+00
+-2809,Papaya_Eagle,U1-L10-Q02,A,1759846797737,2025-10-07 14:19:58.077737+00,2025-10-17 17:56:52.352163+00
+-3014,Guava_Cat,U1-L10-Q01,D,1759846818962,2025-10-07 14:20:19.041064+00,2025-10-18 13:15:42.50471+00
+-3033,mango_panda,U1-L10-Q01,D,1759846820556,2025-10-07 14:20:20.904092+00,2025-10-18 13:15:48.640508+00
+-3034,Apricot_Horse,U1-L10-Q01,C,1759846827368,2025-10-07 14:20:27.73513+00,2025-10-17 17:55:58.069329+00
+-3035,Papaya_Eagle,U1-L10-Q03,A,1759846828932,2025-10-07 14:20:29.405282+00,2025-10-17 17:56:52.258864+00
+-3036,Papaya_Eagle,U1-L10-Q08,A,1759846857642,2025-10-07 14:20:57.95422+00,2025-10-17 17:56:52.15463+00
+-3037,mango_panda,U1-L10-Q02,B,1759846878475,2025-10-07 14:21:18.736917+00,2025-10-18 13:15:48.844685+00
+-3038,Guava_Cat,U1-L10-Q02,B,1759846879055,2025-10-07 14:21:19.023642+00,2025-10-18 13:15:42.674284+00
+-3039,Papaya_Eagle,U1-L10-Q07,C,1759846883627,2025-10-07 14:21:23.985629+00,2025-10-17 17:56:52.067894+00
+-3040,Apricot_Horse,U1-L10-Q02,D,1759846895640,2025-10-07 14:21:35.955901+00,2025-10-17 17:55:57.919587+00
+-3041,Papaya_Eagle,U1-L10-Q05,B,1759846924631,2025-10-07 14:22:05.042786+00,2025-10-17 17:56:51.965541+00
+-3042,Apricot_Horse,U1-L10-Q03,E,1759846925101,2025-10-07 14:22:05.28377+00,2025-10-17 17:55:57.674503+00
+-3043,Guava_Cat,U1-L10-Q03,A,1759846952163,2025-10-07 14:22:32.228898+00,2025-10-18 13:15:42.902629+00
+-3044,Lemon_Goat,U1-L10-Q02,A,1759846980089,2025-10-07 14:23:00.349983+00,2025-10-18 13:16:08.653595+00
+-3045,mango_panda,U1-L10-Q03,D,1759846988637,2025-10-07 14:23:08.955076+00,2025-10-18 13:15:49.619992+00
+-3046,Lemon_Goat,U1-L10-Q03,A,1759846998452,2025-10-07 14:23:18.411494+00,2025-10-18 13:16:12.160999+00
+-3048,Kiwi_Monkey,U9-L3-MCQ-Q02,B,1759847009058,2025-10-07 14:23:29.408251+00,2025-10-18 18:06:26.572126+00
+-3049,Kiwi_Monkey,U9-L3-FRQ-Q01,they move faster away from home,1759847011298,2025-10-07 14:23:31.464959+00,2025-10-18 18:06:26.854988+00
+-3050,Apple_Monkey,U1-PC-MCQ-A-Q01,B,1759847063302,2025-10-07 14:23:31.627559+00,2025-10-17 17:56:46.521981+00
+-3051,Kiwi_Monkey,U9-L3-MCQ-Q03,C,1759847020387,2025-10-07 14:23:40.614155+00,2025-10-18 18:06:27.559845+00
+-3052,Kiwi_Monkey,U9-L3-MCQ-Q04,C,1759847031689,2025-10-07 14:23:51.959505+00,2025-10-18 18:06:32.582119+00
+-3053,Apple_Rabbit,U1-L10-Q01,D,1760102890630,2025-10-07 14:23:52.980129+00,2025-10-17 17:54:54.443698+00
+-3054,Kiwi_Monkey,U9-L3-MCQ-Q05,B,1759847034693,2025-10-07 14:23:54.848759+00,2025-10-18 18:06:41.51188+00
+-3055,Kiwi_Monkey,U9-L3-MCQ-Q06,D,1759847037742,2025-10-07 14:23:57.942778+00,2025-10-18 18:07:01.606959+00
+-3056,Kiwi_Monkey,U9-L3-MCQ-Q07,C,1759847048967,2025-10-07 14:24:09.219079+00,2025-10-18 18:07:05.755872+00
+-3057,Kiwi_Monkey,U9-L3-MCQ-Q08,D,1759847052091,2025-10-07 14:24:12.259167+00,2025-10-18 18:07:10.585856+00
+-3058,Kiwi_Monkey,U9-L3-MCQ-Q09,B,1759847055304,2025-10-07 14:24:15.496562+00,2025-10-18 18:07:11.030454+00
+-3060,Kiwi_Monkey,U9-L3-MCQ-Q10,B,1759847057628,2025-10-07 14:24:17.799287+00,2025-10-18 18:07:16.538924+00
+-3061,teacher_man,U1-L10-Q01,D,1759847059710,2025-10-07 14:24:19.556219+00,2025-10-17 17:56:00.845464+00
+-3063,mango_panda,U1-L10-Q04,The shape would be a bell curve. 91.,1759847097532,2025-10-07 14:24:57.867781+00,2025-10-18 13:15:50.011659+00
+-3065,Apple_Monkey,U1-PC-MCQ-A-Q02,E,1759847127520,2025-10-07 14:25:28.235685+00,2025-10-17 17:56:46.40269+00
+-3066,mango_panda,U1-L10-Q05,B,1759847171408,2025-10-07 14:26:11.771068+00,2025-10-18 13:15:50.233125+00
+-3067,Apricot_Horse,U1-L10-Q05,B,1759847182745,2025-10-07 14:26:23.060221+00,2025-10-17 17:55:57.516726+00
+-3068,Apple_Monkey,U1-PC-MCQ-A-Q03,D,1759847187775,2025-10-07 14:26:28.567509+00,2025-10-17 17:56:46.307225+00
+-3069,Guava_Cat,U1-L10-Q05,C,1759847190983,2025-10-07 14:26:31.04906+00,2025-10-18 13:15:42.99789+00
+-3070,Apricot_Fox,U1-L10-Q01,D,1759847192343,2025-10-07 14:26:32.611887+00,2025-10-18 13:16:24.493804+00
+-3071,Kiwi_Monkey,U1-L8-Q01,C,1759847206048,2025-10-07 14:26:46.421787+00,2025-10-18 18:07:28.38749+00
+-3072,Kiwi_Monkey,U1-L8-Q02,D,1759847242563,2025-10-07 14:27:22.798483+00,2025-10-18 18:07:37.493193+00
+-3073,Kiwi_Monkey,U1-L8-Q03,D,1759847257256,2025-10-07 14:27:37.671984+00,2025-10-18 18:07:48.650422+00
+-3074,Guava_Cat,U1-L10-Q07,A,1759847264976,2025-10-07 14:27:45.036066+00,2025-10-18 13:15:43.19156+00
+-3075,Apple_Monkey,U1-PC-MCQ-A-Q04,E,1759847334183,2025-10-07 14:27:45.933792+00,2025-10-17 17:56:46.067915+00
+-3076,teacher_man,U1-L10-Q02,A,1759847288731,2025-10-07 14:28:08.610073+00,2025-10-17 17:56:00.762033+00
+-3077,Apricot_Horse,U1-L10-Q07,B,1759847288710,2025-10-07 14:28:09.033314+00,2025-10-17 17:55:57.441678+00
+-3078,Apricot_Horse,U1-L10-Q08,B,1759847315548,2025-10-07 14:28:35.783281+00,2025-10-17 17:55:57.350558+00
+-3080,Apple_Monkey,U1-PC-MCQ-A-Q05,B,1759847464192,2025-10-07 14:29:28.564003+00,2025-10-17 17:56:45.945255+00
+-3081,mango_panda,U1-L10-Q07,C,1759847378176,2025-10-07 14:29:38.495239+00,2025-10-18 13:15:50.346208+00
+-3082,Kiwi_Monkey,U1-L9-Q01,C,1759847382949,2025-10-07 14:29:43.136802+00,2025-10-18 18:07:49.795688+00
+-3083,Kiwi_Monkey,U1-L9-Q02,C,1759847415968,2025-10-07 14:30:16.182794+00,2025-10-18 18:07:50.027063+00
+-3084,Kiwi_Monkey,U1-L9-Q03,C,1759847426543,2025-10-07 14:30:26.781235+00,2025-10-18 18:08:06.288031+00
+-3085,mango_panda,U1-L10-Q08,E,1759847437949,2025-10-07 14:30:38.185447+00,2025-10-18 13:15:51.562146+00
+-3086,teacher_man,U1-L10-Q03,A,1759847454600,2025-10-07 14:30:54.450848+00,2025-10-17 17:56:00.680538+00
+-3087,Guava_Cat,U1-L10-Q08,A,1759847455657,2025-10-07 14:30:55.733293+00,2025-10-18 13:15:43.418284+00
+-3089,Kiwi_Monkey,U1-L10-Q01,B,1759847469526,2025-10-07 14:31:09.733637+00,2025-10-18 18:08:06.377362+00
+-3090,Kiwi_Monkey,U1-L10-Q02,B,1759847480709,2025-10-07 14:31:20.904792+00,2025-10-18 18:08:06.490976+00
+-3091,Kiwi_Monkey,U1-L10-Q03,C,1759847487287,2025-10-07 14:31:27.482498+00,2025-10-18 18:08:11.489902+00
+-3092,Kiwi_Monkey,U1-L10-Q04,The midpoint of this interval 10+15/2 = $12.50 is a reasonable estimate for the median.,1760102541638,2025-10-07 14:31:41.218074+00,2025-10-17 17:55:20.811735+00
+-3093,Kiwi_Monkey,U1-L10-Q05,B,1760102576751,2025-10-07 14:31:52.60415+00,2025-10-17 17:55:20.608038+00
+-3094,Kiwi_Monkey,U1-L10-Q06,z=1.00,1760102626349,2025-10-07 14:32:23.42617+00,2025-10-17 17:55:20.48086+00
+-3095,Apple_Monkey,U1-PC-MCQ-A-Q06,D,1759847546232,2025-10-07 14:32:27.048595+00,2025-10-17 17:56:45.830914+00
+-3096,Kiwi_Monkey,U1-L10-Q07,C,1760102673761,2025-10-07 14:32:34.512703+00,2025-10-17 17:55:20.387437+00
+-3097,Kiwi_Monkey,U1-L10-Q08,B,1760102679220,2025-10-07 14:32:41.41735+00,2025-10-17 17:55:20.283539+00
+-3098,Papaya_Eagle,U1-L10-Q04,"The histogram shows that most orders were between $10 and $20, with the highest number of orders in the $15 to $20 range. The shape of the data has one main peak and a few smaller values on the higher end, which means it is a bit uneven on the right side. To find the median, we looked for the middle order out of 91. It turns out the median is around $14.80, which means half of the orders cost less than this and half cost more.",1759847706447,2025-10-07 14:35:06.932066+00,2025-10-17 17:56:51.85661+00
+-3099,Apple_Rabbit,U1-L10-Q02,A,1760102864316,2025-10-07 14:37:22.40807+00,2025-10-17 17:54:54.618445+00
+-3100,Lemon_Goat,U1-L10-Q04,"The distribution is a bell shape. 
+-I think the median of the distribution is 13 because i arranged my data from the smallest to highest number than i added the 2 numbers at the middle and divide them by 2 which equals 13.",1759848100375,2025-10-07 14:41:40.705193+00,2025-10-18 13:16:14.843573+00
++id,username,question_id,answer_value,timestamp,created_at,updated_at
++111782,apple_monkey,U2-L4-Q01,C,1762911269408,2025-11-12 01:34:30.084535+00,2025-11-19 13:29:15.148765+00
++111783,apple_monkey,U2-L4-Q02,D,1762911297070,2025-11-12 01:34:57.351454+00,2025-11-19 13:29:14.842056+00
++111784,apple_monkey,U2-L4-Q03,A,1762911355883,2025-11-12 01:35:56.452229+00,2025-11-19 13:29:14.735045+00
++2504,Apple_Monkey,U1-L10-Q01,D,1759793769807,2025-10-06 23:36:10.547392+00,2025-11-19 13:29:58.910647+00
++2506,Apple_Monkey,U1-L10-Q02,A,1759794700231,2025-10-06 23:51:40.845791+00,2025-11-19 13:29:58.797863+00
++2507,Apple_Monkey,U1-L10-Q03,A,1759794738368,2025-10-06 23:52:18.781776+00,2025-11-19 13:29:58.711692+00
++2505,Apple_Monkey,U1-L10-Q05,B,1759794825371,2025-10-06 23:48:30.143305+00,2025-11-19 13:29:58.44138+00
++2510,Apple_Monkey,U1-L10-Q07,C,1759794859874,2025-10-06 23:54:20.404899+00,2025-11-19 13:29:58.333239+00
++2511,Apple_Monkey,U1-L10-Q08,A,1759795403206,2025-10-07 00:03:23.850181+00,2025-11-19 13:29:58.254624+00
++32,Apple_Monkey,U1-L2-Q01,B,1757684023766,2025-09-30 04:29:06.441912+00,2025-11-18 18:48:05.790438+00
++33,Apple_Monkey,U1-L2-Q02,E,1757684040958,2025-09-30 04:29:06.546083+00,2025-11-18 18:48:05.693235+00
++34,Apple_Monkey,U1-L2-Q03,B,1757684052880,2025-09-30 04:29:06.65585+00,2025-11-18 18:48:05.481091+00
++36,Apple_Monkey,U1-L3-Q01,E,1757684204269,2025-09-30 04:29:06.87334+00,2025-11-18 18:48:04.744177+00
++37,Apple_Monkey,U1-L3-Q02,B,1757684212610,2025-09-30 04:29:06.975975+00,2025-11-18 18:48:04.645221+00
++35,Apple_Monkey,U1-L3-Q03,E,1757684188382,2025-09-30 04:29:06.765624+00,2025-11-18 18:48:05.057186+00
++38,Apple_Monkey,U1-L4-Q01,C,1757814304913,2025-09-30 04:29:07.070418+00,2025-11-18 18:48:04.528297+00
++39,Apple_Monkey,U1-L4-Q02,E,1757816164459,2025-09-30 04:29:07.179802+00,2025-11-18 18:48:04.439262+00
++40,Apple_Monkey,U1-L4-Q03,A,1757816170979,2025-09-30 04:29:07.291677+00,2025-11-18 18:48:04.356213+00
++41,Apple_Monkey,U1-L4-Q04,B,1757816181342,2025-09-30 04:29:07.403399+00,2025-11-18 18:48:04.243082+00
++42,Apple_Monkey,U1-L4-Q05,E,1757816187593,2025-09-30 04:29:07.517289+00,2025-11-18 18:48:04.146622+00
++43,Apple_Monkey,U1-L4-Q06,D,1757816194295,2025-09-30 04:29:07.63039+00,2025-11-18 18:48:03.633899+00
++44,Apple_Monkey,U1-L5-Q01,C,1757816632685,2025-09-30 04:29:07.749679+00,2025-11-18 18:48:03.401477+00
++45,Apple_Monkey,U1-L5-Q02,E,1757816638530,2025-09-30 04:29:07.852603+00,2025-11-18 18:48:03.304888+00
++46,Apple_Monkey,U1-L5-Q03,D,1757816651849,2025-09-30 04:29:07.965388+00,2025-11-18 18:48:03.223634+00
++48,Apple_Monkey,U1-L6-Q01,B,1757897609049,2025-09-30 04:29:08.196597+00,2025-11-18 18:48:03.044883+00
++49,Apple_Monkey,U1-L6-Q02,D,1757897697557,2025-09-30 04:29:08.30306+00,2025-11-18 18:48:02.911336+00
++47,Apple_Monkey,U1-L6-Q03,D,1757897551515,2025-09-30 04:29:08.08204+00,2025-11-18 18:48:03.130522+00
++235,Apple_Monkey,U1-L7-Q01,B,1758809748412,2025-09-30 04:35:14.370281+00,2025-11-18 18:48:02.622466+00
++234,Apple_Monkey,U1-L7-Q02,D,1758809739325,2025-09-30 04:35:14.257485+00,2025-11-18 18:48:02.74157+00
++233,Apple_Monkey,U1-L7-Q03,B,1758809737018,2025-09-30 04:35:14.135877+00,2025-11-18 18:48:02.824916+00
++232,Apple_Monkey,U1-L7-Q04,E,1758810064196,2025-09-30 04:35:13.983836+00,2025-11-18 18:48:02.42017+00
++231,Apple_Monkey,U1-L7-Q05,A,1758810056424,2025-09-30 04:35:13.849954+00,2025-11-18 18:48:02.517838+00
++230,Apple_Monkey,U1-L7-Q06,C,1758810096385,2025-09-30 04:35:13.729135+00,2025-11-18 18:48:02.31279+00
++2499,Apple_Monkey,U1-L8-Q01,D,1759792028002,2025-10-06 23:00:25.036561+00,2025-11-19 13:29:59.424481+00
++2501,Apple_Monkey,U1-L8-Q02,C,1759792101690,2025-10-06 23:07:34.981522+00,2025-11-19 13:29:59.345225+00
++2503,Apple_Monkey,U1-L8-Q03,C,1759792125998,2025-10-06 23:08:46.455921+00,2025-11-19 13:29:59.011422+00
++3050,Apple_Monkey,U1-PC-MCQ-A-Q01,B,1759847063302,2025-10-07 14:23:31.627559+00,2025-11-19 13:29:58.186858+00
++3065,Apple_Monkey,U1-PC-MCQ-A-Q02,E,1759847127520,2025-10-07 14:25:28.235685+00,2025-11-19 13:29:57.795273+00
++3068,Apple_Monkey,U1-PC-MCQ-A-Q03,D,1759847187775,2025-10-07 14:26:28.567509+00,2025-11-19 13:29:57.719454+00
++3075,Apple_Monkey,U1-PC-MCQ-A-Q04,E,1759847334183,2025-10-07 14:27:45.933792+00,2025-11-19 13:29:57.630717+00
++3080,Apple_Monkey,U1-PC-MCQ-A-Q05,B,1759847464192,2025-10-07 14:29:28.564003+00,2025-11-19 13:29:57.248406+00
++3095,Apple_Monkey,U1-PC-MCQ-A-Q06,D,1759847546232,2025-10-07 14:32:27.048595+00,2025-11-19 13:29:57.120411+00
++6127,Apple_Monkey,U1-PC-MCQ-A-Q07,E,1760669149404,2025-10-17 02:45:49.769307+00,2025-11-19 13:29:56.543227+00
++6128,Apple_Monkey,U1-PC-MCQ-A-Q08,D,1760669201860,2025-10-17 02:46:42.13618+00,2025-11-19 13:29:55.994453+00
++6129,Apple_Monkey,U1-PC-MCQ-A-Q09,C,1760669364678,2025-10-17 02:48:09.789371+00,2025-11-19 13:29:55.893829+00
++6132,Apple_Monkey,U1-PC-MCQ-A-Q10,E,1760669685949,2025-10-17 02:52:47.705374+00,2025-11-19 13:29:55.390897+00
++6134,Apple_Monkey,U1-PC-MCQ-A-Q11,A,1760669876081,2025-10-17 02:57:56.418662+00,2025-11-19 13:29:55.316134+00
++6135,Apple_Monkey,U1-PC-MCQ-A-Q12,A,1760669984269,2025-10-17 02:59:44.686385+00,2025-11-19 13:29:55.220591+00
++6147,Apple_Monkey,U1-PC-MCQ-A-Q13,C,1760674835669,2025-10-17 04:18:23.732057+00,2025-11-19 13:29:54.730455+00
++6149,Apple_Monkey,U1-PC-MCQ-A-Q14,E,1760674861855,2025-10-17 04:21:02.067585+00,2025-11-19 13:29:54.644254+00
++6150,Apple_Monkey,U1-PC-MCQ-A-Q15,A,1760674944563,2025-10-17 04:22:24.874208+00,2025-11-19 13:29:54.549449+00
++6151,Apple_Monkey,U1-PC-MCQ-A-Q16,A,1760674982056,2025-10-17 04:23:02.270909+00,2025-11-19 13:29:54.459694+00
++6183,Apple_Monkey,U1-PC-MCQ-A-Q17,B,1760707601777,2025-10-17 13:26:42.585688+00,2025-11-19 13:29:54.242919+00
++6184,Apple_Monkey,U1-PC-MCQ-A-Q18,A,1760707629424,2025-10-17 13:27:10.060616+00,2025-11-19 13:29:54.143705+00
++6188,Apple_Monkey,U1-PC-MCQ-B-Q01,C,1760707896547,2025-10-17 13:27:36.925618+00,2025-11-19 13:29:53.972394+00
++7186,Apple_Monkey,U1-PC-MCQ-B-Q02,B,1760708049778,2025-10-17 13:32:48.999407+00,2025-11-19 13:29:53.899116+00
++7197,Apple_Monkey,U1-PC-MCQ-B-Q03,A,1760708282698,2025-10-17 13:35:47.19315+00,2025-11-19 13:29:53.705053+00
++7200,Apple_Monkey,U1-PC-MCQ-B-Q04,C,1760708347278,2025-10-17 13:39:08.099268+00,2025-11-19 13:29:53.603937+00
++6136,Apple_Monkey,U1-PC-MCQ-B-Q05,A,1760670212156,2025-10-17 03:03:32.518112+00,2025-11-19 13:29:54.825498+00
++101385,Apple_Monkey,U1-PC-MCQ-B-Q06,D,1762314445899,2025-11-05 03:47:26.276739+00,2025-11-19 13:29:48.430197+00
++7203,Apple_Monkey,U1-PC-MCQ-B-Q07,D,1762314495125,2025-10-17 13:40:22.718441+00,2025-11-19 13:29:48.318933+00
++101387,Apple_Monkey,U1-PC-MCQ-B-Q08,D,1762314566949,2025-11-05 03:49:27.413457+00,2025-11-19 13:29:48.215495+00
++101388,Apple_Monkey,U1-PC-MCQ-B-Q09,B,1762314866226,2025-11-05 03:51:39.618979+00,2025-11-19 13:29:48.130782+00
++101390,Apple_Monkey,U1-PC-MCQ-B-Q10,C,1762314936446,2025-11-05 03:55:37.092121+00,2025-11-19 13:29:48.015653+00
++101395,Apple_Monkey,U1-PC-MCQ-B-Q11,A,1762315271651,2025-11-05 04:01:12.411074+00,2025-11-19 13:29:47.601071+00
++101394,Apple_Monkey,U1-PC-MCQ-B-Q12,D,1762315131811,2025-11-05 03:58:52.34133+00,2025-11-19 13:29:47.677147+00
++101393,Apple_Monkey,U1-PC-MCQ-B-Q13,B,1762315064216,2025-11-05 03:57:44.319999+00,2025-11-19 13:29:47.760092+00
++101392,Apple_Monkey,U1-PC-MCQ-B-Q14,B,1762315036791,2025-11-05 03:57:16.951308+00,2025-11-19 13:29:47.837882+00
++101391,Apple_Monkey,U1-PC-MCQ-B-Q15,B,1762314994081,2025-11-05 03:56:34.382216+00,2025-11-19 13:29:47.921092+00
++101384,Apple_Monkey,U1-PC-MCQ-B-Q16,E,1762314346212,2025-11-05 03:45:46.833374+00,2025-11-19 13:29:48.675043+00
++101383,Apple_Monkey,U1-PC-MCQ-B-Q17,C,1762314251253,2025-11-05 03:44:11.737172+00,2025-11-19 13:29:48.758728+00
++13297,Apple_Monkey,U1-PC-MCQ-B-Q18,D,1762314089699,2025-10-20 15:43:57.53341+00,2025-11-19 13:29:48.82726+00
++31,Apple_Monkey,U2-L2-Q01,C,1761273439248,2025-09-30 04:29:06.326266+00,2025-11-19 13:29:52.828099+00
++20787,Apple_Monkey,U2-L2-Q02,D,1761273530547,2025-10-24 02:38:50.934392+00,2025-11-19 13:29:52.494998+00
++20788,Apple_Monkey,U2-L2-Q03,A,1761274892304,2025-10-24 03:01:32.731196+00,2025-11-19 13:29:52.397547+00
++20789,Apple_Monkey,U2-L3-Q01,B,1761279681594,2025-10-24 04:21:22.089168+00,2025-11-19 13:29:52.068249+00
++20790,Apple_Monkey,U2-L3-Q02,A,1761279831260,2025-10-24 04:21:48.037734+00,2025-11-19 13:29:51.808835+00
++152172,Apple_Monkey,U2-L3-Q03,C,1763619282503,2025-11-20 06:14:43.383678+00,2025-11-20 20:08:42.91436+00
++20795,Apple_Monkey,U2-L3-Q04,E,1761280520593,2025-10-24 04:35:21.224433+00,2025-11-19 13:29:51.180107+00
++20792,Apple_Monkey,U2-L3-Q05,A,1763619297254,2025-10-24 04:29:35.890459+00,2025-11-20 20:08:58.155836+00
++20796,Apple_Monkey,U2-L3-Q06,C,1761280591965,2025-10-24 04:36:32.39126+00,2025-11-19 13:29:50.690651+00
++76791,Apple_Monkey,U2-L4-Q01,C,1762181020579,2025-11-03 14:43:40.964168+00,2025-11-19 13:29:50.504039+00
++76792,Apple_Monkey,U2-L4-Q02,D,1762181099776,2025-11-03 14:43:52.764008+00,2025-11-19 13:29:49.327136+00
++76886,Apple_Monkey,U2-L4-Q03,E,1762181240203,2025-11-03 14:46:39.716341+00,2025-11-19 13:29:48.933166+00
++152177,Apple_Monkey,U2-L5-Q01,E,1763619455765,2025-11-20 06:16:59.169624+00,2025-11-20 20:09:09.264305+00
++124404,Apple_Monkey,U2-L5-Q02,E,1763050170437,2025-11-13 16:09:31.020021+00,2025-11-19 13:29:47.516406+00
++152176,Apple_Monkey,U2-L5-Q03,C,1763619388450,2025-11-20 06:16:28.92082+00,2025-11-20 20:09:08.663729+00
++152175,Apple_Monkey,U2-L5-Q04,D,1763619359379,2025-11-20 06:15:59.793725+00,2025-11-20 20:09:07.759+00
++124408,Apple_Monkey,U2-L5-Q05,C,1763050327880,2025-11-13 16:12:08.381009+00,2025-11-19 13:29:47.031346+00
++124405,Apple_Monkey,U2-L5-Q06,B,1763050256021,2025-11-13 16:10:56.376142+00,2025-11-19 13:29:47.110311+00
++152180,Apple_Monkey,U2-L6-Q01,E,1763619533146,2025-11-20 06:18:53.615323+00,2025-11-20 20:09:10.983111+00
++152181,Apple_Monkey,U2-L6-Q02,D,1763619572807,2025-11-20 06:19:33.192209+00,2025-11-20 20:09:11.136868+00
++152179,Apple_Monkey,U2-L6-Q03,D,1763619478714,2025-11-20 06:17:59.092175+00,2025-11-20 20:09:10.068696+00
++152182,Apple_Monkey,U2-L7-Q01,E,1763619894600,2025-11-20 06:23:19.530377+00,2025-11-20 20:09:11.40987+00
++152184,Apple_Monkey,U2-L7-Q02,B,1763619905569,2025-11-20 06:25:06.00499+00,2025-11-20 20:09:11.714908+00
++152185,Apple_Monkey,U2-L7-Q03,D,1763620151161,2025-11-20 06:27:35.09086+00,2025-11-20 20:09:11.795994+00
++521,apple_rabbit,U1-L2-Q01,B,1757683639793,2025-09-30 05:32:09.637542+00,2025-11-24 18:18:49.351835+00
++522,apple_rabbit,U1-L2-Q02,E,1757683678357,2025-09-30 05:32:09.743176+00,2025-11-24 18:18:49.232739+00
++523,apple_rabbit,U1-L2-Q03,B,1757683740521,2025-09-30 05:32:09.82644+00,2025-11-24 18:18:49.114866+00
++525,apple_rabbit,U1-L3-Q01,E,1757683806403,2025-09-30 05:32:09.978684+00,2025-11-24 18:18:48.936842+00
++526,apple_rabbit,U1-L3-Q02,B,1757683809760,2025-09-30 05:32:10.054604+00,2025-11-24 18:18:48.809416+00
++524,apple_rabbit,U1-L3-Q03,E,1757683800760,2025-09-30 05:32:09.906535+00,2025-11-24 18:18:49.007241+00
++532,apple_rabbit,U1-L4-Q01,C,1757943411890,2025-09-30 05:32:10.958566+00,2025-11-24 18:18:48.199306+00
++531,apple_rabbit,U1-L4-Q02,D,1757943409770,2025-09-30 05:32:10.855841+00,2025-11-24 18:18:48.309089+00
++530,apple_rabbit,U1-L4-Q03,A,1757943407685,2025-09-30 05:32:10.424312+00,2025-11-24 18:18:48.386594+00
++529,apple_rabbit,U1-L4-Q04,B,1757943405277,2025-09-30 05:32:10.312271+00,2025-11-24 18:18:48.483351+00
++528,apple_rabbit,U1-L4-Q05,E,1757943403365,2025-09-30 05:32:10.221527+00,2025-11-24 18:18:48.582377+00
++527,apple_rabbit,U1-L4-Q06,D,1757943401521,2025-09-30 05:32:10.133403+00,2025-11-24 18:18:48.713133+00
++533,apple_rabbit,U1-L5-Q01,C,1758204280227,2025-09-30 05:32:11.063655+00,2025-11-24 18:18:48.120135+00
++534,apple_rabbit,U1-L5-Q02,E,1758204342964,2025-09-30 05:32:11.15706+00,2025-11-24 18:18:48.042918+00
++535,apple_rabbit,U1-L5-Q03,D,1758204429556,2025-09-30 05:32:11.232506+00,2025-11-24 18:18:47.962994+00
++3053,Apple_Rabbit,U1-L10-Q01,D,1760102890630,2025-10-07 14:23:52.980129+00,2025-11-24 18:18:27.914392+00
++3099,Apple_Rabbit,U1-L10-Q02,A,1760102864316,2025-10-07 14:37:22.40807+00,2025-11-24 18:18:28.024866+00
++3796,Apple_Rabbit,U1-L10-Q03,A,1760111549707,2025-10-09 14:25:42.771414+00,2025-11-24 18:18:27.749077+00
++3808,Apple_Rabbit,U1-L10-Q04,done on paper,1760452040622,2025-10-09 14:46:02.800027+00,2025-11-24 18:18:27.651787+00
++3812,Apple_Rabbit,U1-L10-Q05,D,1760663657666,2025-10-09 14:51:15.246724+00,2025-11-24 18:18:28.187842+00
++6065,Apple_Rabbit,U1-L10-Q06,"A.) In order to calculate Clay's marathon time we need to subtract the data value (289 minutes) by the mean (242 minutes) and divide by the standard deviation (29 minutes) which would give us 1.62 standard deviations. Clay's standardized score was 1.62 standard deviations slower than that of the average man in the marathon. 
++
++B.) In order to calculate Kathy's marathon time we need to subtract the data value (272 minutes) by the mean (259 minutes) and divide by the standard deviation (32 minutes) which would give us 0.41 standard deviations. Using the z-score table, that would be equal to 0.6591. 65.91% of women in the race has a lesser finishing time than Kathy. 
++
++C.) The finishing times of women were much more variant, leading to greater standard deviation, compared to that of the men who most likely finished in a similar time region.",1760664881105,2025-10-17 01:34:41.254586+00,2025-11-24 18:18:46.657879+00
++6083,Apple_Rabbit,U1-L10-Q07,C,1760665192752,2025-10-17 01:39:52.852462+00,2025-11-24 18:18:46.538995+00
++6109,Apple_Rabbit,U1-L10-Q08,A,1760665505634,2025-10-17 01:44:27.192857+00,2025-11-24 18:18:46.479314+00
++65,Apple_Rabbit,U1-L2-Q01,B,1757683639793,2025-09-30 04:29:17.281462+00,2025-11-24 18:18:40.443935+00
++66,Apple_Rabbit,U1-L2-Q02,E,1757683678357,2025-09-30 04:29:17.375794+00,2025-11-24 18:18:40.32527+00
++67,Apple_Rabbit,U1-L2-Q03,B,1757683740521,2025-09-30 04:29:17.484625+00,2025-11-24 18:18:40.059506+00
++69,Apple_Rabbit,U1-L3-Q01,E,1757683806403,2025-09-30 04:29:17.71571+00,2025-11-24 18:18:39.882372+00
++70,Apple_Rabbit,U1-L3-Q02,B,1757683809760,2025-09-30 04:29:17.836505+00,2025-11-24 18:18:39.764169+00
++68,Apple_Rabbit,U1-L3-Q03,E,1757683800760,2025-09-30 04:29:17.596266+00,2025-11-24 18:18:39.968989+00
++298,Apple_Rabbit,U1-L4-Q01,C,1757943411890,2025-09-30 04:35:21.881009+00,2025-11-24 18:18:30.844215+00
++297,Apple_Rabbit,U1-L4-Q02,D,1757943409770,2025-09-30 04:35:21.761083+00,2025-11-24 18:18:30.910841+00
++296,Apple_Rabbit,U1-L4-Q03,A,1757943407685,2025-09-30 04:35:21.650973+00,2025-11-24 18:18:32.111431+00
++295,Apple_Rabbit,U1-L4-Q04,B,1757943405277,2025-09-30 04:35:21.540872+00,2025-11-24 18:18:32.268763+00
++294,Apple_Rabbit,U1-L4-Q05,E,1757943403365,2025-09-30 04:35:21.441742+00,2025-11-24 18:18:39.59065+00
++293,Apple_Rabbit,U1-L4-Q06,D,1757943401521,2025-09-30 04:35:21.332451+00,2025-11-24 18:18:39.668595+00
++299,Apple_Rabbit,U1-L5-Q01,C,1758204280227,2025-09-30 04:35:21.990367+00,2025-11-24 18:18:30.700546+00
++300,Apple_Rabbit,U1-L5-Q02,E,1758204342964,2025-09-30 04:35:22.116653+00,2025-11-24 18:18:30.597432+00
++301,Apple_Rabbit,U1-L5-Q03,D,1758204429556,2025-09-30 04:35:22.271559+00,2025-11-24 18:18:30.455501+00
++302,Apple_Rabbit,U1-L6-Q01,B,1758286859140,2025-09-30 04:35:22.508936+00,2025-11-24 18:18:30.384297+00
++303,Apple_Rabbit,U1-L6-Q02,E,1758286864964,2025-09-30 04:35:22.611838+00,2025-11-24 18:18:30.252899+00
++304,Apple_Rabbit,U1-L6-Q03,D,1758286868273,2025-09-30 04:35:22.732755+00,2025-11-24 18:18:30.051381+00

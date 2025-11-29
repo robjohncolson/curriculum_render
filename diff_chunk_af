@@ -1,0 +1,2832 @@
++        username,
++        realName,
++        password,
++        userType: 'student'
++      })
++    });
++
++    const data = await response.json();
++
++    if (!response.ok) {
++      throw new Error(data.error || 'Failed to create account');
++    }
++
++    // Success! Log the user in
++    await loginAsUser(data.user);
++
++    if (window.showToast) {
++      showToast(`Welcome, ${realName}! Your username is ${username}`, 'success', 5000);
++    }
++
++  } catch (error) {
++    errorDiv.textContent = error.message;
++    errorDiv.style.display = 'block';
++  }
++}
++
++/**
++ * Render the password setup step (for existing users without password)
++ */
++function renderPasswordSetupStep() {
++  const content = document.getElementById('userManagementContent');
++  if (!content) return;
++
++  const user = userManagementState.selectedUser;
++
++  content.innerHTML = `
++    <div class="um-password-setup-step">
++      <h2>Set Up Your Password</h2>
++      <p>Hi ${user?.realName || 'there'}! Create a password to secure your account.</p>
++
++      <div class="um-form">
++        <div class="um-field">
++          <label for="setupPassword">Create a Password</label>
++          <input type="password" id="setupPassword" placeholder="Choose a password you'll remember">
++        </div>
++
++        <div class="um-field">
++          <label for="setupPasswordConfirm">Confirm Password</label>
++          <input type="password" id="setupPasswordConfirm" placeholder="Type your password again">
++        </div>
++
++        <div class="um-error" id="setupError" style="display: none;"></div>
++
++        <div class="um-actions">
++          <button class="um-btn um-btn-secondary" onclick="selectUserType('existing')">Back</button>
++          <button class="um-btn um-btn-primary" onclick="submitPasswordSetup()">Set Password</button>
++        </div>
++      </div>
++    </div>
++  `;
++}
++
++/**
++ * Submit password setup for existing user
++ */
++async function submitPasswordSetup() {
++  const password = document.getElementById('setupPassword').value;
++  const passwordConfirm = document.getElementById('setupPasswordConfirm').value;
++  const errorDiv = document.getElementById('setupError');
++
++  if (!password) {
++    errorDiv.textContent = 'Please create a password';
++    errorDiv.style.display = 'block';
++    return;
++  }
++
++  if (password !== passwordConfirm) {
++    errorDiv.textContent = 'Passwords do not match';
++    errorDiv.style.display = 'block';
++    return;
++  }
++
++  errorDiv.style.display = 'none';
++
++  const user = userManagementState.selectedUser;
++  if (!user) {
++    errorDiv.textContent = 'No user selected';
++    errorDiv.style.display = 'block';
++    return;
++  }
++
++  try {
++    const serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculum-render-production.up.railway.app';
++    const response = await fetch(`${serverUrl}/api/users/${user.username}`, {
++      method: 'PUT',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ password })
++    });
++
++    const data = await response.json();
++
++    if (!response.ok) {
++      throw new Error(data.error || 'Failed to set password');
++    }
++
++    // Success! Log the user in
++    await loginAsUser(data.user);
++
++  } catch (error) {
++    errorDiv.textContent = error.message;
++    errorDiv.style.display = 'block';
++  }
++}
++
++/**
++ * Render the teacher login step
++ */
++function renderTeacherStep() {
++  const content = document.getElementById('userManagementContent');
++  if (!content) return;
++
++  content.innerHTML = `
++    <div class="um-teacher-step">
++      <h2>Teacher Access</h2>
++      <p>Enter the teacher password to continue</p>
++
++      <div class="um-form">
++        <div class="um-field">
++          <label for="teacherPassword">Teacher Password</label>
++          <input type="password" id="teacherPassword" placeholder="Enter teacher password">
++        </div>
++
++        <div class="um-error" id="teacherError" style="display: none;"></div>
++
++        <div class="um-actions">
++          <button class="um-btn um-btn-secondary" onclick="selectUserType('choice')">Back</button>
++          <button class="um-btn um-btn-primary" onclick="submitTeacherLogin()">Access Dashboard</button>
++        </div>
++      </div>
++    </div>
++  `;
++
++  // Focus the password field
++  setTimeout(() => {
++    document.getElementById('teacherPassword')?.focus();
++  }, 100);
++}
++
++/**
++ * Submit teacher login
++ */
++function submitTeacherLogin() {
++  const password = document.getElementById('teacherPassword').value;
++  const errorDiv = document.getElementById('teacherError');
++
++  if (password !== MASTER_PASSWORD) {
++    errorDiv.textContent = 'Invalid teacher password';
++    errorDiv.style.display = 'block';
++    return;
++  }
++
++  // Success! Set teacher mode and show dashboard
++  userManagementState.isTeacher = true;
++  window.isTeacherMode = true;
++
++  closeUserManagementModal();
++  showTeacherDashboard();
++
++  if (window.showToast) {
++    showToast('Teacher mode activated', 'success');
++  }
++
++  // Update FAB menu to show teacher options
++  updateFabMenuForUserType();
++}
++
++// ========================================
++// LOGIN & SESSION
++// ========================================
++
++/**
++ * Log in as a specific user
++ */
++async function loginAsUser(user) {
++  // Set the current username globally
++  currentUsername = user.username;
++  window.currentUsername = user.username;
++
++  // Store in IndexedDB and localStorage
++  await AppDB.setStoredUsername(user.username);
++
++  // Store user info for display
++  localStorage.setItem('currentUserRealName', user.realName);
++  localStorage.setItem('currentUserType', user.userType);
++
++  // Initialize class data
++  await initClassData();
++  initializeProgressTracking();
++
++  // Update UI
++  updateCurrentUsernameDisplay();
++  closeUserManagementModal();
++
++  // Refresh the page content
++  if (typeof initializeFromEmbeddedData === 'function') {
++    initializeFromEmbeddedData();
++  }
++
++  if (window.showToast) {
++    showToast(`Welcome, ${user.realName}!`, 'success');
++  }
++
++  // Update FAB menu
++  updateFabMenuForUserType();
++}
++
++/**
++ * Update the FAB menu and sync modal based on user type
++ */
++function updateFabMenuForUserType() {
++  const teacherDashboardBtn = document.getElementById('fabTeacherDashboard');
++  const teacherActionsSection = document.getElementById('teacherActionsSection');
++
++  if (teacherDashboardBtn) {
++    if (window.isTeacherMode) {
++      teacherDashboardBtn.style.display = 'flex';
++    } else {
++      teacherDashboardBtn.style.display = 'none';
++    }
++  }
++
++  // Also show/hide teacher actions in sync modal
++  if (teacherActionsSection) {
++    if (window.isTeacherMode) {
++      teacherActionsSection.style.display = 'block';
++    } else {
++      teacherActionsSection.style.display = 'none';
++    }
++  }
++}
++
++/**
++ * Get the current user's real name
++ */
++function getCurrentUserRealName() {
++  return localStorage.getItem('currentUserRealName') || currentUsername || 'Student';
++}
++
++/**
++ * Log out the current user and return to onboarding screen
++ */
++async function logoutUser() {
++  // Confirm logout
++  if (!confirm('Are you sure you want to log out? You will need to sign in again.')) {
++    return;
++  }
++
++  // Clear username from storage
++  localStorage.removeItem('consensusUsername');
++  localStorage.removeItem('currentUserRealName');
++  localStorage.removeItem('currentUserType');
++
++  // Clear from IndexedDB
++  if (window.AppDB && typeof AppDB.setStoredUsername === 'function') {
++    await AppDB.setStoredUsername(null);
++  }
++
++  // Reset global state
++  window.currentUsername = null;
++  if (typeof currentUsername !== 'undefined') {
++    currentUsername = null;
++  }
++
++  // Reset teacher mode
++  window.isTeacherMode = false;
++  userManagementState.isTeacher = false;
++
++  // Close the modal
++  closeUserManagementModal();
++
++  // Show the onboarding/welcome screen
++  if (typeof showWelcomeScreen === 'function') {
++    showWelcomeScreen();
++  } else {
++    // Fallback: reload the page
++    window.location.reload();
++  }
++
++  if (window.showToast) {
++    showToast('You have been logged out', 'info');
++  }
++}
++
++window.logoutUser = logoutUser;
++
++// ========================================
++// EXPORTS
++// ========================================
++
++window.showUserManagementModal = showUserManagementModal;
++window.closeUserManagementModal = closeUserManagementModal;
++window.selectUserType = selectUserType;
++window.onExistingUserSelect = onExistingUserSelect;
++window.submitExistingUser = submitExistingUser;
++window.submitNewUser = submitNewUser;
++window.submitPasswordSetup = submitPasswordSetup;
++window.submitTeacherLogin = submitTeacherLogin;
++window.updateFabMenuForUserType = updateFabMenuForUserType;
++window.getCurrentUserRealName = getCurrentUserRealName;
++window.userManagementState = userManagementState;
+diff --git a/level_editor.html b/level_editor.html
+new file mode 100644
+index 0000000..0564c61
+--- /dev/null
++++ b/level_editor.html
+@@ -0,0 +1,1324 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++  <meta charset="UTF-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1.0">
++  <title>Study Buddy Level Editor</title>
++  <style>
++    * {
++      margin: 0;
++      padding: 0;
++      box-sizing: border-box;
++    }
++
++    body {
++      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
++      background: #1a1a2e;
++      color: #eee;
++      min-height: 100vh;
++      display: flex;
++    }
++
++    /* Sidebar */
++    .sidebar {
++      width: 280px;
++      background: #16213e;
++      padding: 20px;
++      display: flex;
++      flex-direction: column;
++      gap: 16px;
++      overflow-y: auto;
++      max-height: 100vh;
++    }
++
++    .sidebar h1 {
++      font-size: 18px;
++      color: #4ecca3;
++      border-bottom: 1px solid #4ecca3;
++      padding-bottom: 10px;
++    }
++
++    .sidebar h2 {
++      font-size: 14px;
++      color: #888;
++      margin-top: 10px;
++    }
++
++    .control-group {
++      display: flex;
++      flex-direction: column;
++      gap: 8px;
++    }
++
++    .control-group label {
++      font-size: 12px;
++      color: #aaa;
++    }
++
++    .control-group input[type="number"],
++    .control-group input[type="text"],
++    .control-group select {
++      background: #0f3460;
++      border: 1px solid #4ecca3;
++      color: #fff;
++      padding: 8px;
++      border-radius: 4px;
++      font-size: 14px;
++    }
++
++    .control-group input[type="range"] {
++      width: 100%;
++    }
++
++    .range-value {
++      font-size: 12px;
++      color: #4ecca3;
++      text-align: right;
++    }
++
++    button {
++      background: #4ecca3;
++      color: #1a1a2e;
++      border: none;
++      padding: 10px 16px;
++      border-radius: 4px;
++      cursor: pointer;
++      font-weight: bold;
++      font-size: 14px;
++      transition: background 0.2s;
++    }
++
++    button:hover {
++      background: #3db892;
++    }
++
++    button.secondary {
++      background: #0f3460;
++      color: #4ecca3;
++      border: 1px solid #4ecca3;
++    }
++
++    button.secondary:hover {
++      background: #1a4a7a;
++    }
++
++    button.danger {
++      background: #e94560;
++      color: #fff;
++    }
++
++    button.danger:hover {
++      background: #d63850;
++    }
++
++    .button-row {
++      display: flex;
++      gap: 8px;
++    }
++
++    .button-row button {
++      flex: 1;
++    }
++
++    /* Main canvas area */
++    .main {
++      flex: 1;
++      display: flex;
++      flex-direction: column;
++      padding: 20px;
++      gap: 16px;
++    }
++
++    .toolbar {
++      display: flex;
++      gap: 12px;
++      align-items: center;
++      flex-wrap: wrap;
++    }
++
++    .toolbar .unit-selector {
++      display: flex;
++      align-items: center;
++      gap: 8px;
++    }
++
++    .toolbar select {
++      background: #0f3460;
++      border: 1px solid #4ecca3;
++      color: #fff;
++      padding: 8px 12px;
++      border-radius: 4px;
++      font-size: 14px;
++    }
++
++    .canvas-container {
++      flex: 1;
++      background: #0f0f23;
++      border: 2px solid #4ecca3;
++      border-radius: 8px;
++      position: relative;
++      overflow: hidden;
++    }
++
++    #levelCanvas {
++      display: block;
++      cursor: crosshair;
++    }
++
++    /* Draggable indicators */
++    .drag-handle {
++      position: absolute;
++      width: 20px;
++      height: 20px;
++      background: #e94560;
++      border: 2px solid #fff;
++      border-radius: 50%;
++      cursor: grab;
++      transform: translate(-50%, -50%);
++      z-index: 10;
++    }
++
++    .drag-handle:active {
++      cursor: grabbing;
++    }
++
++    .drag-handle.door {
++      background: #4ecca3;
++    }
++
++    .drag-handle.cliff {
++      background: #f39c12;
++      width: 12px;
++      height: 40px;
++      border-radius: 4px;
++    }
++
++    .drag-handle.spawn {
++      background: #9b59b6;
++    }
++
++    /* Instructions */
++    .instructions {
++      background: #0f3460;
++      padding: 12px;
++      border-radius: 4px;
++      font-size: 12px;
++      line-height: 1.6;
++    }
++
++    .instructions h3 {
++      color: #4ecca3;
++      margin-bottom: 8px;
++    }
++
++    .instructions kbd {
++      background: #1a1a2e;
++      padding: 2px 6px;
++      border-radius: 3px;
++      font-family: monospace;
++    }
++
++    /* JSON output area */
++    .json-output {
++      background: #0a0a1a;
++      border: 1px solid #333;
++      border-radius: 4px;
++      padding: 12px;
++      font-family: monospace;
++      font-size: 11px;
++      max-height: 200px;
++      overflow-y: auto;
++      white-space: pre-wrap;
++      word-break: break-all;
++    }
++
++    /* Status bar */
++    .status-bar {
++      display: flex;
++      justify-content: space-between;
++      font-size: 12px;
++      color: #888;
++      padding: 8px 0;
++      border-top: 1px solid #333;
++    }
++
++    .status-bar .coords {
++      color: #4ecca3;
++    }
++
++    /* Level list */
++    .level-list {
++      display: flex;
++      flex-direction: column;
++      gap: 4px;
++      max-height: 150px;
++      overflow-y: auto;
++    }
++
++    .level-item {
++      display: flex;
++      justify-content: space-between;
++      align-items: center;
++      padding: 8px;
++      background: #0f3460;
++      border-radius: 4px;
++      cursor: pointer;
++    }
++
++    .level-item:hover {
++      background: #1a4a7a;
++    }
++
++    .level-item.active {
++      border: 1px solid #4ecca3;
++    }
++
++    .level-item .delete-btn {
++      background: none;
++      border: none;
++      color: #e94560;
++      cursor: pointer;
++      padding: 2px 6px;
++      font-size: 14px;
++    }
++
++    /* Test mode overlay */
++    .test-overlay {
++      position: absolute;
++      top: 10px;
++      left: 10px;
++      background: rgba(0,0,0,0.8);
++      padding: 10px 16px;
++      border-radius: 4px;
++      font-size: 12px;
++      z-index: 100;
++    }
++
++    .test-overlay.hidden {
++      display: none;
++    }
++  </style>
++</head>
++<body>
++  <div class="sidebar">
++    <h1>Level Editor</h1>
++
++    <div class="control-group">
++      <label>Current Level</label>
++      <select id="levelSelect">
++        <option value="unit1">Unit 1</option>
++        <option value="unit2">Unit 2</option>
++        <option value="unit3" selected>Unit 3</option>
++        <option value="unit4">Unit 4</option>
++        <option value="unit5">Unit 5</option>
++        <option value="unit6">Unit 6</option>
++        <option value="unit7">Unit 7</option>
++        <option value="unit8">Unit 8</option>
++        <option value="unit9">Unit 9</option>
++      </select>
++    </div>
++
++    <h2>Room Settings</h2>
++    <div class="control-group">
++      <label>Room Width: <span id="roomWidthVal">1200</span>px</label>
++      <input type="range" id="roomWidth" min="800" max="2000" value="1200" step="50">
++    </div>
++
++    <h2>Incline/Ramp Settings</h2>
++    <div class="control-group">
++      <label>Incline Start X: <span id="inclineStartXVal">50</span>px</label>
++      <input type="range" id="inclineStartX" min="0" max="400" value="50" step="10">
++    </div>
++    <div class="control-group">
++      <label>Incline End X (Cliff Edge): <span id="cliffEdgeXVal">800</span>px</label>
++      <input type="range" id="cliffEdgeX" min="400" max="1600" value="800" step="10">
++    </div>
++    <div class="control-group">
++      <label>Cliff Height: <span id="cliffHeightVal">250</span>px</label>
++      <input type="range" id="cliffHeight" min="100" max="400" value="250" step="10">
++    </div>
++
++    <h2>Door Settings</h2>
++    <div class="control-group">
++      <label>Door X: <span id="doorXVal">1080</span>px</label>
++      <input type="range" id="doorX" min="500" max="1800" value="1080" step="10">
++    </div>
++    <div class="control-group">
++      <label>Extra Elevation: <span id="doorElevationVal">30</span>px</label>
++      <input type="range" id="doorElevation" min="0" max="100" value="30" step="5">
++    </div>
++
++    <h2>Block Spawn (Independent)</h2>
++    <div class="control-group">
++      <label>Spawn X: <span id="spawnXVal">650</span>px</label>
++      <input type="range" id="spawnX" min="100" max="1500" value="650" step="10">
++    </div>
++    <div class="control-group">
++      <label>Spawn Y: <span id="spawnYVal">200</span>px from ground</label>
++      <input type="range" id="spawnY" min="50" max="400" value="200" step="10">
++    </div>
++
++    <div class="button-row">
++      <button id="testBtn">Test Play</button>
++      <button id="stopTestBtn" class="secondary" disabled>Stop Test</button>
++    </div>
++
++    <h2>Export/Import</h2>
++    <div class="button-row">
++      <button id="exportBtn">Export JSON</button>
++      <button id="importBtn" class="secondary">Import JSON</button>
++    </div>
++    <div class="button-row">
++      <button id="copyBtn" class="secondary">Copy to Clipboard</button>
++    </div>
++
++    <div class="instructions">
++      <h3>Instructions</h3>
++      <p>Drag elements on canvas or use sliders.</p>
++      <p><kbd>Space</kbd> - Test play toggle</p>
++      <p><kbd>1-9</kbd> - Switch unit level</p>
++      <p><kbd>S</kbd> - Save current level</p>
++      <p><kbd>E</kbd> - Export all levels</p>
++    </div>
++  </div>
++
++  <div class="main">
++    <div class="toolbar">
++      <span>Editing: <strong id="currentLevelName">Unit 3</strong></span>
++      <span style="color: #888">|</span>
++      <span>Blocks needed: <strong id="blocksNeeded">2</strong></span>
++      <span style="color: #888">|</span>
++      <span>Door height: <strong id="doorHeightDisplay">0</strong>px</span>
++    </div>
++
++    <div class="canvas-container">
++      <canvas id="levelCanvas"></canvas>
++      <div class="test-overlay hidden" id="testOverlay">
++        <strong>TEST MODE</strong> - Press Space or Esc to exit<br>
++        Arrow keys / WASD to move
++      </div>
++    </div>
++
++    <div class="status-bar">
++      <span>Mouse: <span class="coords" id="mouseCoords">0, 0</span></span>
++      <span id="statusText">Ready</span>
++    </div>
++
++    <h2 style="margin-top: 10px; font-size: 14px; color: #888;">JSON Output</h2>
++    <div class="json-output" id="jsonOutput">{}</div>
++  </div>
++
++  <input type="file" id="fileInput" accept=".json" style="display: none">
++
++  <!-- Load game dependencies for test mode -->
++  <script src="js/sprite_sheet.js"></script>
++  <script src="js/canvas_engine.js"></script>
++  <script src="js/entities/exit_door.js"></script>
++  <script src="js/entities/unit_block.js"></script>
++  <script src="js/entities/player_sprite.js"></script>
++  <script src="js/study_buddy_room.js"></script>
++
++  <script>
++    // Level Editor Application
++    class LevelEditor {
++      constructor() {
++        this.canvas = document.getElementById('levelCanvas');
++        this.ctx = this.canvas.getContext('2d');
++
++        // Default level data for all units
++        // blockSpawn is now independent: { x, y } where y is distance from ground
++        this.levels = {
++          unit1: { roomWidth: 1200, incline: null, door: { x: 1080, elevation: 0 }, blockSpawn: null },
++          unit2: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit3: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit4: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit5: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit6: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit7: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit8: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++          unit9: { roomWidth: 1200, incline: { startX: 50, endX: 800, height: 250 }, door: { x: 1080, elevation: 30 }, blockSpawn: { x: 650, y: 250 } },
++        };
++
++        this.currentLevel = 'unit3';
++        this.groundHeight = 50;
++        this.viewportHeight = 500;
++
++        // Dragging state
++        this.dragging = null;
++        this.dragOffset = { x: 0, y: 0 };
++
++        // Test mode state
++        this.testMode = false;
++        this.testEngine = null;
++        this.testRoom = null;
++
++        // Camera offset for preview
++        this.cameraX = 0;
++
++        // Current scale factor (set during render)
++        this.scale = 1;
++
++        this.init();
++      }
++
++      init() {
++        this.setupCanvas();
++        this.bindControls();
++        this.bindEvents();
++        this.loadFromLocalStorage();
++        this.updateControlsFromLevel();
++        this.render();
++      }
++
++      setupCanvas() {
++        const container = this.canvas.parentElement;
++        const rect = container.getBoundingClientRect();
++        this.canvas.width = rect.width;
++        this.canvas.height = rect.height;
++        this.viewportHeight = rect.height;
++      }
++
++      get groundY() {
++        return this.viewportHeight - this.groundHeight;
++      }
++
++      get level() {
++        return this.levels[this.currentLevel];
++      }
++
++      get unitNumber() {
++        return parseInt(this.currentLevel.replace('unit', ''));
++      }
++
++      get blocksNeeded() {
++        return Math.max(0, this.unitNumber - 1);
++      }
++
++      bindControls() {
++        // Level selector
++        document.getElementById('levelSelect').addEventListener('change', (e) => {
++          this.currentLevel = e.target.value;
++          this.updateControlsFromLevel();
++          this.render();
++        });
++
++        // Sliders
++        const sliders = ['roomWidth', 'inclineStartX', 'cliffEdgeX', 'cliffHeight', 'doorX', 'doorElevation', 'spawnX', 'spawnY'];
++        sliders.forEach(id => {
++          const slider = document.getElementById(id);
++          slider.addEventListener('input', () => this.onSliderChange(id, slider.value));
++        });
++
++        // Buttons
++        document.getElementById('testBtn').addEventListener('click', () => this.startTestMode());
++        document.getElementById('stopTestBtn').addEventListener('click', () => this.stopTestMode());
++        document.getElementById('exportBtn').addEventListener('click', () => this.exportLevels());
++        document.getElementById('importBtn').addEventListener('click', () => this.importLevels());
++        document.getElementById('copyBtn').addEventListener('click', () => this.copyToClipboard());
++
++        // File input
++        document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileImport(e));
++      }
++
++      bindEvents() {
++        // Mouse events for dragging
++        this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
++        this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
++        this.canvas.addEventListener('mouseup', () => this.onMouseUp());
++        this.canvas.addEventListener('mouseleave', () => this.onMouseUp());
++
++        // Keyboard shortcuts
++        document.addEventListener('keydown', (e) => this.onKeyDown(e));
++
++        // Window resize
++        window.addEventListener('resize', () => {
++          this.setupCanvas();
++          this.render();
++        });
++      }
++
++      onSliderChange(id, value) {
++        value = parseInt(value);
++        const level = this.level;
++
++        switch (id) {
++          case 'roomWidth':
++            level.roomWidth = value;
++            document.getElementById('roomWidthVal').textContent = value;
++            break;
++          case 'inclineStartX':
++            if (level.incline) level.incline.startX = value;
++            document.getElementById('inclineStartXVal').textContent = value;
++            break;
++          case 'cliffEdgeX':
++            if (level.incline) level.incline.endX = value;
++            document.getElementById('cliffEdgeXVal').textContent = value;
++            break;
++          case 'cliffHeight':
++            if (level.incline) level.incline.height = value;
++            document.getElementById('cliffHeightVal').textContent = value;
++            break;
++          case 'doorX':
++            level.door.x = value;
++            document.getElementById('doorXVal').textContent = value;
++            break;
++          case 'doorElevation':
++            level.door.elevation = value;
++            document.getElementById('doorElevationVal').textContent = value;
++            break;
++          case 'spawnX':
++            if (level.blockSpawn) level.blockSpawn.x = value;
++            document.getElementById('spawnXVal').textContent = value;
++            break;
++          case 'spawnY':
++            if (level.blockSpawn) level.blockSpawn.y = value;
++            document.getElementById('spawnYVal').textContent = value;
++            break;
++        }
++
++        this.saveToLocalStorage();
++        this.updateDisplayInfo();
++        this.render();
++      }
++
++      updateControlsFromLevel() {
++        const level = this.level;
++        const unitNum = this.unitNumber;
++
++        document.getElementById('currentLevelName').textContent = `Unit ${unitNum}`;
++        document.getElementById('blocksNeeded').textContent = this.blocksNeeded;
++
++        document.getElementById('roomWidth').value = level.roomWidth;
++        document.getElementById('roomWidthVal').textContent = level.roomWidth;
++
++        // Incline controls
++        if (level.incline) {
++          document.getElementById('inclineStartX').value = level.incline.startX;
++          document.getElementById('inclineStartXVal').textContent = level.incline.startX;
++          document.getElementById('cliffEdgeX').value = level.incline.endX;
++          document.getElementById('cliffEdgeXVal').textContent = level.incline.endX;
++          document.getElementById('cliffHeight').value = level.incline.height;
++          document.getElementById('cliffHeightVal').textContent = level.incline.height;
++          document.getElementById('inclineStartX').disabled = false;
++          document.getElementById('cliffEdgeX').disabled = false;
++          document.getElementById('cliffHeight').disabled = false;
++        } else {
++          document.getElementById('inclineStartX').disabled = true;
++          document.getElementById('cliffEdgeX').disabled = true;
++          document.getElementById('cliffHeight').disabled = true;
++        }
++
++        // Door controls
++        document.getElementById('doorX').value = level.door.x;
++        document.getElementById('doorXVal').textContent = level.door.x;
++        document.getElementById('doorElevation').value = level.door.elevation;
++        document.getElementById('doorElevationVal').textContent = level.door.elevation;
++
++        // Block spawn controls (independent x, y)
++        if (level.blockSpawn) {
++          document.getElementById('spawnX').value = level.blockSpawn.x;
++          document.getElementById('spawnXVal').textContent = level.blockSpawn.x;
++          document.getElementById('spawnY').value = level.blockSpawn.y;
++          document.getElementById('spawnYVal').textContent = level.blockSpawn.y;
++          document.getElementById('spawnX').disabled = false;
++          document.getElementById('spawnY').disabled = false;
++        } else {
++          document.getElementById('spawnX').disabled = true;
++          document.getElementById('spawnY').disabled = true;
++        }
++
++        this.updateDisplayInfo();
++        this.updateJSONOutput();
++      }
++
++      updateDisplayInfo() {
++        const blockHeight = 48;
++        const doorHeight = this.blocksNeeded * blockHeight + this.level.door.elevation;
++        document.getElementById('doorHeightDisplay').textContent = doorHeight;
++      }
++
++      updateJSONOutput() {
++        const output = JSON.stringify(this.levels, null, 2);
++        document.getElementById('jsonOutput').textContent = output;
++      }
++
++      /**
++       * Convert screen coordinates to world coordinates
++       */
++      screenToWorld(screenX, screenY) {
++        const rect = this.canvas.getBoundingClientRect();
++        const canvasX = screenX - rect.left;
++        const canvasY = screenY - rect.top;
++        // Account for scale - divide by scale to get world coords
++        const worldX = canvasX / this.scale;
++        const worldY = canvasY;
++        return { x: worldX, y: worldY };
++      }
++
++      onMouseDown(e) {
++        if (this.testMode) return;
++
++        const { x, y } = this.screenToWorld(e.clientX, e.clientY);
++        const hitRadius = 40 / this.scale; // Adjust hit radius based on scale
++        const level = this.level;
++
++        console.log(`Mouse down at world coords: ${x.toFixed(0)}, ${y.toFixed(0)}, scale: ${this.scale.toFixed(2)}`);
++
++        // Check if clicking on door (bigger hit area)
++        const doorPos = this.getDoorPosition();
++        const doorCenterX = doorPos.x + 25;
++        const doorCenterY = doorPos.y + 34;
++        if (this.isNear(x, y, doorCenterX, doorCenterY, hitRadius)) {
++          this.dragging = 'door';
++          this.setStatus('Dragging door...');
++          console.log('Started dragging door');
++          return;
++        }
++
++        // Check if clicking on incline start (green handle at bottom-left of ramp)
++        if (level.incline) {
++          const inclineStartY = this.groundY;
++          if (this.isNear(x, y, level.incline.startX, inclineStartY - 20, hitRadius)) {
++            this.dragging = 'inclineStart';
++            this.setStatus('Dragging incline start...');
++            console.log('Started dragging incline start');
++            return;
++          }
++
++          // Check if clicking on cliff edge (the orange vertical bar at end of incline)
++          const cliffTopY = this.groundY - level.incline.height;
++          if (Math.abs(x - level.incline.endX) < hitRadius &&
++              y >= cliffTopY - 20 && y <= this.groundY + 20) {
++            this.dragging = 'cliffEnd';
++            this.setStatus('Dragging cliff edge...');
++            console.log('Started dragging cliff edge');
++            return;
++          }
++        }
++
++        // Check if clicking on spawn point (purple area - now independent)
++        if (level.blockSpawn) {
++          const spawnX = level.blockSpawn.x;
++          const spawnY = this.groundY - level.blockSpawn.y;
++          if (this.isNear(x, y, spawnX, spawnY, hitRadius)) {
++            this.dragging = 'spawn';
++            this.setStatus('Dragging spawn point...');
++            console.log('Started dragging spawn');
++            return;
++          }
++        }
++      }
++
++      onMouseMove(e) {
++        const { x, y } = this.screenToWorld(e.clientX, e.clientY);
++        const level = this.level;
++
++        document.getElementById('mouseCoords').textContent = `${Math.round(x)}, ${Math.round(y)}`;
++
++        // Update cursor based on what we're hovering
++        if (!this.dragging) {
++          let cursor = 'crosshair';
++          const hitRadius = 40 / this.scale;
++
++          // Check door hover
++          const doorPos = this.getDoorPosition();
++          if (this.isNear(x, y, doorPos.x + 25, doorPos.y + 34, hitRadius)) {
++            cursor = 'grab';
++          }
++
++          // Check incline handles
++          if (level.incline) {
++            // Incline start hover
++            if (this.isNear(x, y, level.incline.startX, this.groundY - 20, hitRadius)) {
++              cursor = 'ew-resize';
++            }
++            // Cliff edge hover
++            const cliffTopY = this.groundY - level.incline.height;
++            if (Math.abs(x - level.incline.endX) < hitRadius &&
++                y >= cliffTopY - 20 && y <= this.groundY + 20) {
++              cursor = 'ew-resize';
++            }
++          }
++
++          // Check spawn hover (independent position)
++          if (level.blockSpawn) {
++            const spawnY = this.groundY - level.blockSpawn.y;
++            if (this.isNear(x, y, level.blockSpawn.x, spawnY, hitRadius)) {
++              cursor = 'move';
++            }
++          }
++
++          this.canvas.style.cursor = cursor;
++          return;
++        }
++
++        // We're dragging
++        this.canvas.style.cursor = 'grabbing';
++
++        switch (this.dragging) {
++          case 'door':
++            level.door.x = Math.max(100, Math.min(level.roomWidth - 60, x - 25));
++            document.getElementById('doorX').value = Math.round(level.door.x);
++            document.getElementById('doorXVal').textContent = Math.round(level.door.x);
++            break;
++
++          case 'inclineStart':
++            if (level.incline) {
++              // Keep start to the left of the end
++              level.incline.startX = Math.max(0, Math.min(level.incline.endX - 100, x));
++              document.getElementById('inclineStartX').value = Math.round(level.incline.startX);
++              document.getElementById('inclineStartXVal').textContent = Math.round(level.incline.startX);
++            }
++            break;
++
++          case 'cliffEnd':
++            if (level.incline) {
++              // Keep end to the right of the start
++              level.incline.endX = Math.max(level.incline.startX + 100, Math.min(level.roomWidth - 200, x));
++              document.getElementById('cliffEdgeX').value = Math.round(level.incline.endX);
++              document.getElementById('cliffEdgeXVal').textContent = Math.round(level.incline.endX);
++            }
++            break;
++
++          case 'spawn':
++            if (level.blockSpawn) {
++              // Spawn can be anywhere in the room
++              level.blockSpawn.x = Math.max(50, Math.min(level.roomWidth - 50, x));
++              level.blockSpawn.y = Math.max(50, Math.min(400, this.groundY - y));
++              document.getElementById('spawnX').value = Math.round(level.blockSpawn.x);
++              document.getElementById('spawnXVal').textContent = Math.round(level.blockSpawn.x);
++              document.getElementById('spawnY').value = Math.round(level.blockSpawn.y);
++              document.getElementById('spawnYVal').textContent = Math.round(level.blockSpawn.y);
++            }
++            break;
++        }
++
++        this.saveToLocalStorage();
++        this.updateJSONOutput();
++        this.render();
++      }
++
++      onMouseUp() {
++        if (this.dragging) {
++          this.setStatus('Ready');
++          console.log('Stopped dragging');
++        }
++        this.dragging = null;
++        this.canvas.style.cursor = 'crosshair';
++      }
++
++      onKeyDown(e) {
++        // Number keys 1-9 to switch levels
++        if (e.key >= '1' && e.key <= '9' && !e.ctrlKey && !e.metaKey) {
++          const unitNum = parseInt(e.key);
++          this.currentLevel = `unit${unitNum}`;
++          document.getElementById('levelSelect').value = this.currentLevel;
++          this.updateControlsFromLevel();
++          this.render();
++          return;
++        }
++
++        switch (e.key.toLowerCase()) {
++          case ' ':
++            e.preventDefault();
++            if (this.testMode) {
++              this.stopTestMode();
++            } else {
++              this.startTestMode();
++            }
++            break;
++          case 'escape':
++            if (this.testMode) this.stopTestMode();
++            break;
++          case 's':
++            if (e.ctrlKey || e.metaKey) {
++              e.preventDefault();
++              this.saveToLocalStorage();
++              this.setStatus('Saved to local storage');
++            }
++            break;
++          case 'e':
++            if (e.ctrlKey || e.metaKey) {
++              e.preventDefault();
++              this.exportLevels();
++            }
++            break;
++        }
++      }
++
++      isNear(x1, y1, x2, y2, threshold) {
++        const dx = x1 - x2;
++        const dy = y1 - y2;
++        return Math.sqrt(dx * dx + dy * dy) < threshold;
++      }
++
++      getDoorPosition() {
++        const level = this.level;
++        const blockHeight = 48;
++        const doorElevation = this.blocksNeeded * blockHeight + level.door.elevation;
++        const doorBottomY = this.groundY - doorElevation;
++        return { x: level.door.x, y: doorBottomY - 68 };
++      }
++
++      render() {
++        if (this.testMode) return;
++
++        const ctx = this.ctx;
++        const level = this.level;
++        const width = this.canvas.width;
++        const height = this.canvas.height;
++
++        // Clear
++        ctx.fillStyle = '#1a1a2e';
++        ctx.fillRect(0, 0, width, height);
++
++        // Calculate scale to fit room in viewport - store for mouse handling
++        this.scale = Math.min(1, width / level.roomWidth);
++        this.cameraX = 0;
++
++        ctx.save();
++        ctx.scale(this.scale, 1);
++
++        // Draw ground
++        ctx.fillStyle = '#2d2d44';
++        ctx.fillRect(0, this.groundY, level.roomWidth, this.groundHeight);
++
++        // Draw grid
++        ctx.strokeStyle = '#333';
++        ctx.lineWidth = 1;
++        for (let x = 0; x < level.roomWidth; x += 50) {
++          ctx.beginPath();
++          ctx.moveTo(x, 0);
++          ctx.lineTo(x, height);
++          ctx.stroke();
++        }
++        for (let y = 0; y < height; y += 50) {
++          ctx.beginPath();
++          ctx.moveTo(0, y);
++          ctx.lineTo(level.roomWidth, y);
++          ctx.stroke();
++        }
++
++        // Draw incline/ramp if exists
++        if (level.incline) {
++          const cliffTopY = this.groundY - level.incline.height;
++
++          // Ramp line
++          ctx.strokeStyle = '#f39c12';
++          ctx.lineWidth = 3;
++          ctx.setLineDash([10, 5]);
++          ctx.beginPath();
++          ctx.moveTo(level.incline.startX, this.groundY);
++          ctx.lineTo(level.incline.endX, cliffTopY);
++          ctx.stroke();
++          ctx.setLineDash([]);
++
++          // === INCLINE START HANDLE (green) ===
++          ctx.fillStyle = '#2ecc71';
++          ctx.beginPath();
++          ctx.arc(level.incline.startX, this.groundY - 20, 14, 0, Math.PI * 2);
++          ctx.fill();
++          ctx.strokeStyle = '#fff';
++          ctx.lineWidth = 2;
++          ctx.stroke();
++
++          // Arrow on handle
++          ctx.fillStyle = '#fff';
++          ctx.font = 'bold 14px sans-serif';
++          ctx.textAlign = 'center';
++          ctx.fillText('⟷', level.incline.startX, this.groundY - 16);
++
++          // Label
++          ctx.fillStyle = '#2ecc71';
++          ctx.font = '11px monospace';
++          ctx.textAlign = 'left';
++          ctx.fillText(`Start x=${level.incline.startX}`, level.incline.startX - 20, this.groundY - 45);
++
++          // === CLIFF EDGE HANDLE (orange) - vertical drop ===
++          ctx.strokeStyle = '#e74c3c';
++          ctx.lineWidth = 4;
++          ctx.beginPath();
++          ctx.moveTo(level.incline.endX, cliffTopY);
++          ctx.lineTo(level.incline.endX, this.groundY);
++          ctx.stroke();
++
++          // Cliff edge DRAG HANDLE
++          const handleWidth = 24;
++          const handleHeight = Math.min(level.incline.height, 80);
++          const handleY = cliffTopY + (level.incline.height - handleHeight) / 2;
++
++          ctx.fillStyle = '#f39c12';
++          ctx.beginPath();
++          ctx.roundRect(level.incline.endX - handleWidth/2, handleY, handleWidth, handleHeight, 6);
++          ctx.fill();
++          ctx.strokeStyle = '#fff';
++          ctx.lineWidth = 2;
++          ctx.stroke();
++
++          // Drag arrows on handle
++          ctx.fillStyle = '#fff';
++          ctx.font = 'bold 16px sans-serif';
++          ctx.textAlign = 'center';
++          ctx.fillText('⟷', level.incline.endX, handleY + handleHeight/2 + 5);
++
++          // Label
++          ctx.fillStyle = '#fff';
++          ctx.font = '12px monospace';
++          ctx.textAlign = 'left';
++          ctx.fillText(`Cliff Edge (drag!)`, level.incline.endX + 20, cliffTopY + 20);
++          ctx.fillText(`x=${level.incline.endX}, h=${level.incline.height}`, level.incline.endX + 20, cliffTopY + 35);
++        }
++
++        // Draw block spawn area (independent of incline)
++        if (level.blockSpawn) {
++          const spawnX = level.blockSpawn.x;
++          const spawnY = this.groundY - level.blockSpawn.y;
++
++          // Spawn area background
++          ctx.fillStyle = 'rgba(155, 89, 182, 0.3)';
++          ctx.fillRect(spawnX - 50, spawnY - 50, 100, 100);
++
++          ctx.strokeStyle = '#9b59b6';
++          ctx.lineWidth = 2;
++          ctx.strokeRect(spawnX - 50, spawnY - 50, 100, 100);
++
++          // Spawn DRAG HANDLE - center of spawn area
++          ctx.beginPath();
++          ctx.arc(spawnX, spawnY, 16, 0, Math.PI * 2);
++          ctx.fillStyle = '#9b59b6';
++          ctx.fill();
++          ctx.strokeStyle = '#fff';
++          ctx.lineWidth = 2;
++          ctx.stroke();
++
++          // Move icon
++          ctx.fillStyle = '#fff';
++          ctx.font = 'bold 14px sans-serif';
++          ctx.textAlign = 'center';
++          ctx.fillText('✥', spawnX, spawnY + 4);
++
++          // Label
++          ctx.fillStyle = '#fff';
++          ctx.font = '12px monospace';
++          ctx.textAlign = 'left';
++          ctx.fillText(`Block Spawn (drag)`, spawnX - 50, spawnY - 60);
++          ctx.fillText(`x=${spawnX}, y=${level.blockSpawn.y}`, spawnX - 50, spawnY - 75);
++        }
++
++        // Draw door
++        const doorPos = this.getDoorPosition();
++        this.drawDoor(ctx, doorPos.x, doorPos.y);
++
++        // Door label
++        ctx.fillStyle = '#fff';
++        ctx.font = '12px monospace';
++        const blockHeight = 48;
++        const totalHeight = this.blocksNeeded * blockHeight + level.door.elevation;
++        ctx.fillText(`Door (drag me!)`, doorPos.x - 10, doorPos.y - 10);
++        ctx.fillText(`x=${Math.round(level.door.x)}, h=${totalHeight}px`, doorPos.x - 10, doorPos.y - 25);
++        ctx.fillText(`${this.blocksNeeded} blocks + ${level.door.elevation}px extra`, doorPos.x - 10, doorPos.y - 40);
++
++        // Draw sample blocks to show scale
++        if (this.blocksNeeded > 0) {
++          const blockWidth = 40;
++          for (let i = 0; i < Math.min(this.blocksNeeded, 3); i++) {
++            const bx = doorPos.x + 60;
++            const by = this.groundY - (i + 1) * blockHeight;
++
++            ctx.fillStyle = '#f5f5f0';
++            ctx.strokeStyle = '#4ecca3';
++            ctx.lineWidth = 3;
++            ctx.beginPath();
++            ctx.roundRect(bx, by, blockWidth, blockHeight, 6);
++            ctx.fill();
++            ctx.stroke();
++
++            ctx.fillStyle = '#333';
++            ctx.font = 'bold 14px monospace';
++            ctx.textAlign = 'center';
++            ctx.fillText(i + 1, bx + blockWidth / 2, by + blockHeight / 2 + 5);
++            ctx.textAlign = 'left';
++          }
++
++          // Label
++          ctx.fillStyle = '#888';
++          ctx.font = '11px monospace';
++          ctx.fillText('Sample stack', doorPos.x + 55, this.groundY + 15);
++        }
++
++        // Draw room boundaries
++        ctx.strokeStyle = '#4ecca3';
++        ctx.lineWidth = 2;
++        ctx.setLineDash([]);
++        ctx.strokeRect(0, 0, level.roomWidth, height);
++
++        ctx.restore();
++
++        this.updateJSONOutput();
++      }
++
++      drawDoor(ctx, x, y) {
++        const width = 50;
++        const height = 68;
++        const archRadius = width / 2;
++
++        // Outline
++        ctx.fillStyle = 'rgba(80, 80, 80, 0.9)';
++        ctx.beginPath();
++        ctx.moveTo(x - 3, y + height + 3);
++        ctx.lineTo(x - 3, y + archRadius);
++        ctx.arc(x + archRadius, y + archRadius, archRadius + 3, Math.PI, 0, false);
++        ctx.lineTo(x + width + 3, y + height + 3);
++        ctx.closePath();
++        ctx.fill();
++
++        // Inner door
++        ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
++        ctx.beginPath();
++        ctx.moveTo(x, y + height);
++        ctx.lineTo(x, y + archRadius);
++        ctx.arc(x + archRadius, y + archRadius, archRadius, Math.PI, 0, false);
++        ctx.lineTo(x + width, y + height);
++        ctx.closePath();
++        ctx.fill();
++
++        // DRAG HANDLE - big obvious circle in center
++        ctx.beginPath();
++        ctx.arc(x + width / 2, y + height / 2, 14, 0, Math.PI * 2);
++        ctx.fillStyle = '#4ecca3';
++        ctx.fill();
++        ctx.strokeStyle = '#fff';
++        ctx.lineWidth = 2;
++        ctx.stroke();
++
++        // Move icon on handle
++        ctx.fillStyle = '#fff';
++        ctx.font = 'bold 12px sans-serif';
++        ctx.textAlign = 'center';
++        ctx.fillText('✥', x + width / 2, y + height / 2 + 4);
++        ctx.textAlign = 'left';
++      }
++
++      // Test mode - play the level
++      async startTestMode() {
++        if (this.testMode) return;
++
++        this.testMode = true;
++        document.getElementById('testBtn').disabled = true;
++        document.getElementById('stopTestBtn').disabled = false;
++        document.getElementById('testOverlay').classList.remove('hidden');
++
++        // Create test engine
++        this.testEngine = new CanvasEngine(this.canvas);
++
++        // Load sprite sheet
++        const spriteSheet = new SpriteSheet('img/sprite_sheet.png', 32, 32, 11);
++        await spriteSheet.load();
++
++        // Create player
++        const player = new PlayerSprite(spriteSheet, 100, this.groundY - 100);
++        player.engine = this.testEngine;
++        this.testEngine.addEntity('player', player);
++
++        // Create room with current level settings
++        this.testRoom = new StudyBuddyRoom(this.testEngine, { roomWidth: this.level.roomWidth });
++
++        // Override room initialization with our level data
++        this.applyLevelToRoom(this.testRoom);
++
++        this.testEngine.start();
++        this.setStatus('Test mode active - press Space to exit');
++      }
++
++      applyLevelToRoom(room) {
++        const level = this.level;
++        const blockHeight = 48;
++        const blockWidth = 40;
++        const unitNumber = this.unitNumber;
++
++        room.currentLessonId = `U${unitNumber}-L1`;
++        room.currentUnitNumber = unitNumber;
++        room.blocksNeededForDoor = this.blocksNeeded;
++
++        if (level.cliff) {
++          room.cliffEdgeX = level.cliff.edgeX;
++          room.cliffHeight = level.cliff.height;
++          room.cliffTopY = this.groundY - level.cliff.height;
++
++          // Create incline
++          room.incline = {
++            startX: 50,
++            endX: level.cliff.edgeX,
++            startY: this.groundY,
++            endY: room.cliffTopY,
++            width: level.cliff.edgeX - 50,
++            height: level.cliff.height
++          };
++
++          // Create door
++          const doorElevation = this.blocksNeeded * blockHeight + level.door.elevation;
++          const doorBottomY = this.groundY - doorElevation;
++          room.door = new ExitDoor(level.door.x, doorBottomY - 68);
++          room.door.engine = this.testEngine;
++
++          // Create blocks on cliff
++          const completedUnits = [];
++          for (let i = 1; i < unitNumber; i++) {
++            completedUnits.push(i);
++          }
++
++          if (completedUnits.length > 0 && level.blockSpawn) {
++            const spawnX = level.cliff.edgeX + level.blockSpawn.xOffset;
++            room.blocks = [];
++
++            const units = [...completedUnits].sort((a, b) => a - b);
++            const rows = room.calculatePyramidRows(units.length);
++            const blockGap = 8;
++            const baseY = room.cliffTopY - blockHeight;
++
++            let unitIndex = 0;
++            rows.forEach((rowCount, rowIndex) => {
++              const rowWidth = rowCount * blockWidth + (rowCount - 1) * blockGap;
++              const rowStartX = spawnX + (rows[0] * (blockWidth + blockGap) - rowWidth) / 2;
++              const rowY = baseY - rowIndex * (blockHeight + 4);
++
++              for (let col = 0; col < rowCount && unitIndex < units.length; col++) {
++                const block = new UnitBlock(
++                  units[unitIndex],
++                  180, // Default hue
++                  rowStartX + col * (blockWidth + blockGap),
++                  rowY
++                );
++                block.engine = this.testEngine;
++                room.blocks.push(block);
++                this.testEngine.addEntity(`block_${room.blocks.length - 1}`, block);
++                unitIndex++;
++              }
++            });
++          }
++        } else {
++          // Unit 1 - no cliff
++          room.cliffEdgeX = null;
++          room.cliffHeight = 0;
++          room.cliffTopY = null;
++          room.incline = null;
++
++          room.door = new ExitDoor(level.door.x, this.groundY - 68);
++          room.door.engine = this.testEngine;
++        }
++      }
++
++      stopTestMode() {
++        if (!this.testMode) return;
++
++        this.testMode = false;
++        document.getElementById('testBtn').disabled = false;
++        document.getElementById('stopTestBtn').disabled = true;
++        document.getElementById('testOverlay').classList.add('hidden');
++
++        if (this.testEngine) {
++          this.testEngine.stop();
++          // Clean up entities
++          const player = this.testEngine.entities.get('player');
++          if (player && player.onRemoved) player.onRemoved();
++          this.testEngine = null;
++        }
++
++        if (this.testRoom) {
++          this.testRoom.destroy();
++          this.testRoom = null;
++        }
++
++        this.render();
++        this.setStatus('Ready');
++      }
++
++      exportLevels() {
++        const json = JSON.stringify(this.levels, null, 2);
++        const blob = new Blob([json], { type: 'application/json' });
++        const url = URL.createObjectURL(blob);
++
++        const a = document.createElement('a');
++        a.href = url;
++        a.download = 'study_buddy_levels.json';
++        a.click();
++
++        URL.revokeObjectURL(url);
++        this.setStatus('Exported levels to study_buddy_levels.json');
++      }
++
++      importLevels() {
++        document.getElementById('fileInput').click();
++      }
++
++      handleFileImport(e) {
++        const file = e.target.files[0];
++        if (!file) return;
++
++        const reader = new FileReader();
++        reader.onload = (event) => {
++          try {
++            const imported = JSON.parse(event.target.result);
++
++            // Merge imported levels
++            for (const key in imported) {
++              if (this.levels.hasOwnProperty(key)) {
++                this.levels[key] = imported[key];
++              }
++            }
++
++            this.saveToLocalStorage();
++            this.updateControlsFromLevel();
++            this.render();
++            this.setStatus('Imported levels successfully');
++          } catch (err) {
++            this.setStatus('Error importing: ' + err.message);
++          }
++        };
++        reader.readAsText(file);
++
++        // Reset file input
++        e.target.value = '';
++      }
++
++      copyToClipboard() {
++        const json = JSON.stringify(this.levels, null, 2);
++        navigator.clipboard.writeText(json).then(() => {
++          this.setStatus('Copied to clipboard');
++        }).catch(err => {
++          this.setStatus('Failed to copy: ' + err.message);
++        });
++      }
++
++      saveToLocalStorage() {
++        localStorage.setItem('studyBuddyLevels', JSON.stringify(this.levels));
++      }
++
++      loadFromLocalStorage() {
++        const saved = localStorage.getItem('studyBuddyLevels');
++        if (saved) {
++          try {
++            const parsed = JSON.parse(saved);
++            for (const key in parsed) {
++              if (this.levels.hasOwnProperty(key)) {
++                this.levels[key] = parsed[key];
++              }
++            }
++          } catch (e) {
++            console.error('Failed to load saved levels:', e);
++          }
++        }
++      }
++
++      setStatus(text) {
++        document.getElementById('statusText').textContent = text;
++      }
++    }
++
++    // Initialize editor when page loads
++    window.addEventListener('DOMContentLoaded', () => {
++      window.levelEditor = new LevelEditor();
++    });
++  </script>
++</body>
++</html>
+diff --git a/pdf/framework.pdf b/pdf/framework.pdf
+new file mode 100644
+index 0000000..2fae0e1
+Binary files /dev/null and b/pdf/framework.pdf differ
+diff --git a/railway-server/frq_grades_schema.sql b/railway-server/frq_grades_schema.sql
+new file mode 100644
+index 0000000..a6ba81a
+--- /dev/null
++++ b/railway-server/frq_grades_schema.sql
+@@ -0,0 +1,63 @@
++-- FRQ Grades Table Schema for Supabase
++-- Run this in your Supabase SQL Editor to create the table for storing AI-graded FRQ responses
++
++-- Create the frq_grades table
++CREATE TABLE IF NOT EXISTS frq_grades (
++    id BIGSERIAL PRIMARY KEY,
++    username TEXT NOT NULL,
++    question_id TEXT NOT NULL,
++    student_answer TEXT NOT NULL,
++    grade_result JSONB NOT NULL,
++    total_points DECIMAL(4,2) NOT NULL,
++    max_points DECIMAL(4,2) NOT NULL,
++    graded_at TIMESTAMPTZ DEFAULT NOW(),
++    created_at TIMESTAMPTZ DEFAULT NOW(),
++
++    -- Composite unique constraint so each user can only have one grade per question
++    UNIQUE(username, question_id)
++);
++
++-- Create indexes for common queries
++CREATE INDEX IF NOT EXISTS idx_frq_grades_username ON frq_grades(username);
++CREATE INDEX IF NOT EXISTS idx_frq_grades_question_id ON frq_grades(question_id);
++CREATE INDEX IF NOT EXISTS idx_frq_grades_graded_at ON frq_grades(graded_at DESC);
++
++-- Enable Row Level Security (RLS)
++ALTER TABLE frq_grades ENABLE ROW LEVEL SECURITY;
++
++-- Policy: Anyone can read grades (for peer comparison)
++CREATE POLICY "Allow read access to all grades"
++ON frq_grades FOR SELECT
++USING (true);
++
++-- Policy: Anyone can insert/update their own grades (anonymous users)
++CREATE POLICY "Allow insert for all"
++ON frq_grades FOR INSERT
++WITH CHECK (true);
++
++-- Policy: Allow upsert (update on conflict)
++CREATE POLICY "Allow update for all"
++ON frq_grades FOR UPDATE
++USING (true);
++
++-- Grant permissions to anon and authenticated users
++GRANT SELECT, INSERT, UPDATE ON frq_grades TO anon;
++GRANT SELECT, INSERT, UPDATE ON frq_grades TO authenticated;
++GRANT USAGE, SELECT ON SEQUENCE frq_grades_id_seq TO anon;
++GRANT USAGE, SELECT ON SEQUENCE frq_grades_id_seq TO authenticated;
++
++-- Enable realtime for this table (optional - for live updates)
++ALTER PUBLICATION supabase_realtime ADD TABLE frq_grades;
++
++-- Sample query to get a student's grades:
++-- SELECT * FROM frq_grades WHERE username = 'Apple_Tiger' ORDER BY graded_at DESC;
++
++-- Sample query to get class statistics for a question:
++-- SELECT
++--     question_id,
++--     COUNT(*) as total_responses,
++--     AVG(total_points) as avg_score,
++--     AVG(total_points / max_points * 100) as avg_percentage
++-- FROM frq_grades
++-- WHERE question_id = 'U1-L10-Q04'
++-- GROUP BY question_id;
+diff --git a/railway-server/package.json b/railway-server/package.json
+index 8a29700..ec7a935 100644
+--- a/railway-server/package.json
++++ b/railway-server/package.json
+@@ -12,10 +12,12 @@
+     "node": ">=18.0.0"
+   },
+   "dependencies": {
++    "@google/generative-ai": "^0.21.0",
+     "@supabase/supabase-js": "^2.38.0",
+     "cors": "^2.8.5",
+     "dotenv": "^16.3.1",
+     "express": "^4.18.2",
++    "groq-sdk": "^0.5.0",
+     "ws": "^8.14.2"
+   }
+ }
+\ No newline at end of file
+diff --git a/railway-server/server.js b/railway-server/server.js
+index 606aba5..3cb27fc 100644
+--- a/railway-server/server.js
++++ b/railway-server/server.js
+@@ -5,6 +5,8 @@ import express from 'express';
+ import cors from 'cors';
+ import { WebSocketServer } from 'ws';
+ import { createClient } from '@supabase/supabase-js';
++import Groq from 'groq-sdk';
++import { GoogleGenerativeAI } from '@google/generative-ai';
+ import dotenv from 'dotenv';
+ 
+ // Load environment variables
+@@ -23,6 +25,61 @@ const supabase = createClient(
+   process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cWJodHJ1cnp6YXZocWJncXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxOTc1NDMsImV4cCI6MjA3NDc3MzU0M30.xDHsAxOlv0uprE9epz-M_Emn6q3mRegtTpFt0sl9uBo'
+ );
+ 
++// Initialize Groq for FRQ grading (free tier)
++const groq = process.env.GROQ_API_KEY ? new Groq({
++  apiKey: process.env.GROQ_API_KEY
++}) : null;
++
++// Initialize Google Gemini for FRQ grading
++const gemini = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
++
++// Available AI models for grading
++// See https://console.groq.com/docs/deprecations for Groq model status
++const AI_MODELS = {
++  'gemini-flash': {
++    name: 'Google Gemini 2.0 Flash',
++    provider: 'gemini',
++    model: 'gemini-2.0-flash',
++    available: !!gemini
++  },
++  'gemini-flash-lite': {
++    name: 'Google Gemini 2.0 Flash-Lite',
++    provider: 'gemini',
++    model: 'gemini-2.0-flash-lite',
++    available: !!gemini
++  },
++  'groq-llama': {
++    name: 'Groq Llama 3.3 70B',
++    provider: 'groq',
++    model: 'llama-3.3-70b-versatile',
++    available: !!groq
++  },
++  'groq-qwen': {
++    name: 'Groq Qwen3 32B',
++    provider: 'groq',
++    model: 'qwen/qwen3-32b',
++    available: !!groq
++  },
++  'groq-llama4': {
++    name: 'Groq Llama 4 Scout',
++    provider: 'groq',
++    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
++    available: !!groq
++  }
++};
++
++// Default model - Gemini 2.0 Flash is fast and capable on free tier
++const DEFAULT_MODEL = process.env.DEFAULT_GRADING_MODEL || 'gemini-flash';
++
++if (!groq && !gemini) {
++  console.warn('⚠️ No AI API keys configured - FRQ grading will be disabled');
++} else {
++  console.log('🤖 AI Models available:');
++  Object.entries(AI_MODELS).forEach(([key, config]) => {
++    console.log(`   ${config.available ? '✅' : '❌'} ${key}: ${config.name}`);
++  });
++}
++
+ // In-memory cache with TTL
+ const cache = {
+   peerData: null,
+@@ -299,6 +356,313 @@ app.post('/api/batch-submit', async (req, res) => {
+   }
+ });
+ 
++// ============================
++// USER MANAGEMENT ENDPOINTS
++// ============================
++
++// Get all users (for dropdown list)
++app.get('/api/users', async (req, res) => {
++  try {
++    const { data, error } = await supabase
++      .from('users')
++      .select('username, real_name, user_type, password')
++      .order('real_name', { ascending: true });
++
++    if (error) throw error;
++
++    // Return users with password status (not the actual password)
++    const users = data.map(user => ({
++      username: user.username,
++      realName: user.real_name,
++      userType: user.user_type,
++      hasPassword: !!user.password
++    }));
++
++    res.json({ users });
++  } catch (error) {
++    console.error('Error fetching users:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Get a specific user by username
++app.get('/api/users/:username', async (req, res) => {
++  try {
++    const { username } = req.params;
++
++    const { data, error } = await supabase
++      .from('users')
++      .select('username, real_name, user_type, password')
++      .eq('username', username)
++      .single();
++
++    if (error) {
++      if (error.code === 'PGRST116') {
++        return res.status(404).json({ error: 'User not found' });
++      }
++      throw error;
++    }
++
++    res.json({
++      username: data.username,
++      realName: data.real_name,
++      userType: data.user_type,
++      hasPassword: !!data.password
++    });
++  } catch (error) {
++    console.error('Error fetching user:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Look up user by real name
++app.get('/api/users/by-name/:realName', async (req, res) => {
++  try {
++    const { realName } = req.params;
++
++    const { data, error } = await supabase
++      .from('users')
++      .select('username, real_name, user_type, password')
++      .ilike('real_name', realName)
++      .single();
++
++    if (error) {
++      if (error.code === 'PGRST116') {
++        return res.status(404).json({ error: 'User not found' });
++      }
++      throw error;
++    }
++
++    res.json({
++      username: data.username,
++      realName: data.real_name,
++      userType: data.user_type,
++      hasPassword: !!data.password
++    });
++  } catch (error) {
++    console.error('Error fetching user by name:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Create a new user
++app.post('/api/users', async (req, res) => {
++  try {
++    const { username, realName, password, userType = 'student' } = req.body;
++
++    if (!username || !realName) {
++      return res.status(400).json({ error: 'Username and realName are required' });
++    }
++
++    const { data, error } = await supabase
++      .from('users')
++      .insert([{
++        username,
++        real_name: realName,
++        password: password || null,
++        user_type: userType
++      }])
++      .select()
++      .single();
++
++    if (error) {
++      if (error.code === '23505') {
++        return res.status(409).json({ error: 'Username already exists' });
++      }
++      throw error;
++    }
++
++    console.log(`👤 New user created: ${realName} (${username})`);
++
++    res.json({
++      success: true,
++      user: {
++        username: data.username,
++        realName: data.real_name,
++        userType: data.user_type,
++        hasPassword: !!data.password
++      }
++    });
++  } catch (error) {
++    console.error('Error creating user:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Verify user password
++app.post('/api/users/verify', async (req, res) => {
++  try {
++    const { username, password } = req.body;
++
++    if (!username) {
++      return res.status(400).json({ error: 'Username is required' });
++    }
++
++    const { data, error } = await supabase
++      .from('users')
++      .select('username, real_name, user_type, password')
++      .eq('username', username)
++      .single();
++
++    if (error) {
++      if (error.code === 'PGRST116') {
++        return res.status(404).json({ error: 'User not found' });
++      }
++      throw error;
++    }
++
++    // If user has no password, allow access (first-time setup)
++    if (!data.password) {
++      return res.json({
++        success: true,
++        needsPasswordSetup: true,
++        user: {
++          username: data.username,
++          realName: data.real_name,
++          userType: data.user_type
++        }
++      });
++    }
++
++    // Verify password (simple string comparison - pedagogy app)
++    if (data.password !== password) {
++      return res.status(401).json({ error: 'Invalid password' });
++    }
++
++    res.json({
++      success: true,
++      needsPasswordSetup: false,
++      user: {
++        username: data.username,
++        realName: data.real_name,
++        userType: data.user_type
++      }
++    });
++  } catch (error) {
++    console.error('Error verifying user:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Update user (set/reset password, update name, etc.)
++app.put('/api/users/:username', async (req, res) => {
++  try {
++    const { username } = req.params;
++    const { password, realName, userType } = req.body;
++
++    const updates = {};
++    if (password !== undefined) updates.password = password;
++    if (realName !== undefined) updates.real_name = realName;
++    if (userType !== undefined) updates.user_type = userType;
++
++    if (Object.keys(updates).length === 0) {
++      return res.status(400).json({ error: 'No updates provided' });
++    }
++
++    const { data, error } = await supabase
++      .from('users')
++      .update(updates)
++      .eq('username', username)
++      .select()
++      .single();
++
++    if (error) {
++      if (error.code === 'PGRST116') {
++        return res.status(404).json({ error: 'User not found' });
++      }
++      throw error;
++    }
++
++    console.log(`👤 User updated: ${username}`);
++
++    res.json({
++      success: true,
++      user: {
++        username: data.username,
++        realName: data.real_name,
++        userType: data.user_type,
++        hasPassword: !!data.password
++      }
++    });
++  } catch (error) {
++    console.error('Error updating user:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Get user's password (teacher only - requires master password)
++app.post('/api/users/:username/password', async (req, res) => {
++  try {
++    const { username } = req.params;
++    const { masterPassword } = req.body;
++
++    // Verify master password
++    if (masterPassword !== 'googly231') {
++      return res.status(403).json({ error: 'Invalid master password' });
++    }
++
++    const { data, error } = await supabase
++      .from('users')
++      .select('password')
++      .eq('username', username)
++      .single();
++
++    if (error) {
++      if (error.code === 'PGRST116') {
++        return res.status(404).json({ error: 'User not found' });
++      }
++      throw error;
++    }
++
++    res.json({
++      password: data.password || '(no password set)'
++    });
++  } catch (error) {
++    console.error('Error getting user password:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++// Bulk import users (for CSV migration)
++app.post('/api/users/bulk-import', async (req, res) => {
++  try {
++    const { users, masterPassword } = req.body;
++
++    // Verify master password
++    if (masterPassword !== 'googly231') {
++      return res.status(403).json({ error: 'Invalid master password' });
++    }
++
++    if (!users || !Array.isArray(users)) {
++      return res.status(400).json({ error: 'Users array is required' });
++    }
++
++    const records = users.map(u => ({
++      username: u.username,
++      real_name: u.realName,
++      password: u.password || null,
++      user_type: u.userType || 'student'
++    }));
++
++    const { data, error } = await supabase
++      .from('users')
++      .upsert(records, { onConflict: 'username' })
++      .select();
++
++    if (error) throw error;
++
++    console.log(`👥 Bulk imported ${data.length} users`);
++
++    res.json({
++      success: true,
++      imported: data.length
++    });
++  } catch (error) {
++    console.error('Error bulk importing users:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
+ // Get server statistics
+ app.get('/api/stats', async (req, res) => {
+   try {
+@@ -329,6 +693,384 @@ app.get('/api/stats', async (req, res) => {
+   }
+ });
+ 
++// ============================
++// FRQ GRADING ENDPOINT
++// ============================
++
++/**
++ * Build the grading prompt for the LLM
++ * Uses AP Statistics E/P/I scoring framework
++ */
++function buildGradingPrompt(question, studentAnswer, rubric, modelAnswer) {
++  const rubricText = rubric.map(part => {
++    let text = `Part ${part.part} (${part.maxPoints} point${part.maxPoints > 1 ? 's' : ''}):\n`;
++    text += `Criteria:\n${part.criteria.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}`;
++    if (part.scoringNotes) {
++      text += `\nScoring Notes: ${part.scoringNotes}`;
++    }
++    return text;
++  }).join('\n\n');
++
++  // Check if this includes chart data that needs special evaluation
++  const hasChartData = studentAnswer.includes("STUDENT'S CHART SUBMISSION:");
++  const hasExpectedChart = modelAnswer && modelAnswer.includes('Expected Chart:');
++
++  // Build chart-specific instructions if applicable
++  let chartInstructions = '';
++  if (hasChartData || hasExpectedChart) {
++    chartInstructions = `
++IMPORTANT - CHART EVALUATION INSTRUCTIONS:
++When grading charts, you MUST carefully evaluate completeness and accuracy:
++
++1. DATA COMPLETENESS: Count the actual number of data points/bars/values the student provided vs. what is expected.
++   - If the model answer expects 10 bars and student only has 2, that is ~20% complete - score as I (Incorrect)
++   - If student has 7-9 out of 10 expected values, that might be P (Partially Correct)
++   - Only give E (Essentially Correct) if student has ALL or nearly all expected data points
++
++2. DATA ACCURACY: Compare the actual values submitted against expected values.
++   - Are the frequencies/heights correct for each category?
++   - Are categories properly labeled?
++   - Is the scale appropriate?
++
++3. CHART TYPE: Is the correct chart type used (bar, histogram, dotplot, etc.)?
++
++4. LABELS & FORMATTING: Does the chart have proper axis labels, title, and formatting?
++
++BE STRICT about completeness. A chart with only 20-30% of the required bars/values should NEVER receive E or P scores for that component. Missing data is a critical error.
++`;
++  }
++
++  return `You are an AP Statistics exam grader. Grade the following free response question using the official AP scoring rubric.
++
++SCORING SYSTEM:
++- E (Essentially Correct) = Full credit for the part
++- P (Partially Correct) = Half credit for the part
++- I (Incorrect) = No credit for the part
++${chartInstructions}
++QUESTION:
++${question}
++
++${modelAnswer ? `MODEL ANSWER (for reference - use this to determine expected values and completeness):\n${modelAnswer}\n` : ''}
++
++SCORING RUBRIC:
++${rubricText}
++
++STUDENT'S ANSWER:
++${studentAnswer}
++
++Please grade each part of the rubric and provide:
++1. A score (E, P, or I) for each part
++2. Brief justification for each score (for charts: specify how many data points were provided vs expected)
++3. Specific feedback on what was correct/incorrect
++4. Total points earned (E=full points, P=half points, I=0)
++
++Respond in this exact JSON format:
++{
++  "parts": [
++    {
++      "part": "a",
++      "score": "E|P|I",
++      "points": <number>,
++      "maxPoints": <number>,
++      "justification": "Brief explanation of score",
++      "feedback": "Specific feedback for student"
++    }
++  ],
++  "totalPoints": <number>,
++  "maxPoints": <number>,
++  "overallFeedback": "Summary feedback for the student",
++  "strengths": ["List of things done well"],
++  "improvements": ["List of areas to improve"]
++}`;
++}
++
++/**
++ * Get available AI models for grading
++ */
++app.get('/api/grading-models', (req, res) => {
++  const available = Object.entries(AI_MODELS)
++    .filter(([, config]) => config.available)
++    .map(([key, config]) => ({
++      id: key,
++      name: config.name,
++      provider: config.provider
++    }));
++
++  res.json({
++    models: available,
++    default: DEFAULT_MODEL,
++    anyAvailable: available.length > 0
++  });
++});
++
++/**
++ * Grade using Groq API
++ */
++async function gradeWithGroq(prompt, modelId) {
++  const completion = await groq.chat.completions.create({
++    messages: [
++      {
++        role: 'system',
++        content: 'You are an experienced AP Statistics exam grader. Be fair but rigorous. Always respond with valid JSON only, no markdown formatting.'
++      },
++      {
++        role: 'user',
++        content: prompt
++      }
++    ],
++    model: AI_MODELS[modelId]?.model || 'llama-3.1-70b-versatile',
++    temperature: 0.1,
++    max_tokens: 2000,
++    response_format: { type: 'json_object' }
++  });
++
++  return completion.choices[0]?.message?.content;
++}
++
++/**
++ * Grade using Gemini API
++ */
++async function gradeWithGemini(prompt, modelId) {
++  const modelName = AI_MODELS[modelId]?.model || 'gemini-2.0-flash';
++  const model = gemini.getGenerativeModel({
++    model: modelName,
++    generationConfig: {
++      temperature: 0.1,
++      maxOutputTokens: 2000,
++      responseMimeType: 'application/json'
++    }
++  });
++
++  const systemInstruction = 'You are an experienced AP Statistics exam grader. Be fair but rigorous. Always respond with valid JSON only, no markdown formatting.';
++
++  const result = await model.generateContent({
++    contents: [{ role: 'user', parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }]
++  });
++
++  return result.response.text();
++}
++
++/**
++ * Grade an FRQ answer using AI (supports multiple providers)
++ */
++app.post('/api/grade-frq', async (req, res) => {
++  try {
++    // Check if any AI is available
++    if (!groq && !gemini) {
++      return res.status(503).json({
++        error: 'FRQ grading service unavailable - no AI API keys configured'
++      });
++    }
++
++    const {
++      questionId,
++      questionText,
++      studentAnswer,
++      rubric,
++      modelAnswer,
++      username,
++      totalPoints,
++      preferredModel // Optional: 'groq-llama', 'gemini-pro', 'gemini-flash'
++    } = req.body;
++
++    // Validation
++    if (!studentAnswer || !rubric || !Array.isArray(rubric)) {
++      return res.status(400).json({
++        error: 'Missing required fields: studentAnswer and rubric (array) are required'
++      });
++    }
++
++    if (studentAnswer.trim().length < 10) {
++      return res.status(400).json({
++        error: 'Answer too short to grade meaningfully'
++      });
++    }
++
++    // Select model - use preferred if available, otherwise fall back to default, then any available
++    let selectedModel = preferredModel;
++    if (!selectedModel || !AI_MODELS[selectedModel]?.available) {
++      selectedModel = AI_MODELS[DEFAULT_MODEL]?.available ? DEFAULT_MODEL : null;
++    }
++    if (!selectedModel) {
++      // Fall back to any available model
++      selectedModel = Object.keys(AI_MODELS).find(key => AI_MODELS[key].available);
++    }
++
++    if (!selectedModel) {
++      return res.status(503).json({
++        error: 'No AI models available for grading'
++      });
++    }
++
++    const modelConfig = AI_MODELS[selectedModel];
++    console.log(`📝 Grading FRQ ${questionId || 'unknown'} for ${username || 'anonymous'} using ${modelConfig.name}`);
++
++    // Build the grading prompt
++    const prompt = buildGradingPrompt(
++      questionText || 'See rubric for question context',
++      studentAnswer,
++      rubric,
++      modelAnswer
++    );
++
++    // Call the appropriate AI provider
++    let responseText;
++    if (modelConfig.provider === 'groq') {
++      responseText = await gradeWithGroq(prompt, selectedModel);
++    } else if (modelConfig.provider === 'gemini') {
++      responseText = await gradeWithGemini(prompt, selectedModel);
++    }
++
++    if (!responseText) {
++      throw new Error('Empty response from grading model');
++    }
++
++    // Parse the JSON response (handle potential markdown wrapping)
++    let gradeResult;
++    try {
++      // Strip markdown code blocks if present
++      let cleanedResponse = responseText.trim();
++      if (cleanedResponse.startsWith('```json')) {
++        cleanedResponse = cleanedResponse.slice(7);
++      } else if (cleanedResponse.startsWith('```')) {
++        cleanedResponse = cleanedResponse.slice(3);
++      }
++      if (cleanedResponse.endsWith('```')) {
++        cleanedResponse = cleanedResponse.slice(0, -3);
++      }
++      gradeResult = JSON.parse(cleanedResponse.trim());
++    } catch (parseError) {
++      console.error('Failed to parse grading response:', responseText);
++      throw new Error('Invalid response format from grading model');
++    }
++
++    // Add metadata
++    gradeResult.questionId = questionId;
++    gradeResult.username = username;
++    gradeResult.gradedAt = new Date().toISOString();
++    gradeResult.model = modelConfig.name;
++    gradeResult.modelId = selectedModel;
++
++    // Optionally store the grade in Supabase
++    if (questionId && username) {
++      try {
++        await supabase
++          .from('frq_grades')
++          .upsert([{
++            username,
++            question_id: questionId,
++            student_answer: studentAnswer,
++            grade_result: gradeResult,
++            total_points: gradeResult.totalPoints,
++            max_points: gradeResult.maxPoints,
++            graded_at: gradeResult.gradedAt
++          }], { onConflict: 'username,question_id' });
++
++        console.log(`💾 Grade saved for ${username} on ${questionId}`);
++      } catch (dbError) {
++        // Don't fail the request if DB save fails
++        console.error('Failed to save grade to DB:', dbError);
++      }
++    }
++
++    console.log(`✅ Graded ${questionId}: ${gradeResult.totalPoints}/${gradeResult.maxPoints} points (${modelConfig.name})`);
++
++    res.json({
++      success: true,
++      grade: gradeResult
++    });
++
++  } catch (error) {
++    console.error('Error grading FRQ:', error);
++    res.status(500).json({
++      error: error.message,
++      details: 'Failed to grade response. Please try again.'
++    });
++  }
++});
++
++/**
++ * Get a student's FRQ grades
++ */
++app.get('/api/frq-grades/:username', async (req, res) => {
++  try {
++    const { username } = req.params;
++    const { questionId } = req.query;
++
++    let query = supabase
++      .from('frq_grades')
++      .select('*')
++      .eq('username', username);
++
++    if (questionId) {
++      query = query.eq('question_id', questionId);
++    }
++
++    const { data, error } = await query.order('graded_at', { ascending: false });
++
++    if (error) throw error;
++
++    res.json({ grades: data || [] });
++  } catch (error) {
++    console.error('Error fetching FRQ grades:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
++/**
++ * Get grading statistics for a question (teacher view)
++ */
++app.get('/api/frq-stats/:questionId', async (req, res) => {
++  try {
++    const { questionId } = req.params;
++
++    const { data, error } = await supabase
++      .from('frq_grades')
++      .select('username, total_points, max_points, graded_at')
++      .eq('question_id', questionId);
++
++    if (error) throw error;
++
++    if (!data || data.length === 0) {
++      return res.json({
++        questionId,
++        totalGraded: 0,
++        averageScore: 0,
++        scoreDistribution: {}
++      });
++    }
++
++    // Calculate statistics
++    const scores = data.map(g => g.total_points);
++    const maxPoints = data[0].max_points;
++    const averageScore = scores.reduce((a, b) => a + b, 0) / scores.length;
++
++    // Score distribution
++    const distribution = {};
++    scores.forEach(score => {
++      const percentage = Math.round((score / maxPoints) * 100);
++      const bucket = percentage >= 80 ? 'excellent' :
++                     percentage >= 60 ? 'good' :
++                     percentage >= 40 ? 'fair' : 'needs-work';
++      distribution[bucket] = (distribution[bucket] || 0) + 1;
++    });
++
++    res.json({
++      questionId,
++      totalGraded: data.length,
++      maxPoints,
++      averageScore: Math.round(averageScore * 100) / 100,
++      averagePercentage: Math.round((averageScore / maxPoints) * 100),
++      scoreDistribution: distribution,
++      grades: data
++    });
++
++  } catch (error) {
++    console.error('Error fetching FRQ stats:', error);
++    res.status(500).json({ error: error.message });
++  }
++});
++
+ // ============================
+ // WEBSOCKET SERVER
+ // ============================
+diff --git a/railway_client.js b/railway_client.js
+index 170de34..524f91e 100644
+--- a/railway_client.js
++++ b/railway_client.js
+@@ -1,9 +1,10 @@
+ // Railway Server Integration for AP Stats Turbo Mode
+   // This replaces direct Supabase calls with Railway server calls
+ 
+-  // Configuration
+-  const RAILWAY_SERVER_URL = window.RAILWAY_SERVER_URL || 'https://your-app.up.railway.app';
+-  const USE_RAILWAY = window.USE_RAILWAY || false;
++  // Configuration - use values from railway_config.js (loaded via window)
++  // Do NOT redeclare these constants - they're already declared in railway_config.js
++  const RC_RAILWAY_SERVER_URL = window.RAILWAY_SERVER_URL || 'https://your-app.up.railway.app';
++  const RC_USE_RAILWAY = window.USE_RAILWAY || false;
+ 
+   // WebSocket connection
+   let ws = null;
+@@ -13,7 +14,7 @@
+ 
+   // Initialize Railway connection
+   function initializeRailwayConnection() {
+-      if (!USE_RAILWAY) {
++      if (!RC_USE_RAILWAY) {
+           console.log('Railway server disabled, using direct Supabase');
+           return false;
+       }
+@@ -29,7 +30,7 @@
+       }
+ 
+       // Test REST API connection
+-      fetch(`${RAILWAY_SERVER_URL}/health`)
++      fetch(`${RC_RAILWAY_SERVER_URL}/health`)
+           .then(res => res.json())
+           .then(data => {
+               console.log('✅ Railway server connected:', data);
+@@ -45,9 +46,9 @@
+ 
+   // Connect to WebSocket for real-time updates
+   function connectWebSocket() {
+-      if (!USE_RAILWAY) return;
++      if (!RC_USE_RAILWAY) return;
+ 
+-      const wsUrl = RAILWAY_SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
++      const wsUrl = RC_RAILWAY_SERVER_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+ 
+       try {
+           ws = new WebSocket(wsUrl);
+@@ -56,6 +57,12 @@
+               console.log('🔌 WebSocket connected to Railway server');
+               wsConnected = true;
+ 
++              // Update SyncStatus connection state
++              if (window.SyncStatus) {
++                  window.SyncStatus.setConnected(true);
++                  window.SyncStatus.startStatsUpdates();
++              }
++
+               // Enable turbo mode when WebSocket connects
+               window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                   detail: { enabled: true }
+@@ -102,6 +109,11 @@
+               console.log('WebSocket disconnected');
+               wsConnected = false;
+ 
++              // Update SyncStatus connection state
++              if (window.SyncStatus) {
++                  window.SyncStatus.setConnected(false);
++              }
++
+               // Disable turbo mode when WebSocket disconnects
+               window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                   detail: { enabled: false }
+@@ -124,6 +136,11 @@
+               console.error('WebSocket error:', error);
+               wsConnected = false;
+ 
++              // Update SyncStatus connection state
++              if (window.SyncStatus) {
++                  window.SyncStatus.setConnected(false);
++              }
++
+               // Disable turbo mode when WebSocket errors
+               window.dispatchEvent(new CustomEvent('turboModeChanged', {
+                   detail: { enabled: false }
+@@ -201,6 +218,50 @@
+               // Keep-alive response
+               break;
+ 
++          case 'buddy_position':
++              // Another user's sprite/block position update
++              if (data.username && data.lessonId) {
++                  window.dispatchEvent(new CustomEvent('studyBuddyPeerUpdate', {
++                      detail: {
++                          username: data.username,
++                          lessonId: data.lessonId,
++                          position: data.position,
++                          blockPositions: data.blockPositions,
++                          hue: data.hue,
++                          completedUnits: data.completedUnits
++                      }
++                  }));
++              }
++              break;
++
++          case 'buddy_joined':
++              // Another user joined the same lesson
++              if (data.username && data.lessonId) {
++                  window.dispatchEvent(new CustomEvent('studyBuddyPeerJoined', {
++                      detail: {
++                          username: data.username,
++                          lessonId: data.lessonId,
++                          position: data.position,
++                          blockPositions: data.blockPositions,
++                          hue: data.hue,
++                          completedUnits: data.completedUnits
++                      }
++                  }));
++              }
++              break;
++
++          case 'buddy_left':
++              // Another user left the lesson
++              if (data.username && data.lessonId) {
++                  window.dispatchEvent(new CustomEvent('studyBuddyPeerLeft', {
++                      detail: {
++                          username: data.username,
++                          lessonId: data.lessonId
++                      }
++                  }));
++              }
++              break;
++
+           default:
+               console.log('Unknown WebSocket message type:', data.type);
+       }
+@@ -211,7 +272,7 @@
+       const fallbackSubmit = typeof window.originalPushAnswer === 'function'
+           ? window.originalPushAnswer
+           : null;
+-      if (!USE_RAILWAY) {
++      if (!RC_USE_RAILWAY) {
+           // Fall back to direct Supabase
+           return fallbackSubmit ? fallbackSubmit(username, questionId, answerValue, timestamp) : false;
+       }
+@@ -224,7 +285,7 @@
+               timestamp: timestamp
+           };
+           console.log(`[Railway] submit ${questionId}: payload ready (${typeof answerValue})`);
+-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/submit-answer`, {
++          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/submit-answer`, {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/json'
+@@ -236,6 +297,11 @@
+ 
+           if (result.success) {
+               console.log(`✅ Answer synced via Railway (broadcast to ${result.broadcast} clients)`);
++              // Update sync stats
++              if (window.SyncStatus) {
++                  window.SyncStatus.incrementSyncCount(1);
++                  window.SyncStatus.setState('synced-cloud');
++              }
+               return true;  // SUCCESS - Don't fall back!
+           } else {
+               throw new Error(result.error || 'Railway sync failed');
+@@ -249,15 +315,15 @@
+ 
+   // Pull peer data from Railway server
+   async function pullPeerDataFromRailway(since = 0) {
+-      if (!USE_RAILWAY) {
++      if (!RC_USE_RAILWAY) {
+           // Fall back to direct Supabase
+           return pullPeerDataFromSupabase();
+       }
+ 
+       try {
+           const url = since > 0
+-              ? `${RAILWAY_SERVER_URL}/api/peer-data?since=${since}`
+-              : `${RAILWAY_SERVER_URL}/api/peer-data`;
++              ? `${RC_RAILWAY_SERVER_URL}/api/peer-data?since=${since}`
++              : `${RC_RAILWAY_SERVER_URL}/api/peer-data`;
+ 
+           const response = await fetch(url);
+           const result = await response.json();
+@@ -305,10 +371,10 @@
+ 
+   // Get question statistics from Railway
+   async function getQuestionStats(questionId) {
+-      if (!USE_RAILWAY) return null;
++      if (!RC_USE_RAILWAY) return null;
+ 
+       try {
+-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/question-stats/${questionId}`);
++          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/question-stats/${questionId}`);
+           const stats = await response.json();
+ 
+           console.log(`📊 Stats for ${questionId}:`, stats);
+@@ -322,7 +388,7 @@
+ 
+   // Batch submit answers via Railway
+   async function batchSubmitViaRailway(answers) {
+-      if (!USE_RAILWAY) {
++      if (!RC_USE_RAILWAY) {
+           // Fall back to direct batch push
+           return batchPushAnswersToSupabase(answers);
+       }
+@@ -337,7 +403,7 @@
+                   : answer.timestamp
+           }));
+           console.log(`[Railway] batch submit: ${normalized.length} answers`);
+-          const response = await fetch(`${RAILWAY_SERVER_URL}/api/batch-submit`, {
++          const response = await fetch(`${RC_RAILWAY_SERVER_URL}/api/batch-submit`, {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/json'
+@@ -349,6 +415,11 @@
+ 
+           if (result.success) {
+               console.log(`✅ Batch synced ${result.count} answers via Railway`);
++              // Update sync stats
++              if (window.SyncStatus) {
++                  window.SyncStatus.incrementSyncCount(result.count);
++                  window.SyncStatus.setState('synced-cloud');
++              }
+               return result.count;
+           } else {
+               throw new Error(result.error);
+@@ -361,7 +432,7 @@
+   }
+ 
+   // Override existing functions when Railway is enabled
+-  if (USE_RAILWAY) {
++  if (RC_USE_RAILWAY) {
+       console.log('🚂 Railway mode enabled - overriding sync functions');
+ 
+       // NOTE: Original functions are now captured inside initializeRailwayConnection()
+@@ -383,6 +454,75 @@
+       });
+   }
+ 
++  // Study Buddy position sync functions
++
++  /**
++   * Send position update to all peers on the same lesson
++   * @param {string} lessonId - Current lesson ID
++   * @param {Object} position - Player position { x, y }
++   * @param {Array} blockPositions - Block positions [{ x, y, unitNumber }, ...]
++   * @param {number} hue - Player's sprite hue
++   * @param {Array} completedUnits - Player's completed units
++   */
++  function sendBuddyPosition(lessonId, position, blockPositions, hue, completedUnits) {
++      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
++
++      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
++      if (!username || !lessonId) return;
++
++      ws.send(JSON.stringify({
++          type: 'buddy_position',
++          username,
++          lessonId,
++          position,
++          blockPositions,
++          hue,
++          completedUnits
++      }));
++  }
++
++  /**
++   * Join a lesson room (notify peers)
++   * @param {string} lessonId - Lesson to join
++   * @param {Object} position - Initial position
++   * @param {Array} blockPositions - Initial block positions
++   * @param {number} hue - Sprite hue
++   * @param {Array} completedUnits - Completed units
++   */
++  function joinBuddyRoom(lessonId, position, blockPositions, hue, completedUnits) {
++      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
++
++      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
++      if (!username || !lessonId) return;
++
++      ws.send(JSON.stringify({
++          type: 'buddy_join',
++          username,
++          lessonId,
++          position,
++          blockPositions,
++          hue,
++          completedUnits
++      }));
++  }
++
++  /**
++   * Leave a lesson room (notify peers)
++   * @param {string} lessonId - Lesson to leave
++   */
++  function leaveBuddyRoom(lessonId) {
++      if (!wsConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
++
++      const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
++      if (!username || !lessonId) return;
++
++      ws.send(JSON.stringify({
++          type: 'buddy_leave',
++          username,
++          lessonId
++      }));
++  }
++
+   // Export functions for external use
+   window.railwayClient = {
+       initialize: initializeRailwayConnection,
+@@ -391,7 +531,11 @@
+       pullPeerData: pullPeerDataFromRailway,
+       getStats: getQuestionStats,
+       batchSubmit: batchSubmitViaRailway,
+-      isConnected: () => wsConnected
++      isConnected: () => wsConnected,
++      // Study Buddy sync
++      sendBuddyPosition,
++      joinBuddyRoom,
++      leaveBuddyRoom
+   };
+ 
+   console.log('🚂 Railway client loaded. Set USE_RAILWAY=true to enable.');
+\ No newline at end of file

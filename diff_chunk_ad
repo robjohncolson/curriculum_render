@@ -1,0 +1,4000 @@
++            let lessonButtonsHtml = '';
++
++            // Group questions by lesson
++            const lessonGroups = {};
++            allUnitQuestions.forEach(q => {
++                const match = q.id.match(/L(\d+)/);
++                if (match) {
++                    const lessonNum = parseInt(match[1]);
++                    if (!lessonGroups[lessonNum]) {
++                        lessonGroups[lessonNum] = [];
++                    }
++                    lessonGroups[lessonNum].push(q);
++                }
++            });
++
++            for (let i = 1; i <= unit.lessons; i++) {
++                const questionCount = lessonGroups[i] ? lessonGroups[i].length : 0;
++                const isCompleted = checkLessonCompleted(currentUnit, i);
++                lessonButtonsHtml += `
+             <button onclick="loadLesson(${i})" class="lesson-btn ${isCompleted ? 'completed' : ''}" id="lesson-btn-${i}">
+                 Lesson ${i}<br>
+                 <small>${questionCount} questions</small>
+             </button>
+         `;
+-    }
+-    
+-    questionsContainer.innerHTML = `
+-        <button onclick="backToUnits()" class="back-button">← Back to Units</button>
++            }
++
++            questionsContainer.innerHTML = `
+         <div class="lesson-selector">
+             <h3>Unit ${currentUnit}: ${unit.name}</h3>
+             <p>Select a lesson to begin:</p>
+@@ -2968,7 +3012,7 @@ function renderLessonSelector(unitInfo) {
+             </div>
+         </div>
+     `;
+-}
++        }
+ 
+         // Check if lesson is completed
+         function checkLessonCompleted(unitNum, lessonNum) {
+@@ -2976,14 +3020,14 @@ function renderLessonSelector(unitInfo) {
+                 const match = q.id.match(/L(\d+)/);
+                 return match && parseInt(match[1]) === lessonNum;
+             });
+-            
++
+             if (lessonQuestions.length === 0) return false;
+-            
++
+             return lessonQuestions.every(q => isQuestionAnswered(q.id));
+         }
+ 
+         // Load lesson
+-        window.loadLesson = function(lessonNumber) {
++        window.loadLesson = function (lessonNumber) {
+             currentLesson = lessonNumber;
+ 
+             // TASK 4.1: Clean up activity listeners before loading new lesson
+@@ -3011,7 +3055,7 @@ function renderLessonSelector(unitInfo) {
+         }
+ 
+         // Back to units
+-        window.backToUnits = function() {
++        window.backToUnits = function () {
+             // TASK 4.1: Clean up activity listeners before returning to units
+             cleanupActivityTracking();
+ 
+@@ -3032,7 +3076,12 @@ function renderLessonSelector(unitInfo) {
+         }
+ 
+         // Back to lessons
+-        window.backToLessons = function() {
++        window.backToLessons = function () {
++            // Destroy Study Buddy room when leaving lesson
++            if (typeof destroyStudyBuddyRoom === 'function') {
++                destroyStudyBuddyRoom();
++            }
++
+             // Clear any existing charts
+             Object.values(chartInstances).forEach(chart => {
+                 if (chart && typeof chart.destroy === 'function') {
+@@ -3053,9 +3102,8 @@ function renderLessonSelector(unitInfo) {
+         // Render quiz
+         function renderQuiz() {
+             const questionsContainer = document.getElementById('questionsContainer');
+-            
++
+             questionsContainer.innerHTML = `
+-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                 <div class="app-controls">
+                     <div style="flex: 1;">
+                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+@@ -3065,12 +3113,12 @@ function renderLessonSelector(unitInfo) {
+                 <div id="questions-list"></div>
+                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
+             `;
+-            
++
+             const questionsList = document.getElementById('questions-list');
+-            
++
+             // Show loading message
+             document.getElementById('loading-msg').style.display = 'block';
+-            
++
+             // Render all questions for the lesson with a small delay for animation
+             setTimeout(() => {
+                 // Collect all chart tasks for batch rendering
+@@ -3287,7 +3335,7 @@ function renderLessonSelector(unitInfo) {
+                                     value: parsed.series[0].values[i] || 0
+                                 }));
+                             }
+-                        } catch(e) {
++                        } catch (e) {
+                             // Not valid JSON, ignore
+                         }
+                     }
+@@ -3297,19 +3345,19 @@ function renderLessonSelector(unitInfo) {
+                             <label><strong>Create your histogram:</strong></label>
+                             <div id="graph-input-${question.id}" class="graph-input">
+                                 ${graphData.length > 0 ?
+-                                    graphData.map((row, i) => `
++                            graphData.map((row, i) => `
+                                         <div class="graph-row" data-index="${i}">
+                                             <input type="text" class="label" placeholder="Bar Label" value="${row.label}" ${isDisabled ? 'disabled' : ''}>
+                                             <input type="number" class="value" placeholder="Frequency" value="${row.value}" ${isDisabled ? 'disabled' : ''}>
+                                             ${!isDisabled ? `<button type="button" class="remove-row" onclick="removeGraphRow('${question.id}', ${i})">Remove</button>` : ''}
+                                         </div>
+                                     `).join('') :
+-                                    `<div class="graph-row" data-index="0">
++                            `<div class="graph-row" data-index="0">
+                                         <input type="text" class="label" placeholder="Bar Label" ${isDisabled ? 'disabled' : ''}>
+                                         <input type="number" class="value" placeholder="Frequency" ${isDisabled ? 'disabled' : ''}>
+                                         ${!isDisabled ? '<button type="button" class="remove-row" onclick="removeGraphRow(\'' + question.id + '\', 0)">Remove</button>' : ''}
+                                     </div>`
+-                                }
++                        }
+                             </div>
+                             ${!isDisabled ? `<button type="button" onclick="addGraphRow('${question.id}')" class="add-bar-btn">Add Bar</button>` : ''}
+                             ${chartMetadata ? `
+@@ -3361,15 +3409,15 @@ function renderLessonSelector(unitInfo) {
+                             <div class="reason-wrapper">
+                                 <label class="reason-label">
+                                     ${attempts > 0 && !canRetryQuestion ?
+-                                        'Your explanation (required for retry):' :
+-                                        'Explain your reasoning (optional but enables retry):'}
++                        'Your explanation (required for retry):' :
++                        'Explain your reasoning (optional but enables retry):'}
+                                 </label>
+                                 <textarea
+                                     id="reason-${question.id}"
+                                     class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
+                                     placeholder="${attempts > 0 && !canRetryQuestion ?
+-                                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
+-                                        'Explain why you chose this answer...'}"
++                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
++                        'Explain why you chose this answer...'}"
+                                     ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
+                                 >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
+                             </div>
+@@ -3416,12 +3464,15 @@ function renderLessonSelector(unitInfo) {
+                                 <span id="success-${question.id}" class="success-msg"></span>
+                             </div>
+                         </div>
+-
+-                        <!-- FRQ Solution Container -->
+-                        <div id="frq-solution-${question.id}" class="frq-solution-container" style="display:none"></div>
+                 `;
+             }
+ 
++            // For FRQs, the solution container goes in the sidebar
++            const frqSolutionInSidebar = question.type === 'free-response' ? `
++                            <!-- FRQ Solution Container (in sidebar for better layout) -->
++                            <div id="frq-solution-${question.id}" class="frq-solution-container frq-solution-sidebar" style="display:none"></div>
++            ` : '';
++
+             html += `
+                     </div>
+ 
+@@ -3438,6 +3489,7 @@ function renderLessonSelector(unitInfo) {
+                                     ${isAnswered ? '<div class="peer-loading">Loading peer responses...</div>' : '<div class="peer-hint">Answer the question to see peer responses</div>'}
+                                 </div>
+                             </div>
++                            ${frqSolutionInSidebar}
+                         </div>
+                     </div>
+                 </div>
+@@ -3448,6 +3500,12 @@ function renderLessonSelector(unitInfo) {
+                 if (typeof window.renderChartWizardPreview === 'function') {
+                     window.renderChartWizardPreview(question.id);
+                 }
++
++                // Add AI grading button for FRQ questions with rubrics
++                if (question.type === 'free-response' && window.FRQGrader?.addButton) {
++                    window.FRQGrader.addButton(question.id, question);
++                }
++
+                 if (isAnswered) {
+                     populatePeerResponses(question.id, question.type);
+ 
+@@ -3528,8 +3586,8 @@ function renderLessonSelector(unitInfo) {
+             const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
+             const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
+             const answerKeyRevealed = (answerKeySection && answerKeySection.style.display === 'block') ||
+-                                    (cbSection && cbSection.style.display === 'block') ||
+-                                    (frqSolutionSection && frqSolutionSection.style.display !== 'none');
++                (cbSection && cbSection.style.display === 'block') ||
++                (frqSolutionSection && frqSolutionSection.style.display !== 'none');
+ 
+             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeySection exists: ${!!answerKeySection}, cbSection exists: ${!!cbSection}`);
+             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeyRevealed: ${answerKeyRevealed}`);
+@@ -3752,71 +3810,71 @@ function renderLessonSelector(unitInfo) {
+ 
+             return { html, chartTasks };
+         }
+-        
++
+         // Render chart placeholder (actual rendering happens later)
+-          // FIXED: Table rendering to handle both object and array formats
+-          function renderTable(table) {
+-              if (!table) return '';
++        // FIXED: Table rendering to handle both object and array formats
++        function renderTable(table) {
++            if (!table) return '';
+ 
+-              let tableHtml = '<div class="table-container"><table>';
++            let tableHtml = '<div class="table-container"><table>';
+ 
+-              // Handle object format (with headers and rows properties)
+-              if (table.headers && table.rows) {
+-                  // Render headers
+-                  tableHtml += '<thead><tr>';
+-                  table.headers.forEach(header => {
+-                      tableHtml += `<th>${header}</th>`;
+-                  });
+-                  tableHtml += '</tr></thead>';
++            // Handle object format (with headers and rows properties)
++            if (table.headers && table.rows) {
++                // Render headers
++                tableHtml += '<thead><tr>';
++                table.headers.forEach(header => {
++                    tableHtml += `<th>${header}</th>`;
++                });
++                tableHtml += '</tr></thead>';
+ 
+-                  // Render rows
+-                  if (table.rows && table.rows.length > 0) {
+-                      tableHtml += '<tbody>';
+-                      table.rows.forEach(row => {
+-                          tableHtml += '<tr>';
+-                          row.forEach(cell => {
+-                              tableHtml += `<td>${cell}</td>`;
+-                          });
+-                          tableHtml += '</tr>';
+-                      });
+-                      tableHtml += '</tbody>';
+-                  }
+-              }
+-              // Handle array format (legacy)
+-              else if (Array.isArray(table) && table.length > 0) {
+-                  const headers = table[0];
+-                  const rows = table.slice(1);
++                // Render rows
++                if (table.rows && table.rows.length > 0) {
++                    tableHtml += '<tbody>';
++                    table.rows.forEach(row => {
++                        tableHtml += '<tr>';
++                        row.forEach(cell => {
++                            tableHtml += `<td>${cell}</td>`;
++                        });
++                        tableHtml += '</tr>';
++                    });
++                    tableHtml += '</tbody>';
++                }
++            }
++            // Handle array format (legacy)
++            else if (Array.isArray(table) && table.length > 0) {
++                const headers = table[0];
++                const rows = table.slice(1);
+ 
+-                  // Headers
+-                  tableHtml += '<thead><tr>';
+-                  headers.forEach(header => {
+-                      tableHtml += `<th>${header}</th>`;
+-                  });
+-                  tableHtml += '</tr></thead>';
++                // Headers
++                tableHtml += '<thead><tr>';
++                headers.forEach(header => {
++                    tableHtml += `<th>${header}</th>`;
++                });
++                tableHtml += '</tr></thead>';
+ 
+-                  // Rows
+-                  if (rows.length > 0) {
+-                      tableHtml += '<tbody>';
+-                      rows.forEach(row => {
+-                          tableHtml += '<tr>';
+-                          row.forEach(cell => {
+-                              tableHtml += `<td>${cell}</td>`;
+-                          });
+-                          tableHtml += '</tr>';
+-                      });
+-                      tableHtml += '</tbody>';
+-                  }
+-              }
++                // Rows
++                if (rows.length > 0) {
++                    tableHtml += '<tbody>';
++                    rows.forEach(row => {
++                        tableHtml += '<tr>';
++                        row.forEach(cell => {
++                            tableHtml += `<td>${cell}</td>`;
++                        });
++                        tableHtml += '</tr>';
++                    });
++                    tableHtml += '</tbody>';
++                }
++            }
+ 
+-              tableHtml += '</table></div>';
++            tableHtml += '</table></div>';
+ 
+-              return tableHtml;
+-          }
++            return tableHtml;
++        }
+ 
+ 
+ 
+         // Submit answer
+-        window.submitAnswer = function(questionId, questionType) {
++        window.submitAnswer = function (questionId, questionType) {
+             if (!currentUsername) {
+                 showMessage('Please enter your username first!', 'error');
+                 return;
+@@ -4086,7 +4144,7 @@ function renderLessonSelector(unitInfo) {
+             if (chartInstances[chartId]) {
+                 try {
+                     chartInstances[chartId].destroy();
+-                } catch(e) {
++                } catch (e) {
+                     console.log('Error destroying chart:', e);
+                 }
+                 delete chartInstances[chartId];
+@@ -4135,7 +4193,7 @@ function renderLessonSelector(unitInfo) {
+         }
+ 
+         // Graph input helper: Add a new row for histogram data entry
+-        window.addGraphRow = function(questionId) {
++        window.addGraphRow = function (questionId) {
+             const container = document.getElementById(`graph-input-${questionId}`);
+             const index = container.children.length;
+             const row = document.createElement('div');
+@@ -4150,7 +4208,7 @@ function renderLessonSelector(unitInfo) {
+         };
+ 
+         // Graph input helper: Remove a row from histogram data entry
+-        window.removeGraphRow = function(questionId, index) {
++        window.removeGraphRow = function (questionId, index) {
+             const container = document.getElementById(`graph-input-${questionId}`);
+             const row = container.querySelector(`[data-index="${index}"]`);
+             if (row && container.children.length > 1) {
+@@ -4160,43 +4218,43 @@ function renderLessonSelector(unitInfo) {
+ 
+         // Show dotplot
+         function showDotplot(questionId, questionType) {
+-    const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
+-    if (!dotplotSection) return;
++            const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
++            if (!dotplotSection) return;
+ 
+-    // Ensure the section has all required containers
+-    if (!document.getElementById(`dotplot-${questionId}`)) {
+-        dotplotSection.innerHTML = `
++            // Ensure the section has all required containers
++            if (!document.getElementById(`dotplot-${questionId}`)) {
++                dotplotSection.innerHTML = `
+             <canvas id="dotplot-${questionId}" width="400" height="200"></canvas>
+             <div id="consensus-${questionId}"></div>
+             <div class="contributors-list" id="contributors-${questionId}"></div>
+         `;
+-    }
++            }
+ 
+-    // Always destroy existing chart first to force refresh
+-    if (chartInstances[`dotplot-${questionId}`]) {
+-        chartInstances[`dotplot-${questionId}`].destroy();
+-        delete chartInstances[`dotplot-${questionId}`];
+-    }
++            // Always destroy existing chart first to force refresh
++            if (chartInstances[`dotplot-${questionId}`]) {
++                chartInstances[`dotplot-${questionId}`].destroy();
++                delete chartInstances[`dotplot-${questionId}`];
++            }
+ 
+-    // Show the section with animation
+-    if (!dotplotSection.classList.contains('show')) {
+-        dotplotSection.classList.add('show');
+-        dotplotSection.style.opacity = '0';
+-        setTimeout(() => {
+-            dotplotSection.style.transition = 'opacity 0.3s ease';
+-            dotplotSection.style.opacity = '1';
+-        }, 10);
+-    }
++            // Show the section with animation
++            if (!dotplotSection.classList.contains('show')) {
++                dotplotSection.classList.add('show');
++                dotplotSection.style.opacity = '0';
++                setTimeout(() => {
++                    dotplotSection.style.transition = 'opacity 0.3s ease';
++                    dotplotSection.style.opacity = '1';
++                }, 10);
++            }
+ 
+-    // Render with a small delay to ensure DOM is ready
+-    setTimeout(() => {
+-        if (questionType === 'multiple-choice') {
+-            renderMCQDistribution(questionId);
+-        } else {
+-            renderFRQResponses(questionId);
++            // Render with a small delay to ensure DOM is ready
++            setTimeout(() => {
++                if (questionType === 'multiple-choice') {
++                    renderMCQDistribution(questionId);
++                } else {
++                    renderFRQResponses(questionId);
++                }
++            }, 50);
+         }
+-    }, 50);
+-}
+ 
+         // Render MCQ distribution
+         function renderMCQDistribution(questionId) {
+@@ -4252,10 +4310,10 @@ function renderLessonSelector(unitInfo) {
+ 
+             // Destroy existing chart if any
+             // Destroy existing chart if any
+-if (chartInstances[`dotplot-${questionId}`]) {
+-    chartInstances[`dotplot-${questionId}`].destroy();
+-    delete chartInstances[`dotplot-${questionId}`];  // Add just this line
+-}
++            if (chartInstances[`dotplot-${questionId}`]) {
++                chartInstances[`dotplot-${questionId}`].destroy();
++                delete chartInstances[`dotplot-${questionId}`];  // Add just this line
++            }
+             // Create bar chart with relative frequencies
+             chartInstances[`dotplot-${questionId}`] = new Chart(ctx, {
+                 type: 'bar',
+@@ -4288,7 +4346,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             max: 1,
+                             ticks: {
+                                 stepSize: 0.1,
+-                                callback: function(value) {
++                                callback: function (value) {
+                                     return (value * 100).toFixed(0) + '%';
+                                 }
+                             },
+@@ -4310,7 +4368,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                         },
+                         tooltip: {
+                             callbacks: {
+-                                label: function(context) {
++                                label: function (context) {
+                                     const value = context.parsed.y;
+                                     const percentage = (value * 100).toFixed(1);
+                                     const count = counts[context.dataIndex];
+@@ -4507,7 +4565,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             // JSON but not a chart
+                             answerHtml = peer.response;
+                         }
+-                    } catch(e) {
++                    } catch (e) {
+                         // Not JSON - regular text response
+                         answerHtml = peer.response;
+                     }
+@@ -4518,7 +4576,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             <div class="peer-frq-answer">${answerHtml}</div>
+                             ${peer.username !== currentUsername ? `
+                                 <div class="frq-vote-widget">
+-                                    ${[1,2,3,4,5].map(score => `
++                                    ${[1, 2, 3, 4, 5].map(score => `
+                                         <span class="star ${currentUserVote >= score ? 'active' : ''}"
+                                               data-question-id="${questionId}"
+                                               data-username="${peer.username}"
+@@ -4542,9 +4600,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             <div class="peer-name">${peer.username}${badgeText}</div>
+                             <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
+                             ${hasReason ?
+-                                `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+-                                '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
+-                            }
++                            `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
++                            '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
++                        }
+                         </div>
+                     `;
+                 }
+@@ -4554,7 +4612,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+             // Attach click handlers to star voting elements (using event delegation for robustness)
+             peerReasoningContent.querySelectorAll('.star').forEach(star => {
+-                star.onclick = function() {
++                star.onclick = function () {
+                     const qId = this.dataset.questionId;
+                     const uname = this.dataset.username;
+                     const score = parseInt(this.dataset.score);
+@@ -4570,9 +4628,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             const canvas = document.getElementById(`dotplot-${questionId}`);
+             const consensusDiv = document.getElementById(`consensus-${questionId}`);
+             const contributorsDiv = document.getElementById(`contributors-${questionId}`);
+-            
++
+             if (canvas) canvas.style.display = 'none';
+-            
++
+             const responses = [];
+             for (let username in classData.users) {
+                 const userAnswer = classData.users[username].answers?.[questionId];
+@@ -4586,7 +4644,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                     });
+                 }
+             }
+-            
++
+             if (consensusDiv) {
+                 if (responses.length > 1) {
+                     consensusDiv.innerHTML = `
+@@ -4602,7 +4660,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                     `;
+                 }
+             }
+-            
++
+             if (contributorsDiv) {
+                 let html = '<h4>Responses:</h4>';
+                 responses.forEach(r => {
+@@ -4646,7 +4704,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Vote on FRQ responses with star rating
+-        window.voteOnFRQ = function(questionId, targetUsername, score) {
++        window.voteOnFRQ = function (questionId, targetUsername, score) {
+             // Initialize data structures
+             if (!classData.users[currentUsername].votes) {
+                 classData.users[currentUsername].votes = {};
+@@ -4696,7 +4754,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         };
+ 
+         // Add explanation retroactively to enable retry
+-        window.addExplanationToRetry = function(questionId) {
++        window.addExplanationToRetry = function (questionId) {
+             const reasonTextarea = document.getElementById(`reason-${questionId}`);
+             const addExplanationBtn = document.getElementById(`add-explanation-${questionId}`);
+             const submitBtn = document.getElementById(`submit-${questionId}`);
+@@ -4922,126 +4980,138 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             }
+         }
+ 
+-        // Display FRQ solution (parts, calculations, rubric)
++        // Display FRQ solution button (collapsed by default)
++        // The full solution only expands when user clicks the button
+         function displayFRQSolution(questionId) {
+             const container = document.getElementById(`frq-solution-${questionId}`);
+             if (!container) return;
+ 
+             const question = currentQuestions.find(q => q.id === questionId) ||
+-                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
++                EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+             if (!question?.solution) return;
+ 
+-            const solution = question.solution;
++            // Check if already rendered (avoid duplicate buttons)
++            if (container.dataset.rendered === 'true') return;
++            container.dataset.rendered = 'true';
+ 
+-            // Track charts that need to be rendered (for two-phase rendering)
+-            const chartsToRender = [];
+-
+-            // Build parts HTML
+-            const partsHtml = (solution.parts || []).map(part => {
+-                // Build calculations list
+-                const calcHtml = part.calculations?.length ?
+-                    `<ul class="frq-calculations">${part.calculations.map(c => `<li>${c}</li>`).join('')}</ul>` : '';
+-
+-                // Build attachments (charts/tables)
+-                let attachmentsHtml = '';
+-                if (part.attachments) {
+-                    const attachId = `${questionId}-solution-${part.partId}`;
+-                    const canvasId = `chart-${attachId}`;
+-
+-                    if (part.attachments.chartType) {
+-                        // Use two-phase rendering: generate HTML immediately, defer canvas drawing
+-                        if (typeof window.charts?.getChartHtml === 'function') {
+-                            // NEW: Use two-phase rendering to avoid race condition
+-                            attachmentsHtml = `<div class="frq-solution-chart">${window.charts.getChartHtml(part.attachments, canvasId)}</div>`;
+-                            // Track this chart for Phase 2 rendering
+-                            chartsToRender.push({ chartData: part.attachments, canvasId });
+-                        } else {
+-                            // FALLBACK: Old approach (deprecated)
+-                            attachmentsHtml = `<div id="${canvasId}" class="frq-solution-chart"></div>`;
+-                            setTimeout(() => {
+-                                const chartContainer = document.getElementById(canvasId);
+-                                if (chartContainer && typeof renderChart === 'function') {
+-                                    chartContainer.innerHTML = renderChart(part.attachments, attachId);
+-                                }
+-                            }, 100);
+-                        }
+-                    }
+-                    if (part.attachments.table) {
+-                        attachmentsHtml += renderTable(part.attachments.table);
+-                    }
+-                }
+-
+-                return `
+-                    <section class="frq-solution-part">
+-                        <h5>Part (${part.partId})</h5>
+-                        ${part.description ? `<div class="frq-part-desc">${part.description}</div>` : ''}
+-                        <div class="frq-part-response">${part.response || ''}</div>
+-                        ${calcHtml}
+-                        ${attachmentsHtml}
+-                    </section>
+-                `;
+-            }).join('');
+-
+-            // Build rubric table
+-            let rubricHtml = '';
+-            if (solution.scoring) {
+-                const rubricRows = (solution.scoring.rubric || []).map(r => `
+-                    <tr>
+-                        <td>${r.part}</td>
+-                        <td>${r.maxPoints}</td>
+-                        <td>${r.criteria ? `<ul>${r.criteria.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}</td>
+-                        <td>${r.scoringNotes || ''}</td>
+-                    </tr>
+-                `).join('');
+-
+-                rubricHtml = `
+-                    <section class="frq-rubric">
+-                        <h5>Scoring Rubric (Total: ${solution.scoring.totalPoints} points)</h5>
+-                        <table class="frq-rubric-table">
+-                            <thead>
+-                                <tr>
+-                                    <th>Part</th>
+-                                    <th>Max Points</th>
+-                                    <th>Criteria</th>
+-                                    <th>Scoring Notes</th>
+-                                </tr>
+-                            </thead>
+-                            <tbody>${rubricRows}</tbody>
+-                        </table>
+-                    </section>
+-                `;
+-            }
+-
+-            // Inject HTML and show
++            // Just show a button to view the scoring guide (collapsed by default)
+             container.innerHTML = `
+-                <div class="frq-solution-header">
+-                    <span class="solution-icon">📊</span> Official Scoring Guide
+-                </div>
+-                <div class="frq-solution-parts">${partsHtml}</div>
+-                ${rubricHtml}
++                <button class="frq-solution-toggle-btn" onclick="toggleFRQSolution('${questionId}')">
++                    📋 View Scoring Guide
++                </button>
++                <div class="frq-solution-content" id="frq-solution-content-${questionId}" style="display:none"></div>
+             `;
+             container.style.display = 'block';
++        }
+ 
+-            // Phase 2: Render charts now that DOM is ready
+-            if (chartsToRender.length > 0 && typeof window.charts?.renderChartNow === 'function') {
+-                // Use requestAnimationFrame to ensure DOM has fully updated
+-                requestAnimationFrame(() => {
+-                    chartsToRender.forEach(({ chartData, canvasId }) => {
+-                        window.charts.renderChartNow(chartData, canvasId);
+-                    });
+-                });
++        // Toggle and render the full FRQ solution content
++        function toggleFRQSolution(questionId) {
++            const contentDiv = document.getElementById(`frq-solution-content-${questionId}`);
++            const toggleBtn = contentDiv?.parentElement?.querySelector('.frq-solution-toggle-btn');
++            if (!contentDiv) return;
++
++            // If already visible, just hide
++            if (contentDiv.style.display !== 'none') {
++                contentDiv.style.display = 'none';
++                if (toggleBtn) toggleBtn.textContent = '📋 View Scoring Guide';
++                return;
+             }
+ 
+-            // Trigger MathJax rendering
+-            // (Chart rendering handled by Phase 2 code above)
+-            if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
++            // If not yet rendered, build the content
++            if (!contentDiv.dataset.rendered) {
++                const question = currentQuestions.find(q => q.id === questionId) ||
++                    EMBEDDED_CURRICULUM.find(q => q.id === questionId);
++                if (!question?.solution) return;
++
++                const solution = question.solution;
++                const chartsToRender = [];
++
++                // Build parts HTML (compact for sidebar)
++                const partsHtml = (solution.parts || []).map(part => {
++                    const calcHtml = part.calculations?.length ?
++                        `<ul class="frq-calculations">${part.calculations.map(c => `<li>${c}</li>`).join('')}</ul>` : '';
++
++                    let attachmentsHtml = '';
++                    if (part.attachments) {
++                        const attachId = `${questionId}-solution-${part.partId}`;
++                        const canvasId = `chart-${attachId}`;
++
++                        if (part.attachments.chartType && typeof window.charts?.getChartHtml === 'function') {
++                            attachmentsHtml = `<div class="frq-solution-chart">${window.charts.getChartHtml(part.attachments, canvasId)}</div>`;
++                            chartsToRender.push({ chartData: part.attachments, canvasId });
++                        }
++                        if (part.attachments.table) {
++                            attachmentsHtml += renderTable(part.attachments.table);
++                        }
++                    }
++
++                    return `
++                        <section class="frq-solution-part">
++                            <h5>Part (${part.partId})</h5>
++                            ${part.description ? `<div class="frq-part-desc">${part.description}</div>` : ''}
++                            <div class="frq-part-response">${part.response || ''}</div>
++                            ${calcHtml}
++                            ${attachmentsHtml}
++                        </section>
++                    `;
++                }).join('');
++
++                // Build rubric table
++                let rubricHtml = '';
++                if (solution.scoring) {
++                    const rubricRows = (solution.scoring.rubric || []).map(r => `
++                        <tr>
++                            <td>${r.part}</td>
++                            <td>${r.maxPoints}</td>
++                            <td>${r.criteria ? `<ul>${r.criteria.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}</td>
++                            <td>${r.scoringNotes || ''}</td>
++                        </tr>
++                    `).join('');
++
++                    rubricHtml = `
++                        <section class="frq-rubric">
++                            <h5>Rubric (${solution.scoring.totalPoints} pts)</h5>
++                            <table class="frq-rubric-table">
++                                <thead>
++                                    <tr><th>Part</th><th>Pts</th><th>Criteria</th><th>Notes</th></tr>
++                                </thead>
++                                <tbody>${rubricRows}</tbody>
++                            </table>
++                        </section>
++                    `;
++                }
++
++                contentDiv.innerHTML = `
++                    <div class="frq-solution-header">
++                        <span class="solution-icon">📊</span> Official Scoring Guide
++                    </div>
++                    <div class="frq-solution-parts">${partsHtml}</div>
++                    ${rubricHtml}
++                `;
++                contentDiv.dataset.rendered = 'true';
++
++                // Render charts after DOM ready
++                if (chartsToRender.length > 0 && typeof window.charts?.renderChartNow === 'function') {
++                    requestAnimationFrame(() => {
++                        chartsToRender.forEach(({ chartData, canvasId }) => {
++                            window.charts.renderChartNow(chartData, canvasId);
++                        });
++                    });
++                }
++
++                if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
++            }
++
++            // Show the content and update button
++            contentDiv.style.display = 'block';
++            if (toggleBtn) toggleBtn.textContent = '📋 Hide Scoring Guide';
+         }
+ 
+         // Display answer key with timer-based logic
+         function displayAnswerKey(questionId, isCorrect, hasExplanation, attemptNumber) {
+             // Check if this is an FRQ - if so, display solution immediately
+             const question = currentQuestions.find(q => q.id === questionId) ||
+-                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
++                EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+             if (question?.type === 'free-response') {
+                 displayFRQSolution(questionId);
+                 return; // Skip MCQ timing logic
+@@ -5153,7 +5223,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Vote FRQ function
+-        window.voteFRQ = function(questionId, targetUser, voteType) {
++        window.voteFRQ = function (questionId, targetUser, voteType) {
+             if (!classData.users[currentUsername].votes) {
+                 classData.users[currentUsername].votes = {};
+             }
+@@ -5263,13 +5333,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+ 
+         // Import class data
+-        window.importClassData = function(event) {
++        window.importClassData = function (event) {
+             console.log('=== importClassData called (sync modal) ===');
+             const file = event.target.files[0];
+             if (!file) return;
+ 
+             const reader = new FileReader();
+-            reader.onload = function(e) {
++            reader.onload = function (e) {
+                 try {
+                     const importedData = JSON.parse(e.target.result);
+                     console.log('Sync modal - imported data:', importedData);
+@@ -5443,10 +5513,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             const messageDiv = document.createElement('div');
+             messageDiv.className = `message ${type}`;
+             messageDiv.textContent = text;
+-            
++
+             messageArea.innerHTML = '';
+             messageArea.appendChild(messageDiv);
+-            
++
+             setTimeout(() => {
+                 messageDiv.style.opacity = '0';
+                 setTimeout(() => messageArea.innerHTML = '', 300);
+@@ -5474,7 +5544,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Close FAB menu when clicking outside
+-        document.addEventListener('click', function(event) {
++        document.addEventListener('click', function (event) {
+             const fabContainer = document.querySelector('.fab-container');
+             if (fabContainer && !fabContainer.contains(event.target)) {
+                 const fabMenu = document.querySelector('.fab-menu');
+@@ -5511,37 +5581,32 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             switch (theme) {
+                 case 'light':
+                     // Current: Light. Next is Light Grayscale.
+-                    if (themeIcon) themeIcon.textContent = '🎨';
+-                    if (themeLabel) themeLabel.textContent = 'Grayscale';
++                    if (themeLabel) themeLabel.textContent = 'LIGHT';
+                     nextThemeDescription = 'Switch to Light Grayscale';
+                     break;
+                 case 'light-gray':
+                     // Current: Light Grayscale. Next is Dark.
+                     body.classList.add('grayscale-enabled');
+-                    if (themeIcon) themeIcon.textContent = '🌙';
+-                    if (themeLabel) themeLabel.textContent = 'Dark Mode';
++                    if (themeLabel) themeLabel.textContent = 'GRAYSCALE';
+                     nextThemeDescription = 'Switch to Dark Mode';
+                     break;
+                 case 'dark':
+                     // Current: Dark. Next is Dark Grayscale.
+                     body.classList.add('dark-theme');
+-                    if (themeIcon) themeIcon.textContent = '🎨';
+-                    if (themeLabel) themeLabel.textContent = 'Dark Gray';
++                    if (themeLabel) themeLabel.textContent = 'DARK';
+                     nextThemeDescription = 'Switch to Dark Grayscale';
+                     break;
+                 case 'dark-gray':
+                     // Current: Dark Gray. Next is Light.
+                     body.classList.add('dark-theme');
+                     body.classList.add('grayscale-enabled');
+-                    if (themeIcon) themeIcon.textContent = '☀️';
+-                    if (themeLabel) themeLabel.textContent = 'Light Mode';
++                    if (themeLabel) themeLabel.textContent = 'DARK GRAY';
+                     nextThemeDescription = 'Switch to Light Mode';
+                     break;
+                 default:
+                     // Fallback to light theme if state is invalid
+                     theme = 'light';
+-                    if (themeIcon) themeIcon.textContent = '🎨';
+-                    if (themeLabel) themeLabel.textContent = 'Grayscale';
++                    if (themeLabel) themeLabel.textContent = 'LIGHT';
+                     nextThemeDescription = 'Switch to Light Grayscale';
+                     break;
+             }
+@@ -5564,7 +5629,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             }
+         }
+ 
+-        window.toggleTheme = function() {
++        window.toggleTheme = function () {
+             const themeCycle = ['light', 'light-gray', 'dark', 'dark-gray'];
+             const currentIndex = themeCycle.indexOf(currentTheme);
+             const nextIndex = (currentIndex + 1) % themeCycle.length;
+@@ -5572,14 +5637,62 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             applyTheme(newTheme);
+         }
+ 
++        // ESC key handler to close modals
++        document.addEventListener('keydown', function(e) {
++            if (e.key === 'Escape') {
++                // Check modals in order of z-index (highest first)
++                const userMgmtModal = document.getElementById('userManagementModal');
++                if (userMgmtModal && userMgmtModal.style.display !== 'none') {
++                    if (typeof closeUserManagementModal === 'function') {
++                        closeUserManagementModal();
++                    }
++                    return;
++                }
++
++                const spriteModal = document.getElementById('spriteConfigModal');
++                if (spriteModal && spriteModal.style.display !== 'none') {
++                    if (typeof closeSpriteConfigModal === 'function') {
++                        closeSpriteConfigModal();
++                    }
++                    return;
++                }
++
++                const syncModal = document.getElementById('syncModal');
++                if (syncModal && syncModal.style.display !== 'none') {
++                    syncModal.style.display = 'none';
++                    return;
++                }
++
++                const shareModal = document.getElementById('shareModal');
++                if (shareModal && shareModal.style.display !== 'none') {
++                    shareModal.style.display = 'none';
++                    return;
++                }
++
++                const teacherDashboard = document.getElementById('teacherDashboardModal');
++                if (teacherDashboard && teacherDashboard.style.display !== 'none') {
++                    if (typeof closeTeacherDashboard === 'function') {
++                        closeTeacherDashboard();
++                    }
++                    return;
++                }
++
++                // Close FAB menu if open
++                const fabMenu = document.querySelector('.fab-menu');
++                if (fabMenu && fabMenu.style.display !== 'none') {
++                    fabMenu.style.display = 'none';
++                    return;
++                }
++            }
++        });
+ 
+         // Initialize on load
+-        window.onload = function() {
++        window.onload = async function () {
+             initTheme();
+ 
+-            // Check localStorage support
++            // Check localStorage support (still used for some things)
+             if (!window.localStorage) {
+-                showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
++                showMessage('Warning: LocalStorage is not available. Some features may not work.', 'error');
+             }
+ 
+             // Initialize Railway WebSocket connection for real-time presence
+@@ -5588,7 +5701,37 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 console.log('🚂 Railway connection initialized for real-time presence');
+             }
+ 
+-            promptUsername();
++            // Start the app with async initialization
++            await startApp();
++        }
++
++        /**
++         * Main application startup
++         * Initializes IndexedDB, then proceeds with user authentication
++         */
++        async function startApp() {
++            try {
++                // Initialize IndexedDB (runs migration if needed)
++                await AppDB.init();
++                console.log('✅ Database initialized');
++
++                // Initialize sync status
++                if (window.SyncStatus) {
++                    SyncStatus.init();
++                }
++
++                // Proceed with username workflow
++                await promptUsername();
++
++            } catch (error) {
++                console.error('Failed to start app:', error);
++                showMessage('Failed to initialize the app. Please refresh the page.', 'error');
++
++                // Fall back to showing the welcome screen anyway
++                if (typeof showWelcomeScreen === 'function') {
++                    showWelcomeScreen();
++                }
++            }
+         }
+ 
+         // Lazy loading charts removed - using immediate two-phase rendering instead
+@@ -5609,7 +5752,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+ 
+         // Add this if it doesn't already exist
+-        if(!window.turboModeListenerAttached) {
++        if (!window.turboModeListenerAttached) {
+             window.addEventListener('turboModeChanged', (e) => {
+                 const enabled = !!(e && e.detail && e.detail.enabled);
+                 if (typeof turboModeActive !== 'undefined') {
+@@ -5823,8 +5966,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+             questionsContainer.innerHTML = `
+                 <div class="curriculum-overview">
+-                    <h2>📚 AP Statistics Curriculum</h2>
+-                    <p style="text-align: center; color: #666;">Loaded ${sortedUnits.length} units</p>
+                     <div class="units-grid">
+                         ${unitsHtml}
+                     </div>
+@@ -5833,10 +5974,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+                 </div>
+             `;
++
++            // Initialize Study Buddy room for unit select screen (door goes to logout)
++            if (typeof initStudyBuddyRoomForUnitSelect === 'function') {
++                initStudyBuddyRoomForUnitSelect();
++            }
+         }
+ 
+         // Function to select a unit
+-        window.selectUnit = function(unitNumber) {
++        window.selectUnit = function (unitNumber) {
+             currentUnit = unitNumber;
+             const unitData = allCurriculumData[unitNumber];
+             allUnitQuestions = unitData.questions;
+@@ -5846,7 +5992,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Modify backToUnits function to go back to unit menu instead
+-        window.backToUnits = function() {
++        window.backToUnits = function () {
++            // Destroy Study Buddy room when going back to units
++            if (typeof destroyStudyBuddyRoom === 'function') {
++                destroyStudyBuddyRoom();
++            }
++
+             // Clear any existing charts
+             Object.values(chartInstances).forEach(chart => {
+                 if (chart && typeof chart.destroy === 'function') {
+@@ -5946,7 +6097,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 });
+ 
+                 questionsContainer.innerHTML = `
+-                    <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                     <div class="lesson-selector">
+                         <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
+                         <p>Select a lesson to begin:</p>
+@@ -5954,14 +6104,17 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             ${lessonButtonsHtml}
+                         </div>
+                     </div>
+-
+-                    <!-- Sync Modal -->
+                 `;
++
++                // Initialize Study Buddy room for lesson selector (door goes to units)
++                if (typeof initStudyBuddyRoomForLessonSelect === 'function') {
++                    initStudyBuddyRoomForLessonSelect(currentUnit);
++                }
+             }
+         }
+ 
+         // Modified loadLesson to show video resources at the top
+-        window.loadLessonWithResources = async function(lessonNumber) {
++        window.loadLessonWithResources = async function (lessonNumber) {
+             currentLesson = lessonNumber;
+ 
+             // Get questions for this lesson
+@@ -5999,14 +6152,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                         if (hasVideos || hasBlookets || hasPdfs) {
+                             videoSection = `
+                                 <div class="resources-section">
+-                                    <h3>📚 Lesson Resources: ${topic.description}</h3>
++                                    <h3><img src="img/icons/icon_curriculum.png" alt="" class="header-icon"> Lesson Resources: ${topic.description}</h3>
+                             `;
+ 
+                             if (hasPdfs) {
+                                 videoSection += '<div class="pdf-resources">';
+                                 topic.pdfs.forEach((pdf, index) => {
+-                                    const worksheetLabel = topic.pdfs.length > 1 
+-                                        ? `📄 Follow-Along Worksheet ${index + 1}:` 
++                                    const worksheetLabel = topic.pdfs.length > 1
++                                        ? `📄 Follow-Along Worksheet ${index + 1}:`
+                                         : '📄 Follow-Along Worksheet:';
+                                     videoSection += `
+                                         <div class="pdf-item">
+@@ -6064,7 +6217,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             // Render quiz with resources
+             const questionsContainer = document.getElementById('questionsContainer');
+             questionsContainer.innerHTML = `
+-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                 <div class="app-controls">
+                     <div style="flex: 1;">
+                         <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+@@ -6113,6 +6265,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 if (window.MathJax) {
+                     MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
+                 }
++
++                // Initialize Study Buddy room for this lesson
++                // Room is always present while student works on a lesson
++                const lessonId = `U${currentUnit}-L${lessonNumber}`;
++                if (typeof initStudyBuddyRoom === 'function') {
++                    initStudyBuddyRoom(lessonId);
++                }
+             }, 100);
+         }
+ 
+@@ -6275,14 +6434,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         window.loadLesson = loadLessonWithResources;
+ 
+         // Sync modal handlers
+-        window.openSyncModal = function() {
++        window.openSyncModal = function () {
+             const modal = document.getElementById('syncModal');
+             if (modal) {
+                 modal.style.display = 'block';
+             }
+         }
+ 
+-        window.closeSyncModal = function() {
++        window.closeSyncModal = function () {
+             const modal = document.getElementById('syncModal');
+             if (modal) {
+                 modal.style.display = 'none';
+@@ -6290,7 +6449,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Close modal when clicking outside or on close button
+-        document.addEventListener('click', function(event) {
++        document.addEventListener('click', function (event) {
+             const modal = document.getElementById('syncModal');
+             if (event.target === modal || event.target.classList.contains('close-modal')) {
+                 closeSyncModal();
+@@ -6298,7 +6457,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         });
+ 
+         // Tab switching functionality
+-        document.addEventListener('DOMContentLoaded', function() {
++        document.addEventListener('DOMContentLoaded', function () {
+             // Handle tab clicks
+             const tabs = document.querySelectorAll('.sync-tab');
+             const tabContents = document.querySelectorAll('.sync-tab-content');
+@@ -6329,7 +6488,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             // Handle auto-sync toggle
+             const autoSyncToggle = document.getElementById('autoSyncToggle');
+             if (autoSyncToggle) {
+-                autoSyncToggle.addEventListener('change', function() {
++                autoSyncToggle.addEventListener('change', function () {
+                     if (window.cloudSync) {
+                         cloudSync.toggleAutoSync();
+                     }
+@@ -6359,7 +6518,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                                 : 'Choose a folder to enable automatic Recovery Pack exports.';
+                         }
+                         autoExportToggle.checked = false;
+-                        autoExportToggle.addEventListener('change', async function() {
++                        autoExportToggle.addEventListener('change', async function () {
+                             if (this.checked) {
+                                 const enabled = await recoveryAutoExport.enable();
+                                 if (!enabled) {
+@@ -6388,7 +6547,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             }
+ 
+             // Two-way sync button
+-            document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function() {
++            document.getElementById('syncBothWaysBtn')?.addEventListener('click', async function () {
+                 if (window.cloudSync) {
+                     this.disabled = true;
+                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+@@ -6410,10 +6569,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         });
+ 
+         // Sync button functionality
+-        document.addEventListener('DOMContentLoaded', function() {
++        document.addEventListener('DOMContentLoaded', function () {
+ 
+             // Handle Save button click (personal export)
+-            document.addEventListener('click', function(event) {
++            document.addEventListener('click', function (event) {
+                 if (event.target.id === 'saveBtn' || event.target.closest('#saveBtn')) {
+                     exportPersonal();
+                     closeSyncModal();
+@@ -6421,7 +6580,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             });
+ 
+             // Handle Open button click (smart import)
+-            document.addEventListener('click', function(event) {
++            document.addEventListener('click', function (event) {
+                 if (event.target.id === 'openBtn' || event.target.closest('#openBtn')) {
+                     // Create hidden file input for smart import
+                     let smartImportInput = document.getElementById('smartImportFile');
+@@ -6439,7 +6598,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 }
+             });
+ 
+-            document.addEventListener('click', async function(event) {
++            document.addEventListener('click', async function (event) {
+                 if (event.target.id === 'cloudRestoreBtn' || event.target.closest('#cloudRestoreBtn')) {
+                     event.preventDefault();
+                     if (typeof restoreFromCloudByUsername === 'function') {
+@@ -6449,7 +6608,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 }
+             });
+ 
+-            document.addEventListener('click', async function(event) {
++            document.addEventListener('click', async function (event) {
+                 if (event.target.id === 'classPacksBtn' || event.target.closest('#classPacksBtn')) {
+                     event.preventDefault();
+                     if (typeof window.generateClassPacks === 'function') {
+@@ -6459,7 +6618,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             });
+ 
+             // Handle Master Import button click
+-            document.addEventListener('click', function(event) {
++            document.addEventListener('click', function (event) {
+                 if (event.target.id === 'masterImportBtn' || event.target.closest('#masterImportBtn')) {
+                     event.preventDefault(); // Prevent any default behavior
+                     event.stopPropagation(); // Stop event bubbling
+@@ -6473,7 +6632,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                         masterImportInput.accept = '.json';
+                         masterImportInput.id = 'masterImportFile';
+                         masterImportInput.style.display = 'none';
+-                        masterImportInput.addEventListener('change', function(fileEvent) {
++                        masterImportInput.addEventListener('change', function (fileEvent) {
+                             fileEvent.preventDefault(); // Prevent any default behavior
+                             console.log('Master import file selected');
+                             const file = fileEvent.target.files[0];
+@@ -6483,13 +6642,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                             fileEvent.target.value = '';
+ 
+                             const reader = new FileReader();
+-                            reader.onload = function(e) {
++                            reader.onload = function (e) {
+                                 try {
+                                     const data = JSON.parse(e.target.result);
+                                     console.log('Master import - calling importMasterData with:', data);
+ 
+                                     // Prevent ALL forms of page refresh/navigation
+-                                    window.onbeforeunload = function(e) {
++                                    window.onbeforeunload = function (e) {
+                                         console.log('Preventing page refresh during import...');
+                                         return 'Import in progress, are you sure you want to leave?';
+                                     };
+@@ -6597,62 +6756,62 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             });
+ 
+             // Handle Master Export button click
+-            document.addEventListener('click', function(event) {
++            document.addEventListener('click', function (event) {
+                 if (event.target.id === 'masterExportBtn' || event.target.closest('#masterExportBtn')) {
+                     exportMasterData();
+                     closeSyncModal();
+                 }
+             });
+         });
+-  // --- File Type Detection Functions ---
++        // --- File Type Detection Functions ---
+ 
+-  /**
+-   * Detects if the imported data is a personal data file
+-   * Personal files have username and users object with the user's data
+-   */
+-   function isPersonalDataFile(data) {
+-      // Check for personal export format
+-      if (data.username && data.users && data.users[data.username]) {
+-          return true;
+-      }
++        /**
++         * Detects if the imported data is a personal data file
++         * Personal files have username and users object with the user's data
++         */
++        function isPersonalDataFile(data) {
++            // Check for personal export format
++            if (data.username && data.users && data.users[data.username]) {
++                return true;
++            }
+ 
+-      // Check for single user export with answers directly
+-      if (data.username && data.answers) {
+-          return true;
+-      }
++            // Check for single user export with answers directly
++            if (data.username && data.answers) {
++                return true;
++            }
+ 
+-      // Check if it has a single user in users object
+-      if (data.users && Object.keys(data.users).length === 1) {
+-          return true;
+-      }
++            // Check if it has a single user in users object
++            if (data.users && Object.keys(data.users).length === 1) {
++                return true;
++            }
+ 
+-      return false;
+-  }
++            return false;
++        }
+ 
+-  /**
+-   * Detects if the imported data is a master data file
+-   * Master files have multiple users or explicit master export type
+-   */
+-  function isMasterDataFile(data) {
+-      // Check for explicit master export type
+-      if (data.exportType === 'master_database') {
+-          return true;
+-      }
++        /**
++         * Detects if the imported data is a master data file
++         * Master files have multiple users or explicit master export type
++         */
++        function isMasterDataFile(data) {
++            // Check for explicit master export type
++            if (data.exportType === 'master_database') {
++                return true;
++            }
+ 
+-      // Check for multiple users
+-      if (data.users && Object.keys(data.users).length > 1) {
+-          return true;
+-      }
++            // Check for multiple users
++            if (data.users && Object.keys(data.users).length > 1) {
++                return true;
++            }
+ 
+-      // Check for master export format with allUsers
+-      if (data.allUsers && Array.isArray(data.allUsers)) {
+-          return true;
+-      }
++            // Check for master export format with allUsers
++            if (data.allUsers && Array.isArray(data.allUsers)) {
++                return true;
++            }
+ 
+-      return false;
+-  }
++            return false;
++        }
+ 
+-  // --- End of File Type Detection Functions ---
++        // --- End of File Type Detection Functions ---
+         // Smart Import Function - Auto-detects file type
+         async function handleSmartImport(event) {
+             console.log('handleSmartImport called', event);
+@@ -6664,7 +6823,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             }
+ 
+             const reader = new FileReader();
+-            reader.onload = async function(e) {
++            reader.onload = async function (e) {
+                 try {
+                     const data = JSON.parse(e.target.result);
+ 
+@@ -6713,52 +6872,52 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                         return;
+                     }
+ 
+-  // Direct detection logic without external functions
+-  let isPersonalFile = false;
+-  let isMasterFile = false;
++                    // Direct detection logic without external functions
++                    let isPersonalFile = false;
++                    let isMasterFile = false;
+ 
+-  // Check for personal file formats
+-  if (data.username && data.users && data.users[data.username]) {
+-      // Standard personal export format
+-      isPersonalFile = true;
+-      console.log('Detected: Personal export format with username and users');
+-  } else if (data.username && data.answers) {
+-      // Alternative personal format with direct answers
+-      isPersonalFile = true;
+-      console.log('Detected: Personal format with direct answers');
+-  } else if (data.users && Object.keys(data.users).length === 1) {
+-      // Single user export
+-      isPersonalFile = true;
+-      console.log('Detected: Single user export format');
+-  } else if (data.users && Object.keys(data.users).length > 1) {
+-      // Multiple users - master file
+-      isMasterFile = true;
+-      console.log('Detected: Master file with multiple users');
+-  } else if (data.exportType === 'master_database') {
+-      // Explicit master export
+-      isMasterFile = true;
+-      console.log('Detected: Master database export');
+-  }
++                    // Check for personal file formats
++                    if (data.username && data.users && data.users[data.username]) {
++                        // Standard personal export format
++                        isPersonalFile = true;
++                        console.log('Detected: Personal export format with username and users');
++                    } else if (data.username && data.answers) {
++                        // Alternative personal format with direct answers
++                        isPersonalFile = true;
++                        console.log('Detected: Personal format with direct answers');
++                    } else if (data.users && Object.keys(data.users).length === 1) {
++                        // Single user export
++                        isPersonalFile = true;
++                        console.log('Detected: Single user export format');
++                    } else if (data.users && Object.keys(data.users).length > 1) {
++                        // Multiple users - master file
++                        isMasterFile = true;
++                        console.log('Detected: Master file with multiple users');
++                    } else if (data.exportType === 'master_database') {
++                        // Explicit master export
++                        isMasterFile = true;
++                        console.log('Detected: Master database export');
++                    }
+ 
+-  console.log('File import debug - isPersonalFile:', isPersonalFile);
+-  console.log('File import debug - isMasterFile:', isMasterFile);
++                    console.log('File import debug - isPersonalFile:', isPersonalFile);
++                    console.log('File import debug - isMasterFile:', isMasterFile);
+ 
+-  // Process based on file type
+-  if (isPersonalFile) {
+-      console.log('Processing as personal data file...');
+-      importAndMergePersonalData(data);
+-      // Message is handled inside importAndMergePersonalData
+-      return;
+-  } else if (isMasterFile) {
+-      console.log('Processing as master data file...');
+-      importMasterData(data);
+-      showMessage('✅ Master data imported successfully!', 'success');
+-      return;
+-  } else {
+-      console.error('File structure does not match expected formats');
+-      console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
+-      showMessage('⚠️ Unrecognized file format. Please check your file.', 'error');
+-  }
++                    // Process based on file type
++                    if (isPersonalFile) {
++                        console.log('Processing as personal data file...');
++                        importAndMergePersonalData(data);
++                        // Message is handled inside importAndMergePersonalData
++                        return;
++                    } else if (isMasterFile) {
++                        console.log('Processing as master data file...');
++                        importMasterData(data);
++                        showMessage('✅ Master data imported successfully!', 'success');
++                        return;
++                    } else {
++                        console.error('File structure does not match expected formats');
++                        console.log('Data sample:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
++                        showMessage('⚠️ Unrecognized file format. Please check your file.', 'error');
++                    }
+ 
+                     // Store the data temporarily to survive refresh
+                     if (isMasterDataFile(data)) {
+@@ -6774,8 +6933,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                         if (isPersonalDataFile(data)) {
+                             console.log('Detected: Personal data file');
+                             importAndMergePersonalData(data);
+-  // Message is now handled inside importAndMergePersonalData for better feedback
+-                          } else if (isMasterDataFile(data)) {
++                            // Message is now handled inside importAndMergePersonalData for better feedback
++                        } else if (isMasterDataFile(data)) {
+                             console.log('Detected: Master database file');
+                             importMasterData(data);
+                             showMessage('✅ Master database imported successfully!', 'success');
+@@ -6797,16 +6956,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         function isPersonalDataFile(data) {
+             // Personal data files typically have a single user's answers and progress
+             return (data.answers && typeof data.answers === 'object') ||
+-                   (data.username && data.exportType === 'personal') ||
+-                   (data.progress && !data.students && !data.allUsers);
++                (data.username && data.exportType === 'personal') ||
++                (data.progress && !data.students && !data.allUsers);
+         }
+ 
+         function isMasterDataFile(data) {
+             // Master data files have multiple users or class-wide data
+             return !!(data.students ||
+-                     data.allUsers ||
+-                     data.exportType === 'master_database' ||
+-                     (data.users && Object.keys(data.users).length > 1));
++                data.allUsers ||
++                data.exportType === 'master_database' ||
++                (data.users && Object.keys(data.users).length > 1));
+         }
+ 
+         // Backward compatibility migration function
+@@ -7002,7 +7161,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Update references from masterExportBtn to totalExportBtn
+-        window.exportMasterData = window.exportMasterData || function() {
++        window.exportMasterData = window.exportMasterData || function () {
+             // Get ALL data from localStorage, not filtered by user
+             const masterData = {
+                 exportTime: new Date().toISOString(),
+@@ -7052,10 +7211,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+         // Initialize sync functionality
+         function initializeSyncModal() {
+-            // Update current user display
++            // Update current user display - check multiple sources
+             const currentUserDisplay = document.getElementById('currentUserDisplay');
+             if (currentUserDisplay) {
+-                currentUserDisplay.textContent = localStorage.getItem('consensusUsername') || 'Unknown';
++                const username = window.currentUsername
++                    || localStorage.getItem('consensusUsername')
++                    || 'Not logged in';
++                currentUserDisplay.textContent = username;
+             }
+ 
+             // Show/hide turbo mode notice based on sync status
+@@ -7064,21 +7226,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
+                 turboModeNotice.style.display = turboModeActive ? 'block' : 'none';
+             }
+ 
+-            const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
+-            const cloudRestoreHelper = document.getElementById('cloudRestoreHelper');
+-            const shouldShowCloud = !!(window.FEATURE_FLAGS.restoreFromCloud && turboModeActive && supabase);
+-            if (cloudRestoreBtn) {
+-                cloudRestoreBtn.style.display = shouldShowCloud ? 'flex' : 'none';
+-            }
+-            if (cloudRestoreHelper) {
+-                if (window.FEATURE_FLAGS.restoreFromCloud) {
+-                    cloudRestoreHelper.style.display = 'block';
+-                    cloudRestoreHelper.innerHTML = shouldShowCloud
+-                        ? '<i class="fas fa-cloud"></i> Cloud restore ready: pull your latest answers from Supabase.'
+-                        : '<i class="fas fa-info-circle"></i> Turbo mode must be active to restore from the cloud.';
+-                } else {
+-                    cloudRestoreHelper.style.display = 'none';
+-                }
++            // Update sync stats display when modal opens
++            if (window.SyncStatus) {
++                window.SyncStatus.updateSyncStats();
+             }
+ 
+             const classPacksBtn = document.getElementById('classPacksBtn');
+@@ -7191,7 +7341,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+         }
+ 
+         // Initialize when page loads
+-        document.addEventListener('DOMContentLoaded', function() {
++        document.addEventListener('DOMContentLoaded', function () {
+             // Run migration on existing data
+             migrateExistingAnswersData();
+ 
+@@ -7212,14 +7362,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             const shareModal = document.getElementById('shareModal');
+             if (shareModal) {
+                 // Close modal when clicking outside
+-                window.addEventListener('click', function(event) {
++                window.addEventListener('click', function (event) {
+                     if (event.target === shareModal) {
+                         closeShareModal();
+                     }
+                 });
+ 
+                 // Close modal with ESC key
+-                document.addEventListener('keydown', function(event) {
++                document.addEventListener('keydown', function (event) {
+                     if (event.key === 'Escape' && shareModal.style.display === 'block') {
+                         closeShareModal();
+                     }
+@@ -7266,35 +7416,25 @@ if (chartInstances[`dotplot-${questionId}`]) {
+     <div id="spriteConfigModal" class="modal" style="display: none;">
+         <div class="modal-content">
+             <span class="close-modal" onclick="closeSpriteConfigModal()">&times;</span>
+-            <h2>🎮 Sprite Configuration</h2>
++            <h2>SPRITE COLOR</h2>
+ 
+             <div class="sprite-config-section">
+-                <h3>Enable Sprites</h3>
+-                <label class="switch">
+-                    <input type="checkbox" id="spritesEnabledToggle" checked>
+-                    <span class="slider round"></span>
+-                </label>
+-            </div>
+-
+-            <div class="sprite-config-section">
+-                <h3>Sprite Color</h3>
+                 <div class="color-picker">
+-                    <label for="spriteHueSlider">Hue: <span id="hueValue">0</span>°</label>
++                    <label for="spriteHueSlider">HUE: <span id="hueValue">0</span></label>
+                     <input type="range" id="spriteHueSlider" min="0" max="360" value="0" step="1">
+                     <div class="color-preview">
+-                        <div id="spriteColorPreview" style="width: 50px; height: 50px; border-radius: 5px; margin: 10px 0;"></div>
++                        <div id="spriteColorPreview"></div>
+                     </div>
+                 </div>
+ 
+                 <div class="sprite-preview-section">
+-                    <h4>Preview</h4>
+-                    <canvas id="spritePreviewCanvas" width="100" height="100" style="border: 1px solid #ccc; border-radius: 5px;"></canvas>
++                    <canvas id="spritePreviewCanvas" width="100" height="100"></canvas>
+                 </div>
+             </div>
+ 
+             <div class="modal-buttons">
+-                <button class="modal-btn save-btn" onclick="saveSpriteConfig()">Save Settings</button>
+-                <button class="modal-btn cancel-btn" onclick="closeSpriteConfigModal()">Cancel</button>
++                <button class="modal-btn save-btn" onclick="saveSpriteConfig()">SAVE</button>
++                <button class="modal-btn cancel-btn" onclick="closeSpriteConfigModal()">CANCEL</button>
+             </div>
+         </div>
+     </div>
+@@ -7304,7 +7444,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+     <script>
+         // Sprite system globals
+-        let canvasEngine, playerSprite, spriteSheet, spriteManager;
++        let canvasEngine, playerSprite, spriteSheet, spriteManager, studyBuddyRoom;
+ 
+         // Initialize sprite system
+         document.addEventListener('DOMContentLoaded', () => {
+@@ -7326,13 +7466,366 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             spriteManager = new SpriteManager(canvasEngine, spriteSheet);
+             window.spriteManager = spriteManager; // Expose globally for early listeners
+ 
+-            // Check if sprites are enabled
+-            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
+-            if (spritesEnabled) {
+-                canvasEngine.start();
+-            }
++            // Always start the canvas engine (sprites always enabled)
++            canvasEngine.start();
++
++            // Listen for door enter event (to navigate back)
++            window.addEventListener('studyBuddyDoorEnter', (e) => {
++                if (!studyBuddyRoom) return;
++
++                if (studyBuddyRoom.isUnitSelectRoom) {
++                    // Door from unit select → logout with confirmation
++                    console.log('Door entered from unit select, prompting logout');
++                    if (confirm('Are you sure you want to log out?')) {
++                        // Destroy the study buddy room first
++                        destroyStudyBuddyRoom();
++
++                        // Clear the username from storage (both localStorage and IndexedDB)
++                        localStorage.removeItem('consensusUsername');
++                        if (typeof AppDB !== 'undefined' && AppDB.setStoredUsername) {
++                            AppDB.setStoredUsername(null);
++                        }
++
++                        // Clear current username global
++                        window.currentUsername = null;
++
++                        // Show the onboarding/login prompt
++                        if (typeof showUsernamePrompt === 'function') {
++                            showUsernamePrompt();
++                        } else {
++                            // Fallback: reload the page
++                            location.reload();
++                        }
++                    } else {
++                        // User cancelled - respawn player at start position away from door
++                        playerSprite.x = 100;
++                        playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
++                    }
++                } else if (studyBuddyRoom.isLessonSelectRoom) {
++                    // Door from lesson select → unit select
++                    console.log('Door entered from lesson select, returning to units');
++                    if (typeof backToUnits === 'function') {
++                        backToUnits();
++                    }
++                } else {
++                    // Door from lesson → lesson select
++                    console.log('Door entered from lesson, returning to lesson select');
++                    if (typeof backToLessons === 'function') {
++                        backToLessons();
++                    }
++                }
++            });
++
++            // Listen for peer position updates
++            window.addEventListener('studyBuddyPeerUpdate', (e) => {
++                if (!studyBuddyRoom || !spriteSheet) return;
++                const { username, lessonId, position, blockPositions, hue, completedUnits } = e.detail;
++
++                // Only show peers on the EXACT same screen (lesson, lesson select, or unit select)
++                if (studyBuddyRoom.currentLessonId !== lessonId) return;
++
++                // Update or add peer
++                if (studyBuddyRoom.peers.has(username)) {
++                    studyBuddyRoom.updatePeer(username, position, blockPositions);
++                } else {
++                    studyBuddyRoom.addPeer(username, spriteSheet, hue, completedUnits, position, blockPositions);
++                }
++            });
++
++            // Listen for peer joining
++            window.addEventListener('studyBuddyPeerJoined', (e) => {
++                if (!studyBuddyRoom || !spriteSheet) return;
++                const { username, lessonId, position, blockPositions, hue, completedUnits } = e.detail;
++
++                // Only show peers on the EXACT same screen
++                if (studyBuddyRoom.currentLessonId !== lessonId) return;
++
++                console.log(`Peer ${username} joined ${lessonId}`);
++                studyBuddyRoom.addPeer(username, spriteSheet, hue, completedUnits, position, blockPositions);
++            });
++
++            // Listen for peer leaving
++            window.addEventListener('studyBuddyPeerLeft', (e) => {
++                if (!studyBuddyRoom) return;
++                const { username, lessonId } = e.detail;
++
++                // Only process if peer was on our exact screen
++                if (studyBuddyRoom.currentLessonId !== lessonId) return;
++
++                console.log(`Peer ${username} left ${lessonId}`);
++                studyBuddyRoom.removePeer(username);
++            });
++
++            // Listen for menu door enter event (toggles FAB menu)
++            window.addEventListener('studyBuddyMenuDoorEnter', (e) => {
++                console.log('Menu door entered, toggling FAB menu');
++                if (typeof toggleFabMenu === 'function') {
++                    toggleFabMenu();
++                }
++            });
+         });
+ 
++        /**
++         * Get the player's actually completed units from progress data
++         * A unit is "completed" when all questions in that unit have been answered
++         * @returns {Array} Array of completed unit numbers
++         */
++        function getPlayerCompletedUnits() {
++            const completedUnits = [];
++
++            // Check each unit (1-9) for completion
++            for (let unitNum = 1; unitNum <= 9; unitNum++) {
++                // Get all questions for this unit from the curriculum
++                if (typeof allUnitQuestions !== 'undefined' && allUnitQuestions.length > 0) {
++                    const unitQuestions = allUnitQuestions.filter(q => {
++                        const match = q.id.match(/U(\d+)-/);
++                        return match && parseInt(match[1], 10) === unitNum;
++                    });
++
++                    // If there are questions and all are answered, unit is complete
++                    if (unitQuestions.length > 0 && unitQuestions.every(q => isQuestionAnswered(q.id))) {
++                        completedUnits.push(unitNum);
++                    }
++                }
++            }
++
++            return completedUnits;
++        }
++
++        /**
++         * Initialize Study Buddy room for a lesson
++         * Uses Unit 1 level config (flat ground, door at ground level)
++         * Blocks only appear if player has actually completed units
++         * @param {string} lessonId - The lesson ID (e.g., "U2-L3-Q01")
++         * @param {Array} overrideCompletedUnits - Optional array of completed units (for testing)
++         */
++        function initStudyBuddyRoom(lessonId, overrideCompletedUnits) {
++            if (!canvasEngine || !playerSprite) {
++                console.warn('Sprite system not initialized');
++                return;
++            }
++
++            // Parse unit number from lesson ID (for display/logging only)
++            const unitMatch = lessonId.match(/U(\d+)/i);
++            const unitNumber = unitMatch ? parseInt(unitMatch[1], 10) : 1;
++
++            // Get player's ACTUALLY completed units from progress data
++            // Only use override for testing purposes
++            let completedUnits;
++            if (overrideCompletedUnits) {
++                completedUnits = overrideCompletedUnits;
++            } else {
++                completedUnits = getPlayerCompletedUnits();
++            }
++
++            // Get player hue
++            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
++
++            // Create or reinitialize the room
++            if (studyBuddyRoom) {
++                studyBuddyRoom.destroy();
++            }
++            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
++                roomWidth: 1200
++            });
++
++            // Always use Unit 1 level config (flat ground, door at ground level)
++            // Blocks come from actually completed units, not from level design
++            studyBuddyRoom.initialize(lessonId, 1, completedUnits, playerHue);
++
++            // Reset player position
++            playerSprite.x = 100;
++            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
++
++            console.log(`Study Buddy room initialized for ${lessonId} (Unit ${unitNumber})`);
++            console.log(`Player has ${completedUnits.length} completed units:`, completedUnits);
++            console.log(`Door position: x=${studyBuddyRoom.door?.x || 'N/A'}`);
++            console.log(`Use arrow keys to move. Walk right to find the door.`);
++
++            // Notify server that we joined this lesson
++            if (window.railwayClient && window.railwayClient.joinBuddyRoom) {
++                const syncData = studyBuddyRoom.getSyncData(playerSprite);
++                window.railwayClient.joinBuddyRoom(
++                    lessonId,
++                    syncData.position,
++                    syncData.blockPositions,
++                    playerHue,
++                    completedUnits
++                );
++            }
++
++            // Start position sync interval (send position updates ~10x per second)
++            if (window.buddyPositionInterval) {
++                clearInterval(window.buddyPositionInterval);
++            }
++            window.buddyPositionInterval = setInterval(() => {
++                if (studyBuddyRoom && playerSprite && window.railwayClient && window.railwayClient.sendBuddyPosition) {
++                    const syncData = studyBuddyRoom.getSyncData(playerSprite);
++                    window.railwayClient.sendBuddyPosition(
++                        lessonId,
++                        syncData.position,
++                        syncData.blockPositions,
++                        playerHue,
++                        completedUnits
++                    );
++                }
++            }, 100); // 10 Hz position updates
++
++            return studyBuddyRoom;
++        }
++
++        /**
++         * Destroy Study Buddy room (return to normal sprite mode)
++         */
++        function destroyStudyBuddyRoom() {
++            // Stop position sync interval
++            if (window.buddyPositionInterval) {
++                clearInterval(window.buddyPositionInterval);
++                window.buddyPositionInterval = null;
++            }
++
++            // Notify server we're leaving
++            if (studyBuddyRoom && window.railwayClient && window.railwayClient.leaveBuddyRoom) {
++                window.railwayClient.leaveBuddyRoom(studyBuddyRoom.currentLessonId);
++            }
++
++            if (studyBuddyRoom) {
++                studyBuddyRoom.destroy();
++                studyBuddyRoom = null;
++                console.log('Study Buddy room destroyed');
++            }
++        }
++
++        /**
++         * Initialize Study Buddy room for the lesson selector screen
++         * Always uses Unit 1 level (flat ground, door at ground level, no blocks)
++         * Door takes player back to unit selector
++         * @param {number} unitNumber - Current unit number (for display only)
++         */
++        function initStudyBuddyRoomForLessonSelect(unitNumber) {
++            if (!canvasEngine || !playerSprite) {
++                console.warn('Sprite system not initialized');
++                return;
++            }
++
++            // Get player hue
++            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
++
++            // Create or reinitialize the room
++            if (studyBuddyRoom) {
++                studyBuddyRoom.destroy();
++            }
++            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
++                roomWidth: 1200
++            });
++
++            // Use a special lesson ID for lesson select screen
++            const lessonSelectId = `U${unitNumber}-LessonSelect`;
++
++            // Always use Unit 1 level config (flat, no blocks, door at ground)
++            // Pass empty completedUnits array - no blocks on lesson select screen
++            studyBuddyRoom.initialize(lessonSelectId, 1, [], playerHue);
++
++            // Mark this as a "lesson select" room - door goes to units
++            studyBuddyRoom.isLessonSelectRoom = true;
++
++            // Reset player position
++            playerSprite.x = 100;
++            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
++
++            console.log(`Study Buddy room initialized for lesson selector (Unit ${unitNumber}, using flat level)`);
++
++            return studyBuddyRoom;
++        }
++
++        /**
++         * Initialize Study Buddy room for the unit selector screen
++         * Always uses Unit 1 level (flat ground, door at ground level, no blocks)
++         * Door triggers logout confirmation
++         */
++        function initStudyBuddyRoomForUnitSelect() {
++            if (!canvasEngine || !playerSprite) {
++                console.warn('Sprite system not initialized');
++                return;
++            }
++
++            // Get player hue
++            const playerHue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
++
++            // Create or reinitialize the room
++            if (studyBuddyRoom) {
++                studyBuddyRoom.destroy();
++            }
++            studyBuddyRoom = new StudyBuddyRoom(canvasEngine, {
++                roomWidth: 1200
++            });
++
++            // Use a special ID for unit select screen
++            const unitSelectId = 'UnitSelect';
++
++            // Always use Unit 1 level config (flat, no blocks, door at ground)
++            studyBuddyRoom.initialize(unitSelectId, 1, [], playerHue);
++
++            // Mark this as a "unit select" room - door triggers logout
++            studyBuddyRoom.isUnitSelectRoom = true;
++
++            // Reset player position
++            playerSprite.x = 100;
++            playerSprite.y = studyBuddyRoom.groundY - playerSprite.spriteSheet.frameHeight * playerSprite.scale;
++
++            console.log('Study Buddy room initialized for unit selector');
++
++            return studyBuddyRoom;
++        }
++
++        /**
++         * Test function - create room with fake completed units
++         * @param {number} unit - Unit number to test (default 3)
++         */
++        function testStudyBuddyRoom(unit = 3) {
++            // Enable debug mode
++            window.debugStudyBuddy = true;
++
++            // Create completed units array (all units before this one)
++            const completedUnits = [];
++            for (let i = 1; i < unit; i++) {
++                completedUnits.push(i);
++            }
++
++            // Create room for specified unit
++            initStudyBuddyRoom(`U${unit}-L1-Q01`, completedUnits);
++
++            const blocksNeeded = unit - 1;
++            console.log('=== STUDY BUDDY TEST MODE ===');
++            console.log(`Unit ${unit}: Need ${blocksNeeded} stacked block(s) + jump to reach door`);
++            console.log(`You have ${completedUnits.length} completed unit blocks on top of cliff`);
++            console.log('');
++            console.log('Gameplay:');
++            console.log('  1. Walk up the cliff ramp (invisible but functional)');
++            console.log('  2. Push blocks off the cliff edge into the pit');
++            console.log('  3. Blocks cannot be pushed back up the cliff');
++            console.log('  4. Stack blocks in the pit to reach the floating door');
++            console.log('  5. Jump from top of block stack to enter door');
++            console.log('');
++            console.log('Controls:');
++            console.log('  Arrow keys / WASD - Move and jump');
++            console.log('  Push blocks by walking into them');
++            console.log('');
++            console.log('Test commands:');
++            console.log('  testStudyBuddyRoom(1) - Unit 1 (door at ground level, no blocks)');
++            console.log('  testStudyBuddyRoom(2) - Unit 2 (need 1 block + jump)');
++            console.log('  testStudyBuddyRoom(3) - Unit 3 (need 2 blocks + jump)');
++            console.log('  testStudyBuddyRoom(4) - Unit 4 (need 3 blocks + jump)');
++            console.log('  destroyStudyBuddyRoom() - exit room mode');
++        }
++
++        // Expose globally for testing
++        window.initStudyBuddyRoom = initStudyBuddyRoom;
++        window.initStudyBuddyRoomForLessonSelect = initStudyBuddyRoomForLessonSelect;
++        window.initStudyBuddyRoomForUnitSelect = initStudyBuddyRoomForUnitSelect;
++        window.destroyStudyBuddyRoom = destroyStudyBuddyRoom;
++        window.testStudyBuddyRoom = testStudyBuddyRoom;
++
+         // Sprite configuration modal functions
+         function showSpriteConfigModal() {
+             const modal = document.getElementById('spriteConfigModal');
+@@ -7340,11 +7833,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+             modal.style.display = 'block';
+ 
+-            // Load current settings
+-            const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
++            // Load current hue setting
+             const hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+-
+-            document.getElementById('spritesEnabledToggle').checked = spritesEnabled;
+             document.getElementById('spriteHueSlider').value = hue;
+ 
+             updateSpriteConfigPreview();
+@@ -7360,43 +7850,32 @@ if (chartInstances[`dotplot-${questionId}`]) {
+             document.getElementById('hueValue').textContent = hue;
+ 
+             const preview = document.getElementById('spriteColorPreview');
+-            preview.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
++            if (preview) {
++                preview.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
++            }
+ 
+             const canvas = document.getElementById('spritePreviewCanvas');
+-            const ctx = canvas.getContext('2d');
+-            ctx.clearRect(0, 0, canvas.width, canvas.height);
++            if (canvas) {
++                const ctx = canvas.getContext('2d');
++                ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+-            if (spriteSheet && spriteSheet.loaded) {
+-                ctx.save();
+-                ctx.filter = `hue-rotate(${hue}deg)`;
+-                // Draw frame 0 centered in preview canvas
+-                spriteSheet.drawFrame(ctx, 0, 10, 2, 1, 0);
+-                ctx.restore();
++                if (spriteSheet && spriteSheet.loaded) {
++                    // Draw frame 0 centered in preview canvas with hue applied
++                    spriteSheet.drawFrame(ctx, 0, 10, 2, 1, parseInt(hue, 10));
++                }
+             }
+         }
+ 
+         function saveSpriteConfig() {
+-            const spritesEnabled = document.getElementById('spritesEnabledToggle').checked;
+             const hue = parseInt(document.getElementById('spriteHueSlider').value, 10);
+ 
+-            localStorage.setItem('spritesEnabled', spritesEnabled.toString());
+             localStorage.setItem('spriteColorHue', hue.toString());
+ 
+-            // Apply settings
++            // Apply hue to player sprite immediately
+             if (playerSprite) {
+                 playerSprite.setHue(hue);
+             }
+ 
+-            if (spritesEnabled) {
+-                if (canvasEngine && !canvasEngine.running) {
+-                    canvasEngine.start();
+-                }
+-            } else {
+-                if (canvasEngine && canvasEngine.running) {
+-                    canvasEngine.stop();
+-                }
+-            }
+-
+             closeSpriteConfigModal();
+         }
+ 
+@@ -7418,4 +7897,5 @@ if (chartInstances[`dotplot-${questionId}`]) {
+ 
+     </script>
+ </body>
+-</html>
++
++</html>
+\ No newline at end of file
+diff --git a/js/auth.js b/js/auth.js
+index 9c41bc5..89f2913 100644
+--- a/js/auth.js
++++ b/js/auth.js
+@@ -1,6 +1,6 @@
+ // auth.js - User authentication and management functions
+ // Part of AP Statistics Consensus Quiz
+-// Dependencies: Must be loaded after data_manager.js (for initClassData, initializeProgressTracking)
++// Dependencies: Must be loaded after db.js and data_manager.js
+ // This module handles "who is the user" - username generation, prompting, and session management
+ 
+ // ========================================
+@@ -68,21 +68,93 @@ function generateRandomUsername() {
+ /**
+  * Main entry point for username workflow
+  * Checks for saved username or shows prompt
++ * NOTE: This is now called from startApp() after initDB()
++ * @returns {Promise<void>}
+  */
+-function promptUsername() {
+-    const savedUsername = localStorage.getItem('consensusUsername');
++async function promptUsername() {
++    // Get username from IndexedDB
++    const savedUsername = await AppDB.getStoredUsername();
++
+     if (savedUsername) {
+         currentUsername = savedUsername;
+-        initClassData();
+-        initializeProgressTracking(); // Initialize progress tracking for returning user
++
++        // Check if we have local data
++        const localAnswerCount = await AppDB.getUserAnswerCount(currentUsername);
++
++        // If local data is empty, try cloud restore
++        if (localAnswerCount === 0 && window.USE_RAILWAY && window.RestoreUI) {
++            await attemptCloudRestore(currentUsername);
++        }
++
++        await initClassData();
++        initializeProgressTracking();
+         showUsernameWelcome();
+-        initializeFromEmbeddedData(); // Initialize from embedded data
++        initializeFromEmbeddedData();
+         updateCurrentUsernameDisplay();
+     } else {
+         showUsernamePrompt();
+     }
+ }
+ 
++/**
++ * Attempts to restore user data from Railway/cloud
++ * Shows restore modal with progress
++ * @param {string} username - Username to restore data for
++ * @returns {Promise<boolean>} True if restore succeeded
++ */
++async function attemptCloudRestore(username) {
++    if (!window.railwayClient || typeof window.railwayClient.fetchUserData !== 'function') {
++        console.log('Railway client not available for cloud restore');
++        return false;
++    }
++
++    RestoreUI.show();
++    RestoreUI.setProgress(10, 'Connecting to cloud...');
++
++    try {
++        const cloudData = await window.railwayClient.fetchUserData(username);
++
++        if (cloudData && Object.keys(cloudData.answers || {}).length > 0) {
++            RestoreUI.setProgress(50, 'Restoring your answers...');
++
++            // Ensure user exists in classData
++            if (!classData.users[username]) {
++                classData.users[username] = {
++                    answers: {},
++                    reasons: {},
++                    timestamps: {},
++                    attempts: {},
++                    charts: {},
++                    currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
++                };
++            }
++
++            // Merge cloud data
++            Object.assign(classData.users[username], cloudData);
++
++            // Save to IndexedDB
++            await AppDB.saveUserData(username);
++
++            const answerCount = Object.keys(cloudData.answers || {}).length;
++            RestoreUI.complete(answerCount);
++
++            if (window.showToast) {
++                showToast('Your data has been restored!', 'success');
++            }
++
++            return true;
++        } else {
++            RestoreUI.noData();
++            return false;
++        }
++    } catch (e) {
++        console.warn('Cloud restore failed:', e);
++        RestoreUI.error('Could not reach cloud. Your data may sync later.');
++        setTimeout(() => RestoreUI.hide(), 3000);
++        return false;
++    }
++}
++
+ /**
+  * LEGACY: Old combined prompt - now replaced by progressive disclosure
+  * Kept for backward compatibility, but redirects to new flow
+@@ -92,126 +164,188 @@ function showUsernamePrompt() {
+ }
+ 
+ /**
+- * NEW: Initial welcome screen with two-button choice (progressive disclosure)
+- * This is the entry point for the wizard-style onboarding
++ * NEW: Initial welcome screen with three-button choice
++ * Styled to match the user management modal
+  */
+ function showWelcomeScreen() {
++    // Ensure no Study Buddy room is active on the welcome/onboarding screen
++    if (typeof destroyStudyBuddyRoom === 'function') {
++        destroyStudyBuddyRoom();
++    }
++
+     const questionsContainer = document.getElementById('questionsContainer');
+     questionsContainer.innerHTML = `
+-        <div class="welcome-wizard">
+-            <div class="welcome-header">
+-                <h1>📊 AP Statistics Consensus Quiz</h1>
+-                <p class="subtitle">Collaborative Learning Platform</p>
+-            </div>
++        <div class="onboarding-container">
++            <div class="onboarding-card">
++                <div class="onboarding-header">
++                    <h1><img src="img/icons/icon_stats.png" alt="" class="header-icon"> AP Statistics Consensus Quiz</h1>
++                    <p class="onboarding-subtitle">Collaborative Learning Platform</p>
++                </div>
+ 
+-            <div class="welcome-message">
+-                <p>Welcome! Let's get you started.</p>
+-            </div>
++                <div class="onboarding-content">
++                    <p class="onboarding-prompt">Welcome! How would you like to get started?</p>
+ 
+-            <div class="wizard-choices">
+-                <button onclick="showNewStudentFlow()" class="wizard-button primary">
+-                    <div class="button-icon-large">🆕</div>
+-                    <div class="button-content">
+-                        <div class="button-title">I'm a New Student</div>
+-                        <div class="button-description">Get started quickly</div>
++                    <div class="onboarding-options">
++                        <button onclick="showNewStudentFlow()" class="onboarding-option-btn">
++                            <span class="option-icon"><img src="img/icons/icon_new_student.png" alt="New"></span>
++                            <span class="option-text">
++                                <strong>I'm a New Student</strong>
++                                <small>Create a new account</small>
++                            </span>
++                        </button>
++
++                        <button onclick="showReturningStudentFlow()" class="onboarding-option-btn">
++                            <span class="option-icon"><img src="img/icons/icon_switch_user.png" alt="Returning"></span>
++                            <span class="option-text">
++                                <strong>I'm a Returning Student</strong>
++                                <small>Sign in to my account</small>
++                            </span>
++                        </button>
++
++                        <button onclick="showTeacherLoginFlow()" class="onboarding-option-btn teacher-option">
++                            <span class="option-icon"><img src="img/icons/icon_teacher_account.png" alt="Teacher"></span>
++                            <span class="option-text">
++                                <strong>I'm a Teacher</strong>
++                                <small>Access teacher dashboard</small>
++                            </span>
++                        </button>
+                     </div>
+-                </button>
++                </div>
+ 
+-                <button onclick="showReturningStudentFlow()" class="wizard-button secondary">
+-                    <div class="button-icon-large">📂</div>
+-                    <div class="button-content">
+-                        <div class="button-title">I'm Returning</div>
+-                        <div class="button-description">I have a backup file</div>
+-                    </div>
+-                </button>
+-            </div>
+-
+-            <!-- Show recent usernames if any exist -->
+-            <div id="recentUsernamesWelcome" style="display: none; margin-top: 30px;">
+-                <p class="recent-label">Recently used on this device:</p>
+-                <div id="recentUsernamesListWelcome" class="recent-usernames-compact"></div>
++                <div class="onboarding-footer">
++                    <p class="onboarding-hint">Your progress is saved automatically</p>
++                </div>
+             </div>
+         </div>
+     `;
+-
+-    // Check for recently used usernames and display them
+-    loadRecentUsernamesOnWelcome();
+ }
+ 
+ /**
+- * NEW: Flow for new students - simple username generation
++ * NEW: Flow for new students - username generation + real name + password
+  */
+ window.showNewStudentFlow = function() {
+     const suggestedName = generateRandomUsername();
+     const questionsContainer = document.getElementById('questionsContainer');
+ 
+     questionsContainer.innerHTML = `
+-        <div class="new-student-flow">
+-            <div class="flow-header">
+-                <button onclick="showWelcomeScreen()" class="back-button">← Back</button>
+-                <h2>Welcome, New Student!</h2>
+-            </div>
+-
+-            <div class="username-reveal">
+-                <p class="reveal-label">Your username is:</p>
+-                <div class="username-display-large" id="generatedNameLarge">
+-                    ${suggestedName}
++        <div class="onboarding-container">
++            <div class="onboarding-card">
++                <div class="onboarding-header">
++                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
++                    <h2>New Student Registration</h2>
+                 </div>
+-                <p class="username-hint">💡 Write this down - you'll need it to restore your progress later!</p>
+-            </div>
+ 
+-            <div class="flow-actions">
+-                <button onclick="acceptUsername('${suggestedName}')" class="action-button primary extra-large">
+-                    ✅ Let's Go!
+-                </button>
+-                <button onclick="rerollUsernameInFlow()" class="action-button secondary large">
+-                    🎲 Try Another Name
+-                </button>
++                <div class="onboarding-content">
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label">Your Username</label>
++                        <div class="username-generator-row">
++                            <div class="generated-username" id="generatedNameLarge">${suggestedName}</div>
++                            <button type="button" onclick="rerollUsernameInFlow()" class="reroll-btn" title="Generate new username">🎲</button>
++                        </div>
++                        <p class="onboarding-field-hint">This is your unique ID - write it down!</p>
++                    </div>
++
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="newStudentRealName">Your Real Name</label>
++                        <input type="text" id="newStudentRealName" class="onboarding-input" placeholder="e.g., John Smith" autocomplete="name">
++                        <p class="onboarding-field-hint">Only visible to your teacher</p>
++                    </div>
++
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="newStudentPassword">Create a Password</label>
++                        <input type="password" id="newStudentPassword" class="onboarding-input" placeholder="Choose a password" autocomplete="new-password">
++                        <p class="onboarding-field-hint">You'll need this to sign in on other devices</p>
++                    </div>
++
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="newStudentPasswordConfirm">Confirm Password</label>
++                        <input type="password" id="newStudentPasswordConfirm" class="onboarding-input" placeholder="Confirm your password" autocomplete="new-password">
++                    </div>
++
++                    <div id="newStudentError" class="onboarding-error" style="display: none;"></div>
++
++                    <button onclick="submitNewStudentRegistration()" class="onboarding-submit-btn">
++                        Create Account
++                    </button>
++                </div>
+             </div>
+         </div>
+     `;
+ }
+ 
+ /**
+- * NEW: Flow for returning students - import/restore options
++ * NEW: Flow for returning students - sign in with username + password
+  */
+-window.showReturningStudentFlow = function() {
++window.showReturningStudentFlow = async function() {
+     const questionsContainer = document.getElementById('questionsContainer');
+ 
++    // Get list of known users from cloud
++    let knownUsers = [];
++    try {
++        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
++            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users`);
++            if (response.ok) {
++                const data = await response.json();
++                knownUsers = data.users || [];
++            }
++        }
++    } catch (e) {
++        console.log('Could not fetch user list from server');
++    }
++
++    // Build user options HTML
++    let userOptionsHtml = '<option value="">-- Select your username --</option>';
++    if (knownUsers.length > 0) {
++        knownUsers.sort((a, b) => a.username.localeCompare(b.username));
++        knownUsers.forEach(user => {
++            userOptionsHtml += `<option value="${user.username}">${user.username}</option>`;
++        });
++    }
++
+     questionsContainer.innerHTML = `
+-        <div class="returning-student-flow">
+-            <div class="flow-header">
+-                <button onclick="showWelcomeScreen()" class="back-button">← Back</button>
+-                <h2>Welcome Back!</h2>
+-            </div>
++        <div class="onboarding-container">
++            <div class="onboarding-card">
++                <div class="onboarding-header">
++                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
++                    <h2>Welcome Back!</h2>
++                </div>
+ 
+-            <div class="restore-options">
+-                <p class="restore-intro">How would you like to restore your progress?</p>
+-
+-                <div class="restore-methods">
+-                    <div class="restore-method-card">
+-                        <div class="method-icon">🗂️</div>
+-                        <h3>From Class Backup</h3>
+-                        <p>Your teacher shared a master file with everyone's data</p>
+-                        <button onclick="showRestoreOptionsModal()" class="action-button primary">
+-                            Restore from Backup
+-                        </button>
++                <div class="onboarding-content">
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="returningUsername">Your Username</label>
++                        ${knownUsers.length > 0 ? `
++                            <select id="returningUsername" class="onboarding-select">
++                                ${userOptionsHtml}
++                            </select>
++                            <p class="onboarding-field-hint">Or type your username below if not listed</p>
++                            <input type="text" id="returningUsernameManual" class="onboarding-input" placeholder="Type username manually..." style="margin-top: 8px;">
++                        ` : `
++                            <input type="text" id="returningUsernameManual" class="onboarding-input" placeholder="Enter your username (e.g., Apple_Tiger)">
++                        `}
+                     </div>
+ 
+-                    <!-- Show recent usernames if available -->
+-                    <div id="recentUsernamesReturning" style="display: none;" class="restore-method-card">
+-                        <div class="method-icon">⏱️</div>
+-                        <h3>Recent Usernames</h3>
+-                        <p>Pick up where you left off on this device</p>
+-                        <div id="recentUsernamesListReturning" class="recent-usernames-list"></div>
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="returningPassword">Password</label>
++                        <input type="password" id="returningPassword" class="onboarding-input" placeholder="Enter your password" autocomplete="current-password">
+                     </div>
++
++                    <div id="returningStudentError" class="onboarding-error" style="display: none;"></div>
++
++                    <button onclick="submitReturningStudentLogin()" class="onboarding-submit-btn">
++                        Sign In
++                    </button>
++
++                    <div class="onboarding-divider">
++                        <span>or</span>
++                    </div>
++
++                    <button onclick="showRestoreOptionsModal()" class="onboarding-secondary-btn">
++                        Restore from Backup File
++                    </button>
+                 </div>
+             </div>
+         </div>
+     `;
+-
+-    // Load recent usernames for returning students
+-    loadRecentUsernamesForReturning();
+ }
+ 
+ /**
+@@ -228,18 +362,248 @@ window.rerollUsernameInFlow = function() {
+             displayElement.textContent = newName;
+             displayElement.style.opacity = '1';
+         }, 150);
+-
+-        // Update the accept button
+-        const acceptButton = document.querySelector('.action-button.primary.extra-large');
+-        if (acceptButton) {
+-            acceptButton.onclick = () => acceptUsername(newName);
+-        }
+     } else {
+         // Fallback
+         showNewStudentFlow();
+     }
+ }
+ 
++/**
++ * Submit new student registration
++ */
++window.submitNewStudentRegistration = async function() {
++    const username = document.getElementById('generatedNameLarge').textContent.trim();
++    const realName = document.getElementById('newStudentRealName').value.trim();
++    const password = document.getElementById('newStudentPassword').value;
++    const passwordConfirm = document.getElementById('newStudentPasswordConfirm').value;
++    const errorDiv = document.getElementById('newStudentError');
++
++    // Validation
++    if (!realName) {
++        errorDiv.textContent = 'Please enter your real name';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    if (!password) {
++        errorDiv.textContent = 'Please create a password';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    if (password !== passwordConfirm) {
++        errorDiv.textContent = 'Passwords do not match';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    if (password.length < 4) {
++        errorDiv.textContent = 'Password must be at least 4 characters';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    errorDiv.style.display = 'none';
++
++    try {
++        // Register user with Railway server
++        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
++            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users`, {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify({
++                    username: username,
++                    real_name: realName,
++                    password: password,
++                    user_type: 'student'
++                })
++            });
++
++            if (!response.ok) {
++                const data = await response.json();
++                throw new Error(data.error || 'Registration failed');
++            }
++        }
++
++        // Store password locally
++        localStorage.setItem(`password_${username}`, password);
++        localStorage.setItem('currentUserRealName', realName);
++
++        // Accept the username (this sets up the session)
++        await acceptUsername(username);
++
++        if (window.showToast) {
++            showToast(`Welcome, ${realName}!`, 'success');
++        }
++
++    } catch (error) {
++        console.error('Registration error:', error);
++        errorDiv.textContent = error.message || 'Registration failed. Please try again.';
++        errorDiv.style.display = 'block';
++    }
++}
++
++/**
++ * Submit returning student login
++ */
++window.submitReturningStudentLogin = async function() {
++    const selectEl = document.getElementById('returningUsername');
++    const manualInput = document.getElementById('returningUsernameManual');
++    const password = document.getElementById('returningPassword').value;
++    const errorDiv = document.getElementById('returningStudentError');
++
++    // Get username from select or manual input
++    let username = '';
++    if (selectEl && selectEl.value) {
++        username = selectEl.value;
++    } else if (manualInput && manualInput.value.trim()) {
++        username = manualInput.value.trim();
++    }
++
++    // Validation
++    if (!username) {
++        errorDiv.textContent = 'Please select or enter your username';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    if (!password) {
++        errorDiv.textContent = 'Please enter your password';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    errorDiv.style.display = 'none';
++
++    try {
++        // Verify password with Railway server
++        if (window.USE_RAILWAY && window.RAILWAY_SERVER_URL) {
++            const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/users/verify`, {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify({ username, password })
++            });
++
++            const data = await response.json();
++
++            if (!response.ok || !data.valid) {
++                throw new Error('Invalid username or password');
++            }
++
++            // Store real name if returned
++            if (data.user && data.user.real_name) {
++                localStorage.setItem('currentUserRealName', data.user.real_name);
++            }
++        } else {
++            // Fallback: check local password
++            const storedPassword = localStorage.getItem(`password_${username}`);
++            if (storedPassword && storedPassword !== password) {
++                throw new Error('Invalid password');
++            }
++        }
++
++        // Store password locally
++        localStorage.setItem(`password_${username}`, password);
++
++        // Accept the username (this sets up the session)
++        await acceptUsername(username);
++
++        if (window.showToast) {
++            showToast(`Welcome back!`, 'success');
++        }
++
++    } catch (error) {
++        console.error('Login error:', error);
++        errorDiv.textContent = error.message || 'Login failed. Please try again.';
++        errorDiv.style.display = 'block';
++    }
++}
++
++/**
++ * Teacher login flow from onboarding
++ */
++window.showTeacherLoginFlow = function() {
++    const questionsContainer = document.getElementById('questionsContainer');
++    const MASTER_PASSWORD = window.MASTER_PASSWORD || 'googly231';
++
++    questionsContainer.innerHTML = `
++        <div class="onboarding-container">
++            <div class="onboarding-card">
++                <div class="onboarding-header">
++                    <button onclick="showWelcomeScreen()" class="onboarding-back-btn">← Back</button>
++                    <h2>Teacher Login</h2>
++                </div>
++
++                <div class="onboarding-content">
++                    <div class="onboarding-form-section">
++                        <label class="onboarding-label" for="teacherPassword">Teacher Password</label>
++                        <input type="password" id="teacherPassword" class="onboarding-input" placeholder="Enter teacher password" autocomplete="current-password">
++                    </div>
++
++                    <div id="teacherLoginError" class="onboarding-error" style="display: none;"></div>
++
++                    <button onclick="submitTeacherLoginFromOnboarding()" class="onboarding-submit-btn">
++                        Access Dashboard
++                    </button>
++                </div>
++            </div>
++        </div>
++    `;
++
++    // Focus password field
++    setTimeout(() => {
++        const passwordField = document.getElementById('teacherPassword');
++        if (passwordField) passwordField.focus();
++    }, 100);
++}
++
++/**
++ * Submit teacher login from onboarding
++ */
++window.submitTeacherLoginFromOnboarding = async function() {
++    const password = document.getElementById('teacherPassword').value;
++    const errorDiv = document.getElementById('teacherLoginError');
++    const MASTER_PASSWORD = window.MASTER_PASSWORD || 'googly231';
++
++    if (!password) {
++        errorDiv.textContent = 'Please enter the teacher password';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    if (password !== MASTER_PASSWORD) {
++        errorDiv.textContent = 'Invalid teacher password';
++        errorDiv.style.display = 'block';
++        return;
++    }
++
++    errorDiv.style.display = 'none';
++
++    // Set teacher mode
++    window.isTeacherMode = true;
++    if (window.userManagementState) {
++        window.userManagementState.isTeacher = true;
++    }
++
++    // Create a teacher username if none exists
++    const teacherUsername = 'Teacher_Admin';
++    await acceptUsername(teacherUsername);
++
++    // Update UI for teacher mode
++    if (typeof updateFabMenuForUserType === 'function') {
++        updateFabMenuForUserType();
++    }
++
++    if (window.showToast) {
++        showToast('Welcome, Teacher!', 'success');
++    }
++
++    // Show the teacher dashboard
++    if (typeof showTeacherDashboard === 'function') {
++        setTimeout(() => showTeacherDashboard(), 500);
++    }
++}
++
+ /**
+  * Helper: Load recent usernames on welcome screen
+  */
+@@ -279,30 +643,41 @@ function loadRecentUsernamesForReturning() {
+ }
+ 
+ /**
+- * Helper: Get recent usernames from localStorage
++ * Helper: Get recent usernames from in-memory classData and localStorage
+  * @returns {Array<string>} Array of recent usernames
+  */
+ function getRecentUsernames() {
+     const recentUsers = [];
+ 
+-    // Check localStorage for any stored usernames
++    // First check in-memory classData (backed by IndexedDB)
++    if (classData && classData.users) {
++        Object.keys(classData.users).forEach(u => {
++            if (u && u !== 'undefined' && !recentUsers.includes(u)) {
++                recentUsers.push(u);
++            }
++        });
++    }
++
++    // Also check localStorage for legacy data (answers_ keys)
+     for (let key in localStorage) {
+         if (key.startsWith('answers_')) {
+             const username = key.replace('answers_', '');
+-            if (username && username !== 'undefined') {
++            if (username && username !== 'undefined' && !recentUsers.includes(username)) {
+                 recentUsers.push(username);
+             }
+         }
+     }
+ 
+-    // Also check class data
+-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+-    if (classData.users) {
+-        Object.keys(classData.users).forEach(u => {
+-            if (!recentUsers.includes(u)) {
++    // Also check saved recent usernames list
++    try {
++        const savedRecent = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
++        savedRecent.forEach(u => {
++            if (u && !recentUsers.includes(u)) {
+                 recentUsers.push(u);
+             }
+         });
++    } catch (e) {
++        // Ignore parse errors
+     }
+ 
+     return recentUsers;
+@@ -333,11 +708,16 @@ window.rerollUsername = function() {
+  * Exposed to window for onclick handlers
+  * @param {string} name - The username to accept
+  */
+-window.acceptUsername = function(name) {
++window.acceptUsername = async function(name) {
+     currentUsername = name;
++
++    // Save to IndexedDB
++    await AppDB.setStoredUsername(currentUsername);
++
++    // Also keep in localStorage for backward compatibility / quick access
+     localStorage.setItem('consensusUsername', currentUsername);
+ 
+-    // Save to recent usernames list
++    // Save to recent usernames list (kept in localStorage for simplicity)
+     let recentUsernames = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
+     if (!recentUsernames.includes(name)) {
+         recentUsernames.unshift(name);
+@@ -346,12 +726,17 @@ window.acceptUsername = function(name) {
+         localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
+     }
+ 
+-    initClassData();
+-    initializeProgressTracking(); // Initialize progress tracking for new session
++    await initClassData();
++    initializeProgressTracking();
+     showUsernameWelcome();
+     initializeFromEmbeddedData();
+     updateCurrentUsernameDisplay();
+ 
++    // Show success toast
++    if (window.showToast) {
++        showToast(`Welcome, ${name}!`, 'success');
++    }
++
+     // Initialize multiplayer pig system
+     if (typeof PigManager !== 'undefined' && !window.pigManager) {
+         window.pigManager = new PigManager();
+@@ -383,27 +768,30 @@ window.recoverUsername = function() {
+ }
+ 
+ /**
+- * Checks if a username has existing data in localStorage
++ * Checks if a username has existing data in IndexedDB or in-memory classData
+  * @param {string} username - Username to check
+  */
+-function checkExistingData(username) {
+-    const existingData = localStorage.getItem(`answers_${username}`);
+-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+-    const hasData = existingData || (classData.users && classData.users[username]);
++async function checkExistingData(username) {
++    // Check IndexedDB for existing user
++    const hasData = await AppDB.userExists(username) ||
++                   (classData.users && classData.users[username]);
+ 
+     if (hasData) {
+         if (confirm(`Found existing data for ${username}. Would you like to continue with this username and restore your progress?`)) {
+-            acceptUsername(username);
++            await acceptUsername(username);
+             showMessage('Welcome back! Your progress has been restored.', 'success');
+         }
+     } else {
+         if (confirm(`No existing data found for ${username}. Would you like to start fresh with this username?`)) {
+-            acceptUsername(username);
++            await acceptUsername(username);
+             showMessage('Username set! Starting fresh.', 'info');
+         }
+     }
+ }
+ 
++// Expose to window for onclick handlers
++window.checkExistingData = checkExistingData;
++
+ // ========================================
+ // USER DISPLAY & RECENT USERNAMES
+ // ========================================
+diff --git a/js/canvas_engine.js b/js/canvas_engine.js
+index 0c2affb..84981b7 100644
+--- a/js/canvas_engine.js
++++ b/js/canvas_engine.js
+@@ -9,15 +9,29 @@ class CanvasEngine {
+     this.labelColor = '#FFFFFF';
+     this.labelGoldColor = '#FFD700';
+     this.labelYOffset = 6;
++
++    // Study Buddy room reference (set by StudyBuddyRoom)
++    this.room = null;
++
+     this.resize = this.resize.bind(this);
+     this.resize();
+     window.addEventListener('resize', this.resize);
+   }
+-  // Ground plane: 50px from bottom, in CSS pixel space
++
++  // Ground plane: from room if available, otherwise 50px from bottom
+   get groundY() {
++    if (this.room) {
++      return this.room.groundY;
++    }
+     const dpr = window.devicePixelRatio || 1;
+     return (this.canvas.height / dpr) - 50;
+   }
++
++  // Camera X offset (from room)
++  get cameraX() {
++    return this.room?.cameraX || 0;
++  }
++
+   resize() {
+     const dpr = window.devicePixelRatio || 1;
+     const cssWidth = window.innerWidth;
+@@ -61,10 +75,24 @@ class CanvasEngine {
+     });
+   }
+   render() {
++    const dpr = window.devicePixelRatio || 1;
++    const viewportWidth = this.canvas.width / dpr;
++    const viewportHeight = this.canvas.height / dpr;
++
+     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
++
++    // Render room environment first (ground, platform, walls)
++    // Background stays transparent so website shows through
++    if (this.room) {
++      this.room.render(this.ctx);
++    }
++
++    // Render all entities
+     this.entities.forEach((entity) => {
+       if (entity.render) entity.render(this.ctx);
+     });
++
++    // Render labels on top
+     this.ctx.save();
+     this.ctx.font = this.labelFont;
+     this.ctx.textAlign = 'center';
+@@ -73,7 +101,10 @@ class CanvasEngine {
+       const spec = entity.getLabelSpec();
+       if (!spec) return;
+       this.ctx.fillStyle = spec.isGold ? this.labelGoldColor : this.labelColor;
+-      this.ctx.fillText(spec.text, spec.x, spec.y - this.labelYOffset);
++
++      // Apply camera offset to label position
++      const labelX = spec.x - this.cameraX;
++      this.ctx.fillText(spec.text, labelX, spec.y - this.labelYOffset);
+     });
+     this.ctx.restore();
+   }
+diff --git a/js/data_manager.js b/js/data_manager.js
+index e2250bd..420bd58 100644
+--- a/js/data_manager.js
++++ b/js/data_manager.js
+@@ -2,6 +2,7 @@
+ // Part of AP Statistics Consensus Quiz
+ // Dependencies: Requires global variables (currentUsername, classData, allCurriculumData)
+ //               Requires functions from other modules (showMessage, renderUnitMenu, detectUnitAndLessons)
++//               Requires js/db.js for IndexedDB operations (AppDB)
+ // This module handles "what is their data" - import, export, merging, and persistence
+ 
+ // ========================================
+@@ -9,31 +10,38 @@
+ // ========================================
+ 
+ /**
+- * Initializes or loads class data structure from localStorage
++ * Initializes or loads class data structure from IndexedDB
+  * Creates user entry if it doesn't exist for current username
++ * NOTE: This function assumes initDB() has already been called (in startApp)
++ * @returns {Promise<void>}
+  */
+-function initClassData() {
+-    let classDataStr = localStorage.getItem('classData');
+-    classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
++async function initClassData() {
++    // Load all users from IndexedDB into memory
++    await AppDB.loadAllUsers();
+ 
+-    if (!classData.users[currentUsername]) {
++    // Ensure current user exists
++    if (currentUsername && !classData.users[currentUsername]) {
+         classData.users[currentUsername] = {
+             answers: {},
+             reasons: {},
+             timestamps: {},
+             attempts: {},
+             charts: {},
+-            // TASK 3.3: Real-time activity tracking for pig system
++            // Real-time activity tracking for sprite system
+             currentActivity: {
+-                state: 'idle',        // idle, viewing, answering, submitted
+-                questionId: null,     // Current question being viewed/answered
+-                lastUpdate: Date.now() // Timestamp of last activity change
++                state: 'idle',
++                questionId: null,
++                lastUpdate: Date.now()
+             }
+         };
+-    } else {
+-        // TASK 4.1: Migrate existing users to have currentActivity field
++        await saveClassData();
++    } else if (currentUsername && classData.users[currentUsername]) {
++        // Migrate existing users to have required fields
++        let needsSave = false;
++
+         if (!classData.users[currentUsername].charts) {
+             classData.users[currentUsername].charts = {};
++            needsSave = true;
+         }
+         if (!classData.users[currentUsername].currentActivity) {
+             classData.users[currentUsername].currentActivity = {
+@@ -42,22 +50,90 @@ function initClassData() {
+                 lastUpdate: Date.now()
+             };
+             console.log(`✅ Migrated ${currentUsername} to include currentActivity field`);
++            needsSave = true;
++        }
++
++        if (needsSave) {
++            await saveClassData();
+         }
+     }
+-
+-    saveClassData();
+ }
+ 
+ /**
+- * Saves class data to localStorage with error handling
++ * Saves current user's data to IndexedDB
++ * Only writes the current user's record, not all users
++ * @returns {Promise<void>}
+  */
+-function saveClassData() {
+-    try {
+-        localStorage.setItem('classData', JSON.stringify(classData));
+-    } catch(e) {
+-        console.log("Storage quota exceeded");
+-        showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
++async function saveClassData() {
++    if (!currentUsername) {
++        console.warn('saveClassData called but no currentUsername set');
++        return;
+     }
++
++    try {
++        // Update sync status to "saving"
++        if (window.SyncStatus) {
++            SyncStatus.setState('saving');
++        }
++
++        await AppDB.saveUserData(currentUsername);
++
++        // Update sync status to "saved"
++        if (window.SyncStatus) {
++            SyncStatus.setState('saved-local');
++        }
++
++        // Show toast on save (but not too frequently)
++        if (window._lastSaveToast && Date.now() - window._lastSaveToast < 2000) {
++            // Skip toast if we just showed one
++        } else if (window.showToast) {
++            // Only show toast for explicit saves, not automatic ones
++            // This is controlled by the caller
++        }
++    } catch (e) {
++        console.error('Failed to save data:', e);
++        if (window.SyncStatus) {
++            SyncStatus.setState('error', 'Save failed');
++        }
++        if (typeof showMessage === 'function') {
++            showMessage('Warning: Failed to save data. Please try again.', 'error');
++        }
++    }
++}
++
++/**
++ * Saves current user's data and shows a toast notification
++ * Use this for explicit user-triggered saves
++ * @returns {Promise<void>}
++ */
++async function saveClassDataWithToast() {
++    await saveClassData();
++    window._lastSaveToast = Date.now();
++    if (window.showToast) {
++        showToast('Progress saved', 'success');
++    }
++}
++
++/**
++ * Saves a specific user's data to IndexedDB
++ * @param {string} username - The username to save
++ * @returns {Promise<void>}
++ */
++async function saveUserData(username) {
++    if (!username || !classData.users[username]) {
++        console.warn('saveUserData called with invalid username:', username);
++        return;
++    }
++    await AppDB.saveUserData(username);
++}
++
++/**
++ * Saves multiple users' data to IndexedDB
++ * @param {string[]} usernames - Array of usernames to save
++ * @returns {Promise<void>}
++ */
++async function saveMultipleUsers(usernames) {
++    await AppDB.saveMultipleUsers(usernames);
+ }
+ 
+ /**
+@@ -185,19 +261,18 @@ window.buildRecoveryPack = async function(username = currentUsername) {
+         throw new Error('No username available for Recovery Pack export.');
+     }
+ 
+-    if (typeof initClassData === 'function') {
++    // Ensure we have the latest data loaded
++    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
+         try {
+-            initClassData();
++            await AppDB.loadAllUsers();
+         } catch (error) {
+-            console.warn('RECOVERY: initClassData failed during buildRecoveryPack', error);
++            console.warn('RECOVERY: Failed to load from IndexedDB, using in-memory data', error);
+         }
+     }
+ 
+     const nowISO = new Date().toISOString();
+-    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
+-    const userSlice = (classDataSnapshot.users && classDataSnapshot.users[username])
+-        || (classData && classData.users && classData.users[username])
+-        || {};
++    // Use in-memory classData which is now backed by IndexedDB
++    const userSlice = (classData && classData.users && classData.users[username]) || {};
+ 
+     const userState = {
+         answers: JSON.parse(localStorage.getItem(`answers_${username}`) || '{}'),
+@@ -342,16 +417,16 @@ window.generateClassPacks = async function() {
+         return;
+     }
+ 
+-    if (typeof initClassData === 'function') {
++    // Ensure we have the latest data loaded from IndexedDB
++    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
+         try {
+-            initClassData();
++            await AppDB.loadAllUsers();
+         } catch (error) {
+-            console.warn('RECOVERY: initClassData failed during class pack generation', error);
++            console.warn('RECOVERY: Failed to load from IndexedDB', error);
+         }
+     }
+ 
+-    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
+-    const usernames = Object.keys(classDataSnapshot.users || {});
++    const usernames = Object.keys(classData.users || {});
+     if (usernames.length === 0) {
+         showMessage('No class data available for pack generation.', 'error');
+         return;
+@@ -394,45 +469,43 @@ window.generateClassPacks = async function() {
+  * Exports complete master database with all users' data to JSON file
+  * Exposed to window for onclick handlers
+  */
+-window.exportMasterData = function() {
+-    // Get ALL data from localStorage, not filtered by user
++window.exportMasterData = async function() {
++    // Ensure we have the latest data from IndexedDB
++    if (typeof AppDB !== 'undefined' && AppDB.loadAllUsers) {
++        try {
++            await AppDB.loadAllUsers();
++        } catch (error) {
++            console.warn('Failed to load from IndexedDB, using in-memory data', error);
++        }
++    }
++
++    // Build master data from in-memory classData (backed by IndexedDB)
+     const masterData = {
+         timestamp: new Date().toISOString(),
+         exportType: 'master_database',
+-        allUsers: Object.keys(localStorage)
+-            .filter(key => key.includes('_username') || key.includes('answers_'))
+-            .map(key => key.split('_')[1])
+-            .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
++        allUsers: Object.keys(classData.users || {}),
+ 
+-        // Get all class data without filtering
+-        classData: JSON.parse(localStorage.getItem('classData') || '{}'),
++        // Get all class data
++        classData: { users: classData.users || {} },
+ 
+-        // Get all answers from all users
++        // Get all answers from all users (extracted from classData for compatibility)
+         allAnswers: {},
+ 
+         // Get all progress from all users
+         allProgress: {},
+ 
+-        // Get any other data structures you have
+-        consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}'),
+-
+-        // Include raw localStorage for complete backup
+-        rawLocalStorage: {}
++        // Consensus data if available
++        consensusData: JSON.parse(localStorage.getItem('consensusResponses') || '{}')
+     };
+ 
+-    // Collect all answers for all users
+-    Object.keys(localStorage).forEach(key => {
+-        if (key.startsWith('answers_')) {
+-            const username = key.replace('answers_', '');
+-            masterData.allAnswers[username] = JSON.parse(localStorage.getItem(key) || '{}');
++    // Extract answers and progress from classData for backward compatibility
++    Object.entries(classData.users || {}).forEach(([username, userData]) => {
++        if (userData.answers) {
++            masterData.allAnswers[username] = userData.answers;
+         }
+-        if (key.startsWith('progress_')) {
+-            const username = key.replace('progress_', '');
+-            masterData.allProgress[username] = JSON.parse(localStorage.getItem(key) || '{}');
++        if (userData.progress) {
++            masterData.allProgress[username] = userData.progress;
+         }
+-
+-        // Store everything in raw format too
+-        masterData.rawLocalStorage[key] = localStorage.getItem(key);
+     });
+ 
+     // Create and download the file
+@@ -682,27 +755,56 @@ function mergePersonalData(existingUserData, newUserData) {
+ /**
+  * Imports personal data for current user with standardization
+  * @param {Object} data - Personal data file contents
++ * @returns {Promise<void>}
+  */
+-function importPersonalData(data) {
++async function importPersonalData(data) {
+     if (!currentUsername) {
+         showMessage('❌ Please select a username first.', 'error');
+         return;
+     }
+ 
++    // Ensure user exists in classData
++    if (!classData.users[currentUsername]) {
++        classData.users[currentUsername] = {
++            answers: {},
++            reasons: {},
++            timestamps: {},
++            attempts: {},
++            charts: {},
++            currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
++        };
++    }
++
+     // Import answers with standardization
+     if (data.answers) {
+         const standardizedAnswers = migrateAnswersToStandardFormat(data.answers);
+-        localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(standardizedAnswers));
++        Object.assign(classData.users[currentUsername].answers, standardizedAnswers);
+         console.log(`✓ Imported personal answers for ${currentUsername} (standardized format)`);
+     }
+ 
+-    // Import progress
+-    if (data.progress) {
+-        localStorage.setItem(`progress_${currentUsername}`, JSON.stringify(data.progress));
++    // Import other fields
++    if (data.reasons) {
++        Object.assign(classData.users[currentUsername].reasons, data.reasons);
++    }
++    if (data.timestamps) {
++        Object.assign(classData.users[currentUsername].timestamps, data.timestamps);
++    }
++    if (data.attempts) {
++        Object.assign(classData.users[currentUsername].attempts, data.attempts);
++    }
++    if (data.charts) {
++        Object.assign(classData.users[currentUsername].charts, data.charts);
++    }
++
++    // Save to IndexedDB
++    await saveClassData();
++
++    // Show success toast
++    if (window.showToast) {
++        showToast('Data imported successfully', 'success');
+     }
+ 
+     // Reinitialize to show imported data
+-    initClassData();
+     if (typeof renderUnitMenu === 'function') {
+         renderUnitMenu();
+     }
+@@ -713,160 +815,128 @@ function importPersonalData(data) {
+  * Handles both single-user restoration and multi-user peer import
+  * @param {Object} data - Master database file contents
+  * @param {string} targetUsername - Optional username for single-user restoration
++ * @returns {Promise<void>}
+  */
+-function importMasterData(data, targetUsername = null) {
++async function importMasterData(data, targetUsername = null) {
+     console.log('=== importMasterData called ===');
+-    console.log('Data passed to importMasterData:', data);
+     console.log('Target username for restoration:', targetUsername);
+ 
+-    // Use existing master data import functionality
+-    if (typeof mergeMasterData === 'function') {
+-        console.log('Found mergeMasterData function, using it');
+-        mergeMasterData(data);
+-    } else {
+-        console.warn('No mergeMasterData function found, attempting basic import...');
+-        console.log('Import data structure:', data);
+-        console.log('Data keys:', Object.keys(data));
+-        console.log('Has students property:', !!data.students);
+-        console.log('Has allUsers property:', !!data.allUsers);
+-        console.log('Has users property:', !!data.users);
+-
+-        // Try different possible structures
+-        let userData = null;
+-        if (data.students) {
+-            userData = data.students;
+-            console.log('Using data.students:', userData);
+-        } else if (data.allUsers) {
+-            userData = data.allUsers;
+-            console.log('Using data.allUsers:', userData);
+-        } else if (data.users) {
+-            userData = data.users;
+-            console.log('Using data.users:', userData);
+-        }
+-
+-        if (userData) {
+-            // Check if this is single-user restoration (from username screen)
+-            if (targetUsername && userData[targetUsername]) {
+-                console.log(`SINGLE-USER RESTORATION: Importing only data for ${targetUsername}`);
+-                const userInfo = userData[targetUsername];
+-
+-                if (userInfo.answers) {
+-                    // STANDARDIZATION FIX: Use migration function for consistency
+-                    const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+-                    localStorage.setItem(`answers_${targetUsername}`, JSON.stringify(standardizedAnswers));
+-                    console.log(`✓ Restored answers for ${targetUsername} (standardized format)`);
+-                }
+-                if (userInfo.progress) {
+-                    localStorage.setItem(`progress_${targetUsername}`, JSON.stringify(userInfo.progress));
+-                    console.log(`✓ Restored progress for ${targetUsername}`);
+-                }
+-                if (userInfo.reasons) {
+-                    localStorage.setItem(`reasons_${targetUsername}`, JSON.stringify(userInfo.reasons));
+-                    console.log(`✓ Restored reasons for ${targetUsername}`);
+-                }
+-                if (userInfo.timestamps) {
+-                    localStorage.setItem(`timestamps_${targetUsername}`, JSON.stringify(userInfo.timestamps));
+-                    console.log(`✓ Restored timestamps for ${targetUsername}`);
+-                }
+-                if (userInfo.attempts) {
+-                    localStorage.setItem(`attempts_${targetUsername}`, JSON.stringify(userInfo.attempts));
+-                    console.log(`✓ Restored attempts for ${targetUsername}`);
+-                }
+-
+-                console.log(`=== Single-user restoration completed for ${targetUsername} ===`);
+-                return;
+-            }
+-
+-            // Otherwise, do multi-user peer import
+-            console.log('MULTI-USER PEER IMPORT: Importing data for', Object.keys(userData).length, 'students');
+-            console.log('Student usernames:', Object.keys(userData));
+-
+-            // Get or create classData structure for peer display
+-            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+-            if (!classData.users) classData.users = {};
+-
+-            Object.entries(userData).forEach(([username, userInfo]) => {
+-                console.log(`Processing user: ${username}`, userInfo);
+-
+-                if (userInfo.answers) {
+-                    // STANDARDIZATION FIX: Use migration function for consistency
+-                    const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
+-
+-                    // Store individual keys (for existing functionality)
+-                    const key = `answers_${username}`;
+-                    localStorage.setItem(key, JSON.stringify(standardizedAnswers));
+-                    console.log(`✓ Stored answers for ${username} in ${key} (standardized format)`);
+-
+-                    // ALSO store in classData structure (for peer display)
+-                    if (!classData.users[username]) {
+-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+-                    } else if (!classData.users[username].charts) {
+-                        classData.users[username].charts = {};
+-                    }
+-                    Object.assign(classData.users[username].answers, standardizedAnswers);
+-                    console.log(`✓ Added ${username} to classData structure`);
+-                } else {
+-                    console.log(`⚠ No answers found for ${username}`);
+-                }
+-
+-                if (userInfo.progress) {
+-                    const key = `progress_${username}`;
+-                    localStorage.setItem(key, JSON.stringify(userInfo.progress));
+-                    console.log(`✓ Stored progress for ${username} in ${key}`);
+-                }
+-
+-                if (userInfo.reasons) {
+-                    localStorage.setItem(`reasons_${username}`, JSON.stringify(userInfo.reasons));
+-                    if (classData.users[username]) {
+-                        Object.assign(classData.users[username].reasons, userInfo.reasons);
+-                    }
+-                }
+-
+-                if (userInfo.timestamps) {
+-                    localStorage.setItem(`timestamps_${username}`, JSON.stringify(userInfo.timestamps));
+-                    if (classData.users[username]) {
+-                        Object.assign(classData.users[username].timestamps, userInfo.timestamps);
+-                    }
+-                }
+-
+-                if (userInfo.attempts) {
+-                    localStorage.setItem(`attempts_${username}`, JSON.stringify(userInfo.attempts));
+-                    if (classData.users[username]) {
+-                        Object.assign(classData.users[username].attempts, userInfo.attempts);
+-                    }
+-                }
+-
+-                if (userInfo.charts) {
+-                    if (!classData.users[username]) {
+-                        classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+-                    }
+-                    if (!classData.users[username].charts) {
+-                        classData.users[username].charts = {};
+-                    }
+-                    Object.assign(classData.users[username].charts, userInfo.charts);
+-                }
+-            });
+-
+-            // Save the updated classData structure
+-            localStorage.setItem('classData', JSON.stringify(classData));
+-            console.log(`✓ Updated classData with ${Object.keys(classData.users).length} users`);
+-
+-            // CRITICAL: Refresh the global classData variable
+-            window.classData = classData;
+-
+-            // Reinitialize to show imported data
+-            if (typeof initClassData === 'function') {
+-                console.log('Calling initClassData()');
+-                initClassData();
+-            }
+-            if (typeof renderUnitMenu === 'function') {
+-                console.log('Calling renderUnitMenu()');
+-                renderUnitMenu();
+-            }
+-            console.log('=== Master data import completed ===');
+-        } else {
+-            console.warn('❌ No students data found in import file');
+-            console.log('Available data keys:', Object.keys(data));
+-        }
++    // Try different possible structures for user data
++    let userData = null;
++    if (data.classData && data.classData.users) {
++        userData = data.classData.users;
++        console.log('Using data.classData.users');
++    } else if (data.students) {
++        userData = data.students;
++        console.log('Using data.students');
++    } else if (data.users) {
++        userData = data.users;
++        console.log('Using data.users');
+     }
++
++    if (!userData) {
++        console.warn('❌ No user data found in import file');
++        console.log('Available data keys:', Object.keys(data));
++        showMessage('Invalid import file format', 'error');
++        return;
++    }
++
++    // Single-user restoration
++    if (targetUsername && userData[targetUsername]) {
++        console.log(`SINGLE-USER RESTORATION: Importing only data for ${targetUsername}`);
++        const userInfo = userData[targetUsername];
++
++        // Ensure user exists in classData
++        if (!classData.users[targetUsername]) {
++            classData.users[targetUsername] = {
++                answers: {},
++                reasons: {},
++                timestamps: {},
++                attempts: {},
++                charts: {},
++                currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
++            };
++        }
++
++        // Merge in the imported data
++        if (userInfo.answers) {
++            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
++            Object.assign(classData.users[targetUsername].answers, standardizedAnswers);
++            console.log(`✓ Restored answers for ${targetUsername}`);
++        }
++        if (userInfo.reasons) {
++            Object.assign(classData.users[targetUsername].reasons, userInfo.reasons);
++        }
++        if (userInfo.timestamps) {
++            Object.assign(classData.users[targetUsername].timestamps, userInfo.timestamps);
++        }
++        if (userInfo.attempts) {
++            Object.assign(classData.users[targetUsername].attempts, userInfo.attempts);
++        }
++        if (userInfo.charts) {
++            Object.assign(classData.users[targetUsername].charts, userInfo.charts);
++        }
++
++        // Save to IndexedDB
++        await AppDB.saveUserData(targetUsername);
++        console.log(`=== Single-user restoration completed for ${targetUsername} ===`);
++
++        if (window.showToast) {
++            showToast('Data restored successfully', 'success');
++        }
++        return;
++    }
++
++    // Multi-user peer import
++    console.log('MULTI-USER PEER IMPORT: Importing data for', Object.keys(userData).length, 'students');
++    const importedUsernames = [];
++
++    for (const [username, userInfo] of Object.entries(userData)) {
++        // Ensure user exists in classData
++        if (!classData.users[username]) {
++            classData.users[username] = {
++                answers: {},
++                reasons: {},
++                timestamps: {},
++                attempts: {},
++                charts: {},
++                currentActivity: { state: 'idle', questionId: null, lastUpdate: Date.now() }
++            };
++        }
++
++        // Merge in the imported data
++        if (userInfo.answers) {
++            const standardizedAnswers = migrateAnswersToStandardFormat(userInfo.answers);
++            Object.assign(classData.users[username].answers, standardizedAnswers);
++        }
++        if (userInfo.reasons) {
++            Object.assign(classData.users[username].reasons, userInfo.reasons);
++        }
++        if (userInfo.timestamps) {
++            Object.assign(classData.users[username].timestamps, userInfo.timestamps);
++        }
++        if (userInfo.attempts) {
++            Object.assign(classData.users[username].attempts, userInfo.attempts);
++        }
++        if (userInfo.charts) {
++            Object.assign(classData.users[username].charts, userInfo.charts);
++        }
++
++        importedUsernames.push(username);
++    }
++
++    // Save all imported users to IndexedDB
++    await saveMultipleUsers(importedUsernames);
++    console.log(`✓ Imported ${importedUsernames.length} users to IndexedDB`);
++
++    // Reinitialize to show imported data
++    if (typeof renderUnitMenu === 'function') {
++        renderUnitMenu();
++    }
++
++    if (window.showToast) {
++        showToast(`Imported ${importedUsernames.length} students`, 'success');
++    }
++
++    console.log('=== Master data import completed ===');
+ }
+diff --git a/js/db.js b/js/db.js
+new file mode 100644
+index 0000000..633a484
+--- /dev/null
++++ b/js/db.js
+@@ -0,0 +1,429 @@
++// db.js - IndexedDB layer using Dexie
++// Part of AP Statistics Consensus Quiz
++// Dependencies: Dexie.js must be loaded before this file
++// This module handles persistent storage with per-user sharding
++
++// ========================================
++// GLOBAL STATE INITIALIZATION
++// ========================================
++
++// Initialize classData if it doesn't exist
++// This must happen before any other code tries to access it
++if (typeof classData === 'undefined') {
++  var classData = { users: {} };
++}
++// Also expose on window for other modules
++window.classData = classData;
++
++// Initialize currentUsername if it doesn't exist
++if (typeof currentUsername === 'undefined') {
++  var currentUsername = null;
++}
++window.currentUsername = currentUsername;
++
++// ========================================
++// DATABASE SCHEMA
++// ========================================
++
++const db = new Dexie('APStatsConsensusQuiz');
++
++db.version(1).stores({
++  // Primary store: one record per user
++  // Key: username (string)
++  // Value: { answers: {}, charts: {}, currentActivity: {}, reasons: {}, timestamps: {}, attempts: {} }
++  users: 'username',
++
++  // Metadata store for app-level state
++  // Key: arbitrary string ('schema', 'sync', 'identity')
++  // Value: varies by key
++  meta: 'key'
++});
++
++// ========================================
++// INITIALIZATION
++// ========================================
++
++let dbInitialized = false;
++
++// Track if we're in fallback mode (IndexedDB unavailable)
++let storageUnavailable = false;
++
++/**
++ * Initialize database and run migration from localStorage
++ * Should be called once at app startup before any data operations
++ * Falls back gracefully if IndexedDB is blocked by privacy settings
++ */
++async function initDB() {
++  if (dbInitialized) {
++    console.log('DB already initialized, skipping');
++    return;
++  }
++
++  try {
++    // Open the database
++    await db.open();
++
++    // Run migration from localStorage if needed
++    await migrateFromLocalStorage();
++
++    // Request persistent storage (prevents browser from evicting data)
++    if (navigator.storage && navigator.storage.persist) {
++      try {
++        const isPersisted = await navigator.storage.persist();
++        console.log(`Storage persistence: ${isPersisted ? 'granted' : 'not granted'}`);
++      } catch (persistError) {
++        console.warn('Could not request persistent storage:', persistError);
++      }
++    }
++
++    dbInitialized = true;
++    console.log('IndexedDB initialized successfully');
++  } catch (e) {
++    console.error('Failed to initialize IndexedDB:', e);
++    console.warn('Falling back to in-memory storage. Data will NOT persist across page refreshes.');
++
++    // Mark that storage is unavailable
++    storageUnavailable = true;
++    dbInitialized = true; // Mark as "initialized" so app continues
++
++    // Show user a warning if toast system is available
++    if (window.showToast) {
++      setTimeout(() => {
++        showToast('Storage blocked by browser. Data won\'t be saved.', 'warning', 8000);
++      }, 1000);
++    }
++
++    // Don't throw - let the app continue with in-memory data
++  }
++}
++
++// ========================================
++// MIGRATION FROM LOCALSTORAGE
++// ========================================
++
++/**
++ * Migrates existing data from localStorage to IndexedDB
++ * Runs only once, idempotent
++ */
++async function migrateFromLocalStorage() {
++  const migrationStatus = await db.meta.get('schema');
++
++  if (migrationStatus?.migratedFromLocalStorage) {
++    return; // Already migrated
++  }
++
++  const oldData = localStorage.getItem('classData');
++  if (!oldData) {
++    // No old data to migrate, just mark as "migrated" (fresh install)
++    await db.meta.put({
++      key: 'schema',
++      version: 1,
++      migratedFromLocalStorage: true,
++      migratedAt: Date.now()
++    });
++    console.log('Fresh install - no localStorage data to migrate');
++    return;
++  }
++
++  try {
++    const parsed = JSON.parse(oldData);
++    const users = parsed.users || {};
++
++    // Bulk insert all users
++    const userRecords = Object.entries(users).map(([username, userData]) => ({
++      username,
++      ...userData
++    }));
++
++    if (userRecords.length > 0) {
++      await db.users.bulkPut(userRecords);
++    }
++
++    // Migrate current username
++    const currentUsername = localStorage.getItem('consensusUsername');
++    if (currentUsername) {
++      await db.meta.put({ key: 'identity', currentUsername });
++    }
++
++    // Mark migration complete
++    await db.meta.put({
++      key: 'schema',
++      version: 1,
++      migratedFromLocalStorage: true,
++      migratedAt: Date.now()
++    });
++
++    // Keep localStorage as emergency backup for 30 days
++    // Don't clear immediately in case something goes wrong
++    localStorage.setItem('classData_backup', oldData);
++    localStorage.setItem('classData_backup_date', Date.now().toString());
++    localStorage.removeItem('classData');
++
++    console.log(`Migrated ${userRecords.length} users from localStorage to IndexedDB`);
++  } catch (e) {
++    console.error('Migration failed:', e);
++    // Don't mark as migrated - will retry next load
++    throw e;
++  }
++}
++
++// ========================================
++// USER DATA OPERATIONS
++// ========================================
++
++/**
++ * Load all users from IndexedDB into the in-memory classData object
++ * @returns {Object} The populated classData object
++ */
++async function loadAllUsers() {
++  // Defensive initialization in case classData was reset
++  if (!classData) {
++    classData = { users: {} };
++    window.classData = classData;
++  }
++  if (!classData.users) {
++    classData.users = {};
++  }
++
++  // If storage is unavailable, just return the in-memory data
++  if (storageUnavailable) {
++    console.log('Storage unavailable - using in-memory data only');
++    return classData;
++  }
++
++  try {
++    const users = await db.users.toArray();
++    classData.users = {};
++
++    for (const user of users) {
++      const { username, ...userData } = user;
++      classData.users[username] = userData;
++    }
++
++    console.log(`Loaded ${users.length} users from IndexedDB`);
++  } catch (e) {
++    console.warn('Failed to load users from IndexedDB:', e);
++    // Keep whatever is in classData.users
++  }
++
++  return classData;
++}
++
++/**
++ * Save a single user's data to IndexedDB
++ * @param {string} username - The username to save
++ */
++async function saveUserData(username) {
++  const userData = classData.users[username];
++  if (!userData) {
++    console.warn(`saveUserData: No data found for user ${username}`);
++    return;
++  }
++
++  // If storage is unavailable, skip but don't error
++  if (storageUnavailable) {
++    console.log('Storage unavailable - data only in memory');
++    return;
++  }
++
++  try {
++    await db.users.put({ username, ...userData });
++    await updateSyncMeta('lastLocalSave', Date.now());
++  } catch (e) {
++    console.warn('Failed to save user data to IndexedDB:', e);
++  }
++}
++
++/**
++ * Save multiple users' data to IndexedDB in a single transaction
++ * @param {string[]} usernames - Array of usernames to save
++ */
++async function saveMultipleUsers(usernames) {
++  const records = usernames
++    .filter(username => classData.users[username])
++    .map(username => ({
++      username,
++      ...classData.users[username]
++    }));
++
++  if (records.length > 0) {
++    await db.users.bulkPut(records);
++    await updateSyncMeta('lastLocalSave', Date.now());
++  }
++}
++
++/**
++ * Delete a user from IndexedDB
++ * @param {string} username - The username to delete
++ */
++async function deleteUserData(username) {
++  await db.users.delete(username);
++}
++
++/**
++ * Check if a user exists in IndexedDB
++ * @param {string} username - The username to check
++ * @returns {boolean} True if user exists
++ */
++async function userExists(username) {
++  const user = await db.users.get(username);
++  return !!user;
++}
++
++// ========================================
++// IDENTITY MANAGEMENT
++// ========================================
++
++/**
++ * Get the current username from IndexedDB (with localStorage fallback)
++ * @returns {string|null} The current username or null
++ */
++async function getStoredUsername() {
++  // If storage unavailable, try localStorage as fallback
++  if (storageUnavailable) {
++    return localStorage.getItem('consensusUsername') || null;
++  }
++
++  try {
++    const identity = await db.meta.get('identity');
++    return identity?.currentUsername || localStorage.getItem('consensusUsername') || null;
++  } catch (e) {
++    console.warn('Failed to get username from IndexedDB:', e);
++    return localStorage.getItem('consensusUsername') || null;
++  }
++}
++
++/**
++ * Set the current username in IndexedDB (with localStorage fallback)
++ * @param {string} username - The username to set
++ */
++async function setStoredUsername(username) {
++  // Always save to localStorage as backup
++  try {
++    localStorage.setItem('consensusUsername', username);
++  } catch (e) {
++    console.warn('Failed to save username to localStorage:', e);
++  }
++
++  // If storage unavailable, we're done
++  if (storageUnavailable) {
++    return;
++  }
++
++  try {
++    await db.meta.put({ key: 'identity', currentUsername: username });
++  } catch (e) {
++    console.warn('Failed to save username to IndexedDB:', e);
++  }
++}
++
++// ========================================
++// SYNC METADATA
++// ========================================
++
++/**
++ * Update a sync metadata field
++ * @param {string} field - The field to update ('lastLocalSave', 'lastCloudSync')
++ * @param {*} value - The value to set
++ */
++async function updateSyncMeta(field, value) {
++  const existing = await db.meta.get('sync') || { key: 'sync' };
++  existing[field] = value;
++  await db.meta.put(existing);
++}
++
++/**
++ * Get all sync metadata
++ * @returns {Object} The sync metadata
++ */
++async function getSyncMeta() {
++  return await db.meta.get('sync') || {
++    key: 'sync',
++    lastLocalSave: null,
++    lastCloudSync: null
++  };
++}
++
++// ========================================
++// UTILITY FUNCTIONS
++// ========================================
++
++/**
++ * Get the count of answers for a specific user
++ * @param {string} username - The username to check
++ * @returns {number} The number of answers
++ */
++async function getUserAnswerCount(username) {
++  const user = await db.users.get(username);
++  if (!user || !user.answers) return 0;
++  return Object.keys(user.answers).length;
++}
++
++/**
++ * Clear all data from IndexedDB (for testing/reset)
++ */
++async function clearAllData() {
++  await db.users.clear();
++  await db.meta.clear();
++  console.log('All IndexedDB data cleared');
++}
++
++/**
++ * Export all data as JSON (for backup)
++ * @returns {Object} All data in the old classData format
++ */
++async function exportAllData() {
++  const users = await db.users.toArray();
++  const exportData = { users: {} };
++
++  for (const user of users) {
++    const { username, ...userData } = user;
++    exportData.users[username] = userData;
++  }
++
++  return exportData;
++}
++
++/**
++ * Import data from JSON (for restore)
++ * @param {Object} data - Data in classData format
++ */
++async function importAllData(data) {
++  if (!data || !data.users) {
++    throw new Error('Invalid import data format');
++  }
++
++  const userRecords = Object.entries(data.users).map(([username, userData]) => ({
++    username,
++    ...userData
++  }));
++
++  await db.users.bulkPut(userRecords);
++  await updateSyncMeta('lastLocalSave', Date.now());
++
++  console.log(`Imported ${userRecords.length} users`);
++}
++
++// ========================================
++// EXPORTS (for use by other modules)
++// ========================================
++
++// These functions are available globally since we're not using ES modules
++window.AppDB = {
++  init: initDB,
++  loadAllUsers,
++  saveUserData,
++  saveMultipleUsers,
++  deleteUserData,
++  userExists,
++  getStoredUsername,
++  setStoredUsername,
++  updateSyncMeta,
++  getSyncMeta,
++  getUserAnswerCount,
++  clearAllData,
++  exportAllData,
++  importAllData,
++  // Expose db for advanced use cases
++  _db: db
++};
+diff --git a/js/entities/exit_door.js b/js/entities/exit_door.js
+new file mode 100644
+index 0000000..954806f
+--- /dev/null
++++ b/js/entities/exit_door.js
+@@ -0,0 +1,159 @@
++/**
++ * ExitDoor - A door that takes you back to lesson select
++ *
++ * Visual: Dark grey arch (flat bottom, flat sides, half-circle top)
++ * Like a mouse hole from Piko Park
++ */
++class ExitDoor {
++  constructor(x, y) {
++    this.x = x;
++    this.y = y;
++    this.width = 50;
++    this.height = 68;
++    this.archRadius = this.width / 2;
++
++    // Door color (semi-transparent dark)
++    this.color = 'rgba(10, 10, 10, 0.8)';
++    this.outlineColor = 'rgba(80, 80, 80, 0.9)';
++
++    // Reference to engine (set when added)
++    this.engine = null;
++
++    // Optional: show gold star above door
++    this.showStar = false;
++
++    // If true, door is fixed to screen position (doesn't scroll with camera)
++    this.screenFixed = true;
++  }
++
++  get bounds() {
++    return {
