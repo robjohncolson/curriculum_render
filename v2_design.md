@@ -1,4 +1,4 @@
-# AP Stats Consensus Quiz – v2 Design Doc
+ AP Stats Consensus Quiz – v2 Design Doc
 
 ## 1. Purpose
 
