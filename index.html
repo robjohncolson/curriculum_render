@@ -215,11 +215,25 @@
     <script>
 
         // ========================================
+        // STORAGE AVAILABILITY CHECK
+        // ========================================
+        // Check if localStorage is available (may be blocked by tracking prevention)
+        let storageAvailable = true;
+        try {
+            const testKey = '__storage_test__';
+            localStorage.setItem(testKey, testKey);
+            localStorage.removeItem(testKey);
+        } catch (e) {
+            storageAvailable = false;
+            console.warn('localStorage not available (tracking prevention may be blocking storage access). Some features will be limited.');
+        }
+
+        // ========================================
         // TURBO MODE - Supabase Integration
         // ========================================
 
         // Initialize Supabase client (will be null if config not set)
-        let supabase = null;
+        let supabaseClient = null;
         let turboModeActive = false;
         let syncCheckInterval = null;
         let lastPeerDataTimestamp = null;
@@ -272,7 +286,7 @@
                 console.info('RECOVERY: Auto-export disabled');
             },
             queue(reason = 'auto') {
-                if (!window.FEATURE_FLAGS.autoExport || !this.enabled || !this.directoryHandle || !currentUsername) {
+                if (!window.FEATURE_FLAGS?.autoExport || !this.enabled || !this.directoryHandle || !currentUsername) {
                     return;
                 }
                 this.lastReason = reason;
@@ -286,7 +300,7 @@
                 }, 8000);
             },
             async perform(username) {
-                if (!window.FEATURE_FLAGS.autoExport || !this.enabled || !this.directoryHandle || !username) {
+                if (!window.FEATURE_FLAGS?.autoExport || !this.enabled || !this.directoryHandle || !username) {
                     return;
                 }
                 try {
@@ -336,11 +350,11 @@
         if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' &&
             typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
             try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 console.log('🚀 Supabase client initialized');
             } catch (error) {
                 console.log('❌ Failed to initialize Supabase:', error);
-                supabase = null;
+                supabaseClient = null;
             }
         } else {
             console.log('📝 Supabase config not set - running in offline mode');
@@ -348,7 +362,7 @@
 
         // Test Supabase connection with timeout
         async function testSupabaseConnection() {
-            if (!supabase) {
+            if (!supabaseClient) {
                 turboModeActive = false;
                 window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                 console.log('No Supabase client available');
@@ -362,7 +376,7 @@
                 });
 
                 // Test query - just check if we can connect
-                const testQuery = supabase
+                const testQuery = supabaseClient
                     .from('answers')
                     .select('question_id')
                     .limit(1);
@@ -394,7 +408,7 @@
 
         // Push answer to Supabase
         window.pushAnswerToSupabase = async function(username, questionId, answerValue, timestamp) {
-            if (!turboModeActive || !supabase) return false;
+            if (!turboModeActive || !supabaseClient) return false;
 
             try {
                 // Ensure timestamp is a number (Unix milliseconds)
@@ -410,7 +424,7 @@
                 };
 
                 // Supabase v2 upsert syntax - array of objects, onConflict as separate parameter
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('answers')
                     .upsert([payload], { onConflict: 'username,question_id' });
 
@@ -425,7 +439,7 @@
 
         // Batch push answers to Supabase (more efficient for bulk sync)
         async function batchPushAnswersToSupabase(answerBatch) {
-            if (!turboModeActive || !supabase || answerBatch.length === 0) return 0;
+            if (!turboModeActive || !supabaseClient || answerBatch.length === 0) return 0;
 
             try {
                 // Ensure all timestamps are numbers
@@ -439,7 +453,7 @@
                 }));
 
                 // Supabase can handle batch upserts efficiently
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('answers')
                     .upsert(processedBatch, { onConflict: 'username,question_id' });
 
@@ -518,14 +532,14 @@
 
         // Pull peer data from Supabase - OPTIMIZED for 40+ users
         async function pullPeerDataFromSupabase() {
-            if (!turboModeActive || !supabase) return null;
+            if (!turboModeActive || !supabaseClient) return null;
 
             try {
                 const currentUser = localStorage.getItem('consensusUsername');
                 if (!currentUser) return null;
 
                 // OPTIMIZATION 1: Build query with server-side filtering
-                let query = supabase
+                let query = supabaseClient
                     .from('answers')
                     .select('*')
                     .neq('username', currentUser) // Filter out own answers on server
@@ -579,7 +593,7 @@
 
         // Sync all local answers to Supabase (for initial sync - includes ALL users)
         async function syncAllLocalAnswersToSupabase() {
-            if (!turboModeActive || !supabase) return false;
+            if (!turboModeActive || !supabaseClient) return false;
 
             try {
                 // Find all answer keys in localStorage (for all users)
@@ -644,7 +658,7 @@
 
         // Sync ALL data from classData structure (alternative data source)
         async function syncClassDataToSupabase() {
-            if (!turboModeActive || !supabase) return false;
+            if (!turboModeActive || !supabaseClient) return false;
 
             try {
                 const classData = JSON.parse(localStorage.getItem('classData') || '{}');
@@ -858,7 +872,7 @@
 
         // Smart sync - only sync new or updated answers (current user only)
         async function smartSyncWithSupabase() {
-            if (!turboModeActive || !supabase) return false;
+            if (!turboModeActive || !supabaseClient) return false;
 
             try {
                 console.log('🔄 Starting smart sync with Supabase...');
@@ -878,7 +892,7 @@
                 }
 
                 // Fetch only the current user's existing rows from Supabase (lightweight projection)
-                const { data: supabaseData, error } = await supabase
+                const { data: supabaseData, error } = await supabaseClient
                     .from('answers')
                     .select('username,question_id,timestamp')
                     .eq('username', currentUser);
@@ -1024,9 +1038,9 @@ function refreshQuestionIfVisible(questionId) {
                 updatePeerDataTimestamp();
 
                 // Set up real-time subscriptions if available
-                if (supabase && turboModeActive) {
+                if (supabaseClient && turboModeActive) {
                     // Subscribe to new answers
-                    const subscription = supabase
+                    const subscription = supabaseClient
                         .channel('answers_changes')
                         .on('postgres_changes',
                             { event: '*', schema: 'public', table: 'answers' },
@@ -2025,11 +2039,11 @@ if (continueBtn) {
   // --- End of importAndMergePersonalData Function for Phase 4.2 ---
 
         async function restoreFromCloudByUsername() {
-            if (!window.FEATURE_FLAGS.restoreFromCloud) {
+            if (!window.FEATURE_FLAGS?.restoreFromCloud) {
                 showMessage('Cloud restore is not available right now.', 'info');
                 return;
             }
-            if (!turboModeActive || !supabase) {
+            if (!turboModeActive || !supabaseClient) {
                 showMessage('Turbo mode must be active to restore from the cloud.', 'error');
                 return;
             }
@@ -2055,7 +2069,7 @@ if (continueBtn) {
                 let rangeStart = 0;
 
                 while (true) {
-                    const { data, error } = await supabase
+                    const { data, error } = await supabaseClient
                         .from('answers')
                         .select('question_id, answer_value, timestamp')
                         .eq('username', username)
@@ -4665,8 +4679,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             saveClassData();
 
             // Supabase sync if turbo mode
-            if (turboModeActive && supabase) {
-                supabase.from('votes').upsert(
+            if (turboModeActive && supabaseClient) {
+                supabaseClient.from('votes').upsert(
                     {
                         question_id: questionId,
                         voter_username: currentUsername,
@@ -5745,13 +5759,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
-
-
-
-
         // --- Main Event Listener for Real-Time Updates ---
         window.addEventListener('peer:answer', (event) => {
             const detail = event?.detail || {};
@@ -6342,7 +6350,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const autoExportToggle = document.getElementById('autoExportToggle');
             const autoExportSupportNote = document.getElementById('autoExportSupportNote');
             if (autoExportContainer) {
-                if (window.FEATURE_FLAGS.autoExport) {
+                if (window.FEATURE_FLAGS && window.FEATURE_FLAGS.autoExport) {
                     autoExportContainer.style.display = 'block';
                     if (!recoveryAutoExport.support) {
                         if (autoExportToggle) {
@@ -7066,12 +7074,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             const cloudRestoreBtn = document.getElementById('cloudRestoreBtn');
             const cloudRestoreHelper = document.getElementById('cloudRestoreHelper');
-            const shouldShowCloud = !!(window.FEATURE_FLAGS.restoreFromCloud && turboModeActive && supabase);
+            const shouldShowCloud = !!(window.FEATURE_FLAGS?.restoreFromCloud && turboModeActive && supabaseClient);
             if (cloudRestoreBtn) {
                 cloudRestoreBtn.style.display = shouldShowCloud ? 'flex' : 'none';
             }
             if (cloudRestoreHelper) {
-                if (window.FEATURE_FLAGS.restoreFromCloud) {
+                if (window.FEATURE_FLAGS?.restoreFromCloud) {
                     cloudRestoreHelper.style.display = 'block';
                     cloudRestoreHelper.innerHTML = shouldShowCloud
                         ? '<i class="fas fa-cloud"></i> Cloud restore ready: pull your latest answers from Supabase.'
@@ -7083,7 +7091,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             const classPacksBtn = document.getElementById('classPacksBtn');
             if (classPacksBtn) {
-                classPacksBtn.style.display = window.FEATURE_FLAGS.classPacks ? 'flex' : 'none';
+                classPacksBtn.style.display = window.FEATURE_FLAGS?.classPacks ? 'flex' : 'none';
             }
 
             // Ensure Master Import button exists (add dynamically if missing)
@@ -7196,11 +7204,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
             migrateExistingAnswersData();
 
             // Initialize turbo mode (Supabase sync)
-            initializeTurboMode().then(() => {
-                console.log('Turbo mode initialization complete');
-            }).catch(error => {
-                console.log('Turbo mode initialization error:', error);
-            });
+            if (typeof initializeTurboMode === 'function') {
+                initializeTurboMode().then(() => {
+                    console.log('Turbo mode initialization complete');
+                }).catch(error => {
+                    console.log('Turbo mode initialization error:', error);
+                });
+            } else {
+                console.log('Turbo mode not available (initializeTurboMode not defined)');
+            }
 
             // Set up sync button
             const syncBtn = document.getElementById('syncBtn');
