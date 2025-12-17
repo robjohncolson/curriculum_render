@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Layer Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #00d4ff; }
+        h2 { color: #ff6b6b; margin-top: 30px; }
+        .test-section {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: #00d4ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        button:hover { background: #00b8e6; }
+        button.danger { background: #ff6b6b; }
+        button.danger:hover { background: #ff5252; }
+        .result {
+            background: #0f0f23;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #4ade80; }
+        .error { color: #ff6b6b; }
+        .info { color: #00d4ff; }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-badge.ready { background: #4ade80; color: #000; }
+        .status-badge.pending { background: #fbbf24; color: #000; }
+        .status-badge.error { background: #ff6b6b; color: #000; }
+    </style>
+</head>
+<body>
+    <h1>Storage Layer Test <span id="statusBadge" class="status-badge pending">Initializing...</span></h1>
+    <p>This page tests the new IndexedDB storage abstraction layer.</p>
+
+    <div class="test-section">
+        <h2>1. Initialization</h2>
+        <button onclick="testInit()">Initialize Storage</button>
+        <button onclick="checkStatus()">Check Status</button>
+        <div id="initResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Basic Operations</h2>
+        <button onclick="testSetGet()">Test Set/Get</button>
+        <button onclick="testRemove()">Test Remove</button>
+        <button onclick="testGetAll()">Test GetAll</button>
+        <div id="basicResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Answer Storage</h2>
+        <button onclick="testSaveAnswer()">Save Test Answer</button>
+        <button onclick="testGetAnswers()">Get All Answers</button>
+        <button onclick="testRebuildClassData()">Rebuild classData</button>
+        <div id="answerResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Outbox (Offline Sync Queue)</h2>
+        <button onclick="testEnqueueOutbox()">Enqueue Operation</button>
+        <button onclick="testGetOutbox()">View Outbox</button>
+        <button onclick="testClearOutbox()">Clear Outbox</button>
+        <div id="outboxResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Migration</h2>
+        <button onclick="testMigrationStatus()">Check Migration Status</button>
+        <button onclick="simulateLegacyData()">Create Legacy Data</button>
+        <button onclick="runMigration()">Run Migration</button>
+        <div id="migrationResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. Storage Info</h2>
+        <button onclick="testStorageInfo()">Get Usage Info</button>
+        <button onclick="testPersistence()">Request Persistence</button>
+        <button onclick="testCheckPersisted()">Check If Persisted</button>
+        <div id="infoResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>7. Danger Zone</h2>
+        <button class="danger" onclick="clearAllIDB()">Clear All IDB Data</button>
+        <button class="danger" onclick="clearAllLS()">Clear All localStorage</button>
+        <button class="danger" onclick="deleteDatabase()">Delete Database</button>
+        <div id="dangerResult" class="result"></div>
+    </div>
+
+    <!-- Load storage modules in order -->
+    <script src="js/storage/storage_adapter.js"></script>
+    <script src="js/storage/localstorage_adapter.js"></script>
+    <script src="js/storage/indexeddb_adapter.js"></script>
+    <script src="js/storage/migration.js"></script>
+    <script src="js/storage/index.js"></script>
+
+    <script>
+        // Test utilities
+        function log(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            const time = new Date().toLocaleTimeString();
+            el.innerHTML += `<span class="${type}">[${time}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function updateStatusBadge(status, text) {
+            const badge = document.getElementById('statusBadge');
+            badge.className = `status-badge ${status}`;
+            badge.textContent = text;
+        }
+
+        // Test functions
+        async function testInit() {
+            clearLog('initResult');
+            try {
+                log('initResult', 'Initializing storage...', 'info');
+                const storage = await initializeStorage();
+                log('initResult', 'Storage initialized successfully!', 'success');
+
+                const available = await storage.isAvailable();
+                log('initResult', `Storage available: ${available}`, available ? 'success' : 'error');
+
+                const migration = getMigrationResult();
+                if (migration) {
+                    log('initResult', `Migration result: ${JSON.stringify(migration, null, 2)}`, 'info');
+                }
+
+                updateStatusBadge('ready', 'Ready');
+            } catch (e) {
+                log('initResult', `Error: ${e.message}`, 'error');
+                updateStatusBadge('error', 'Error');
+            }
+        }
+
+        async function checkStatus() {
+            clearLog('initResult');
+            log('initResult', `isStorageReady(): ${isStorageReady()}`, 'info');
+
+            if (isStorageReady()) {
+                const storage = getStorage();
+                const available = await storage.isAvailable();
+                log('initResult', `Storage available: ${available}`, available ? 'success' : 'error');
+
+                // Check adapter type
+                if (storage.primary) {
+                    log('initResult', 'Using DualWriteAdapter (IDB + localStorage)', 'info');
+                } else if (storage instanceof IndexedDBAdapter) {
+                    log('initResult', 'Using IndexedDBAdapter', 'info');
+                } else {
+                    log('initResult', 'Using LocalStorageAdapter', 'info');
+                }
+            }
+        }
+
+        async function testSetGet() {
+            clearLog('basicResult');
+            try {
+                const storage = await waitForStorage();
+
+                // Test meta store
+                log('basicResult', 'Testing meta store...', 'info');
+                await storage.setMeta('testKey', 'testValue123');
+                const metaValue = await storage.getMeta('testKey');
+                log('basicResult', `Meta get result: ${metaValue}`, metaValue === 'testValue123' ? 'success' : 'error');
+
+                // Test answers store
+                log('basicResult', 'Testing answers store...', 'info');
+                await storage.set('answers', ['TestUser', 'Q1'], {
+                    username: 'TestUser',
+                    questionId: 'Q1',
+                    value: 'B',
+                    timestamp: Date.now()
+                });
+                const answer = await storage.get('answers', ['TestUser', 'Q1']);
+                log('basicResult', `Answer get result: ${JSON.stringify(answer)}`, answer?.value === 'B' ? 'success' : 'error');
+
+            } catch (e) {
+                log('basicResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testRemove() {
+            clearLog('basicResult');
+            try {
+                const storage = await waitForStorage();
+
+                // Set, verify, remove, verify gone
+                await storage.setMeta('removeTest', 'toBeDeleted');
+                let val = await storage.getMeta('removeTest');
+                log('basicResult', `Before remove: ${val}`, 'info');
+
+                await storage.remove('meta', 'removeTest');
+                val = await storage.getMeta('removeTest');
+                log('basicResult', `After remove: ${val}`, val === null ? 'success' : 'error');
+
+            } catch (e) {
+                log('basicResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testGetAll() {
+            clearLog('basicResult');
+            try {
+                const storage = await waitForStorage();
+
+                // Add some test data
+                await storage.set('answers', ['User1', 'Q1'], { username: 'User1', questionId: 'Q1', value: 'A', timestamp: Date.now() });
+                await storage.set('answers', ['User1', 'Q2'], { username: 'User1', questionId: 'Q2', value: 'B', timestamp: Date.now() });
+                await storage.set('answers', ['User2', 'Q1'], { username: 'User2', questionId: 'Q1', value: 'C', timestamp: Date.now() });
+
+                // Get all
+                const all = await storage.getAll('answers');
+                log('basicResult', `All answers (${all.length}): ${JSON.stringify(all, null, 2)}`, 'info');
+
+                // Get for specific user
+                const user1Answers = await storage.getAllForUser('answers', 'User1');
+                log('basicResult', `User1 answers (${user1Answers.length}): ${JSON.stringify(user1Answers, null, 2)}`, 'info');
+
+            } catch (e) {
+                log('basicResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testSaveAnswer() {
+            clearLog('answerResult');
+            try {
+                const username = 'TestStudent_' + Math.random().toString(36).substr(2, 5);
+                const questionId = 'U1-L3-Q0' + Math.floor(Math.random() * 9 + 1);
+                const value = ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)];
+
+                log('answerResult', `Saving answer: ${username} answered ${value} for ${questionId}`, 'info');
+
+                const record = await saveAnswer(username, questionId, value);
+                log('answerResult', `Saved: ${JSON.stringify(record, null, 2)}`, 'success');
+
+            } catch (e) {
+                log('answerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testGetAnswers() {
+            clearLog('answerResult');
+            try {
+                const storage = await waitForStorage();
+                const all = await storage.getAll('answers');
+                log('answerResult', `All stored answers (${all.length}):\n${JSON.stringify(all, null, 2)}`, 'info');
+            } catch (e) {
+                log('answerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testRebuildClassData() {
+            clearLog('answerResult');
+            try {
+                const classData = await rebuildClassDataView('TestUser');
+                log('answerResult', `Rebuilt classData:\n${JSON.stringify(classData, null, 2)}`, 'success');
+            } catch (e) {
+                log('answerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testEnqueueOutbox() {
+            clearLog('outboxResult');
+            try {
+                const storage = await waitForStorage();
+
+                const id = await storage.enqueueOutbox('answer_submit', {
+                    username: 'TestUser',
+                    questionId: 'U1-L1-Q01',
+                    value: 'A',
+                    timestamp: Date.now()
+                });
+
+                log('outboxResult', `Enqueued outbox item with ID: ${id}`, 'success');
+            } catch (e) {
+                log('outboxResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testGetOutbox() {
+            clearLog('outboxResult');
+            try {
+                const storage = await waitForStorage();
+                const pending = await storage.getOutboxPending();
+                log('outboxResult', `Pending outbox items (${pending.length}):\n${JSON.stringify(pending, null, 2)}`, 'info');
+            } catch (e) {
+                log('outboxResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testClearOutbox() {
+            clearLog('outboxResult');
+            try {
+                const storage = await waitForStorage();
+                await storage.clearOutbox();
+                log('outboxResult', 'Outbox cleared', 'success');
+            } catch (e) {
+                log('outboxResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testMigrationStatus() {
+            clearLog('migrationResult');
+            try {
+                const storage = await waitForStorage();
+                const idb = storage.primary || storage;
+
+                if (idb instanceof IndexedDBAdapter) {
+                    const migration = new StorageMigration(idb);
+                    const status = await migration.getMigrationStatus();
+                    log('migrationResult', `Migration status: ${JSON.stringify(status, null, 2)}`, 'info');
+                } else {
+                    log('migrationResult', 'Not using IndexedDB adapter', 'info');
+                }
+            } catch (e) {
+                log('migrationResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        function simulateLegacyData() {
+            clearLog('migrationResult');
+            try {
+                const username = 'LegacyUser_' + Date.now();
+
+                localStorage.setItem('consensusUsername', username);
+                localStorage.setItem('recentUsernames', JSON.stringify([username, 'OldUser1', 'OldUser2']));
+                localStorage.setItem(`answers_${username}`, JSON.stringify({
+                    'U1-L1-Q01': { value: 'A', timestamp: Date.now() - 86400000 },
+                    'U1-L1-Q02': 'B', // Old format
+                    'U1-L2-Q01': { value: 'C', timestamp: Date.now() - 3600000 }
+                }));
+                localStorage.setItem(`reasons_${username}`, JSON.stringify({
+                    'U1-L1-Q01': 'Because the mean is affected by outliers'
+                }));
+                localStorage.setItem(`progress_${username}`, JSON.stringify({
+                    'U1-L1': 100,
+                    'U1-L2': 50
+                }));
+                localStorage.setItem('spriteColorHue', '180');
+
+                // Create some peer data in classData
+                localStorage.setItem('classData', JSON.stringify({
+                    users: {
+                        [username]: {
+                            answers: { 'U1-L1-Q01': { value: 'A', timestamp: Date.now() } }
+                        },
+                        'PeerUser1': {
+                            answers: { 'U1-L1-Q01': { value: 'B', timestamp: Date.now() } }
+                        }
+                    }
+                }));
+
+                log('migrationResult', `Created legacy data for user: ${username}`, 'success');
+                log('migrationResult', 'localStorage keys created:\n- consensusUsername\n- recentUsernames\n- answers_*\n- reasons_*\n- progress_*\n- spriteColorHue\n- classData', 'info');
+
+            } catch (e) {
+                log('migrationResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function runMigration() {
+            clearLog('migrationResult');
+            try {
+                log('migrationResult', 'Creating fresh IDB adapter for migration...', 'info');
+
+                const idb = new IndexedDBAdapter();
+                await idb.isAvailable();
+
+                const migration = new StorageMigration(idb);
+                const result = await migration.migrate();
+
+                log('migrationResult', `Migration result:\n${JSON.stringify(result, null, 2)}`, result.migrated ? 'success' : 'info');
+
+                // Verify migrated data
+                const username = await idb.getMeta('username');
+                log('migrationResult', `Migrated username: ${username}`, 'info');
+
+                if (username) {
+                    const answers = await idb.getAllForUser('answers', username);
+                    log('migrationResult', `Migrated answers: ${answers.length} records`, 'info');
+                }
+
+            } catch (e) {
+                log('migrationResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testStorageInfo() {
+            clearLog('infoResult');
+            try {
+                const storage = await waitForStorage();
+                const info = await storage.getUsageInfo();
+
+                if (info) {
+                    const usedMB = (info.used / 1024 / 1024).toFixed(2);
+                    const quotaMB = (info.quota / 1024 / 1024).toFixed(2);
+                    log('infoResult', `Storage usage: ${usedMB} MB / ${quotaMB} MB (${info.percentUsed.toFixed(2)}%)`, 'info');
+                } else {
+                    log('infoResult', 'Usage info not available', 'info');
+                }
+            } catch (e) {
+                log('infoResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testPersistence() {
+            clearLog('infoResult');
+            try {
+                const storage = await waitForStorage();
+
+                if (storage.requestPersistence) {
+                    const granted = await storage.requestPersistence();
+                    log('infoResult', `Persistence ${granted ? 'granted' : 'denied'}`, granted ? 'success' : 'info');
+                } else {
+                    log('infoResult', 'Persistence API not available', 'info');
+                }
+            } catch (e) {
+                log('infoResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function testCheckPersisted() {
+            clearLog('infoResult');
+            try {
+                const storage = await waitForStorage();
+
+                if (storage.isPersisted) {
+                    const persisted = await storage.isPersisted();
+                    log('infoResult', `Storage is ${persisted ? 'persisted' : 'not persisted'}`, persisted ? 'success' : 'info');
+                } else {
+                    log('infoResult', 'Persistence API not available', 'info');
+                }
+            } catch (e) {
+                log('infoResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function clearAllIDB() {
+            clearLog('dangerResult');
+            if (!confirm('Clear all IndexedDB data?')) return;
+
+            try {
+                const storage = await waitForStorage();
+                const stores = ['meta', 'answers', 'reasons', 'attempts', 'progress', 'badges', 'charts', 'preferences', 'peerCache', 'outbox', 'sprites'];
+
+                for (const store of stores) {
+                    await storage.clear(store);
+                    log('dangerResult', `Cleared store: ${store}`, 'info');
+                }
+
+                log('dangerResult', 'All IDB stores cleared', 'success');
+            } catch (e) {
+                log('dangerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        function clearAllLS() {
+            clearLog('dangerResult');
+            if (!confirm('Clear all localStorage data?')) return;
+
+            try {
+                localStorage.clear();
+                log('dangerResult', 'localStorage cleared', 'success');
+            } catch (e) {
+                log('dangerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function deleteDatabase() {
+            clearLog('dangerResult');
+            if (!confirm('DELETE the entire IndexedDB database? This cannot be undone!')) return;
+
+            try {
+                await IndexedDBAdapter.deleteDatabase();
+                log('dangerResult', 'Database deleted. Refresh the page to recreate.', 'success');
+                updateStatusBadge('pending', 'DB Deleted');
+            } catch (e) {
+                log('dangerResult', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        // Auto-initialize on page load
+        window.addEventListener('load', async () => {
+            await testInit();
+        });
+    </script>
+</body>
+</html>

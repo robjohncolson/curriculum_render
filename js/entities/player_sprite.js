@@ -7,7 +7,15 @@ class PlayerSprite {
     this.vy = 0;
     this.speed = 200;
     this.scale = 0.5;
-    this.hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+    // Get hue from localStorage with fallback (async IDB load happens later)
+    this.hue = 0;
+    try {
+      this.hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+    } catch (e) {
+      // localStorage may be blocked
+    }
+    // Also try to load from IDB asynchronously
+    this._loadHueFromIDB();
     // Start with idle frame
     this.baseFrameIndex = 0; // Primary idle frame
     this.frameIndex = 0;
@@ -190,6 +198,46 @@ class PlayerSprite {
   }
   setHue(hue) {
     this.hue = hue;
-    localStorage.setItem('spriteColorHue', hue.toString());
+    // Save to localStorage for backward compatibility
+    try {
+      localStorage.setItem('spriteColorHue', hue.toString());
+    } catch (e) {
+      // localStorage may be blocked
+    }
+    // Also save to IDB
+    this._saveHueToIDB(hue);
+  }
+
+  async _loadHueFromIDB() {
+    if (typeof waitForStorage !== 'function') return;
+    try {
+      const storage = await waitForStorage();
+      const username = await storage.getMeta('username');
+      if (username) {
+        const spriteData = await storage.get('sprites', username);
+        if (spriteData && spriteData.hue !== undefined) {
+          this.hue = spriteData.hue;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load sprite hue from IDB:', e);
+    }
+  }
+
+  async _saveHueToIDB(hue) {
+    if (typeof waitForStorage !== 'function') return;
+    try {
+      const storage = await waitForStorage();
+      const username = await storage.getMeta('username');
+      if (username) {
+        await storage.set('sprites', username, {
+          username,
+          hue,
+          updatedAt: Date.now()
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to save sprite hue to IDB:', e);
+    }
   }
 }

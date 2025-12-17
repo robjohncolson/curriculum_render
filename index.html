@@ -207,6 +207,14 @@
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
     <script src="data/chart_questions.js"></script>
+
+    <!-- Storage abstraction layer (must load before auth.js and data_manager.js) -->
+    <script src="js/storage/storage_adapter.js"></script>
+    <script src="js/storage/localstorage_adapter.js"></script>
+    <script src="js/storage/indexeddb_adapter.js"></script>
+    <script src="js/storage/migration.js"></script>
+    <script src="js/storage/index.js"></script>
+
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
     <script src="js/chart_registry.js"></script>
@@ -225,7 +233,37 @@
             localStorage.removeItem(testKey);
         } catch (e) {
             storageAvailable = false;
-            console.warn('localStorage not available (tracking prevention may be blocking storage access). Some features will be limited.');
+            console.warn('localStorage not available (tracking prevention may be blocking storage access). IndexedDB will be used as primary storage.');
+        }
+
+        // Safe localStorage helpers to avoid console spam from tracking prevention
+        function safeGetItem(key) {
+            if (!storageAvailable) return null;
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function safeSetItem(key, value) {
+            if (!storageAvailable) return false;
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function safeRemoveItem(key) {
+            if (!storageAvailable) return false;
+            try {
+                localStorage.removeItem(key);
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
 
         // ========================================
@@ -535,7 +573,7 @@
             if (!turboModeActive || !supabaseClient) return null;
 
             try {
-                const currentUser = localStorage.getItem('consensusUsername');
+                const currentUser = window.currentUsername || safeGetItem('consensusUsername');
                 if (!currentUser) return null;
 
                 // OPTIMIZATION 1: Build query with server-side filtering
@@ -661,7 +699,7 @@
             if (!turboModeActive || !supabaseClient) return false;
 
             try {
-                const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                const classData = JSON.parse(safeGetItem('classData') || '{}');
                 if (!classData.users) {
                     console.log('No classData.users found');
                     return false;
@@ -740,7 +778,7 @@
             // Check localStorage for peer data timestamps
             const allKeys = Object.keys(localStorage);
             const peerKeys = allKeys.filter(key => key.startsWith('answers_'));
-            const currentUser = localStorage.getItem('consensusUsername');
+            const currentUser = window.currentUsername || safeGetItem('consensusUsername');
 
             for (const key of peerKeys) {
                 const username = key.replace('answers_', '');
@@ -827,7 +865,7 @@
 
             ensureClassDataInitialized();
 
-            const currentUser = localStorage.getItem('consensusUsername');
+            const currentUser = window.currentUsername || safeGetItem('consensusUsername');
 
             // Merge into localStorage (keep most recent)
             for (const [username, userData] of Object.entries(peerData)) {
@@ -877,7 +915,7 @@
             try {
                 console.log('🔄 Starting smart sync with Supabase...');
 
-                const currentUser = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+                const currentUser = (window.currentUsername || window.currentUsername || safeGetItem('consensusUsername') || '').trim();
                 if (!currentUser) {
                     console.log('⚠️ No current user detected - skipping smart sync');
                     return true;
@@ -1120,7 +1158,7 @@ function refreshQuestionIfVisible(questionId) {
         }
 
         window.getChartSubmissionPayload = function(questionId, usernameOverride) {
-            const username = usernameOverride || currentUsername || localStorage.getItem('consensusUsername') || '';
+            const username = usernameOverride || currentUsername || window.currentUsername || safeGetItem('consensusUsername') || '';
             return getChartPayloadForUser(username.trim(), questionId);
         };
 
@@ -1929,7 +1967,7 @@ if (continueBtn) {
           console.log('Processing import for username:', currentUsername);
 
           // 2. Load the entire classData object from localStorage
-          let classData = JSON.parse(localStorage.getItem('classData') || '{}');
+          let classData = JSON.parse(safeGetItem('classData') || '{}');
 
           // Ensure classData has the users object
           if (!classData.users) {
@@ -1990,7 +2028,7 @@ if (continueBtn) {
           console.log('Updated classData.users for', currentUsername);
 
           // 7. Save the entire updated classData object back to localStorage
-          localStorage.setItem('classData', JSON.stringify(classData));
+          safeSetItem('classData', JSON.stringify(classData));
           console.log('Saved updated classData to localStorage');
 
           // 8. Call initClassData() to refresh global variables from the new state
@@ -2265,7 +2303,7 @@ if (continueBtn) {
                         localStorage.setItem(`progress_${username}`, JSON.stringify(importData.allProgress[username]));
                     }
                     if (importData.classData) {
-                        localStorage.setItem('classData', JSON.stringify(importData.classData));
+                        safeSetItem('classData', JSON.stringify(importData.classData));
                     }
                     showMessage(`Master database imported successfully for ${username}!`, 'success');
                 } else if (importData.username || importData.consensusUsername) {
@@ -2361,7 +2399,7 @@ if (continueBtn) {
                         localStorage.setItem(`attempts_${username}`, JSON.stringify(userData.attempts));
                     }
 
-                    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{}');
+                    const classDataSnapshot = JSON.parse(safeGetItem('classData') || '{}');
                     if (!classDataSnapshot.users) classDataSnapshot.users = {};
                     if (!classDataSnapshot.users[username]) {
                         classDataSnapshot.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
@@ -2404,7 +2442,7 @@ if (continueBtn) {
                         }
                     });
 
-                    localStorage.setItem('classData', JSON.stringify(classDataSnapshot));
+                    safeSetItem('classData', JSON.stringify(classDataSnapshot));
                     classData = classDataSnapshot;
                     window.classData = classDataSnapshot;
                     showMessage(`Data imported successfully for ${username}! Found ${peerCount} peer students.`, 'success');
@@ -3988,16 +4026,28 @@ function renderLessonSelector(unitInfo) {
             classData.users[currentUsername].timestamps[questionId] = new Date().toISOString();
             classData.users[currentUsername].attempts[questionId] = attempts + 1;
 
+            // Save to both classData and IDB
             saveClassData();
 
-            // Also save to answers_username format for compatibility
-            const userAnswersKey = `answers_${currentUsername}`;
-            const userAnswers = JSON.parse(localStorage.getItem(userAnswersKey) || '{}');
-            userAnswers[questionId] = {
-                value: value,
-                timestamp: timestampNow
-            };
-            localStorage.setItem(userAnswersKey, JSON.stringify(userAnswers));
+            // Also save to answers_username format for localStorage compatibility
+            try {
+                const userAnswersKey = `answers_${currentUsername}`;
+                const userAnswers = JSON.parse(localStorage.getItem(userAnswersKey) || '{}');
+                userAnswers[questionId] = {
+                    value: value,
+                    timestamp: timestampNow
+                };
+                localStorage.setItem(userAnswersKey, JSON.stringify(userAnswers));
+            } catch (e) {
+                console.log('localStorage write failed (tracking prevention?)');
+            }
+
+            // Save directly to IDB for durability
+            if (typeof saveAnswer === 'function') {
+                saveAnswer(currentUsername, questionId, value, timestampNow)
+                    .then(() => console.log(`✅ Answer saved to IDB: ${questionId}`))
+                    .catch(e => console.warn('IDB save failed:', e));
+            }
 
             // Sync to Supabase if turbo mode is active
             if (turboModeActive) {
@@ -5323,7 +5373,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // Merge class-wide data (consensus, etc.) - always take the master version for these
             if (masterData.classData) {
-                localStorage.setItem('classData', JSON.stringify(masterData.classData));
+                safeSetItem('classData', JSON.stringify(masterData.classData));
             }
             if (masterData.consensusData) {
                 localStorage.setItem('consensusResponses', JSON.stringify(masterData.consensusData));
@@ -5441,12 +5491,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
         function mergeRegularClassData(importedData) {
             // Your existing import logic for regular class data
             // This handles non-master imports as before
-            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+            const classData = JSON.parse(safeGetItem('classData') || '{}');
 
             // Merge the imported data with existing...
             // [Your existing merge logic here]
 
-            localStorage.setItem('classData', JSON.stringify(classData));
+            safeSetItem('classData', JSON.stringify(classData));
             showMessage('Class data imported successfully!', 'success');
             location.reload();
         }
@@ -5588,12 +5638,25 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
 
         // Initialize on load
-        window.onload = function() {
+        window.onload = async function() {
             initTheme();
 
-            // Check localStorage support
+            // Initialize IndexedDB storage system first
+            if (typeof initializeStorage === 'function') {
+                try {
+                    await initializeStorage();
+                    console.log('💾 Storage system initialized');
+                } catch (e) {
+                    console.warn('Storage initialization failed, falling back to localStorage:', e);
+                }
+            }
+
+            // Check localStorage support (as fallback indicator)
             if (!window.localStorage) {
-                showMessage('Warning: LocalStorage is not available. Data will not be saved.', 'error');
+                // Only warn if IDB is also unavailable
+                if (!isStorageReady || !isStorageReady()) {
+                    showMessage('Warning: Storage is not available. Data will not be saved.', 'error');
+                }
             }
 
             // Initialize Railway WebSocket connection for real-time presence
@@ -5602,7 +5665,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 console.log('🚂 Railway connection initialized for real-time presence');
             }
 
-            promptUsername();
+            // promptUsername is now async
+            await promptUsername();
         }
 
         // Lazy loading charts removed - using immediate two-phase rendering instead
@@ -6520,7 +6584,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                             let importCount = 0;
 
                                             // Get or create classData structure for peer display
-                                            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                                            const classData = JSON.parse(safeGetItem('classData') || '{}');
                                             if (!classData.users) classData.users = {};
 
                                             Object.entries(students).forEach(([username, userInfo]) => {
@@ -6557,7 +6621,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                             });
 
                                             // Save the updated classData structure
-                                            localStorage.setItem('classData', JSON.stringify(classData));
+                                            safeSetItem('classData', JSON.stringify(classData));
 
                                             // CRITICAL: Refresh the global classData variable
                                             window.classData = classData;
@@ -6932,7 +6996,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     console.log('Student usernames:', Object.keys(userData));
 
                     // Get or create classData structure for peer display
-                    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+                    const classData = JSON.parse(safeGetItem('classData') || '{}');
                     if (!classData.users) classData.users = {};
 
                     Object.entries(userData).forEach(([username, userInfo]) => {
@@ -6986,7 +7050,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     });
 
                     // Save the updated classData structure
-                    localStorage.setItem('classData', JSON.stringify(classData));
+                    safeSetItem('classData', JSON.stringify(classData));
                     console.log(`✓ Updated classData with ${Object.keys(classData.users).length} users`);
 
                     // CRITICAL: Refresh the global classData variable
@@ -7021,7 +7085,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     .filter((v, i, a) => a.indexOf(v) === i), // unique usernames
 
                 // Get all class data without filtering
-                classData: JSON.parse(localStorage.getItem('classData') || '{}'),
+                classData: JSON.parse(safeGetItem('classData') || '{}'),
 
                 // Get all answers from all users
                 allAnswers: {},
@@ -7063,7 +7127,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Update current user display
             const currentUserDisplay = document.getElementById('currentUserDisplay');
             if (currentUserDisplay) {
-                currentUserDisplay.textContent = localStorage.getItem('consensusUsername') || 'Unknown';
+                currentUserDisplay.textContent = window.currentUsername || safeGetItem('consensusUsername') || 'Unknown';
             }
 
             // Show/hide turbo mode notice based on sync status
@@ -7242,7 +7306,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const questionsContainer = document.getElementById('questionsContainer');
             if (questionsContainer) {
                 // Check if we're on initial/username page
-                const currentUsername = localStorage.getItem('consensusUsername');
+                const currentUsername = window.currentUsername || safeGetItem('consensusUsername');
                 if (!currentUsername) {
                     // Add share button to initial page
                     const shareHtml = `

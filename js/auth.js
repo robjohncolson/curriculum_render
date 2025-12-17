@@ -1,7 +1,10 @@
 // auth.js - User authentication and management functions
 // Part of AP Statistics Consensus Quiz
-// Dependencies: Must be loaded after data_manager.js (for initClassData, initializeProgressTracking)
+// Dependencies: Must be loaded after storage modules and data_manager.js
 // This module handles "who is the user" - username generation, prompting, and session management
+//
+// Storage Migration Note: This module now uses the storage adapter (IDB primary, localStorage fallback)
+// All storage operations are async and use waitForStorage()
 
 // ========================================
 // USERNAME GENERATION
@@ -68,16 +71,43 @@ function generateRandomUsername() {
 /**
  * Main entry point for username workflow
  * Checks for saved username or shows prompt
+ * Now async to support IndexedDB storage
  */
-function promptUsername() {
-    const savedUsername = localStorage.getItem('consensusUsername');
-    if (savedUsername) {
+async function promptUsername() {
+    // Wait for storage to be ready
+    const storage = await waitForStorage();
+
+    // Try to get username from IDB first, fall back to localStorage
+    let savedUsername = await storage.getMeta('username');
+
+    // Fallback: check localStorage directly (for pre-migration users)
+    if (!savedUsername) {
+        try {
+            savedUsername = localStorage.getItem('consensusUsername');
+            // If found in localStorage but not IDB, migrate it
+            if (savedUsername && savedUsername !== 'null') {
+                await storage.setMeta('username', savedUsername);
+            }
+        } catch (e) {
+            // localStorage may be blocked by tracking prevention
+            console.log('localStorage fallback unavailable');
+        }
+    }
+
+    if (savedUsername && savedUsername !== 'null') {
         currentUsername = savedUsername;
-        initClassData();
+        await initClassData();
         initializeProgressTracking(); // Initialize progress tracking for returning user
         showUsernameWelcome();
         initializeFromEmbeddedData(); // Initialize from embedded data
         updateCurrentUsernameDisplay();
+
+        // Request persistent storage after user gesture (returning user)
+        if (storage.requestPersistence) {
+            storage.requestPersistence().then(granted => {
+                if (granted) console.log('Persistent storage granted');
+            });
+        }
     } else {
         showUsernamePrompt();
     }
@@ -242,67 +272,134 @@ window.rerollUsernameInFlow = function() {
 
 /**
  * Helper: Load recent usernames on welcome screen
+ * Now async to support IDB storage
  */
-function loadRecentUsernamesOnWelcome() {
-    const recentUsers = getRecentUsernames();
+async function loadRecentUsernamesOnWelcome() {
+    const recentUsers = await getRecentUsernames();
 
     if (recentUsers.length > 0) {
         const container = document.getElementById('recentUsernamesWelcome');
         const list = document.getElementById('recentUsernamesListWelcome');
 
-        container.style.display = 'block';
-        list.innerHTML = recentUsers.slice(0, 3).map(u => `
-            <button onclick="checkExistingData('${u}')" class="recent-username-chip">
-                ${u}
-            </button>
-        `).join('');
+        if (container && list) {
+            container.style.display = 'block';
+            list.innerHTML = recentUsers.slice(0, 3).map(u => `
+                <button onclick="checkExistingData('${u}')" class="recent-username-chip">
+                    ${u}
+                </button>
+            `).join('');
+        }
     }
 }
 
 /**
  * Helper: Load recent usernames for returning student flow
+ * Now async to support IDB storage
  */
-function loadRecentUsernamesForReturning() {
-    const recentUsers = getRecentUsernames();
+async function loadRecentUsernamesForReturning() {
+    const recentUsers = await getRecentUsernames();
 
     if (recentUsers.length > 0) {
         const container = document.getElementById('recentUsernamesReturning');
         const list = document.getElementById('recentUsernamesListReturning');
 
-        container.style.display = 'block';
-        list.innerHTML = recentUsers.map(u => `
-            <button onclick="checkExistingData('${u}')" class="recent-username-btn-large">
-                ${u}
-            </button>
-        `).join('');
+        if (container && list) {
+            container.style.display = 'block';
+            list.innerHTML = recentUsers.map(u => `
+                <button onclick="checkExistingData('${u}')" class="recent-username-btn-large">
+                    ${u}
+                </button>
+            `).join('');
+        }
     }
 }
 
 /**
- * Helper: Get recent usernames from localStorage
- * @returns {Array<string>} Array of recent usernames
+ * Helper: Get recent usernames from storage
+ * Now async and uses IDB with localStorage fallback
+ * @returns {Promise<Array<string>>} Array of recent usernames
  */
-function getRecentUsernames() {
-    const recentUsers = [];
+async function getRecentUsernames() {
+    const recentUsers = new Set();
 
-    // Check localStorage for any stored usernames
-    for (let key in localStorage) {
-        if (key.startsWith('answers_')) {
-            const username = key.replace('answers_', '');
-            if (username && username !== 'undefined') {
-                recentUsers.push(username);
-            }
+    try {
+        const storage = await waitForStorage();
+
+        // First, get the saved recent usernames list
+        const savedRecent = await storage.getMeta('recentUsernames');
+        if (Array.isArray(savedRecent)) {
+            savedRecent.forEach(u => recentUsers.add(u));
         }
-    }
 
-    // Also check class data
-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-    if (classData.users) {
-        Object.keys(classData.users).forEach(u => {
-            if (!recentUsers.includes(u)) {
-                recentUsers.push(u);
+        // Also check IDB for any users with answers
+        const allAnswers = await storage.getAll('answers');
+        const usersWithAnswers = new Set(allAnswers.map(a => a.username));
+        usersWithAnswers.forEach(u => {
+            if (u && u !== 'undefined' && u !== 'null') {
+                recentUsers.add(u);
             }
         });
+
+    } catch (e) {
+        console.log('Error getting recent usernames from IDB:', e);
+    }
+
+    // Fallback: also check localStorage for any stored usernames
+    try {
+        for (let key in localStorage) {
+            if (key.startsWith('answers_')) {
+                const username = key.replace('answers_', '');
+                if (username && username !== 'undefined' && username !== 'null') {
+                    recentUsers.add(username);
+                }
+            }
+        }
+
+        // Also check class data in localStorage
+        const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+        if (classData.users) {
+            Object.keys(classData.users).forEach(u => {
+                if (u && u !== 'undefined' && u !== 'null') {
+                    recentUsers.add(u);
+                }
+            });
+        }
+    } catch (e) {
+        // localStorage may be blocked
+    }
+
+    return Array.from(recentUsers);
+}
+
+/**
+ * Synchronous version for backward compatibility with existing onclick handlers
+ * Uses cached data or falls back to localStorage
+ */
+function getRecentUsernamesSync() {
+    const recentUsers = [];
+
+    try {
+        // Check localStorage for any stored usernames
+        for (let key in localStorage) {
+            if (key.startsWith('answers_')) {
+                const username = key.replace('answers_', '');
+                if (username && username !== 'undefined' && username !== 'null') {
+                    recentUsers.push(username);
+                }
+            }
+        }
+
+        // Also check class data
+        const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+        if (classData.users) {
+            Object.keys(classData.users).forEach(u => {
+                if (!recentUsers.includes(u) && u !== 'undefined' && u !== 'null') {
+                    recentUsers.push(u);
+                }
+            });
+        }
+    } catch (e) {
+        // localStorage may be blocked
     }
 
     return recentUsers;
@@ -331,26 +428,52 @@ window.rerollUsername = function() {
 /**
  * Accepts a username and initializes user session
  * Exposed to window for onclick handlers
+ * Now async to support IndexedDB storage
  * @param {string} name - The username to accept
  */
-window.acceptUsername = function(name) {
+window.acceptUsername = async function(name) {
     currentUsername = name;
-    localStorage.setItem('consensusUsername', currentUsername);
+
+    // Save to storage adapter (IDB + localStorage dual-write)
+    const storage = await waitForStorage();
+    await storage.setMeta('username', currentUsername);
+
+    // Also write to localStorage for backward compatibility during transition
+    try {
+        localStorage.setItem('consensusUsername', currentUsername);
+    } catch (e) {
+        console.log('localStorage write failed (tracking prevention?)');
+    }
 
     // Save to recent usernames list
-    let recentUsernames = JSON.parse(localStorage.getItem('recentUsernames') || '[]');
+    let recentUsernames = await storage.getMeta('recentUsernames') || [];
+    if (!Array.isArray(recentUsernames)) recentUsernames = [];
     if (!recentUsernames.includes(name)) {
         recentUsernames.unshift(name);
         // Keep only last 5 usernames
         recentUsernames = recentUsernames.slice(0, 5);
-        localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
+        await storage.setMeta('recentUsernames', recentUsernames);
+
+        // Also write to localStorage for backward compatibility
+        try {
+            localStorage.setItem('recentUsernames', JSON.stringify(recentUsernames));
+        } catch (e) {
+            // Ignore localStorage failures
+        }
     }
 
-    initClassData();
+    await initClassData();
     initializeProgressTracking(); // Initialize progress tracking for new session
     showUsernameWelcome();
     initializeFromEmbeddedData();
     updateCurrentUsernameDisplay();
+
+    // Request persistent storage after user gesture (new user accepting username)
+    if (storage.requestPersistence) {
+        storage.requestPersistence().then(granted => {
+            if (granted) console.log('Persistent storage granted for new user');
+        });
+    }
 
     // Initialize multiplayer pig system
     if (typeof PigManager !== 'undefined' && !window.pigManager) {
@@ -383,26 +506,51 @@ window.recoverUsername = function() {
 }
 
 /**
- * Checks if a username has existing data in localStorage
+ * Checks if a username has existing data in storage
+ * Now async and checks IDB first, then localStorage
  * @param {string} username - Username to check
  */
-function checkExistingData(username) {
-    const existingData = localStorage.getItem(`answers_${username}`);
-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-    const hasData = existingData || (classData.users && classData.users[username]);
+async function checkExistingData(username) {
+    let hasData = false;
+
+    try {
+        const storage = await waitForStorage();
+
+        // Check IDB for answers
+        const answers = await storage.getAllForUser('answers', username);
+        if (answers && answers.length > 0) {
+            hasData = true;
+        }
+    } catch (e) {
+        console.log('Error checking IDB for existing data:', e);
+    }
+
+    // Also check localStorage as fallback
+    if (!hasData) {
+        try {
+            const existingData = localStorage.getItem(`answers_${username}`);
+            const classData = JSON.parse(localStorage.getItem('classData') || '{}');
+            hasData = existingData || (classData.users && classData.users[username]);
+        } catch (e) {
+            // localStorage may be blocked
+        }
+    }
 
     if (hasData) {
         if (confirm(`Found existing data for ${username}. Would you like to continue with this username and restore your progress?`)) {
-            acceptUsername(username);
+            await acceptUsername(username);
             showMessage('Welcome back! Your progress has been restored.', 'success');
         }
     } else {
         if (confirm(`No existing data found for ${username}. Would you like to start fresh with this username?`)) {
-            acceptUsername(username);
+            await acceptUsername(username);
             showMessage('Username set! Starting fresh.', 'info');
         }
     }
 }
+
+// Expose to window for onclick handlers
+window.checkExistingData = checkExistingData;
 
 // ========================================
 // USER DISPLAY & RECENT USERNAMES
@@ -420,43 +568,25 @@ function updateCurrentUsernameDisplay() {
 }
 
 /**
- * Loads and displays recently used usernames from localStorage
- * Checks both answers_ keys and classData for all users on this device
+ * Loads and displays recently used usernames from storage
+ * Now async and uses IDB with localStorage fallback
  */
-function loadRecentUsernames() {
-    const recentUsers = [];
-
-    // Check localStorage for any stored usernames
-    for (let key in localStorage) {
-        if (key.startsWith('answers_')) {
-            const username = key.replace('answers_', '');
-            if (username && username !== 'undefined') {
-                recentUsers.push(username);
-            }
-        }
-    }
-
-    // Also check class data
-    const classData = JSON.parse(localStorage.getItem('classData') || '{}');
-    if (classData.users) {
-        Object.keys(classData.users).forEach(u => {
-            if (!recentUsers.includes(u)) {
-                recentUsers.push(u);
-            }
-        });
-    }
+async function loadRecentUsernames() {
+    const recentUsers = await getRecentUsernames();
 
     // Display recent usernames if any found
     if (recentUsers.length > 0) {
         const container = document.getElementById('recentUsernames');
         const list = document.getElementById('recentUsernamesList');
 
-        container.style.display = 'block';
-        list.innerHTML = recentUsers.map(u => `
-            <button onclick="checkExistingData('${u}')" class="recent-username-btn">
-                ${u}
-            </button>
-        `).join('');
+        if (container && list) {
+            container.style.display = 'block';
+            list.innerHTML = recentUsers.map(u => `
+                <button onclick="checkExistingData('${u}')" class="recent-username-btn">
+                    ${u}
+                </button>
+            `).join('');
+        }
     }
 }
 

@@ -41,7 +41,13 @@ class SpriteManager {
   }
   preloadPeers(usernames = []) {
     if (!Array.isArray(usernames) || usernames.length === 0) return;
-    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+    let current = window.currentUsername || '';
+    try {
+      current = current || localStorage.getItem('consensusUsername') || '';
+    } catch (e) {
+      // localStorage may be blocked
+    }
+    current = current.trim();
     usernames
       .filter((u) => u && u !== current)
       .forEach((u) => this.ensurePeerSprite(u));
@@ -73,7 +79,13 @@ class SpriteManager {
     this.updateOnlinePeers(online);
   }
   updateOnlinePeers(onlineUsernames) {
-    const current = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+    let current = window.currentUsername || '';
+    try {
+      current = current || localStorage.getItem('consensusUsername') || '';
+    } catch (e) {
+      // localStorage may be blocked
+    }
+    current = current.trim();
     const desired = new Set((onlineUsernames || []).filter((u) => u && u !== current));
 
     // Add missing peers
@@ -88,13 +100,19 @@ class SpriteManager {
   }
   _handleResize() { this.repositionPeers(); }
   resolvePeerHue(username) {
-    const legacyKey = `pigColor_${username}`;
-    const altKey = `spriteColorHue_${username}`;
-    const vals = [localStorage.getItem(legacyKey), localStorage.getItem(altKey)];
-    for (const v of vals) {
-      const n = v == null ? NaN : parseInt(v, 10);
-      if (!Number.isNaN(n)) return ((n % 360) + 360) % 360;
+    // Try localStorage first (sync, may be blocked)
+    try {
+      const legacyKey = `pigColor_${username}`;
+      const altKey = `spriteColorHue_${username}`;
+      const vals = [localStorage.getItem(legacyKey), localStorage.getItem(altKey)];
+      for (const v of vals) {
+        const n = v == null ? NaN : parseInt(v, 10);
+        if (!Number.isNaN(n)) return ((n % 360) + 360) % 360;
+      }
+    } catch (e) {
+      // localStorage may be blocked
     }
+    // Fall back to hash-based hue
     return this.hashStringToHue(username);
   }
   hashStringToHue(input) {

@@ -2,19 +2,45 @@
 // Part of AP Statistics Consensus Quiz
 // Dependencies: Requires global variables (currentUsername, classData, allCurriculumData)
 //               Requires functions from other modules (showMessage, renderUnitMenu, detectUnitAndLessons)
+//               Requires storage modules (storage_adapter.js, indexeddb_adapter.js, etc.)
 // This module handles "what is their data" - import, export, merging, and persistence
+//
+// Storage Migration Note: This module now uses the storage adapter (IDB primary, localStorage fallback)
+// classData is now an in-memory view rebuilt from IDB stores
 
 // ========================================
 // CORE DATA MANAGEMENT (Priority 1)
 // ========================================
 
 /**
- * Initializes or loads class data structure from localStorage
+ * Initializes or loads class data structure
+ * Now async and rebuilds from IDB with localStorage fallback
  * Creates user entry if it doesn't exist for current username
  */
-function initClassData() {
-    let classDataStr = localStorage.getItem('classData');
-    classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+async function initClassData() {
+    try {
+        // Try to rebuild classData from IDB
+        if (typeof rebuildClassDataView === 'function') {
+            classData = await rebuildClassDataView(currentUsername);
+        } else {
+            // Fallback to localStorage if storage module not loaded
+            let classDataStr = localStorage.getItem('classData');
+            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+        }
+    } catch (e) {
+        console.warn('Error rebuilding classData from IDB, falling back to localStorage:', e);
+        try {
+            let classDataStr = localStorage.getItem('classData');
+            classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+        } catch (lsError) {
+            console.warn('localStorage also unavailable:', lsError);
+            classData = {users: {}};
+        }
+    }
+
+    if (!classData.users) {
+        classData.users = {};
+    }
 
     if (!classData.users[currentUsername]) {
         classData.users[currentUsername] = {
@@ -45,18 +71,72 @@ function initClassData() {
         }
     }
 
-    saveClassData();
+    await saveClassData();
 }
 
 /**
- * Saves class data to localStorage with error handling
+ * Saves class data to storage with error handling
+ * Now async and writes to IDB with localStorage fallback
  */
-function saveClassData() {
+async function saveClassData() {
+    // Save to localStorage for backward compatibility (dual-write)
     try {
         localStorage.setItem('classData', JSON.stringify(classData));
     } catch(e) {
-        console.log("Storage quota exceeded");
-        showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
+        console.log("localStorage quota exceeded or blocked");
+        // Don't show error if we have IDB available
+        if (typeof isStorageReady !== 'function' || !isStorageReady()) {
+            showMessage("Warning: Local storage is full. Some data may not be saved.", 'error');
+        }
+    }
+
+    // Also save current user's data to IDB if available
+    try {
+        if (typeof waitForStorage === 'function' && currentUsername && classData.users[currentUsername]) {
+            const storage = await waitForStorage();
+            const userData = classData.users[currentUsername];
+
+            // Save answers to IDB
+            if (userData.answers) {
+                for (const [questionId, answer] of Object.entries(userData.answers)) {
+                    const answerValue = typeof answer === 'object' ? answer.value : answer;
+                    const timestamp = typeof answer === 'object' ? answer.timestamp : Date.now();
+                    await storage.set('answers', [currentUsername, questionId], {
+                        username: currentUsername,
+                        questionId,
+                        value: answerValue,
+                        timestamp,
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+
+            // Save reasons to IDB
+            if (userData.reasons) {
+                for (const [questionId, reason] of Object.entries(userData.reasons)) {
+                    await storage.set('reasons', [currentUsername, questionId], {
+                        username: currentUsername,
+                        questionId,
+                        value: reason,
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+
+            // Save attempts to IDB
+            if (userData.attempts) {
+                for (const [questionId, count] of Object.entries(userData.attempts)) {
+                    await storage.set('attempts', [currentUsername, questionId], {
+                        username: currentUsername,
+                        questionId,
+                        count: typeof count === 'number' ? count : 1,
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error saving to IDB:', e);
     }
 }
 
@@ -187,30 +267,111 @@ window.buildRecoveryPack = async function(username = currentUsername) {
 
     if (typeof initClassData === 'function') {
         try {
-            initClassData();
+            await initClassData();
         } catch (error) {
             console.warn('RECOVERY: initClassData failed during buildRecoveryPack', error);
         }
     }
 
     const nowISO = new Date().toISOString();
-    const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
-    const userSlice = (classDataSnapshot.users && classDataSnapshot.users[username])
-        || (classData && classData.users && classData.users[username])
-        || {};
 
-    const userState = {
-        answers: JSON.parse(localStorage.getItem(`answers_${username}`) || '{}'),
-        reasons: JSON.parse(localStorage.getItem(`reasons_${username}`) || '{}'),
-        progress: JSON.parse(localStorage.getItem(`progress_${username}`) || '{}'),
-        timestamps: JSON.parse(localStorage.getItem(`timestamps_${username}`) || '{}'),
-        attempts: JSON.parse(localStorage.getItem(`attempts_${username}`) || '{}'),
-        badges: JSON.parse(localStorage.getItem(`badges_${username}`) || '{}'),
-        charts: JSON.parse(localStorage.getItem(`charts_${username}`) || '{}'),
-        preferences: JSON.parse(localStorage.getItem(`preferences_${username}`) || '{}'),
-        classDataUser: userSlice || {}
+    // Try to get data from IDB first, fall back to localStorage
+    let userState = {
+        answers: {},
+        reasons: {},
+        progress: {},
+        timestamps: {},
+        attempts: {},
+        badges: {},
+        charts: {},
+        preferences: {},
+        classDataUser: {}
     };
 
+    try {
+        if (typeof waitForStorage === 'function') {
+            const storage = await waitForStorage();
+
+            // Get answers from IDB
+            const answers = await storage.getAllForUser('answers', username);
+            answers.forEach(a => {
+                userState.answers[a.questionId] = { value: a.value, timestamp: a.timestamp };
+                userState.timestamps[a.questionId] = a.timestamp;
+            });
+
+            // Get reasons from IDB
+            const reasons = await storage.getAllForUser('reasons', username);
+            reasons.forEach(r => {
+                userState.reasons[r.questionId] = r.value;
+            });
+
+            // Get attempts from IDB
+            const attempts = await storage.getAllForUser('attempts', username);
+            attempts.forEach(a => {
+                userState.attempts[a.questionId] = a.count;
+            });
+
+            // Get progress from IDB
+            const progress = await storage.getAllForUser('progress', username);
+            progress.forEach(p => {
+                userState.progress[p.lessonKey] = p.value;
+            });
+
+            // Get badges from IDB
+            const badges = await storage.getAllForUser('badges', username);
+            badges.forEach(b => {
+                userState.badges[b.badgeId] = b;
+            });
+
+            // Get charts from IDB
+            const charts = await storage.getAllForUser('charts', username);
+            charts.forEach(c => {
+                userState.charts[c.chartId] = c.data;
+            });
+
+            // Get preferences from IDB
+            const prefs = await storage.get('preferences', username);
+            if (prefs) {
+                userState.preferences = prefs;
+            }
+
+            console.log('RECOVERY: Built pack from IDB data');
+        }
+    } catch (e) {
+        console.warn('RECOVERY: Error getting IDB data, falling back to localStorage:', e);
+    }
+
+    // Also get from localStorage as fallback/supplement
+    try {
+        const lsAnswers = JSON.parse(localStorage.getItem(`answers_${username}`) || '{}');
+        const lsReasons = JSON.parse(localStorage.getItem(`reasons_${username}`) || '{}');
+        const lsProgress = JSON.parse(localStorage.getItem(`progress_${username}`) || '{}');
+        const lsTimestamps = JSON.parse(localStorage.getItem(`timestamps_${username}`) || '{}');
+        const lsAttempts = JSON.parse(localStorage.getItem(`attempts_${username}`) || '{}');
+        const lsBadges = JSON.parse(localStorage.getItem(`badges_${username}`) || '{}');
+        const lsCharts = JSON.parse(localStorage.getItem(`charts_${username}`) || '{}');
+        const lsPreferences = JSON.parse(localStorage.getItem(`preferences_${username}`) || '{}');
+
+        // Merge with IDB data (IDB takes precedence for existing keys)
+        userState.answers = { ...lsAnswers, ...userState.answers };
+        userState.reasons = { ...lsReasons, ...userState.reasons };
+        userState.progress = { ...lsProgress, ...userState.progress };
+        userState.timestamps = { ...lsTimestamps, ...userState.timestamps };
+        userState.attempts = { ...lsAttempts, ...userState.attempts };
+        userState.badges = { ...lsBadges, ...userState.badges };
+        userState.charts = { ...lsCharts, ...userState.charts };
+        userState.preferences = { ...lsPreferences, ...userState.preferences };
+
+        // Get classData user slice
+        const classDataSnapshot = JSON.parse(localStorage.getItem('classData') || '{"users":{}}');
+        userState.classDataUser = (classDataSnapshot.users && classDataSnapshot.users[username])
+            || (classData && classData.users && classData.users[username])
+            || {};
+    } catch (e) {
+        console.warn('RECOVERY: localStorage fallback failed:', e);
+    }
+
+    // Build localStorage mirror for backward compatibility
     const localStorageMirror = {};
     const mirrorPrefixes = [
         'answers_',
@@ -224,26 +385,31 @@ window.buildRecoveryPack = async function(username = currentUsername) {
         'sessionStart_',
         'tempProgress_'
     ];
-    mirrorPrefixes.forEach(prefix => {
-        const key = `${prefix}${username}`;
-        const value = localStorage.getItem(key);
-        if (value !== null) {
-            localStorageMirror[key] = value;
-        }
-    });
+    try {
+        mirrorPrefixes.forEach(prefix => {
+            const key = `${prefix}${username}`;
+            const value = localStorage.getItem(key);
+            if (value !== null) {
+                localStorageMirror[key] = value;
+            }
+        });
+    } catch (e) {
+        // localStorage may be blocked
+    }
 
     const dataPayload = Object.assign({}, userState, {
         localStorageMirror,
         meta: {
             createdAt: nowISO,
             answerCount: Object.keys(userState.answers || {}).length,
-            username
+            username,
+            storageBackend: typeof waitForStorage === 'function' ? 'indexeddb' : 'localstorage'
         }
     });
 
     const manifest = {
         version: 'student-recovery-pack',
-        schemaVersion: '1.0.0',
+        schemaVersion: '2.0.0', // Updated for IDB support
         username,
         timestampISO: nowISO,
         appBuild: window.APP_BUILD || 'curriculum-web',
@@ -681,9 +847,10 @@ function mergePersonalData(existingUserData, newUserData) {
 
 /**
  * Imports personal data for current user with standardization
+ * Now async and writes to IDB with localStorage fallback
  * @param {Object} data - Personal data file contents
  */
-function importPersonalData(data) {
+async function importPersonalData(data) {
     if (!currentUsername) {
         showMessage('❌ Please select a username first.', 'error');
         return;
@@ -692,17 +859,86 @@ function importPersonalData(data) {
     // Import answers with standardization
     if (data.answers) {
         const standardizedAnswers = migrateAnswersToStandardFormat(data.answers);
-        localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(standardizedAnswers));
-        console.log(`✓ Imported personal answers for ${currentUsername} (standardized format)`);
+
+        // Write to localStorage for backward compatibility
+        try {
+            localStorage.setItem(`answers_${currentUsername}`, JSON.stringify(standardizedAnswers));
+            console.log(`✓ Imported personal answers for ${currentUsername} to localStorage`);
+        } catch (e) {
+            console.warn('localStorage write failed:', e);
+        }
+
+        // Also write to IDB
+        try {
+            if (typeof waitForStorage === 'function') {
+                const storage = await waitForStorage();
+                for (const [questionId, answer] of Object.entries(standardizedAnswers)) {
+                    const answerValue = typeof answer === 'object' ? answer.value : answer;
+                    const timestamp = typeof answer === 'object' ? answer.timestamp : Date.now();
+                    await storage.set('answers', [currentUsername, questionId], {
+                        username: currentUsername,
+                        questionId,
+                        value: answerValue,
+                        timestamp,
+                        updatedAt: Date.now()
+                    });
+                }
+                console.log(`✓ Imported personal answers for ${currentUsername} to IDB`);
+            }
+        } catch (e) {
+            console.warn('IDB write failed:', e);
+        }
     }
 
     // Import progress
     if (data.progress) {
-        localStorage.setItem(`progress_${currentUsername}`, JSON.stringify(data.progress));
+        try {
+            localStorage.setItem(`progress_${currentUsername}`, JSON.stringify(data.progress));
+        } catch (e) {
+            console.warn('localStorage progress write failed:', e);
+        }
+
+        // Also write to IDB
+        try {
+            if (typeof waitForStorage === 'function') {
+                const storage = await waitForStorage();
+                for (const [lessonKey, value] of Object.entries(data.progress)) {
+                    await storage.set('progress', [currentUsername, lessonKey], {
+                        username: currentUsername,
+                        lessonKey,
+                        value,
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('IDB progress write failed:', e);
+        }
+    }
+
+    // Import reasons if present
+    if (data.reasons) {
+        try {
+            localStorage.setItem(`reasons_${currentUsername}`, JSON.stringify(data.reasons));
+        } catch (e) {}
+
+        try {
+            if (typeof waitForStorage === 'function') {
+                const storage = await waitForStorage();
+                for (const [questionId, reason] of Object.entries(data.reasons)) {
+                    await storage.set('reasons', [currentUsername, questionId], {
+                        username: currentUsername,
+                        questionId,
+                        value: reason,
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+        } catch (e) {}
     }
 
     // Reinitialize to show imported data
-    initClassData();
+    await initClassData();
     if (typeof renderUnitMenu === 'function') {
         renderUnitMenu();
     }

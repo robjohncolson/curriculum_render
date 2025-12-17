@@ -1,5 +1,6 @@
 // Railway Server Integration for AP Stats Turbo Mode
   // This replaces direct Supabase calls with Railway server calls
+  // Updated to write peer data to IndexedDB peerCache store
 
   // Configuration
   const RAILWAY_SERVER_URL = window.RAILWAY_SERVER_URL || 'https://your-app.up.railway.app';
@@ -176,6 +177,20 @@
                   break;
               }
               console.log(`📨 Received answer for ${data.question_id}, dispatching 'peer:answer' event.`);
+
+              // Write to IDB peerCache for durability
+              if (typeof waitForStorage === 'function') {
+                  waitForStorage().then(storage => {
+                      storage.set('peerCache', [data.username, data.question_id], {
+                          peerUsername: data.username,
+                          questionId: data.question_id,
+                          value: data.answer_value,
+                          timestamp: data.timestamp,
+                          seenAt: Date.now()
+                      }).catch(e => console.warn('Failed to cache peer answer in IDB:', e));
+                  }).catch(e => console.warn('Storage not ready for peer answer caching:', e));
+              }
+
               window.dispatchEvent(new CustomEvent('peer:answer', {
                   detail: {
                       username: data.username,
@@ -276,16 +291,53 @@
               };
           });
 
-          // Update local storage
-          const currentUser = localStorage.getItem('consensusUsername');
+          // Update local storage (for backward compatibility)
+          let currentUser = null;
+          try {
+              currentUser = localStorage.getItem('consensusUsername');
+          } catch (e) {
+              // localStorage may be blocked
+          }
+
+          // Also try to get from IDB
+          if (!currentUser && typeof waitForStorage === 'function') {
+              try {
+                  const storage = await waitForStorage();
+                  currentUser = await storage.getMeta('username');
+              } catch (e) {
+                  console.warn('Could not get username from IDB');
+              }
+          }
+
           for (const [username, userData] of Object.entries(peerData)) {
               if (username !== currentUser) {
-                  const key = `answers_${username}`;
-                  const existing = JSON.parse(localStorage.getItem(key) || '{}');
+                  // Write to localStorage for backward compatibility
+                  try {
+                      const key = `answers_${username}`;
+                      const existing = JSON.parse(localStorage.getItem(key) || '{}');
+                      Object.assign(existing, userData.answers);
+                      localStorage.setItem(key, JSON.stringify(existing));
+                  } catch (e) {
+                      // localStorage may be blocked
+                  }
 
-                  // Merge with existing data
-                  Object.assign(existing, userData.answers);
-                  localStorage.setItem(key, JSON.stringify(existing));
+                  // Write to IDB peerCache for durability
+                  if (typeof waitForStorage === 'function') {
+                      try {
+                          const storage = await waitForStorage();
+                          for (const [questionId, answer] of Object.entries(userData.answers)) {
+                              await storage.set('peerCache', [username, questionId], {
+                                  peerUsername: username,
+                                  questionId,
+                                  value: answer.value,
+                                  timestamp: answer.timestamp,
+                                  seenAt: Date.now()
+                              });
+                          }
+                      } catch (e) {
+                          console.warn('Failed to write peer data to IDB:', e);
+                      }
+                  }
               }
           }
 
