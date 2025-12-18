@@ -122,10 +122,86 @@ function showUsernamePrompt() {
 }
 
 /**
- * NEW: Initial welcome screen with two-button choice (progressive disclosure)
- * This is the entry point for the wizard-style onboarding
+ * NEW: Simplified welcome screen with student dropdown
+ * Fetches student list from Supabase and shows a dropdown to select name
  */
-function showWelcomeScreen() {
+async function showWelcomeScreen() {
+    const questionsContainer = document.getElementById('questionsContainer');
+
+    // Show loading state while fetching students
+    questionsContainer.innerHTML = `
+        <div class="welcome-wizard">
+            <div class="welcome-header">
+                <h1>📊 AP Statistics Consensus Quiz</h1>
+                <p class="subtitle">Collaborative Learning Platform</p>
+            </div>
+            <div class="welcome-message">
+                <p>Loading student list...</p>
+            </div>
+        </div>
+    `;
+
+    // Try to fetch student list from Supabase
+    let students = [];
+    if (typeof window.fetchStudentList === 'function') {
+        students = await window.fetchStudentList();
+    }
+
+    if (students.length > 0) {
+        // Show dropdown of student names
+        questionsContainer.innerHTML = `
+            <div class="welcome-wizard">
+                <div class="welcome-header">
+                    <h1>📊 AP Statistics Consensus Quiz</h1>
+                    <p class="subtitle">Collaborative Learning Platform</p>
+                </div>
+
+                <div class="welcome-message">
+                    <p>Welcome! Select your name to get started.</p>
+                </div>
+
+                <div class="student-select-container">
+                    <label for="studentSelect" class="select-label">I am:</label>
+                    <select id="studentSelect" class="student-dropdown">
+                        <option value="">-- Select your name --</option>
+                        ${students.map(s => `<option value="${s.username}">${s.real_name}</option>`).join('')}
+                    </select>
+                    <button id="confirmStudentBtn" class="action-button primary large" disabled>
+                        ✅ Let's Go!
+                    </button>
+                </div>
+
+                <div class="help-text" style="margin-top: 20px; text-align: center;">
+                    <small>Don't see your name? Ask your teacher to add you to the class roster.</small>
+                </div>
+            </div>
+        `;
+
+        // Enable button when selection is made
+        const select = document.getElementById('studentSelect');
+        const btn = document.getElementById('confirmStudentBtn');
+
+        select.addEventListener('change', () => {
+            btn.disabled = !select.value;
+        });
+
+        btn.addEventListener('click', () => {
+            const username = select.value;
+            if (username) {
+                acceptUsername(username);
+            }
+        });
+    } else {
+        // Fallback: No students found or offline - show legacy flow
+        showWelcomeScreenFallback();
+    }
+}
+
+/**
+ * Fallback welcome screen when student list is unavailable
+ * Shows the original two-button choice for new/returning students
+ */
+function showWelcomeScreenFallback() {
     const questionsContainer = document.getElementById('questionsContainer');
     questionsContainer.innerHTML = `
         <div class="welcome-wizard">
@@ -136,6 +212,9 @@ function showWelcomeScreen() {
 
             <div class="welcome-message">
                 <p>Welcome! Let's get you started.</p>
+                <p class="offline-notice" style="color: var(--text-muted); font-size: 0.9em;">
+                    (Offline mode - class roster not available)
+                </p>
             </div>
 
             <div class="wizard-choices">

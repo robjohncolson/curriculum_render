@@ -1,6 +1,23 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+-- Users table: Maps usernames to real names for student identification
+CREATE TABLE public.users (
+  username text NOT NULL,
+  real_name text NOT NULL,
+  password text NULL,
+  user_type text NULL DEFAULT 'student'::text,
+  created_at timestamp with time zone NULL DEFAULT now(),
+  updated_at timestamp with time zone NULL DEFAULT now(),
+  CONSTRAINT users_pkey PRIMARY KEY (username)
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_real_name ON public.users USING btree (real_name);
+CREATE INDEX IF NOT EXISTS idx_users_user_type ON public.users USING btree (user_type);
+
+CREATE TRIGGER users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
+
 CREATE TABLE public.answers (
   id integer NOT NULL DEFAULT nextval('answers_id_seq'::regclass),
   username text NOT NULL,

@@ -2166,6 +2166,40 @@ body.dark-theme .import-step select {
     gap: 8px;
 }
 
+/* Collapsible Teacher Tools section */
+details.sync-section {
+    cursor: default;
+}
+
+details.sync-section summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    padding: 8px 0;
+    list-style: none;
+}
+
+details.sync-section summary::-webkit-details-marker {
+    display: none;
+}
+
+details.sync-section summary::before {
+    content: '▶';
+    font-size: 0.8em;
+    transition: transform 0.2s ease;
+}
+
+details.sync-section[open] summary::before {
+    transform: rotate(90deg);
+}
+
+details.sync-section summary:hover {
+    color: var(--accent-primary, #3498db);
+}
+
 .sync-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -3699,6 +3733,60 @@ body.dark-theme .current-location-section.local-mode .copy-btn:hover {
     font-size: 1.3em;
     margin-bottom: 40px;
     color: var(--text-primary, #333);
+}
+
+/* Student Selection Dropdown */
+.student-select-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.student-select-container .select-label {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.student-dropdown {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 1.1em;
+    border: 2px solid var(--border-secondary, #ddd);
+    border-radius: 10px;
+    background: var(--bg-secondary, white);
+    color: var(--text-primary, #333);
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 20px;
+}
+
+.student-dropdown:hover {
+    border-color: var(--accent-primary, #3498db);
+}
+
+.student-dropdown:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3498db);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.student-select-container .action-button {
+    width: 100%;
+    padding: 15px 30px;
+    font-size: 1.1em;
+}
+
+.student-select-container .action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Wizard Choice Buttons */
