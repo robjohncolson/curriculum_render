@@ -260,17 +260,198 @@ function showWelcomeScreenFallback() {
 }
 
 /**
- * NEW: Flow for new students - simple username generation
+ * NEW: Flow for new students - asks for real name first, then generates username
  */
 window.showNewStudentFlow = function() {
-    const suggestedName = generateRandomUsername();
     const questionsContainer = document.getElementById('questionsContainer');
 
     questionsContainer.innerHTML = `
         <div class="new-student-flow">
             <div class="flow-header">
                 <button onclick="showWelcomeScreen()" class="back-button">← Back</button>
-                <h2>Welcome, New Student!</h2>
+                <h2>Create New Account</h2>
+            </div>
+
+            <div class="real-name-input-section">
+                <p class="input-label">What's your name?</p>
+                <input type="text" id="realNameInput" class="real-name-input"
+                       placeholder="Enter your first name (e.g., John)"
+                       autocomplete="off">
+                <p class="input-hint">This helps your teacher identify your work.</p>
+            </div>
+
+            <div class="flow-actions">
+                <button id="continueWithNameBtn" class="action-button primary large" disabled>
+                    Continue →
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Set up event listeners
+    const nameInput = document.getElementById('realNameInput');
+    const continueBtn = document.getElementById('continueWithNameBtn');
+
+    nameInput.addEventListener('input', () => {
+        continueBtn.disabled = !nameInput.value.trim();
+    });
+
+    nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && nameInput.value.trim()) {
+            checkNameAndProceed(nameInput.value.trim());
+        }
+    });
+
+    continueBtn.addEventListener('click', () => {
+        const realName = nameInput.value.trim();
+        if (realName) {
+            checkNameAndProceed(realName);
+        }
+    });
+
+    // Focus the input
+    nameInput.focus();
+};
+
+/**
+ * Check if the entered name matches an existing student, offer to resume or continue
+ */
+async function checkNameAndProceed(realName) {
+    // Get student list to check for matches
+    let students = [];
+    if (typeof window.fetchStudentList === 'function') {
+        students = await window.fetchStudentList(true);
+    }
+
+    // Check for name match (case-insensitive)
+    const normalizedInput = realName.toLowerCase().trim();
+    const matches = students.filter(s =>
+        s.real_name.toLowerCase().trim() === normalizedInput
+    );
+
+    if (matches.length > 0) {
+        // Found a match - ask if they want to resume or create new
+        showNameMatchDialog(realName, matches[0]);
+    } else {
+        // No match - proceed to username generation
+        showUsernameGeneration(realName);
+    }
+}
+
+/**
+ * Show dialog when entered name matches an existing account
+ */
+function showNameMatchDialog(enteredName, matchedStudent) {
+    const questionsContainer = document.getElementById('questionsContainer');
+
+    questionsContainer.innerHTML = `
+        <div class="new-student-flow">
+            <div class="flow-header">
+                <button onclick="showNewStudentFlow()" class="back-button">← Back</button>
+                <h2>Account Found!</h2>
+            </div>
+
+            <div class="name-match-section">
+                <p class="match-message">
+                    We found an existing account for <strong>"${matchedStudent.real_name}"</strong>.
+                </p>
+                <p class="match-question">Is this you?</p>
+            </div>
+
+            <div class="match-options">
+                <button class="action-button primary large" id="resumeAccountBtn">
+                    ✅ Yes, resume my account
+                </button>
+                <button class="action-button secondary large" id="differentPersonBtn">
+                    ❌ No, I'm a different ${enteredName}
+                </button>
+            </div>
+
+            <p class="match-hint" style="margin-top: 20px; text-align: center; color: var(--text-muted, #888);">
+                <small>If you're a different person with the same first name, add your last name or initial.</small>
+            </p>
+        </div>
+    `;
+
+    // Set up event listeners
+    document.getElementById('resumeAccountBtn').addEventListener('click', () => {
+        acceptUsername(matchedStudent.username);
+    });
+
+    document.getElementById('differentPersonBtn').addEventListener('click', () => {
+        showDifferentNameEntry(enteredName);
+    });
+}
+
+/**
+ * Show form to enter a more specific name (add last name, etc.)
+ */
+function showDifferentNameEntry(originalName) {
+    const questionsContainer = document.getElementById('questionsContainer');
+
+    questionsContainer.innerHTML = `
+        <div class="new-student-flow">
+            <div class="flow-header">
+                <button onclick="showNewStudentFlow()" class="back-button">← Back</button>
+                <h2>Add More Detail</h2>
+            </div>
+
+            <div class="real-name-input-section">
+                <p class="input-label">Please add your last name or initial:</p>
+                <input type="text" id="fullNameInput" class="real-name-input"
+                       value="${originalName} "
+                       placeholder="e.g., ${originalName} Smith or ${originalName} S"
+                       autocomplete="off">
+                <p class="input-hint">This will help distinguish you from other students with the same first name.</p>
+            </div>
+
+            <div class="flow-actions">
+                <button id="continueWithFullNameBtn" class="action-button primary large">
+                    Continue →
+                </button>
+            </div>
+        </div>
+    `;
+
+    const nameInput = document.getElementById('fullNameInput');
+    const continueBtn = document.getElementById('continueWithFullNameBtn');
+
+    // Position cursor at end
+    nameInput.focus();
+    nameInput.setSelectionRange(nameInput.value.length, nameInput.value.length);
+
+    continueBtn.addEventListener('click', () => {
+        const fullName = nameInput.value.trim();
+        if (fullName && fullName !== originalName) {
+            // Re-check with the new name
+            checkNameAndProceed(fullName);
+        } else {
+            showMessage('Please add more detail to your name.', 'error');
+        }
+    });
+
+    nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            continueBtn.click();
+        }
+    });
+}
+
+/**
+ * Show the username generation screen after name is confirmed
+ */
+function showUsernameGeneration(realName) {
+    const suggestedName = generateRandomUsername();
+    const questionsContainer = document.getElementById('questionsContainer');
+
+    // Store the real name for when we create the account
+    window._pendingRealName = realName;
+
+    questionsContainer.innerHTML = `
+        <div class="new-student-flow">
+            <div class="flow-header">
+                <button onclick="showNewStudentFlow()" class="back-button">← Back</button>
+                <h2>Welcome, ${realName}!</h2>
             </div>
 
             <div class="username-reveal">
@@ -282,7 +463,7 @@ window.showNewStudentFlow = function() {
             </div>
 
             <div class="flow-actions">
-                <button onclick="acceptUsername('${suggestedName}')" class="action-button primary extra-large">
+                <button id="acceptUsernameBtn" class="action-button primary extra-large">
                     ✅ Let's Go!
                 </button>
                 <button onclick="rerollUsernameInFlow()" class="action-button secondary large">
@@ -291,6 +472,43 @@ window.showNewStudentFlow = function() {
             </div>
         </div>
     `;
+
+    document.getElementById('acceptUsernameBtn').addEventListener('click', () => {
+        createNewStudentAccount(suggestedName, realName);
+    });
+}
+
+/**
+ * Create new student account with username and real name
+ */
+async function createNewStudentAccount(username, realName) {
+    // First, add to Supabase users table
+    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+        try {
+            const { error } = await supabaseClient
+                .from('users')
+                .insert([{
+                    username: username,
+                    real_name: realName,
+                    user_type: 'student'
+                }]);
+
+            if (error) {
+                console.error('Failed to create user in Supabase:', error);
+                // Continue anyway - they can still use the app locally
+            } else {
+                console.log(`✅ Created new user: ${username} (${realName})`);
+            }
+        } catch (e) {
+            console.error('Error creating user:', e);
+        }
+    }
+
+    // Clear the pending real name
+    window._pendingRealName = null;
+
+    // Accept the username and proceed
+    acceptUsername(username);
 }
 
 /**
@@ -341,6 +559,7 @@ window.showReturningStudentFlow = function() {
 window.rerollUsernameInFlow = function() {
     const newName = generateRandomUsername();
     const displayElement = document.getElementById('generatedNameLarge');
+    const realName = window._pendingRealName;
 
     if (displayElement) {
         // Add animation class for smooth transition
@@ -350,10 +569,10 @@ window.rerollUsernameInFlow = function() {
             displayElement.style.opacity = '1';
         }, 150);
 
-        // Update the accept button
+        // Update the accept button to use createNewStudentAccount with the real name
         const acceptButton = document.querySelector('.action-button.primary.extra-large');
         if (acceptButton) {
-            acceptButton.onclick = () => acceptUsername(newName);
+            acceptButton.onclick = () => createNewStudentAccount(newName, realName);
         }
     } else {
         // Fallback

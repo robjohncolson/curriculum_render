@@ -4958,3 +4958,109 @@ body.dark-theme .video-link.alt {
 body.dark-theme .blooket-link {
     color: #ffd700;
 }
+
+/* ========================================
+   New Student Flow - Real Name Input
+   ======================================== */
+
+.real-name-input-section {
+    text-align: center;
+    margin: 40px 0;
+}
+
+.real-name-input-section .input-label {
+    font-size: 1.4em;
+    color: var(--text-primary, #333);
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+.real-name-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 18px 24px;
+    font-size: 1.3em;
+    border: 2px solid var(--border-color, #ddd);
+    border-radius: 10px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: var(--bg-secondary, #fff);
+    color: var(--text-primary, #333);
+}
+
+.real-name-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #3498db);
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.15);
+}
+
+.real-name-input::placeholder {
+    color: var(--text-tertiary, #aaa);
+}
+
+.real-name-input-section .input-hint {
+    font-size: 1em;
+    color: var(--text-secondary, #666);
+    margin-top: 15px;
+}
+
+/* Name Match Dialog */
+.name-match-section {
+    text-align: center;
+    margin: 30px 0;
+    padding: 25px;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-radius: 12px;
+}
+
+.name-match-section .match-message {
+    font-size: 1.2em;
+    color: var(--text-primary, #333);
+    margin-bottom: 15px;
+}
+
+.name-match-section .match-question {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: var(--primary-color, #3498db);
+}
+
+.match-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.match-options .action-button {
+    width: 100%;
+}
+
+.match-hint {
+    font-size: 0.95em;
+    color: var(--text-tertiary, #888);
+}
+
+/* Dark theme adjustments for new student flow */
+body.dark-theme .real-name-input {
+    background: var(--bg-tertiary, #2d2d2d);
+    border-color: var(--border-secondary, #444);
+    color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-theme .real-name-input:focus {
+    border-color: var(--accent-primary, #5bc0de);
+    box-shadow: 0 0 0 4px rgba(91, 192, 222, 0.2);
+}
+
+body.dark-theme .real-name-input::placeholder {
+    color: var(--text-tertiary, #666);
+}
+
+body.dark-theme .name-match-section {
+    background: var(--bg-tertiary, #2d2d2d);
+}
+
+body.dark-theme .name-match-section .match-question {
+    color: var(--accent-primary, #5bc0de);
+}
