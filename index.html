@@ -42,6 +42,10 @@
             <span class="fab-icon-close" style="display: none;">✕</span>
         </button>
         <div class="fab-menu" style="display: none;">
+            <button class="fab-item user-button" onclick="showUserSelectScreen()" title="Switch user">
+                <span class="fab-item-icon">👤</span>
+                <span class="fab-item-label">User</span>
+            </button>
             <button class="fab-item sprite-config-toggle" onclick="showSpriteConfigModal()" title="Sprite settings">
                 <span class="fab-item-icon">🎮</span>
                 <span class="fab-item-label">Sprite</span>
@@ -5579,6 +5583,26 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             }
         });
+
+        // Show user selection screen (switch user)
+        function showUserSelectScreen() {
+            // Close the FAB menu
+            const fabMenu = document.querySelector('.fab-menu');
+            const fabMain = document.querySelector('.fab-main');
+            const fabIcon = document.querySelector('.fab-icon');
+            const fabIconClose = document.querySelector('.fab-icon-close');
+            if (fabMenu) {
+                fabMenu.style.display = 'none';
+                if (fabIcon) fabIcon.style.display = 'block';
+                if (fabIconClose) fabIconClose.style.display = 'none';
+                if (fabMain) fabMain.classList.remove('active');
+            }
+
+            // Show the welcome/user selection screen
+            if (typeof showWelcomeScreen === 'function') {
+                showWelcomeScreen();
+            }
+        }
 
         // Theme management
         function initTheme() {
