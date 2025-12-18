@@ -148,7 +148,7 @@ async function showWelcomeScreen() {
     }
 
     if (students.length > 0) {
-        // Show dropdown of student names
+        // Show dropdown of student names as PRIMARY option
         questionsContainer.innerHTML = `
             <div class="welcome-wizard">
                 <div class="welcome-header">
@@ -171,8 +171,11 @@ async function showWelcomeScreen() {
                     </button>
                 </div>
 
-                <div class="help-text" style="margin-top: 20px; text-align: center;">
-                    <small>Don't see your name? Ask your teacher to add you to the class roster.</small>
+                <div class="new-user-link" style="margin-top: 30px; text-align: center;">
+                    <small style="color: var(--text-muted, #888);">
+                        Not on the list?
+                        <a href="#" id="newUserLink" style="color: var(--accent-primary, #3498db);">Create new account</a>
+                    </small>
                 </div>
             </div>
         `;
@@ -191,6 +194,15 @@ async function showWelcomeScreen() {
                 acceptUsername(username);
             }
         });
+
+        // Handle "new user" link - show the random username generator
+        const newUserLink = document.getElementById('newUserLink');
+        if (newUserLink) {
+            newUserLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showNewStudentFlow();
+            });
+        }
     } else {
         // Fallback: No students found or offline - show legacy flow
         showWelcomeScreenFallback();
