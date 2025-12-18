@@ -438,11 +438,11 @@
         // Returns array of { username, real_name } for students only
         let cachedStudentList = null;
         let studentListFetchTime = 0;
-        const STUDENT_LIST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+        const STUDENT_LIST_CACHE_TTL = 30 * 1000; // 30 seconds (short cache for freshness)
 
-        async function fetchStudentList() {
-            // Return cached list if fresh
-            if (cachedStudentList && (Date.now() - studentListFetchTime) < STUDENT_LIST_CACHE_TTL) {
+        async function fetchStudentList(forceRefresh = false) {
+            // Return cached list if fresh (unless force refresh)
+            if (!forceRefresh && cachedStudentList && (Date.now() - studentListFetchTime) < STUDENT_LIST_CACHE_TTL) {
                 return cachedStudentList;
             }
 

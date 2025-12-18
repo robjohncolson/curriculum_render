@@ -141,10 +141,10 @@ async function showWelcomeScreen() {
         </div>
     `;
 
-    // Try to fetch student list from Supabase
+    // Try to fetch student list from Supabase (force refresh to get latest)
     let students = [];
     if (typeof window.fetchStudentList === 'function') {
-        students = await window.fetchStudentList();
+        students = await window.fetchStudentList(true); // Force refresh
     }
 
     if (students.length > 0) {

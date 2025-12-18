@@ -84,11 +84,26 @@ UPDATE public.users SET real_name = 'Julissa' WHERE username = 'Apricot_Dog';
 UPDATE public.users SET real_name = 'Julissa' WHERE username = 'apricot_dog';
 
 -- =============================================
+-- 7. Fix case variants in ANSWERS table
+--    Normalize all usernames to Title_Case
+-- =============================================
+
+-- Fix lowercase variants in answers table
+UPDATE public.answers SET username = 'Apple_Monkey' WHERE LOWER(username) = 'apple_monkey' AND username != 'Apple_Monkey';
+UPDATE public.answers SET username = 'Apple_Rabbit' WHERE LOWER(username) = 'apple_rabbit' AND username != 'Apple_Rabbit';
+UPDATE public.answers SET username = 'Grape_Fox' WHERE LOWER(username) = 'grape_fox' AND username != 'Grape_Fox';
+UPDATE public.answers SET username = 'Lemon_Eagle' WHERE LOWER(username) = 'lemon_eagle' AND username != 'Lemon_Eagle';
+UPDATE public.answers SET username = 'Mango_Dog' WHERE LOWER(username) = 'mango_dog' AND username != 'Mango_Dog';
+UPDATE public.answers SET username = 'Papaya_Goat' WHERE LOWER(username) = 'papaya_goat' AND username != 'Papaya_Goat';
+UPDATE public.answers SET username = 'Plum_Iguana' WHERE LOWER(username) = 'plum_iguana' AND username != 'Plum_Iguana';
+
+-- =============================================
 -- Summary of changes:
 -- - Merged Cherry_Lemon -> Coconut_Cat (Moshammed's consolidated account)
 -- - Deleted 7 orphan "Student" accounts
 -- - Assigned Emily to Kiwi_Monkey (92 answers, morning class)
--- - Fixed username case to Title_Case to match answers table
+-- - Fixed username case to Title_Case in USERS table
+-- - Fixed username case variants in ANSWERS table
 -- - Merged Chanlita: Grape_Newt -> Grape_Koala (56 total answers)
 -- - Merged Julissa: Banana_Fox -> Apricot_Dog (82 total answers)
 -- =============================================
