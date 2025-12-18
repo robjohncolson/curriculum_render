@@ -775,18 +775,42 @@
             }
         }
 
-        // Update peer data timestamp display
-        function updatePeerDataTimestamp() {
-            // Find or create the timestamp display element
-            let timestampDisplay = document.getElementById('peerDataTimestamp');
+        // ========================================
+        // SYNC STATUS INDICATOR
+        // ========================================
 
-            if (!timestampDisplay) {
+        // Global sync state tracking
+        window.syncState = {
+            status: 'idle',        // 'idle' | 'syncing' | 'downloading' | 'error' | 'offline'
+            progress: 0,           // Current progress (0-100 or items downloaded)
+            total: 0,              // Total items to sync
+            lastSync: null,        // Last successful sync timestamp
+            userAnswerCount: 0,    // Number of user's answers synced
+            message: ''            // Optional status message
+        };
+
+        // Update sync state and refresh indicator
+        function updateSyncState(updates) {
+            Object.assign(window.syncState, updates);
+            updateSyncStatusIndicator();
+        }
+
+        // Update peer data timestamp display (now shows sync status)
+        function updatePeerDataTimestamp() {
+            updateSyncStatusIndicator();
+        }
+
+        function updateSyncStatusIndicator() {
+            // Find or create the status display element
+            let statusDisplay = document.getElementById('peerDataTimestamp');
+
+            if (!statusDisplay) {
                 // Create the display if it doesn't exist
                 const messageArea = document.getElementById('messageArea');
                 if (messageArea) {
-                    timestampDisplay = document.createElement('div');
-                    timestampDisplay.id = 'peerDataTimestamp';
-                    timestampDisplay.style.cssText = `
+                    statusDisplay = document.createElement('div');
+                    statusDisplay.id = 'peerDataTimestamp';
+                    statusDisplay.style.cssText = `
                         padding: 8px 12px;
                         background: var(--bg-secondary, #f5f5f5);
                         border-radius: 4px;
@@ -794,66 +818,236 @@
                         color: var(--text-secondary, #666);
                         margin-bottom: 10px;
                         text-align: center;
+                        cursor: pointer;
+                        position: relative;
+                        user-select: none;
                     `;
-                    messageArea.appendChild(timestampDisplay);
+                    statusDisplay.onclick = toggleSyncTooltip;
+                    messageArea.appendChild(statusDisplay);
                 }
             }
 
-            if (!timestampDisplay) return;
+            if (!statusDisplay) return;
 
+            const state = window.syncState;
+            let icon, text, color;
+
+            switch (state.status) {
+                case 'downloading':
+                    icon = '☁️⬇️';
+                    const pct = state.total > 0 ? Math.round((state.progress / state.total) * 100) : 0;
+                    text = `Restoring ${state.progress}/${state.total}...`;
+                    color = '#3498db';
+                    break;
+                case 'syncing':
+                    icon = '☁️🔄';
+                    text = state.message || 'Syncing...';
+                    color = '#f39c12';
+                    break;
+                case 'error':
+                    icon = '☁️⚠️';
+                    text = 'Sync failed';
+                    color = '#e74c3c';
+                    break;
+                case 'offline':
+                    icon = '☁️✗';
+                    text = 'Offline';
+                    color = '#95a5a6';
+                    break;
+                default: // idle - show last sync time
+                    icon = '☁️✓';
+                    color = '#27ae60';
+
+                    // Calculate time since last sync
+                    const lastSync = state.lastSync || lastPeerDataTimestamp;
+                    if (lastSync) {
+                        const diff = Date.now() - lastSync;
+                        if (diff < 60000) {
+                            text = 'All synced';
+                        } else if (diff < 3600000) {
+                            const mins = Math.floor(diff / 60000);
+                            text = `Synced ${mins}m ago`;
+                        } else if (diff < 86400000) {
+                            const hrs = Math.floor(diff / 3600000);
+                            text = `Synced ${hrs}h ago`;
+                        } else {
+                            text = 'Synced ' + new Date(lastSync).toLocaleDateString();
+                        }
+                    } else {
+                        text = turboModeActive ? 'Connected' : 'Local only';
+                        color = turboModeActive ? '#27ae60' : '#95a5a6';
+                    }
+            }
+
+            // Add turbo indicator
+            const turboIcon = turboModeActive ? ' <span style="color: #27ae60;">🚀</span>' : '';
+
+            statusDisplay.innerHTML = `
+                <span style="color: ${color};">${icon}</span>
+                <strong>${text}</strong>${turboIcon}
+            `;
+
+            // Store color for tooltip
+            statusDisplay.dataset.statusColor = color;
+        }
+
+        // Toggle sync status tooltip
+        function toggleSyncTooltip(event) {
+            event.stopPropagation();
+            const existing = document.getElementById('syncTooltip');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+
+            const state = window.syncState;
+            const statusDisplay = document.getElementById('peerDataTimestamp');
+            if (!statusDisplay) return;
+
+            const tooltip = document.createElement('div');
+            tooltip.id = 'syncTooltip';
+            tooltip.style.cssText = `
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--bg-secondary, white);
+                border: 1px solid var(--border-secondary, #ddd);
+                border-radius: 8px;
+                padding: 12px 16px;
+                min-width: 200px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                font-size: 12px;
+                text-align: left;
+                margin-top: 8px;
+            `;
+
+            // Build tooltip content
+            let content = `<div style="font-weight: bold; margin-bottom: 8px; color: ${statusDisplay.dataset.statusColor || '#333'};">
+                ☁️ Cloud Sync Status
+            </div>`;
+
+            // User's answer count
+            const currentUser = window.currentUsername;
+            if (currentUser) {
+                let answerCount = 0;
+                try {
+                    if (typeof waitForStorage === 'function') {
+                        // Will be async, so show cached count
+                        answerCount = state.userAnswerCount || '...';
+                    } else {
+                        const answers = JSON.parse(localStorage.getItem(`answers_${currentUser}`) || '{}');
+                        answerCount = Object.keys(answers).length;
+                    }
+                } catch (e) {}
+                content += `<div>Your answers: <strong>${answerCount}</strong> saved</div>`;
+            }
+
+            // Last sync time
+            const lastSync = state.lastSync || lastPeerDataTimestamp;
+            if (lastSync) {
+                const syncDate = new Date(lastSync);
+                content += `<div>Last sync: ${syncDate.toLocaleTimeString()}</div>`;
+            }
+
+            // Status message
+            if (state.status === 'downloading' || state.status === 'syncing') {
+                content += `<div style="margin-top: 8px;">
+                    <div style="background: #eee; border-radius: 4px; height: 6px; overflow: hidden;">
+                        <div style="background: #3498db; height: 100%; width: ${state.total > 0 ? (state.progress / state.total * 100) : 0}%; transition: width 0.3s;"></div>
+                    </div>
+                    <div style="margin-top: 4px; color: #666;">${state.message || 'Working...'}</div>
+                </div>`;
+            } else if (state.status === 'idle' && turboModeActive) {
+                content += `<div style="margin-top: 8px; color: #27ae60;">✓ All caught up</div>`;
+            } else if (!turboModeActive) {
+                content += `<div style="margin-top: 8px; color: #95a5a6;">Working offline - data saved locally</div>`;
+            }
+
+            tooltip.innerHTML = content;
+            statusDisplay.appendChild(tooltip);
+
+            // Close tooltip when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', closeSyncTooltip, { once: true });
+            }, 0);
+        }
+
+        function closeSyncTooltip() {
+            const tooltip = document.getElementById('syncTooltip');
+            if (tooltip) tooltip.remove();
+        }
+
+        // Legacy compatibility - keep old variable updated
+        function updatePeerDataTimestampLegacy() {
             // Determine the most recent peer data timestamp
             let mostRecentTimestamp = lastPeerDataTimestamp;
 
             // Check localStorage for peer data timestamps
-            const allKeys = Object.keys(localStorage);
-            const peerKeys = allKeys.filter(key => key.startsWith('answers_'));
-            const currentUser = window.currentUsername || safeGetItem('consensusUsername');
+            try {
+                const allKeys = Object.keys(localStorage);
+                const peerKeys = allKeys.filter(key => key.startsWith('answers_'));
+                const currentUser = window.currentUsername || safeGetItem('consensusUsername');
 
-            for (const key of peerKeys) {
-                const username = key.replace('answers_', '');
-                if (username !== currentUser) {
-                    try {
-                        const answers = JSON.parse(localStorage.getItem(key) || '{}');
-                        for (const answerData of Object.values(answers)) {
-                            const timestamp = answerData.timestamp;
-                            if (timestamp && (!mostRecentTimestamp || timestamp > mostRecentTimestamp)) {
-                                mostRecentTimestamp = timestamp;
+                for (const key of peerKeys) {
+                    const username = key.replace('answers_', '');
+                    if (username !== currentUser) {
+                        try {
+                            const answers = JSON.parse(localStorage.getItem(key) || '{}');
+                            for (const answerData of Object.values(answers)) {
+                                const timestamp = answerData.timestamp;
+                                if (timestamp && (!mostRecentTimestamp || timestamp > mostRecentTimestamp)) {
+                                    mostRecentTimestamp = timestamp;
+                                }
                             }
-                        }
-                    } catch (e) {}
+                        } catch (e) {}
+                    }
                 }
-            }
+            } catch (e) {}
 
-            // Format the timestamp
             if (mostRecentTimestamp) {
-                const now = Date.now();
-                const diff = now - mostRecentTimestamp;
-                const date = new Date(mostRecentTimestamp);
-
-                let displayText = '';
-                if (diff < 60000) { // Less than 1 minute
-                    displayText = 'Just now';
-                } else if (diff < 3600000) { // Less than 1 hour
-                    const minutes = Math.floor(diff / 60000);
-                    displayText = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-                } else if (diff < 86400000) { // Less than 1 day
-                    const hours = Math.floor(diff / 3600000);
-                    displayText = `${hours} hour${hours > 1 ? 's' : ''} ago`;
-                } else if (diff < 172800000) { // Less than 2 days
-                    displayText = `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                } else {
-                    displayText = date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
-
-                timestampDisplay.innerHTML = `📊 Peer data current as of: <strong>${displayText}</strong>`;
-
-                // Add turbo mode indicator if active
-                if (turboModeActive) {
-                    timestampDisplay.innerHTML += ' <span style="color: #27ae60;">🚀</span>';
-                }
-            } else {
-                timestampDisplay.innerHTML = '📊 No peer data available yet';
+                window.syncState.lastSync = mostRecentTimestamp;
             }
+        }
+
+        // Call legacy update then show indicator
+        function refreshSyncStatus() {
+            updatePeerDataTimestampLegacy();
+            updateSyncStatusIndicator();
+        }
+
+        // Keep old function working (calls are scattered throughout code)
+        // The actual updatePeerDataTimestamp is defined above and calls updateSyncStatusIndicator
+
+        // Format timestamp helper (for backward compat)
+        function formatSyncTimestamp(timestamp) {
+            if (!timestamp) return 'Never';
+            const now = Date.now();
+            const diff = now - timestamp;
+            const date = new Date(timestamp);
+
+            if (diff < 60000) {
+                return 'Just now';
+            } else if (diff < 3600000) {
+                const minutes = Math.floor(diff / 60000);
+                return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            } else if (diff < 86400000) {
+                const hours = Math.floor(diff / 3600000);
+                return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            } else if (diff < 172800000) {
+                return `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            } else {
+                return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+        }
+
+        // Backward compat: old code expects this pattern
+        function handlePeerDataTimestampFallback() {
+            const timestampDisplay = document.getElementById('peerDataTimestamp');
+            if (!timestampDisplay) return;
+            // Legacy fallback - just update indicator
+            updateSyncStatusIndicator();
         }
 
         // Perform sync check (called on interval)
@@ -974,6 +1168,7 @@
                 // If no local answers, try to restore from Supabase
                 if (Object.keys(localAnswersObj).length === 0) {
                     console.log('🆕 No local answers detected - checking Supabase for existing data...');
+                    updateSyncState({ status: 'syncing', message: 'Checking cloud...' });
 
                     // Fetch user's answers from Supabase
                     const { data: cloudAnswers, error: fetchError } = await supabaseClient
@@ -983,14 +1178,22 @@
 
                     if (fetchError) {
                         console.warn('Failed to fetch from Supabase:', fetchError);
+                        updateSyncState({ status: 'error', message: 'Fetch failed' });
                         return true;
                     }
 
                     if (cloudAnswers && cloudAnswers.length > 0) {
                         console.log(`☁️ Found ${cloudAnswers.length} answers in Supabase for ${currentUser}, restoring...`);
+                        updateSyncState({
+                            status: 'downloading',
+                            progress: 0,
+                            total: cloudAnswers.length,
+                            message: `Restoring ${cloudAnswers.length} answers...`
+                        });
 
                         // Restore to local storage
                         const restoredAnswers = {};
+                        let restored = 0;
                         for (const row of cloudAnswers) {
                             const timestamp = row.timestamp ? Number(row.timestamp) : Date.now();
                             restoredAnswers[row.question_id] = {
@@ -1011,6 +1214,12 @@
                                     });
                                 }
                             } catch (e) {}
+
+                            restored++;
+                            // Update progress every 5 items or on last item
+                            if (restored % 5 === 0 || restored === cloudAnswers.length) {
+                                updateSyncState({ progress: restored });
+                            }
                         }
 
                         // Save to localStorage
@@ -1019,6 +1228,12 @@
                         } catch (e) {}
 
                         console.log(`✅ Restored ${cloudAnswers.length} answers from Supabase`);
+                        updateSyncState({
+                            status: 'idle',
+                            userAnswerCount: cloudAnswers.length,
+                            lastSync: Date.now(),
+                            message: ''
+                        });
 
                         // Refresh UI
                         if (typeof initClassData === 'function') {
@@ -1031,6 +1246,7 @@
                         return true;
                     } else {
                         console.log('🆕 New user - no cloud data found');
+                        updateSyncState({ status: 'idle', userAnswerCount: 0 });
                         return true;
                     }
                 }
@@ -1088,9 +1304,17 @@
                 console.log(`   - ${skipCount} answers already current`);
                 console.log(`   - ${totalCount} total answers processed (current user)`);
 
+                // Update sync state
+                updateSyncState({
+                    status: 'idle',
+                    userAnswerCount: totalCount,
+                    lastSync: Date.now()
+                });
+
                 return true;
             } catch (error) {
                 console.log(`⚠️ Smart sync failed: ${error.message}`);
+                updateSyncState({ status: 'error', message: error.message });
                 return false;
             }
         }
