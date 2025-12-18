@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export/Import Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; max-width: 900px; margin: 0 auto; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .pass { background: #d4edda; border-color: #28a745; }
+        .fail { background: #f8d7da; border-color: #dc3545; }
+        .pending { background: #fff3cd; border-color: #ffc107; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; max-height: 400px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #output { white-space: pre-wrap; font-size: 12px; }
+        .section { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 8px; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>Export/Import Functionality Test</h1>
+    <p>This tests that Recovery Packs can be exported and imported correctly - critical for the "load from file" fallback.</p>
+
+    <div class="section">
+        <h2>Manual Test Instructions</h2>
+        <ol>
+            <li>Open the main app (index.html) and log in as any user</li>
+            <li>Go to Sync modal → Export → "Download Personal Recovery Pack"</li>
+            <li>Note the answer count shown</li>
+            <li>Clear your browser data or open in incognito</li>
+            <li>Go back to the app, select the same user</li>
+            <li>Use "Restore from File" and select the recovery pack</li>
+            <li>Verify the same number of answers were restored</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>Automated Tests (localStorage only)</h2>
+        <div>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearTestData()">Clear Test Data</button>
+            <button onclick="downloadTestPack()">Download Test Pack</button>
+        </div>
+
+        <div id="results"></div>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        const TEST_USERNAME = 'Test_Zebra';
+        let testResults = [];
+        let exportedPack = null;
+
+        // Minimal globals needed
+        window.currentUsername = TEST_USERNAME;
+        window.classData = { users: {} };
+
+        function log(msg) {
+            document.getElementById('output').textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        function clearLog() {
+            document.getElementById('output').textContent = '';
+        }
+
+        function showResult(name, passed, details = '') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test ${passed ? 'pass' : 'fail'}`;
+            div.innerHTML = `<strong>${passed ? '✓' : '✗'} ${name}</strong>${details ? '<br><small>' + details + '</small>' : ''}`;
+            results.appendChild(div);
+            testResults.push({ name, passed, details });
+        }
+
+        function clearTestData() {
+            clearLog();
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+            exportedPack = null;
+
+            // Clear localStorage test data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.includes(TEST_USERNAME)) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+
+            log('Test data cleared.\n');
+        }
+
+        // Minimal SHA-256 helper (same as in data_manager.js)
+        async function computeSha256Hex(str) {
+            if (!window.crypto || !window.crypto.subtle) return null;
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(str);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Simplified buildRecoveryPack for testing
+        async function buildRecoveryPackTest(username) {
+            const nowISO = new Date().toISOString();
+
+            const userState = {
+                answers: JSON.parse(localStorage.getItem(`answers_${username}`) || '{}'),
+                reasons: JSON.parse(localStorage.getItem(`reasons_${username}`) || '{}'),
+                progress: JSON.parse(localStorage.getItem(`progress_${username}`) || '{}'),
+                timestamps: JSON.parse(localStorage.getItem(`timestamps_${username}`) || '{}'),
+                attempts: JSON.parse(localStorage.getItem(`attempts_${username}`) || '{}'),
+                badges: JSON.parse(localStorage.getItem(`badges_${username}`) || '{}'),
+                charts: JSON.parse(localStorage.getItem(`charts_${username}`) || '{}'),
+                preferences: JSON.parse(localStorage.getItem(`preferences_${username}`) || '{}')
+            };
+
+            // Build localStorage mirror
+            const localStorageMirror = {};
+            const mirrorPrefixes = ['answers_', 'reasons_', 'progress_', 'timestamps_', 'attempts_', 'badges_', 'charts_', 'preferences_'];
+            mirrorPrefixes.forEach(prefix => {
+                const key = `${prefix}${username}`;
+                const value = localStorage.getItem(key);
+                if (value !== null) {
+                    localStorageMirror[key] = value;
+                }
+            });
+
+            const dataPayload = Object.assign({}, userState, {
+                localStorageMirror,
+                meta: {
+                    createdAt: nowISO,
+                    answerCount: Object.keys(userState.answers || {}).length,
+                    username,
+                    storageBackend: 'localstorage'
+                }
+            });
+
+            const manifest = {
+                version: 'student-recovery-pack',
+                schemaVersion: '2.0.0',
+                username,
+                timestampISO: nowISO,
+                appBuild: 'test-suite'
+            };
+
+            const integrity = {};
+            const checksum = await computeSha256Hex(JSON.stringify(dataPayload));
+            if (checksum) {
+                integrity.checksumSha256 = checksum;
+            }
+
+            return { manifest, data: dataPayload, integrity };
+        }
+
+        // Simplified validateRecoveryPack
+        async function validateRecoveryPackTest(pack) {
+            const warnings = [];
+            let ok = true;
+
+            if (!pack || typeof pack !== 'object') {
+                return { ok: false, warnings: ['Invalid Recovery Pack structure.'], checksum: null };
+            }
+
+            if (!pack.manifest || typeof pack.manifest !== 'object') {
+                warnings.push('Missing manifest section.');
+                ok = false;
+            }
+
+            const username = pack.manifest?.username;
+            if (!username || typeof username !== 'string') {
+                warnings.push('Manifest username missing or invalid.');
+                ok = false;
+            }
+
+            if (!pack.data || typeof pack.data !== 'object') {
+                warnings.push('Data payload missing.');
+                ok = false;
+            }
+
+            let computedChecksum = null;
+            const providedChecksum = pack.integrity?.checksumSha256;
+            if (providedChecksum) {
+                computedChecksum = await computeSha256Hex(JSON.stringify(pack.data));
+                if (computedChecksum && computedChecksum !== providedChecksum) {
+                    warnings.push('Checksum mismatch detected.');
+                }
+            }
+
+            return { ok, warnings, checksum: computedChecksum };
+        }
+
+        // Import recovery pack to localStorage
+        function importRecoveryPackTest(pack) {
+            const username = pack.manifest.username;
+            const data = pack.data;
+
+            // Restore from localStorageMirror if present
+            if (data.localStorageMirror) {
+                for (const [key, value] of Object.entries(data.localStorageMirror)) {
+                    localStorage.setItem(key, value);
+                }
+                return { source: 'localStorageMirror', keys: Object.keys(data.localStorageMirror).length };
+            }
+
+            // Otherwise restore individual fields
+            if (data.answers) localStorage.setItem(`answers_${username}`, JSON.stringify(data.answers));
+            if (data.reasons) localStorage.setItem(`reasons_${username}`, JSON.stringify(data.reasons));
+            if (data.progress) localStorage.setItem(`progress_${username}`, JSON.stringify(data.progress));
+            if (data.timestamps) localStorage.setItem(`timestamps_${username}`, JSON.stringify(data.timestamps));
+            if (data.attempts) localStorage.setItem(`attempts_${username}`, JSON.stringify(data.attempts));
+            if (data.badges) localStorage.setItem(`badges_${username}`, JSON.stringify(data.badges));
+            if (data.charts) localStorage.setItem(`charts_${username}`, JSON.stringify(data.charts));
+            if (data.preferences) localStorage.setItem(`preferences_${username}`, JSON.stringify(data.preferences));
+
+            return { source: 'fields', keys: 8 };
+        }
+
+        async function runAllTests() {
+            clearLog();
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+
+            log('=== Starting Export/Import Tests ===\n');
+
+            // Setup: Create test data
+            setupTestData();
+
+            // Test 1: Build Recovery Pack
+            await testBuildRecoveryPack();
+
+            // Test 2: Validate Recovery Pack
+            await testValidateRecoveryPack();
+
+            // Test 3: Clear and Import Recovery Pack (round-trip)
+            await testImportRecoveryPack();
+
+            // Test 4: Verify data integrity after import
+            await testDataIntegrity();
+
+            // Test 5: Checksum tampering detection
+            await testChecksumTampering();
+
+            // Summary
+            log('\n=== Test Summary ===');
+            const passed = testResults.filter(t => t.passed).length;
+            const total = testResults.length;
+            log(`${passed}/${total} tests passed`);
+
+            if (passed === total) {
+                log('\n✅ All tests passed! Export/import is working correctly.');
+            } else {
+                log('\n⚠️ Some tests failed. Review the results above.');
+            }
+        }
+
+        function setupTestData() {
+            log('Setting up test data...');
+
+            // Create test answers with various formats
+            const testAnswers = {
+                'U1-L1-Q01': { value: 'A', timestamp: 1702500000000 },
+                'U1-L1-Q02': { value: 'B', timestamp: 1702500001000 },
+                'U1-L2-Q01': { value: 'C', timestamp: 1702500002000 },
+                'U2-L1-Q01': { value: 'D', timestamp: 1702500003000 },
+                'U2-L1-Q02': { value: 'A', timestamp: 1702500004000 }
+            };
+
+            const testReasons = {
+                'U1-L1-Q01': 'Because the mean is greater than the median',
+                'U1-L2-Q01': 'Standard deviation measures spread'
+            };
+
+            const testProgress = {
+                'U1-L1': 100,
+                'U1-L2': 50,
+                'U2-L1': 66
+            };
+
+            const testAttempts = {
+                'U1-L1-Q01': 2,
+                'U1-L1-Q02': 1,
+                'U1-L2-Q01': 3
+            };
+
+            // Store in localStorage
+            localStorage.setItem(`answers_${TEST_USERNAME}`, JSON.stringify(testAnswers));
+            localStorage.setItem(`reasons_${TEST_USERNAME}`, JSON.stringify(testReasons));
+            localStorage.setItem(`progress_${TEST_USERNAME}`, JSON.stringify(testProgress));
+            localStorage.setItem(`attempts_${TEST_USERNAME}`, JSON.stringify(testAttempts));
+
+            log('  ✓ Created: 5 answers, 2 reasons, 3 progress, 3 attempts\n');
+        }
+
+        async function testBuildRecoveryPack() {
+            log('Test 1: Building Recovery Pack...');
+
+            try {
+                exportedPack = await buildRecoveryPackTest(TEST_USERNAME);
+
+                const checks = {
+                    hasManifest: !!exportedPack?.manifest,
+                    hasData: !!exportedPack?.data,
+                    hasIntegrity: !!exportedPack?.integrity,
+                    correctUsername: exportedPack?.manifest?.username === TEST_USERNAME,
+                    hasAnswers: Object.keys(exportedPack?.data?.answers || {}).length === 5,
+                    hasReasons: Object.keys(exportedPack?.data?.reasons || {}).length === 2,
+                    hasChecksum: !!exportedPack?.integrity?.checksumSha256,
+                    hasMirror: Object.keys(exportedPack?.data?.localStorageMirror || {}).length > 0
+                };
+
+                for (const [name, passed] of Object.entries(checks)) {
+                    log(`  - ${name}: ${passed ? '✓' : '✗'}`);
+                }
+
+                const allPassed = Object.values(checks).every(v => v);
+                showResult('Build Recovery Pack', allPassed,
+                    `Answers: ${Object.keys(exportedPack?.data?.answers || {}).length}, ` +
+                    `Mirror keys: ${Object.keys(exportedPack?.data?.localStorageMirror || {}).length}`);
+
+                log('');
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+                showResult('Build Recovery Pack', false, e.message);
+            }
+        }
+
+        async function testValidateRecoveryPack() {
+            log('Test 2: Validating Recovery Pack...');
+
+            try {
+                if (!exportedPack) {
+                    showResult('Validate Recovery Pack', false, 'No pack to validate');
+                    return;
+                }
+
+                const result = await validateRecoveryPackTest(exportedPack);
+
+                log(`  - ok: ${result.ok ? '✓' : '✗'}`);
+                log(`  - warnings: ${result.warnings?.length || 0}`);
+                if (result.warnings?.length > 0) {
+                    result.warnings.forEach(w => log(`    ⚠ ${w}`));
+                }
+
+                showResult('Validate Recovery Pack', result.ok && result.warnings.length === 0,
+                    result.warnings?.length > 0 ? `Warnings: ${result.warnings.join(', ')}` : 'Valid, no warnings');
+
+                log('');
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+                showResult('Validate Recovery Pack', false, e.message);
+            }
+        }
+
+        async function testImportRecoveryPack() {
+            log('Test 3: Import Recovery Pack (round-trip)...');
+
+            try {
+                if (!exportedPack) {
+                    showResult('Import Recovery Pack', false, 'No pack to import');
+                    return;
+                }
+
+                // Store original data for comparison
+                const originalAnswers = JSON.parse(JSON.stringify(exportedPack.data.answers));
+
+                // Clear current data
+                localStorage.removeItem(`answers_${TEST_USERNAME}`);
+                localStorage.removeItem(`reasons_${TEST_USERNAME}`);
+                localStorage.removeItem(`progress_${TEST_USERNAME}`);
+                localStorage.removeItem(`attempts_${TEST_USERNAME}`);
+
+                log('  - Cleared existing data');
+
+                // Verify cleared
+                const clearedCheck = localStorage.getItem(`answers_${TEST_USERNAME}`);
+                log(`  - Verified cleared: ${clearedCheck === null ? '✓' : '✗'}`);
+
+                // Import the pack
+                const importResult = importRecoveryPackTest(exportedPack);
+                log(`  - Imported via: ${importResult.source} (${importResult.keys} keys)`);
+
+                // Verify restored
+                const restoredAnswers = JSON.parse(localStorage.getItem(`answers_${TEST_USERNAME}`) || '{}');
+                const answerCountMatch = Object.keys(restoredAnswers).length === Object.keys(originalAnswers).length;
+
+                log(`  - After import: ${Object.keys(restoredAnswers).length} answers`);
+
+                showResult('Import Recovery Pack', answerCountMatch,
+                    `Restored ${Object.keys(restoredAnswers).length}/${Object.keys(originalAnswers).length} answers`);
+
+                log('');
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+                showResult('Import Recovery Pack', false, e.message);
+            }
+        }
+
+        async function testDataIntegrity() {
+            log('Test 4: Data Integrity Check...');
+
+            try {
+                const originalAnswers = exportedPack?.data?.answers || {};
+                const restoredAnswers = JSON.parse(localStorage.getItem(`answers_${TEST_USERNAME}`) || '{}');
+
+                let allMatch = true;
+                let matchCount = 0;
+                let mismatches = [];
+
+                for (const [qid, original] of Object.entries(originalAnswers)) {
+                    const restored = restoredAnswers[qid];
+                    if (!restored) {
+                        allMatch = false;
+                        mismatches.push(`${qid}: missing`);
+                    } else if (restored.value !== original.value) {
+                        allMatch = false;
+                        mismatches.push(`${qid}: value mismatch`);
+                    } else if (restored.timestamp !== original.timestamp) {
+                        allMatch = false;
+                        mismatches.push(`${qid}: timestamp mismatch`);
+                    } else {
+                        matchCount++;
+                    }
+                }
+
+                log(`  - Matched: ${matchCount}/${Object.keys(originalAnswers).length}`);
+                if (mismatches.length > 0) {
+                    mismatches.forEach(m => log(`  - ✗ ${m}`));
+                }
+
+                showResult('Data Integrity', allMatch,
+                    allMatch ? 'All data matches exactly' : `${mismatches.length} mismatches`);
+
+                log('');
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+                showResult('Data Integrity', false, e.message);
+            }
+        }
+
+        async function testChecksumTampering() {
+            log('Test 5: Checksum Tampering Detection...');
+
+            try {
+                // Create a tampered copy
+                const tamperedPack = JSON.parse(JSON.stringify(exportedPack));
+                tamperedPack.data.answers['U1-L1-Q01'].value = 'TAMPERED';
+
+                const result = await validateRecoveryPackTest(tamperedPack);
+
+                const detectedTampering = result.warnings.some(w => w.includes('Checksum mismatch'));
+
+                log(`  - Tampered pack validation: ok=${result.ok}`);
+                log(`  - Tampering detected: ${detectedTampering ? '✓' : '✗'}`);
+
+                showResult('Checksum Tampering Detection', detectedTampering,
+                    detectedTampering ? 'Tampering correctly detected' : 'WARNING: Tampering not detected!');
+
+                log('');
+            } catch (e) {
+                log(`  Error: ${e.message}`);
+                showResult('Checksum Tampering Detection', false, e.message);
+            }
+        }
+
+        function downloadTestPack() {
+            if (!exportedPack) {
+                alert('Run tests first to generate a pack');
+                return;
+            }
+
+            const blob = new Blob([JSON.stringify(exportedPack, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `test_recovery_pack_${TEST_USERNAME}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log('\nDownloaded test pack. You can import this in the main app to verify compatibility.\n');
+        }
+    </script>
+</body>
+</html>

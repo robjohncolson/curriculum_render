@@ -950,12 +950,89 @@
                     return true;
                 }
 
-                // Detect new user with no local answers
+                // Get local answers (from IDB first, then localStorage)
                 const localKey = `answers_${currentUser}`;
-                const localAnswersObj = JSON.parse(localStorage.getItem(localKey) || '{}');
+                let localAnswersObj = {};
+
+                // Try IDB first
+                try {
+                    if (typeof waitForStorage === 'function') {
+                        const storage = await waitForStorage();
+                        const idbAnswers = await storage.getAllForUser('answers', currentUser);
+                        idbAnswers.forEach(a => {
+                            localAnswersObj[a.questionId] = { value: a.value, timestamp: a.timestamp };
+                        });
+                    }
+                } catch (e) {}
+
+                // Supplement with localStorage
+                try {
+                    const lsAnswers = JSON.parse(localStorage.getItem(localKey) || '{}');
+                    localAnswersObj = { ...lsAnswers, ...localAnswersObj };
+                } catch (e) {}
+
+                // If no local answers, try to restore from Supabase
                 if (Object.keys(localAnswersObj).length === 0) {
-                    console.log('🆕 New user detected (no local answers) - skipping smart sync');
-                    return true;
+                    console.log('🆕 No local answers detected - checking Supabase for existing data...');
+
+                    // Fetch user's answers from Supabase
+                    const { data: cloudAnswers, error: fetchError } = await supabaseClient
+                        .from('answers')
+                        .select('question_id, answer_value, timestamp')
+                        .eq('username', currentUser);
+
+                    if (fetchError) {
+                        console.warn('Failed to fetch from Supabase:', fetchError);
+                        return true;
+                    }
+
+                    if (cloudAnswers && cloudAnswers.length > 0) {
+                        console.log(`☁️ Found ${cloudAnswers.length} answers in Supabase for ${currentUser}, restoring...`);
+
+                        // Restore to local storage
+                        const restoredAnswers = {};
+                        for (const row of cloudAnswers) {
+                            const timestamp = row.timestamp ? Number(row.timestamp) : Date.now();
+                            restoredAnswers[row.question_id] = {
+                                value: row.answer_value,
+                                timestamp: timestamp
+                            };
+
+                            // Also write to IDB
+                            try {
+                                if (typeof waitForStorage === 'function') {
+                                    const storage = await waitForStorage();
+                                    await storage.set('answers', [currentUser, row.question_id], {
+                                        username: currentUser,
+                                        questionId: row.question_id,
+                                        value: row.answer_value,
+                                        timestamp: timestamp,
+                                        updatedAt: Date.now()
+                                    });
+                                }
+                            } catch (e) {}
+                        }
+
+                        // Save to localStorage
+                        try {
+                            localStorage.setItem(localKey, JSON.stringify(restoredAnswers));
+                        } catch (e) {}
+
+                        console.log(`✅ Restored ${cloudAnswers.length} answers from Supabase`);
+
+                        // Refresh UI
+                        if (typeof initClassData === 'function') {
+                            await initClassData();
+                        }
+                        if (typeof renderUnitMenu === 'function') {
+                            renderUnitMenu();
+                        }
+
+                        return true;
+                    } else {
+                        console.log('🆕 New user - no cloud data found');
+                        return true;
+                    }
                 }
 
                 // Fetch only the current user's existing rows from Supabase (lightweight projection)
@@ -1494,7 +1571,10 @@ function refreshQuestionIfVisible(questionId) {
 
             // Check if previous attempt had a reason
             const previousReason = classData.users[currentUsername]?.reasons?.[questionId];
-            return previousReason && previousReason.trim().length > 0;
+            // Handle case where reason might be stored as object instead of string
+            const reasonStr = typeof previousReason === 'string' ? previousReason :
+                              (previousReason?.value || previousReason?.reason || '');
+            return reasonStr && reasonStr.trim().length > 0;
         }
         // Replace the entire detectUnitAndLessons function:
         function detectUnitAndLessons(questions) {

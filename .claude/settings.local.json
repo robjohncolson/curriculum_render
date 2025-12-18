@@ -15,7 +15,8 @@
       "Bash(do grep -n \"window\\.$func = function\" /mnt/c/Users/rober/OneDrive/Desktop/curriculum_render/index.html)",
       "Bash(done)",
       "Bash(pdflatex:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
