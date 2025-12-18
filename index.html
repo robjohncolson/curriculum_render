@@ -2284,16 +2284,50 @@ if (continueBtn) {
                     }
 
                     const packData = importData.data || {};
-                    const normalizedAnswers = packData.answers
-                        ? migrateAnswersToStandardFormat(packData.answers)
-                        : {};
+                    const lsMirror = packData.localStorageMirror || {};
+
+                    // Try to get answers from localStorageMirror first (most reliable)
+                    // Fall back to packData.answers if mirror is empty
+                    let answersFromMirror = {};
+                    let reasonsFromMirror = {};
+                    let progressFromMirror = {};
+                    let timestampsFromMirror = {};
+                    let attemptsFromMirror = {};
+
+                    const answersMirrorKey = `answers_${username}`;
+                    if (lsMirror[answersMirrorKey]) {
+                        try {
+                            answersFromMirror = JSON.parse(lsMirror[answersMirrorKey]);
+                            console.log(`Found ${Object.keys(answersFromMirror).length} answers in localStorageMirror`);
+                        } catch (e) {
+                            console.warn('Failed to parse answers from mirror:', e);
+                        }
+                    }
+                    if (lsMirror[`reasons_${username}`]) {
+                        try { reasonsFromMirror = JSON.parse(lsMirror[`reasons_${username}`]); } catch (e) {}
+                    }
+                    if (lsMirror[`progress_${username}`]) {
+                        try { progressFromMirror = JSON.parse(lsMirror[`progress_${username}`]); } catch (e) {}
+                    }
+                    if (lsMirror[`timestamps_${username}`]) {
+                        try { timestampsFromMirror = JSON.parse(lsMirror[`timestamps_${username}`]); } catch (e) {}
+                    }
+                    if (lsMirror[`attempts_${username}`]) {
+                        try { attemptsFromMirror = JSON.parse(lsMirror[`attempts_${username}`]); } catch (e) {}
+                    }
+
+                    // Prefer mirror data over packData fields (mirror is the raw localStorage snapshot)
+                    const rawAnswers = Object.keys(answersFromMirror).length > 0 ? answersFromMirror : (packData.answers || {});
+                    const normalizedAnswers = migrateAnswersToStandardFormat(rawAnswers);
+
+                    console.log(`Recovery Pack: packData.answers has ${Object.keys(packData.answers || {}).length}, mirror has ${Object.keys(answersFromMirror).length}, using ${Object.keys(normalizedAnswers).length}`);
 
                     userData = {
                         answers: normalizedAnswers,
-                        reasons: packData.reasons || {},
-                        progress: packData.progress || {},
-                        timestamps: packData.timestamps || {},
-                        attempts: packData.attempts || {},
+                        reasons: Object.keys(reasonsFromMirror).length > 0 ? reasonsFromMirror : (packData.reasons || {}),
+                        progress: Object.keys(progressFromMirror).length > 0 ? progressFromMirror : (packData.progress || {}),
+                        timestamps: Object.keys(timestampsFromMirror).length > 0 ? timestampsFromMirror : (packData.timestamps || {}),
+                        attempts: Object.keys(attemptsFromMirror).length > 0 ? attemptsFromMirror : (packData.attempts || {}),
                         badges: packData.badges || {},
                         preferences: packData.preferences || {},
                         charts: packData.charts || {}
@@ -2303,7 +2337,7 @@ if (continueBtn) {
                         ? { [username]: packData.classDataUser }
                         : { [username]: userData };
 
-                    deferredLocalStorageMirror = packData.localStorageMirror;
+                    deferredLocalStorageMirror = lsMirror;
                     importSuccess = true;
                 } else if (importData.exportTime && importData.students) {
                     const userMatch = findUserData(importData.students, username);
@@ -2411,21 +2445,107 @@ if (continueBtn) {
 
                     if (userData.answers) {
                         const standardizedAnswers = migrateAnswersToStandardFormat(userData.answers);
-                        localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
+                        try {
+                            localStorage.setItem(`answers_${username}`, JSON.stringify(standardizedAnswers));
+                        } catch (e) {
+                            console.warn('localStorage write failed for answers:', e);
+                        }
                         console.log(`Imported ${Object.keys(standardizedAnswers).length} answers for ${username} (standardized format)`);
+
+                        // Also write to IndexedDB for tracking prevention resilience
+                        if (typeof waitForStorage === 'function') {
+                            waitForStorage().then(async storage => {
+                                let idbCount = 0;
+                                for (const [questionId, answer] of Object.entries(standardizedAnswers)) {
+                                    try {
+                                        await storage.set('answers', [username, questionId], {
+                                            username,
+                                            questionId,
+                                            value: answer.value,
+                                            timestamp: answer.timestamp || Date.now(),
+                                            updatedAt: Date.now()
+                                        });
+                                        idbCount++;
+                                    } catch (e) {
+                                        console.warn(`IDB write failed for ${questionId}:`, e);
+                                    }
+                                }
+                                console.log(`✅ Imported ${idbCount} answers to IndexedDB for ${username}`);
+                            }).catch(e => console.warn('IDB storage not available:', e));
+                        }
                     }
                     if (userData.reasons) {
-                        localStorage.setItem(`reasons_${username}`, JSON.stringify(userData.reasons));
+                        try {
+                            localStorage.setItem(`reasons_${username}`, JSON.stringify(userData.reasons));
+                        } catch (e) {
+                            console.warn('localStorage write failed for reasons:', e);
+                        }
                         console.log(`Imported ${Object.keys(userData.reasons).length} reasons for ${username}`);
+
+                        // Also write reasons to IndexedDB
+                        if (typeof waitForStorage === 'function') {
+                            waitForStorage().then(async storage => {
+                                for (const [questionId, reason] of Object.entries(userData.reasons)) {
+                                    try {
+                                        await storage.set('reasons', [username, questionId], {
+                                            username,
+                                            questionId,
+                                            value: reason,
+                                            updatedAt: Date.now()
+                                        });
+                                    } catch (e) {}
+                                }
+                            }).catch(() => {});
+                        }
                     }
                     if (userData.progress) {
-                        localStorage.setItem(`progress_${username}`, JSON.stringify(userData.progress));
+                        try {
+                            localStorage.setItem(`progress_${username}`, JSON.stringify(userData.progress));
+                        } catch (e) {
+                            console.warn('localStorage write failed for progress:', e);
+                        }
+
+                        // Also write progress to IndexedDB
+                        if (typeof waitForStorage === 'function') {
+                            waitForStorage().then(async storage => {
+                                for (const [lessonKey, value] of Object.entries(userData.progress)) {
+                                    try {
+                                        await storage.set('progress', [username, lessonKey], {
+                                            username,
+                                            lessonKey,
+                                            value,
+                                            updatedAt: Date.now()
+                                        });
+                                    } catch (e) {}
+                                }
+                            }).catch(() => {});
+                        }
                     }
                     if (userData.timestamps) {
-                        localStorage.setItem(`timestamps_${username}`, JSON.stringify(userData.timestamps));
+                        try {
+                            localStorage.setItem(`timestamps_${username}`, JSON.stringify(userData.timestamps));
+                        } catch (e) {}
                     }
                     if (userData.attempts) {
-                        localStorage.setItem(`attempts_${username}`, JSON.stringify(userData.attempts));
+                        try {
+                            localStorage.setItem(`attempts_${username}`, JSON.stringify(userData.attempts));
+                        } catch (e) {}
+
+                        // Also write attempts to IndexedDB
+                        if (typeof waitForStorage === 'function') {
+                            waitForStorage().then(async storage => {
+                                for (const [questionId, count] of Object.entries(userData.attempts)) {
+                                    try {
+                                        await storage.set('attempts', [username, questionId], {
+                                            username,
+                                            questionId,
+                                            count,
+                                            updatedAt: Date.now()
+                                        });
+                                    } catch (e) {}
+                                }
+                            }).catch(() => {});
+                        }
                     }
 
                     const classDataSnapshot = JSON.parse(safeGetItem('classData') || '{}');
