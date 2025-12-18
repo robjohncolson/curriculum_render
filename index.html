@@ -1050,6 +1050,217 @@
             updateSyncStatusIndicator();
         }
 
+        // ========================================
+        // SYNC PROGRESS SCREEN (Blocking with Skip)
+        // ========================================
+
+        let syncProgressSkipped = false;
+        let syncProgressCallback = null;
+
+        /**
+         * Show blocking progress screen during cloud restore
+         * @param {object} options - Configuration
+         * @param {string} options.title - Main title
+         * @param {string} options.subtitle - Subtitle text
+         * @param {number} options.total - Total items to restore
+         * @param {object} options.details - Optional details like lastActivity, lessons
+         * @param {function} options.onSkip - Callback when skip is clicked
+         */
+        function showSyncProgressScreen(options = {}) {
+            syncProgressSkipped = false;
+
+            const {
+                title = 'Syncing your progress...',
+                subtitle = '',
+                total = 0,
+                details = null,
+                onSkip = null
+            } = options;
+
+            syncProgressCallback = onSkip;
+
+            // Remove any existing screen
+            const existing = document.getElementById('syncProgressScreen');
+            if (existing) existing.remove();
+
+            const screen = document.createElement('div');
+            screen.id = 'syncProgressScreen';
+            screen.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: var(--bg-primary, #ffffff);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            let detailsHtml = '';
+            if (details) {
+                detailsHtml = `
+                    <div id="syncProgressDetails" style="
+                        background: var(--bg-tertiary, #f8f9fa);
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin: 20px 0;
+                        max-width: 400px;
+                        width: 100%;
+                        text-align: left;
+                    ">
+                        <div style="font-size: 14px; color: var(--text-secondary, #666); margin-bottom: 10px;">
+                            📊 Found in cloud:
+                        </div>
+                        <div style="font-size: 24px; font-weight: bold; color: var(--text-primary, #333);">
+                            ${total} answers
+                        </div>
+                        ${details.lastActivity ? `
+                            <div style="font-size: 13px; color: var(--text-secondary, #666); margin-top: 8px;">
+                                Last activity: ${new Date(details.lastActivity).toLocaleDateString()} ${new Date(details.lastActivity).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </div>
+                        ` : ''}
+                        ${details.lessons ? `
+                            <div style="font-size: 13px; color: var(--text-secondary, #666); margin-top: 12px;">
+                                📚 Lessons with progress:
+                            </div>
+                            <div style="margin-top: 8px; font-size: 12px;">
+                                ${Object.entries(details.lessons).slice(0, 6).map(([lesson, info]) =>
+                                    `<span style="display: inline-block; background: var(--bg-secondary, #e9ecef); padding: 4px 8px; border-radius: 4px; margin: 2px;">${lesson} (${info.answered}/${info.total || '?'})</span>`
+                                ).join('')}
+                                ${Object.keys(details.lessons).length > 6 ? `<span style="color: var(--text-tertiary, #999);">+${Object.keys(details.lessons).length - 6} more</span>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            screen.innerHTML = `
+                <div style="text-align: center; max-width: 500px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔄</div>
+                    <h2 id="syncProgressTitle" style="font-size: 24px; font-weight: 600; color: var(--text-primary, #333); margin: 0 0 10px 0;">
+                        ${title}
+                    </h2>
+                    <p id="syncProgressSubtitle" style="font-size: 16px; color: var(--text-secondary, #666); margin: 0 0 30px 0;">
+                        ${subtitle}
+                    </p>
+
+                    ${detailsHtml}
+
+                    <div style="width: 100%; max-width: 400px; margin: 20px auto;">
+                        <div style="background: var(--bg-tertiary, #e9ecef); border-radius: 8px; height: 12px; overflow: hidden;">
+                            <div id="syncProgressBar" style="
+                                background: linear-gradient(90deg, #3498db, #2ecc71);
+                                height: 100%;
+                                width: 0%;
+                                transition: width 0.3s ease;
+                                border-radius: 8px;
+                            "></div>
+                        </div>
+                        <div id="syncProgressText" style="font-size: 14px; color: var(--text-secondary, #666); margin-top: 10px;">
+                            Preparing...
+                        </div>
+                    </div>
+
+                    <p style="font-size: 13px; color: var(--text-tertiary, #999); margin: 30px 0 20px 0; max-width: 350px;">
+                        💡 Your work is safely stored online and syncs automatically - it's never truly lost!
+                    </p>
+
+                    <div style="border-top: 1px solid var(--border-secondary, #eee); padding-top: 20px; margin-top: 10px;">
+                        <button id="syncProgressSkipBtn" onclick="skipSyncProgress()" style="
+                            background: transparent;
+                            border: none;
+                            color: var(--text-tertiary, #999);
+                            font-size: 13px;
+                            cursor: pointer;
+                            padding: 8px 16px;
+                            text-decoration: underline;
+                        ">
+                            Skip and continue →
+                        </button>
+                        <div style="font-size: 11px; color: var(--text-tertiary, #aaa); margin-top: 5px;">
+                            (sync will continue in background)
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(screen);
+        }
+
+        /**
+         * Update progress on the sync screen
+         * @param {number} current - Current progress
+         * @param {number} total - Total items
+         * @param {string} message - Optional status message
+         */
+        function updateSyncProgressScreen(current, total, message = null) {
+            if (syncProgressSkipped) return;
+
+            const bar = document.getElementById('syncProgressBar');
+            const text = document.getElementById('syncProgressText');
+
+            if (bar && total > 0) {
+                const pct = Math.round((current / total) * 100);
+                bar.style.width = `${pct}%`;
+            }
+
+            if (text) {
+                text.textContent = message || `Restoring ${current} of ${total} answers...`;
+            }
+        }
+
+        /**
+         * Hide the sync progress screen
+         * @param {boolean} success - Whether sync completed successfully
+         */
+        function hideSyncProgressScreen(success = true) {
+            const screen = document.getElementById('syncProgressScreen');
+            if (screen) {
+                // Brief success animation before hiding
+                if (success && !syncProgressSkipped) {
+                    const title = document.getElementById('syncProgressTitle');
+                    const bar = document.getElementById('syncProgressBar');
+                    const text = document.getElementById('syncProgressText');
+
+                    if (title) title.textContent = '✓ All caught up!';
+                    if (bar) bar.style.width = '100%';
+                    if (text) text.textContent = 'Your progress has been restored.';
+
+                    setTimeout(() => {
+                        screen.style.opacity = '0';
+                        screen.style.transition = 'opacity 0.3s ease';
+                        setTimeout(() => screen.remove(), 300);
+                    }, 800);
+                } else {
+                    screen.remove();
+                }
+            }
+            syncProgressSkipped = false;
+        }
+
+        /**
+         * Skip button handler
+         */
+        function skipSyncProgress() {
+            syncProgressSkipped = true;
+            hideSyncProgressScreen(false);
+            if (syncProgressCallback) {
+                syncProgressCallback();
+            }
+        }
+
+        /**
+         * Check if sync was skipped
+         */
+        function wasSyncSkipped() {
+            return syncProgressSkipped;
+        }
+
         // Perform sync check (called on interval)
         async function performSyncCheck() {
             if (!turboModeActive) {
@@ -1184,6 +1395,34 @@
 
                     if (cloudAnswers && cloudAnswers.length > 0) {
                         console.log(`☁️ Found ${cloudAnswers.length} answers in Supabase for ${currentUser}, restoring...`);
+
+                        // Calculate lesson progress for display
+                        const lessonProgress = {};
+                        let lastActivity = 0;
+                        cloudAnswers.forEach(row => {
+                            const lesson = row.question_id.replace(/-Q\d+$/, '');
+                            if (!lessonProgress[lesson]) {
+                                lessonProgress[lesson] = { answered: 0 };
+                            }
+                            lessonProgress[lesson].answered++;
+                            const ts = Number(row.timestamp) || 0;
+                            if (ts > lastActivity) lastActivity = ts;
+                        });
+
+                        // Show blocking progress screen
+                        showSyncProgressScreen({
+                            title: `Welcome back, ${currentUser.split('_')[0]}!`,
+                            subtitle: 'Your local data was cleared, but we found your work in the cloud.',
+                            total: cloudAnswers.length,
+                            details: {
+                                lastActivity: lastActivity || null,
+                                lessons: lessonProgress
+                            },
+                            onSkip: () => {
+                                console.log('User skipped sync - continuing in background');
+                            }
+                        });
+
                         updateSyncState({
                             status: 'downloading',
                             progress: 0,
@@ -1219,6 +1458,7 @@
                             // Update progress every 5 items or on last item
                             if (restored % 5 === 0 || restored === cloudAnswers.length) {
                                 updateSyncState({ progress: restored });
+                                updateSyncProgressScreen(restored, cloudAnswers.length);
                             }
                         }
 
@@ -1234,6 +1474,9 @@
                             lastSync: Date.now(),
                             message: ''
                         });
+
+                        // Hide progress screen with success
+                        hideSyncProgressScreen(true);
 
                         // Refresh UI
                         if (typeof initClassData === 'function') {
