@@ -60,9 +60,35 @@ UPDATE public.users SET username = 'Carambola_Jaguar' WHERE username = 'carambol
 UPDATE public.users SET username = 'Teacher_Man' WHERE username = 'teacher_man';
 
 -- =============================================
+-- 6. Consolidate duplicate student names
+-- =============================================
+
+-- CHANLITA: Merge Grape_Newt (12 answers) into Grape_Koala (44 answers)
+UPDATE public.answers
+SET username = 'Grape_Koala'
+WHERE username = 'Grape_Newt';
+
+DELETE FROM public.users WHERE username = 'Grape_Newt';
+DELETE FROM public.users WHERE username = 'grape_newt';
+
+-- JULISSA: Merge Banana_Fox (6 answers) into Apricot_Dog (76 answers)
+UPDATE public.answers
+SET username = 'Apricot_Dog'
+WHERE username = 'Banana_Fox';
+
+DELETE FROM public.users WHERE username = 'Banana_Fox';
+DELETE FROM public.users WHERE username = 'banana_fox';
+
+-- Update Julissa's name to be consistent (remove "B" suffix)
+UPDATE public.users SET real_name = 'Julissa' WHERE username = 'Apricot_Dog';
+UPDATE public.users SET real_name = 'Julissa' WHERE username = 'apricot_dog';
+
+-- =============================================
 -- Summary of changes:
 -- - Merged Cherry_Lemon -> Coconut_Cat (Moshammed's consolidated account)
 -- - Deleted 7 orphan "Student" accounts
 -- - Assigned Emily to Kiwi_Monkey (92 answers, morning class)
 -- - Fixed username case to Title_Case to match answers table
+-- - Merged Chanlita: Grape_Newt -> Grape_Koala (56 total answers)
+-- - Merged Julissa: Banana_Fox -> Apricot_Dog (82 total answers)
 -- =============================================
