@@ -1221,21 +1221,35 @@
         function hideSyncProgressScreen(success = true) {
             const screen = document.getElementById('syncProgressScreen');
             if (screen) {
-                // Brief success animation before hiding
+                // Show success message and wait before hiding
                 if (success && !syncProgressSkipped) {
                     const title = document.getElementById('syncProgressTitle');
                     const bar = document.getElementById('syncProgressBar');
                     const text = document.getElementById('syncProgressText');
+                    const skipBtn = document.getElementById('syncProgressSkipBtn');
 
                     if (title) title.textContent = '✓ All caught up!';
                     if (bar) bar.style.width = '100%';
                     if (text) text.textContent = 'Your progress has been restored.';
 
+                    // Change skip button to "Continue"
+                    if (skipBtn) {
+                        skipBtn.textContent = 'Continue →';
+                        skipBtn.onclick = () => {
+                            screen.style.opacity = '0';
+                            screen.style.transition = 'opacity 0.3s ease';
+                            setTimeout(() => screen.remove(), 300);
+                        };
+                    }
+
+                    // Auto-dismiss after 10 seconds
                     setTimeout(() => {
-                        screen.style.opacity = '0';
-                        screen.style.transition = 'opacity 0.3s ease';
-                        setTimeout(() => screen.remove(), 300);
-                    }, 800);
+                        if (document.getElementById('syncProgressScreen')) {
+                            screen.style.opacity = '0';
+                            screen.style.transition = 'opacity 0.3s ease';
+                            setTimeout(() => screen.remove(), 300);
+                        }
+                    }, 10000);
                 } else {
                     screen.remove();
                 }
@@ -1433,6 +1447,10 @@
                         // Restore to local storage
                         const restoredAnswers = {};
                         let restored = 0;
+
+                        // Small delay helper so progress is visible to user
+                        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
                         for (const row of cloudAnswers) {
                             const timestamp = row.timestamp ? Number(row.timestamp) : Date.now();
                             restoredAnswers[row.question_id] = {
@@ -1455,10 +1473,14 @@
                             } catch (e) {}
 
                             restored++;
-                            // Update progress every 5 items or on last item
-                            if (restored % 5 === 0 || restored === cloudAnswers.length) {
-                                updateSyncState({ progress: restored });
-                                updateSyncProgressScreen(restored, cloudAnswers.length);
+
+                            // Update progress on every item for smooth visual feedback
+                            updateSyncState({ progress: restored });
+                            updateSyncProgressScreen(restored, cloudAnswers.length);
+
+                            // Small delay (30ms) so progress bar is visible - skip if user clicked Skip
+                            if (!syncProgressSkipped && restored < cloudAnswers.length) {
+                                await delay(30);
                             }
                         }
 

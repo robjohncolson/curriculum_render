@@ -778,6 +778,14 @@ window.acceptUsername = async function(name) {
     initializeFromEmbeddedData();
     updateCurrentUsernameDisplay();
 
+    // Trigger smart sync to restore from cloud if local is empty
+    // This runs AFTER login so currentUsername is set
+    if (typeof smartSyncWithSupabase === 'function') {
+        smartSyncWithSupabase().catch(err => {
+            console.warn('Smart sync after login failed:', err);
+        });
+    }
+
     // Request persistent storage after user gesture (new user accepting username)
     if (storage.requestPersistence) {
         storage.requestPersistence().then(granted => {
