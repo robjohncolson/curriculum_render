@@ -1491,6 +1491,20 @@ function refreshQuestionIfVisible(questionId) {
 
         // Initialize class data - moved to js/data_manager.js
 
+        /**
+         * Safely extract reason string from reason data (handles both string and object formats)
+         * @param {string|object} reason - Reason data (may be string or {value: string} object)
+         * @returns {string} The reason text or empty string
+         */
+        function getReasonString(reason) {
+            if (!reason) return '';
+            if (typeof reason === 'string') return reason;
+            if (typeof reason === 'object') {
+                return reason.value || reason.reason || reason.text || '';
+            }
+            return String(reason);
+        }
+
         // Student Performance Badges
         function calculateBadges(username) {
             const userAnswers = classData.users[username]?.answers || {};
@@ -1527,7 +1541,7 @@ function refreshQuestionIfVisible(questionId) {
             if (multiAttempts > totalAnswers * 0.3) badges.push('🔄 Explorer');
 
             // Silent type vs Debater
-            const reasonCount = Object.values(userReasons).filter(r => r && r.trim()).length;
+            const reasonCount = Object.values(userReasons).filter(r => getReasonString(r).trim()).length;
             if (reasonCount < totalAnswers * 0.2) badges.push('🤐 Silent Type');
             else if (reasonCount > totalAnswers * 0.8) badges.push('💬 Debater');
 
@@ -3652,7 +3666,7 @@ function renderLessonSelector(unitInfo) {
                                         'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
                                         'Explain why you chose this answer...'}"
                                     ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
-                                >${classData.users[currentUsername]?.reasons?.[question.id] || ''}</textarea>
+                                >${getReasonString(classData.users[currentUsername]?.reasons?.[question.id])}</textarea>
                             </div>
                             <div>
                                 <button
@@ -3664,7 +3678,7 @@ function renderLessonSelector(unitInfo) {
                                     ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Max Attempts Reached') : 'Submit Answer'}
                                 </button>
 
-                                ${isAnswered && !canRetryQuestion && attempts < 3 && !(classData.users[currentUsername]?.reasons?.[question.id]?.trim()) ? `
+                                ${isAnswered && !canRetryQuestion && attempts < 3 && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
                                     <button
                                         id="add-explanation-${question.id}"
                                         class="add-explanation-button"
@@ -3734,7 +3748,8 @@ function renderLessonSelector(unitInfo) {
 
                     // Check if answer was correct and should show College Board explanation
                     const userAnswer = classData.users[currentUsername]?.answers?.[question.id];
-                    const userReason = classData.users[currentUsername]?.reasons?.[question.id];
+                    const userReasonRaw = classData.users[currentUsername]?.reasons?.[question.id];
+                    const userReason = getReasonString(userReasonRaw);
                     const correctAnswer = getCorrectAnswer(question.id);
 
                     if (userAnswer && correctAnswer) {
@@ -3913,7 +3928,7 @@ function renderLessonSelector(unitInfo) {
                 const userAnswer = classData.users[username].answers?.[questionId];
                 if (userAnswer) {
                     const response = userAnswer.value || userAnswer;
-                    const reason = classData.users[username].reasons?.[questionId] || '';
+                    const reason = getReasonString(classData.users[username].reasons?.[questionId]);
 
                     if (questionType === 'multiple-choice') {
                         contributors.push({
@@ -4525,7 +4540,7 @@ function renderLessonSelector(unitInfo) {
                 const userAnswer = classData.users[username].answers?.[questionId];
                 if (userAnswer) {
                     const choice = userAnswer.value || userAnswer;
-                    const reason = classData.users[username].reasons?.[questionId] || '';
+                    const reason = getReasonString(classData.users[username].reasons?.[questionId]);
 
                     choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
                     totalCount++;
@@ -4871,7 +4886,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const userAnswer = classData.users[username].answers?.[questionId];
                 if (userAnswer) {
                     const response = userAnswer.value || userAnswer;
-                    const reason = classData.users[username].reasons?.[questionId] || '';
+                    const reason = getReasonString(classData.users[username].reasons?.[questionId]);
                     responses.push({
                         username: username,
                         response: response,
@@ -4879,7 +4894,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     });
                 }
             }
-            
+
             if (consensusDiv) {
                 if (responses.length > 1) {
                     consensusDiv.innerHTML = `
