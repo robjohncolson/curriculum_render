@@ -6860,23 +6860,28 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <h3>📚 Lesson Resources: ${topic.description}</h3>
                     `;
 
-                    if (hasPdfs) {
-                        videoSection += '<div class="pdf-resources">';
-                        topic.pdfs.forEach((pdf, index) => {
-                            const worksheetLabel = topic.pdfs.length > 1 
-                                ? `📄 Follow-Along Worksheet ${index + 1}:` 
-                                : '📄 Follow-Along Worksheet:';
-                            videoSection += `
-                                <div class="pdf-item">
-                                    <span class="pdf-label">${worksheetLabel}</span>
-                                    <a href="${pdf}" target="_blank" class="pdf-link">
-                                        View/Download PDF
-                                    </a>
-                                </div>
-                            `;
-                        });
-                        videoSection += '</div>';
-                    }
+                            if (hasPdfs) {
+                                videoSection += '<div class="pdf-resources">';
+                                topic.pdfs.forEach((pdf, index) => {
+                                    const pdfLink = typeof pdf === 'string' ? pdf : (pdf?.url || pdf?.href);
+                                    if (!pdfLink) return;
+                                    const customLabel = typeof pdf === 'object' ? (pdf.label || pdf.title) : null;
+                                    const worksheetLabel = customLabel
+                                        ? `📄 ${customLabel}:`
+                                        : (topic.pdfs.length > 1 
+                                            ? `📄 Follow-Along Worksheet ${index + 1}:` 
+                                            : '📄 Follow-Along Worksheet:');
+                                    videoSection += `
+                                        <div class="pdf-item">
+                                            <span class="pdf-label">${worksheetLabel}</span>
+                                            <a href="${pdfLink}" target="_blank" class="pdf-link">
+                                                View/Download PDF
+                                            </a>
+                                        </div>
+                                    `;
+                                });
+                                videoSection += '</div>';
+                            }
 
                     if (hasVideos) {
                         videoSection += '<div class="video-resources">';

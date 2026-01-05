@@ -409,9 +409,9 @@ const ALL_UNITS_DATA = [
           }
         ],
         pdfs: [
-          "pdf/u3_kickoff_student.pdf",
-          "pdf/u3_kickoff_teacher_key.pdf",
-          "pdf/u3l1.pdf"
+          { url: "pdf/u3_kickoff_student.pdf", label: "Kickoff Packet (Student)" },
+          { url: "pdf/u3_kickoff_teacher_key.pdf", label: "Kickoff Packet (Answer Key)" },
+          { url: "pdf/u3l1.pdf", label: "Follow-Along Worksheet" }
         ],
       },
       {
@@ -431,9 +431,9 @@ const ALL_UNITS_DATA = [
           }
         ],
         pdfs: [
-          "pdf/u3_kickoff_student.pdf",
-          "pdf/u3_kickoff_teacher_key.pdf",
-          "pdf/u3l2.pdf"
+          { url: "pdf/u3_kickoff_student.pdf", label: "Kickoff Packet (Student)" },
+          { url: "pdf/u3_kickoff_teacher_key.pdf", label: "Kickoff Packet (Answer Key)" },
+          { url: "pdf/u3l2.pdf", label: "Follow-Along Worksheet" }
         ],
       },
       {
@@ -457,10 +457,10 @@ const ALL_UNITS_DATA = [
           }
         ],
         pdfs: [
-          "pdf/u3_kickoff_student.pdf",
-          "pdf/u3_kickoff_teacher_key.pdf",
-          "pdf/u3l3_1.pdf",
-          "pdf/u3l3_2.pdf"
+          { url: "pdf/u3_kickoff_student.pdf", label: "Kickoff Packet (Student)" },
+          { url: "pdf/u3_kickoff_teacher_key.pdf", label: "Kickoff Packet (Answer Key)" },
+          { url: "pdf/u3l3_1.pdf", label: "Follow-Along Worksheet 1" },
+          { url: "pdf/u3l3_2.pdf", label: "Follow-Along Worksheet 2" }
         ],
       },
       {
