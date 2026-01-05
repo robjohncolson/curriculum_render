@@ -388,8 +388,8 @@
             console.log('📝 Supabase config not set - running in offline mode');
         }
 
-        // Test Supabase connection with timeout
-        async function testSupabaseConnection() {
+        // Test Supabase connection with timeout and retries (handles content filters)
+        async function testSupabaseConnection(maxRetries = 3, retryDelay = 3000) {
             if (!supabaseClient) {
                 turboModeActive = false;
                 window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
@@ -397,7 +397,8 @@
                 return false;
             }
 
-            try {
+            // Helper function for single connection attempt
+            async function singleConnectionTest() {
                 // Create a promise that rejects after 2 seconds
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => reject(new Error('Connection timeout')), 2000);
@@ -414,24 +415,36 @@
 
                 // Check if the query was successful
                 if (result.error) {
-                    console.log('Supabase test query error:', result.error);
-                    turboModeActive = false;
-                    window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
-                    return false;
+                    throw new Error(result.error.message || 'Query error');
                 }
-
-                turboModeActive = true;
-                window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
-                console.log('✅ Turbo mode active - Supabase connected');
-
                 return true;
-            } catch (error) {
-                turboModeActive = false;
-                window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
-                console.log('🔌 Turbo mode inactive - Using offline mode:', error.message);
-
-                return false;
             }
+
+            // Try with retries to handle content filters that block initial requests
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    await singleConnectionTest();
+
+                    turboModeActive = true;
+                    window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
+                    console.log(`✅ Turbo mode active - Supabase connected (attempt ${attempt}/${maxRetries})`);
+                    return true;
+                } catch (error) {
+                    console.log(`🔄 Connection attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
+                    if (attempt < maxRetries) {
+                        // Wait before retrying (gives content filters time to clear)
+                        console.log(`⏳ Waiting ${retryDelay/1000}s before retry (content filter may be active)...`);
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    }
+                }
+            }
+
+            // All retries failed
+            turboModeActive = false;
+            window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
+            console.log('🔌 Turbo mode inactive - Using offline mode (all retries failed)');
+            return false;
         }
 
         // Fetch student list from Supabase users table
