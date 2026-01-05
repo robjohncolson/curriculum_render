@@ -408,7 +408,11 @@ const ALL_UNITS_DATA = [
             title: "u3l1blooket"
           }
         ],
-        pdfs: ["pdf/u3l1.pdf"],
+        pdfs: [
+          "pdf/u3_kickoff_student.pdf",
+          "pdf/u3_kickoff_teacher_key.pdf",
+          "pdf/u3l1.pdf"
+        ],
       },
       {
         id: "3-2",
@@ -426,7 +430,11 @@ const ALL_UNITS_DATA = [
             title: "u3l2blooket"
           }
         ],
-        pdfs: ["pdf/u3l2.pdf"],
+        pdfs: [
+          "pdf/u3_kickoff_student.pdf",
+          "pdf/u3_kickoff_teacher_key.pdf",
+          "pdf/u3l2.pdf"
+        ],
       },
       {
         id: "3-3",
@@ -448,7 +456,12 @@ const ALL_UNITS_DATA = [
             title: "u3l3blooket"
           }
         ],
-        pdfs: ["pdf/u3l3_1.pdf", "pdf/u3l3_2.pdf"],
+        pdfs: [
+          "pdf/u3_kickoff_student.pdf",
+          "pdf/u3_kickoff_teacher_key.pdf",
+          "pdf/u3l3_1.pdf",
+          "pdf/u3l3_2.pdf"
+        ],
       },
       {
         id: "3-4",
