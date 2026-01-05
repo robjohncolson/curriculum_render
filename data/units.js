@@ -402,6 +402,13 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1TvZluuFXhx8theWMpU0hSs19vvP39Vua/view?usp=drive_link"
             }
         ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/695b30a16b6c92373881e1e3",
+            title: "u3l1blooket"
+          }
+        ],
+        pdfs: ["pdf/u3l1.pdf"],
       },
       {
         id: "3-2",
@@ -413,6 +420,13 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/121AAheYGEysRFC58l3KVJVkBVJmPo--U/view?usp=drive_link"
           }
         ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/695b30a16b6c92373881e1e3",
+            title: "u3l2blooket"
+          }
+        ],
+        pdfs: ["pdf/u3l2.pdf"],
       },
       {
         id: "3-3",
@@ -428,6 +442,13 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1jiVMlN3Y_xdARYHGB1ASbOSwroRfuFCB/view?usp=drive_link"
           }
         ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/695b30a16b6c92373881e1e3",
+            title: "u3l3blooket"
+          }
+        ],
+        pdfs: ["pdf/u3l3_1.pdf", "pdf/u3l3_2.pdf"],
       },
       {
         id: "3-4",
