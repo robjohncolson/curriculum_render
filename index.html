@@ -6729,10 +6729,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 resources.find(u => u.unitId === `unit${currentUnit}`) : null;
 
             let lessonButtonsHtml = '';
+            const lessonNumbersSet = new Set(unitInfo?.lessonNumbers || []);
+
+            // Add lessons that exist only in resources (e.g., video/worksheet but no questions)
+            if (unitResources?.topics) {
+                unitResources.topics.forEach(topic => {
+                    if (!topic?.id) return;
+                    const match = topic.id.match(/^(\d+)-(\d+)$/);
+                    if (match && parseInt(match[1]) === currentUnit) {
+                        lessonNumbersSet.add(parseInt(match[2]));
+                    }
+                });
+            }
+
+            const numericLessons = Array.from(lessonNumbersSet)
+                .filter(l => l !== 'PC' && !isNaN(l))
+                .map(Number)
+                .sort((a, b) => a - b);
+            const lessonNumbers = lessonNumbersSet.has('PC')
+                ? numericLessons.concat(['PC'])
+                : numericLessons;
 
             if (unitInfo && unitInfo.lessonNumbers) {
-                unitInfo.lessonNumbers.forEach(lessonNum => {
-                    const questions = unitInfo.lessons[lessonNum];
+                lessonNumbers.forEach(lessonNum => {
+                    const questions = (unitInfo.lessons && unitInfo.lessons[lessonNum]) ? unitInfo.lessons[lessonNum] : [];
                     const isCompleted = questions.every(q => isQuestionAnswered(q.id));
                     const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
                     const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
@@ -6801,89 +6821,92 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
             }
 
-            if (currentQuestions.length === 0) {
-                showMessage(`No questions found for Lesson ${lessonNumber}`, 'error');
-                return;
-            }
-
             // Get resources for this lesson
             const resources = await loadUnitResources();
             let videoSection = '';
+            let hasResources = false;
 
+            let topic = null;
             if (resources && lessonNumber !== 'PC') {
                 const unitResources = resources.find(u => u.unitId === `unit${currentUnit}`);
                 if (unitResources) {
                     const topicId = `${currentUnit}-${lessonNumber}`;
-                    const topic = unitResources.topics.find(t => t.id === topicId);
-
-                    if (topic) {
-                        const hasVideos = Array.isArray(topic.videos) && topic.videos.length > 0;
-                        const hasBlookets = Array.isArray(topic.blookets) && topic.blookets.length > 0;
-                        const hasPdfs = Array.isArray(topic.pdfs) && topic.pdfs.length > 0;
-
-                        if (hasVideos || hasBlookets || hasPdfs) {
-                            videoSection = `
-                                <div class="resources-section">
-                                    <h3>📚 Lesson Resources: ${topic.description}</h3>
-                            `;
-
-                            if (hasPdfs) {
-                                videoSection += '<div class="pdf-resources">';
-                                topic.pdfs.forEach((pdf, index) => {
-                                    const worksheetLabel = topic.pdfs.length > 1 
-                                        ? `📄 Follow-Along Worksheet ${index + 1}:` 
-                                        : '📄 Follow-Along Worksheet:';
-                                    videoSection += `
-                                        <div class="pdf-item">
-                                            <span class="pdf-label">${worksheetLabel}</span>
-                                            <a href="${pdf}" target="_blank" class="pdf-link">
-                                                View/Download PDF
-                                            </a>
-                                        </div>
-                                    `;
-                                });
-                                videoSection += '</div>';
-                            }
-
-                            if (hasVideos) {
-                                videoSection += '<div class="video-resources">';
-                                topic.videos.forEach((video, index) => {
-                                    videoSection += `
-                                        <div class="video-item">
-                                            <span class="video-number">Video ${index + 1}:</span>
-                                            <a href="${video.url}" target="_blank" class="video-link">
-                                                AP Classroom Video 📹
-                                            </a>
-                                            ${video.altUrl ? `
-                                                <a href="${video.altUrl}" target="_blank" class="video-link alt">
-                                                    Alternative Link 🔗
-                                                </a>
-                                            ` : ''}
-                                        </div>
-                                    `;
-                                });
-                                videoSection += '</div>';
-                            }
-
-                            if (hasBlookets) {
-                                videoSection += '<div class="blooket-resources">';
-                                topic.blookets.forEach((blooket, index) => {
-                                    videoSection += `
-                                        <div class="blooket-item">
-                                            <span class="blooket-number">Game ${index + 1}:</span>
-                                            <a href="${blooket.url}" target="_blank" rel="noopener noreferrer" class="blooket-link">
-                                                🎮 ${blooket.title}
-                                            </a>
-                                        </div>
-                                    `;
-                                });
-                                videoSection += '</div>';
-                            }
-
-                            videoSection += '</div>';
-                        }
-                    }
+                    topic = unitResources.topics.find(t => t.id === topicId);
                 }
+            }
+
+            if (topic) {
+                const hasVideos = Array.isArray(topic.videos) && topic.videos.length > 0;
+                const hasBlookets = Array.isArray(topic.blookets) && topic.blookets.length > 0;
+                const hasPdfs = Array.isArray(topic.pdfs) && topic.pdfs.length > 0;
+                hasResources = hasVideos || hasBlookets || hasPdfs;
+
+                if (hasResources) {
+                    videoSection = `
+                        <div class="resources-section">
+                            <h3>📚 Lesson Resources: ${topic.description}</h3>
+                    `;
+
+                    if (hasPdfs) {
+                        videoSection += '<div class="pdf-resources">';
+                        topic.pdfs.forEach((pdf, index) => {
+                            const worksheetLabel = topic.pdfs.length > 1 
+                                ? `📄 Follow-Along Worksheet ${index + 1}:` 
+                                : '📄 Follow-Along Worksheet:';
+                            videoSection += `
+                                <div class="pdf-item">
+                                    <span class="pdf-label">${worksheetLabel}</span>
+                                    <a href="${pdf}" target="_blank" class="pdf-link">
+                                        View/Download PDF
+                                    </a>
+                                </div>
+                            `;
+                        });
+                        videoSection += '</div>';
+                    }
+
+                    if (hasVideos) {
+                        videoSection += '<div class="video-resources">';
+                        topic.videos.forEach((video, index) => {
+                            videoSection += `
+                                <div class="video-item">
+                                    <span class="video-number">Video ${index + 1}:</span>
+                                    <a href="${video.url}" target="_blank" class="video-link">
+                                        AP Classroom Video 📹
+                                    </a>
+                                    ${video.altUrl ? `
+                                        <a href="${video.altUrl}" target="_blank" class="video-link alt">
+                                            Alternative Link 🔗
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            `;
+                        });
+                        videoSection += '</div>';
+                    }
+
+                    if (hasBlookets) {
+                        videoSection += '<div class="blooket-resources">';
+                        topic.blookets.forEach((blooket, index) => {
+                            videoSection += `
+                                <div class="blooket-item">
+                                    <span class="blooket-number">Game ${index + 1}:</span>
+                                    <a href="${blooket.url}" target="_blank" rel="noopener noreferrer" class="blooket-link">
+                                        🎮 ${blooket.title}
+                                    </a>
+                                </div>
+                            `;
+                        });
+                        videoSection += '</div>';
+                    }
+
+                    videoSection += '</div>';
+                }
+            }
+
+            if (currentQuestions.length === 0 && !hasResources) {
+                showMessage(`No questions found for Lesson ${lessonNumber}`, 'error');
+                return;
             }
 
             // Render quiz with resources

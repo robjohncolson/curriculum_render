@@ -225,7 +225,39 @@ function initializeFromEmbeddedData() {
     // Process each unit
     Object.keys(unitGroups).forEach(unitNum => {
         const unitQuestions = unitGroups[unitNum];
-        const unitInfo = detectUnitAndLessons(unitQuestions);
+        let unitInfo = detectUnitAndLessons(unitQuestions);
+
+        // Augment unitInfo with lessons that have resources but no questions
+        if (unitInfo && typeof ALL_UNITS_DATA !== 'undefined') {
+            const resourceUnit = ALL_UNITS_DATA.find(u => u.unitId === `unit${unitNum}`);
+            if (resourceUnit && Array.isArray(resourceUnit.topics)) {
+                const existing = new Set((unitInfo.lessonNumbers || []).map(String));
+
+                resourceUnit.topics.forEach(topic => {
+                    if (!topic || !topic.id) return;
+                    const match = topic.id.match(/^(\d+)-(\d+)$/);
+                    if (!match) return;
+
+                    const topicUnit = parseInt(match[1]);
+                    const lessonNum = parseInt(match[2]);
+                    if (topicUnit !== parseInt(unitNum)) return;
+
+                    // Add missing lesson with empty question list
+                    if (!existing.has(String(lessonNum))) {
+                        unitInfo.lessons[lessonNum] = unitInfo.lessons[lessonNum] || [];
+                        existing.add(String(lessonNum));
+                    }
+                });
+
+                // Rebuild lessonNumbers sorted numerically, preserve PC at end
+                const numericLessons = Array.from(existing)
+                    .filter(k => k !== 'PC')
+                    .map(Number)
+                    .sort((a, b) => a - b);
+                const hasPC = existing.has('PC');
+                unitInfo.lessonNumbers = hasPC ? numericLessons.concat(['PC']) : numericLessons;
+            }
+        }
         if (unitInfo) {
             allCurriculumData[unitNum] = {
                 questions: unitQuestions,
