@@ -408,7 +408,7 @@ const ALL_UNITS_DATA = [
             title: "u3l1blooket"
           },
           {
-            url: "https://lrsl-driller.vercel.app/platform/app.html",
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=sampling",
             title: "Practice Drills App"
           }
         ],
@@ -434,7 +434,7 @@ const ALL_UNITS_DATA = [
             title: "u3l2blooket"
           },
           {
-            url: "https://lrsl-driller.vercel.app/platform/app.html",
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=sampling",
             title: "Practice Drills App"
           }
         ],
@@ -464,7 +464,7 @@ const ALL_UNITS_DATA = [
             title: "u3l3blooket"
           },
           {
-            url: "https://lrsl-driller.vercel.app/platform/app.html",
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=sampling",
             title: "Practice Drills App"
           }
         ],
