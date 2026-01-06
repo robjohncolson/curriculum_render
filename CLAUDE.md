@@ -4,138 +4,86 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AP Statistics Consensus Quiz web application - an educational tool designed for collaborative learning in statistics classes. The app allows students to answer quiz questions and see peer responses in real-time, creating a consensus-based learning environment.
-
-## Architecture
-
-### Core Application Structure
-
-The application is a client-side web app with optional server-side synchronization:
-
-- **Frontend**: Pure JavaScript, HTML, CSS (no build step required)
-- **Data Storage**: LocalStorage with optional Supabase cloud sync
-- **Real-time Sync**: Railway server (Node.js) acting as a caching proxy to Supabase
-- **Visualization**: Chart.js for data visualization, Canvas API for sprite animations
-
-### Key Components
-
-1. **Quiz System** (`index.html`, `js/auth.js`, `data/curriculum.js`, `data/units.js`)
-   - Questions embedded directly in JavaScript files
-   - Progressive disclosure onboarding for new/returning students
-   - Username generation system (Fruit_Animal format)
-
-2. **Data Synchronization**
-   - **Local-only mode**: Uses localStorage for offline functionality
-   - **Turbo Mode** (Supabase): Direct connection to Supabase for real-time sync
-   - **Railway Server**: Caching proxy that reduces Supabase queries by 95%
-   - Configuration in `supabase_config.js` and `railway_config.js`
-
-3. **Sprite Animation System** (`js/sprite_*.js`, `js/canvas_engine.js`)
-   - Interactive sprite characters for user representation
-   - Real-time multiplayer sprite visualization
+AP Statistics Consensus Quiz - a collaborative learning web app where students answer quiz questions and see peer responses in real-time.
 
 ## Development Commands
 
-### Local Development
-
 ```bash
-# No build step required - serve static files directly
-# Use any static file server, for example:
+# Frontend - no build step, serve static files
 python -m http.server 8000
-# or
-npx http-server
-```
+# or: npx http-server
 
-### Railway Server Development
-
-```bash
+# Railway Server (Node 18+ required)
 cd railway-server
-npm install           # Install dependencies
-npm start            # Start production server
-npm run dev          # Start with auto-reload (Node 18+ required)
+npm install
+npm start              # Production
+npm run dev            # Dev with auto-reload
+
+# Test server endpoints
+curl http://localhost:3000/health
+curl http://localhost:3000/api/peer-data
+curl http://localhost:3000/api/question-stats/U1-L3-Q01
 ```
 
-### Testing Server Endpoints
+## Architecture
 
-```bash
-# Health check
-curl http://localhost:3000/health
+**Three-tier storage with fallback chain:**
+1. **IndexedDB** (primary) - structured data in `answers`, `reasons`, `attempts`, `charts`, `peerCache` stores
+2. **localStorage** (fallback) - dual-write during transition for backward compatibility
+3. **Supabase** (optional cloud sync) - real-time peer data via Railway server cache proxy
 
-# Get peer data
-curl http://localhost:3000/api/peer-data
+**Key architectural decisions:**
+- Storage abstraction layer (`js/storage/`) with `DualWriteAdapter` pattern enables IDB+localStorage dual-write
+- `classData` object is an in-memory view rebuilt from IDB stores via `rebuildClassDataView()`
+- Railway server reduces Supabase queries by 95% (360/hr → 12/hr for 30-student class)
+- All storage operations are async; use `await waitForStorage()` before data access
 
-# Get question statistics
-curl http://localhost:3000/api/question-stats/U1-L3-Q01
+## Module Dependencies
+
+Load order matters (see `index.html` script tags):
+1. CDN libs (Chart.js, MathJax, Supabase client, QRCode)
+2. Config files (`supabase_config.js`, `railway_config.js`)
+3. Storage layer (`js/storage/*.js` → `index.js` initializes adapters)
+4. Core modules (`js/charts.js`, `railway_client.js`)
+5. Sprite system (`js/sprite_sheet.js` → `canvas_engine.js` → entities → `sprite_manager.js`)
+6. Data files (`data/curriculum.js`, `data/units.js`, `data/chart_questions.js`)
+7. Inline script in `index.html` (app initialization)
+
+## Key Global Variables
+
+- `currentUsername`: Active user's Fruit_Animal identifier
+- `classData`: In-memory cache of user data (rebuilt from IDB on load)
+- `storage`: Initialized storage adapter (access via `getStorage()` or `waitForStorage()`)
+- `TURBO_MODE`: Whether Supabase sync is enabled (from `supabase_config.js`)
+- `USE_RAILWAY`: Whether to use Railway caching proxy (from `railway_config.js`)
+
+## Data Structures
+
+**Question IDs**: Format `U{unit}-L{lesson}-Q{number}` (e.g., `U1-L3-Q01`)
+
+**User data in classData.users[username]:**
+```javascript
+{
+  answers: { questionId: { value, timestamp } },
+  reasons: { questionId: string },
+  timestamps: { questionId: number },
+  attempts: { questionId: number },
+  charts: { chartId: data },
+  currentActivity: { state, questionId, lastUpdate }
+}
 ```
 
 ## Configuration
 
-### Enabling Turbo Mode (Supabase Sync)
+**Enable Supabase sync:** Edit `supabase_config.js` with project URL and anon key. Schema in `docs/supabase_schema.sql`.
 
-1. Edit `supabase_config.js`:
-   - Set `SUPABASE_URL` to your Supabase project URL
-   - Set `SUPABASE_ANON_KEY` to your public anon key
+**Enable Railway server:** Set `USE_RAILWAY = true` and `RAILWAY_SERVER_URL` in `railway_config.js`. Deploy `railway-server/` to Railway.app with `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars.
 
-2. Run the SQL schema (from `supabase_schema.sql`) in your Supabase SQL editor
+## Database Schema (Supabase)
 
-### Enabling Railway Server
-
-1. Deploy the `railway-server` directory to Railway.app
-2. Set environment variables in Railway:
-   - `SUPABASE_URL`
-   - `SUPABASE_ANON_KEY`
-3. Edit `railway_config.js`:
-   - Set `USE_RAILWAY = true`
-   - Set `RAILWAY_SERVER_URL` to your deployed server URL
-
-## Data Flow
-
-### Without Railway Server
-- Each student queries Supabase directly (30 students × 12 queries/hour = 360 queries/hour)
-- 5-minute polling intervals for peer data updates
-
-### With Railway Server
-- Server queries Supabase once and caches (12 queries/hour total)
-- WebSocket connections for instant updates to all clients
-- 30-second cache TTL for frequently accessed data
-
-## File Organization
-
-```
-/
-├── index.html                 # Main application entry point
-├── css/styles.css            # Application styles
-├── data/
-│   ├── curriculum.js         # Quiz questions database
-│   └── units.js             # Course units structure
-├── js/
-│   ├── auth.js              # User authentication and session management
-│   ├── data_manager.js      # Data persistence and synchronization
-│   ├── charts.js            # Chart.js visualizations
-│   ├── canvas_engine.js     # Sprite animation engine
-│   └── sprite_*.js          # Sprite-related modules
-├── railway-server/          # Node.js caching server
-│   ├── server.js           # Express + WebSocket server
-│   └── package.json        # Node dependencies
-├── supabase_config.js      # Supabase credentials
-└── railway_config.js       # Railway server toggle
-```
-
-## Important Considerations
-
-1. **No Build Process**: This is a static site - no webpack, no transpilation needed
-2. **Progressive Enhancement**: Works offline-first, cloud sync is optional
-3. **Educational Focus**: Designed for classroom use with intentionally simple auth (no passwords)
-4. **Real-time Features**: WebSocket support through Railway server for instant updates
-5. **Data Privacy**: Uses anonymous usernames (Fruit_Animal format), no personal data collected
-
-## Database Schema
-
-When using Supabase, the app expects these tables (created by `supabase_schema.sql`):
-- `answers`: Student quiz responses
-- `class_data`: Aggregated class statistics
-- Real-time subscriptions enabled for instant updates
+Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_activity`, `votes`
 
 ## Deployment
 
-The app can be deployed to any static hosting service (GitHub Pages, Netlify, Vercel, etc.). The Railway server component requires Node.js hosting (Railway.app, Heroku, etc.).
+- **Frontend**: Any static host (GitHub Pages, Netlify)
+- **Railway server**: Node.js host with `SUPABASE_URL`, `SUPABASE_ANON_KEY` env vars

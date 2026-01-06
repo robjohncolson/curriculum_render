@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic 3.4: Potential Problems with Sampling</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+            background: #f9f9f9;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .header-left { font-weight: bold; color: #003366; }
+        .header-center { font-weight: bold; }
+        .header-right { font-weight: bold; color: #003366; }
+        
+        h1 {
+            text-align: center;
+            color: #003366;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-style: italic;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .worksheet-label {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .student-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .student-info label {
+            font-weight: bold;
+        }
+        
+        .student-info input {
+            border: none;
+            border-bottom: 1px solid #333;
+            background: transparent;
+            padding: 2px 5px;
+            font-size: 1em;
+        }
+        
+        .objective-box {
+            border: 2px solid #003366;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: white;
+        }
+        
+        .objective-box strong {
+            color: #003366;
+        }
+        
+        .vocab-box {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .vocab-box h3 {
+            margin-top: 0;
+            color: #003366;
+        }
+        
+        .vocab-table {
+            width: 100%;
+        }
+        
+        .vocab-table td {
+            padding: 5px 0;
+            vertical-align: top;
+        }
+        
+        .vocab-table td:first-child {
+            font-weight: bold;
+            width: 180px;
+            color: #003366;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .section-header h2 {
+            margin: 0;
+            color: #003366;
+            font-size: 1.2em;
+        }
+        
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+        
+        .question {
+            margin-bottom: 15px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .question-number {
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            color: #003366;
+        }
+        
+        .blank {
+            display: inline-block;
+            min-width: 100px;
+            border-bottom: 2px solid #003366;
+            padding: 2px 8px;
+            margin: 0 3px;
+            background: #fff;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .blank:focus {
+            outline: none;
+            border-bottom-color: #0066cc;
+            background: #f0f7ff;
+        }
+        
+        .blank.correct {
+            background: #d4edda;
+            border-bottom-color: #28a745;
+        }
+        
+        .blank.incorrect {
+            background: #f8d7da;
+            border-bottom-color: #dc3545;
+        }
+        
+        .model-box {
+            border: 1px solid #003366;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            background: white;
+        }
+        
+        .model-box h4 {
+            margin-top: 0;
+            color: #003366;
+            background: #003366;
+            color: white;
+            margin: -15px -15px 15px -15px;
+            padding: 10px 15px;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .model-step {
+            margin-bottom: 10px;
+        }
+        
+        .model-step strong {
+            color: #003366;
+        }
+        
+        .reflection-box {
+            margin-top: 30px;
+        }
+        
+        .reflection-question {
+            margin-bottom: 20px;
+        }
+        
+        .reflection-question strong {
+            color: #003366;
+        }
+        
+        .reflection-question textarea {
+            width: 100%;
+            min-height: 80px;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1em;
+            resize: vertical;
+        }
+        
+        .sub-questions {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .sub-question {
+            margin-bottom: 10px;
+        }
+        
+        .exit-ticket {
+            background: #f0f0f0;
+            border: 2px solid #003366;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 30px;
+        }
+        
+        .exit-ticket h3 {
+            margin-top: 0;
+            color: #003366;
+        }
+        
+        .exit-ticket textarea {
+            width: 100%;
+            min-height: 80px;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1em;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 25px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .check-btn {
+            background: #003366;
+            color: white;
+        }
+        
+        .check-btn:hover {
+            background: #004488;
+        }
+        
+        .reset-btn {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .reset-btn:hover {
+            background: #5a6268;
+        }
+        
+        .show-btn {
+            background: #28a745;
+            color: white;
+        }
+        
+        .show-btn:hover {
+            background: #218838;
+        }
+        
+        .score-display {
+            text-align: center;
+            font-size: 1.3em;
+            padding: 15px;
+            background: #003366;
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .score-display.visible {
+            display: block;
+        }
+        
+        .hint {
+            font-style: italic;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .aggregate-drawer {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 360px;
+            max-width: 92vw;
+            background: #f8fbff;
+            border: 1px solid #cddff7;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            padding: 14px;
+            z-index: 9999;
+            display: none;
+        }
+
+        .aggregate-drawer.open {
+            display: block;
+        }
+
+        .aggregate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.92em;
+            color: #003366;
+            margin-bottom: 8px;
+        }
+
+        .aggregate-meta {
+            color: #555;
+            font-size: 0.85em;
+        }
+
+        .aggregate-trigger {
+            margin-left: 8px;
+            padding: 4px 10px;
+            font-size: 0.85em;
+            background: #e8f0ff;
+            border: 1px solid #c5d6ff;
+            border-radius: 6px;
+            color: #003366;
+            cursor: pointer;
+        }
+
+        .aggregate-trigger:hover {
+            background: #d7e6ff;
+        }
+
+        .live-note {
+            margin: -5px 0 20px;
+            color: #444;
+            font-size: 0.95em;
+        }
+        
+        @media print {
+            .controls, .score-display { display: none !important; }
+            .blank { border-bottom: 1px solid #000; }
+        }
+        
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .header { flex-direction: column; gap: 5px; }
+            .student-info { flex-direction: column; }
+            .blank { min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="header-left">AP Statistics</span>
+        <span class="header-center">Unit 3: Collecting Data</span>
+        <span class="header-right">Lesson 3.4</span>
+    </div>
+    
+    <h1>Topic 3.4: Potential Problems with Sampling</h1>
+    <p class="subtitle">What can go wrong when we collect data?</p>
+    <p class="worksheet-label">Video Follow-Along Worksheet</p>
+
+    <div class="student-info">
+        <label>Name: <input type="text" id="studentName" placeholder="Display name"></label>
+        <label>Username: <input type="text" id="worksheetUsername" placeholder="Quiz username (required for live sync)"></label>
+        <label>Class/Period: <input type="text" id="studentClass" placeholder="Optional"></label>
+    </div>
+    <p class="live-note">Use the same username you use in the quiz app to see your classmates' answers update live.</p>
+    
+    <div class="score-display" id="scoreDisplay"></div>
+    
+    <div class="objective-box">
+        <strong>Learning Objective (DAT-2.E):</strong> Identify potential sources of bias in sampling methods.<br><br>
+        <strong>Essential Knowledge:</strong> Bias occurs when certain responses are systematically favored over others. Non-random sampling methods introduce potential for bias because they do not use chance to select individuals.
+    </div>
+    
+    <div class="vocab-box">
+        <h3>Key Vocabulary</h3>
+        <table class="vocab-table">
+            <tr>
+                <td>Bias</td>
+                <td>A systematic tendency to favor certain responses over others</td>
+            </tr>
+            <tr>
+                <td>Undercoverage bias</td>
+                <td>When part of the population has a reduced chance of being included</td>
+            </tr>
+            <tr>
+                <td>Nonresponse bias</td>
+                <td>When individuals chosen for a sample do not respond, and they differ from respondents</td>
+            </tr>
+            <tr>
+                <td>Voluntary response bias</td>
+                <td>When volunteers who choose to participate differ from those who don't</td>
+            </tr>
+            <tr>
+                <td>Response bias</td>
+                <td>Problems in data gathering, including confusing/leading questions or self-reported responses</td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Part 1 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 1: Introduction</h2>
+            <span class="timestamp">[0:00–0:29]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">1.</span>
+            Today's video discusses potential sources of <input type="text" class="blank" data-answer="bias" style="width: 80px;"> in sampling methods.
+        </div>
+        <div class="question">
+            <span class="question-number">2.</span>
+            We will learn how sampling methods can lead to <input type="text" class="blank" data-answer="overestimates" style="width: 120px;"> or <input type="text" class="blank" data-answer="underestimates" style="width: 120px;">.
+        </div>
+    </div>
+    
+    <!-- Part 2 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 2: College "Success" Data Example</h2>
+            <span class="timestamp">[0:30–2:21]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">3.</span>
+            A college pamphlet claimed: "Based on a random sample of recent graduates, about <input type="text" class="blank" data-answer="99.7" style="width: 60px;">% of our former students are working full time in the career of their choice!"
+        </div>
+        <div class="question">
+            <span class="question-number">4.</span>
+            The key phrase to notice is that they sampled "recent <input type="text" class="blank" data-answer="graduates" style="width: 100px;">"—they only included students who actually graduated!
+        </div>
+        <div class="question">
+            <span class="question-number">5.</span>
+            Using IPEDS data, only <input type="text" class="blank" data-answer="40" style="width: 50px;">% of incoming freshmen graduated within 6 years.
+        </div>
+        <div class="question">
+            <span class="question-number">6.</span>
+            So 99.7% of that 40% had good outcomes. But the other <input type="text" class="blank" data-answer="60" style="width: 50px;">% who didn't graduate were excluded entirely.
+        </div>
+    </div>
+    
+    <!-- Part 3 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 3: Defining Bias and Undercoverage</h2>
+            <span class="timestamp">[2:22–2:43]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">7.</span>
+            <strong>Bias</strong> is a <input type="text" class="blank" data-answer="systematic" style="width: 100px;"> tendency to favor certain responses over others.
+        </div>
+        <div class="question">
+            <span class="question-number">8.</span>
+            <strong>Undercoverage bias</strong> occurs when part of the <input type="text" class="blank" data-answer="population" style="width: 100px;"> has a reduced chance of being included in the sample.
+        </div>
+        <div class="question">
+            <span class="question-number">9.</span>
+            In the college example, the students who didn't graduate were <input type="text" class="blank" data-answer="excluded" style="width: 100px;"> from the sample.
+        </div>
+    </div>
+    
+    <!-- Part 4 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 4: Nonresponse Bias Example</h2>
+            <span class="timestamp">[2:43–3:27]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">10.</span>
+            A university reported that 85% of students secured paid internships. They collected this data by randomly selecting students and sending them a <input type="text" class="blank" data-answer="survey" style="width: 80px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">11.</span>
+            Only <input type="text" class="blank" data-answer="10" style="width: 50px;">% of those students actually responded to the survey.
+        </div>
+        <div class="question">
+            <span class="question-number">12.</span>
+            <strong>Nonresponse bias</strong> occurs when individuals chosen for a sample don't <input type="text" class="blank" data-answer="respond" style="width: 80px;">, and these individuals <input type="text" class="blank" data-answer="differ" style="width: 70px;"> from those who did respond.
+        </div>
+    </div>
+    
+    <!-- Part 5 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 5: Model Response Strategy for FRQs</h2>
+            <span class="timestamp">[3:27–4:54]</span>
+        </div>
+        <p>When writing about bias on free-response questions, follow these three steps:</p>
+        <div class="question">
+            <span class="question-number">13.</span>
+            <strong>Step 1:</strong> Identify the <input type="text" class="blank" data-answer="population" style="width: 100px;"> and the <input type="text" class="blank" data-answer="sample" style="width: 80px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">14.</span>
+            <strong>Step 2:</strong> Explain how sampled individuals might <input type="text" class="blank" data-answer="differ from" style="width: 100px;"> the general population.
+        </div>
+        <div class="question">
+            <span class="question-number">15.</span>
+            <strong>Step 3:</strong> Explain how this leads to an <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> or <input type="text" class="blank" data-answer="underestimate" style="width: 110px;">.
+        </div>
+        
+        <div class="model-box">
+            <h4>Applying the 3-Step Model: Internship Example</h4>
+            <div class="model-step">
+                <strong>Step 1:</strong> Population: <input type="text" class="blank" data-answer="all students" style="width: 100px;"> &nbsp; Sample: <input type="text" class="blank" data-answer="survey respondents" style="width: 140px;">
+            </div>
+            <div class="model-step">
+                <strong>Step 2:</strong> Students without paid internships may be <input type="text" class="blank" data-answer="ashamed" style="width: 90px;"> and disproportionately choose not to respond.
+            </div>
+            <div class="model-step">
+                <strong>Step 3:</strong> Because students without internships respond less often, 85% may be an <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> of the true percentage.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Part 6 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 6: Voluntary Response Bias</h2>
+            <span class="timestamp">[4:54–5:42]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">16.</span>
+            Voluntary response bias occurs when invitations are sent to <input type="text" class="blank" data-answer="all" style="width: 50px;"> individuals, and those who choose to participate (<input type="text" class="blank" data-answer="volunteers" style="width: 100px;">) may differ from those who don't.
+        </div>
+        <div class="question">
+            <span class="question-number">17.</span>
+            <strong>Example:</strong> You want to estimate the percentage of people who enjoy running. You post an ad for a "<input type="text" class="blank" data-answer="running" style="width: 80px;"> study" and survey the people who respond.
+        </div>
+        <div class="question">
+            <span class="question-number">18.</span>
+            This would likely <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> the true proportion who like running because volunteers are more likely to already enjoy running.
+        </div>
+    </div>
+    
+    <!-- Part 7 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 7: Survey-Specific Bias</h2>
+            <span class="timestamp">[6:11–6:56]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">19.</span>
+            <strong>Question wording bias</strong> occurs when survey questions are <input type="text" class="blank" data-answer="confusing" style="width: 100px;"> or <input type="text" class="blank" data-answer="leading" style="width: 80px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">20.</span>
+            <strong>Self-reported response bias</strong> occurs when individuals <input type="text" class="blank" data-answer="inaccurately" style="width: 110px;"> report their own traits.
+        </div>
+        <div class="question">
+            <span class="question-number">21.</span>
+            <em>Important advice:</em> If you're unsure which specific type of bias to name on an FRQ, just <input type="text" class="blank" data-answer="describe" style="width: 90px;"> how the bias arises and whether it leads to an over or underestimate.
+        </div>
+    </div>
+    
+    <!-- Part 8 -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Part 8: Key Takeaways</h2>
+            <span class="timestamp">[6:56–7:23]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">22.</span>
+            Bias arises when certain responses are <input type="text" class="blank" data-answer="systematically" style="width: 120px;"> favored over others.
+        </div>
+        <div class="question">
+            <span class="question-number">23.</span>
+            When describing bias, explain how the <input type="text" class="blank" data-answer="sample" style="width: 80px;"> may differ from the <input type="text" class="blank" data-answer="population" style="width: 100px;"> and the resulting <input type="text" class="blank" data-answer="direction" style="width: 90px;"> of bias.
+        </div>
+        <div class="question">
+            <span class="question-number">24.</span>
+            When analyzing data: Be <input type="text" class="blank" data-answer="critical" style="width: 80px;">. Be <input type="text" class="blank" data-answer="cautious" style="width: 80px;">. Be <input type="text" class="blank" data-answer="compassionate" style="width: 110px;">.
+        </div>
+    </div>
+    
+    <!-- Controls -->
+    <div class="controls">
+        <button class="check-btn" onclick="checkAnswers()">Check Answers</button>
+        <button class="show-btn" onclick="showAnswers()">Show Answers</button>
+        <button class="reset-btn" onclick="resetForm()">Reset</button>
+    </div>
+
+    <!-- Slide-out aggregate panel (single instance) -->
+    <div id="aggregateDrawer" class="aggregate-drawer" aria-live="polite">
+        <div class="aggregate-header">
+            <span id="aggregateTitle">Class responses</span>
+            <button type="button" id="aggregateClose" class="aggregate-trigger" style="margin-left:0;">Close</button>
+        </div>
+        <div class="aggregate-meta" id="aggregateCount"></div>
+        <canvas id="aggregateCanvas" height="180"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../railway_config.js"></script>
+    <script src="../railway_client.js"></script>
+    
+    <script>
+        // Normalize answer for comparison
+        function normalize(str) {
+            return str.toLowerCase().trim()
+                .replace(/[^\w\s]/g, '')
+                .replace(/\s+/g, ' ');
+        }
+        
+        // Check if answer is acceptable (handles multiple valid answers)
+        function isCorrect(input, answer) {
+            const userAnswer = normalize(input);
+            const correctAnswers = answer.split('|').map(a => normalize(a));
+            
+            // Check for exact match or close match
+            for (const correct of correctAnswers) {
+                if (userAnswer === correct) return true;
+                // Allow partial matches for longer answers
+                if (correct.length > 5 && userAnswer.includes(correct)) return true;
+                if (correct.length > 5 && correct.includes(userAnswer) && userAnswer.length > 3) return true;
+            }
+            return false;
+        }
+        
+        function checkAnswers() {
+            const blanks = document.querySelectorAll('.blank');
+            let correct = 0;
+            let total = 0;
+            
+            blanks.forEach(blank => {
+                const answer = blank.dataset.answer;
+                if (!answer) return;
+                
+                total++;
+                const userValue = blank.value.trim();
+                
+                if (userValue === '') {
+                    blank.classList.remove('correct', 'incorrect');
+                } else if (isCorrect(userValue, answer)) {
+                    blank.classList.add('correct');
+                    blank.classList.remove('incorrect');
+                    correct++;
+                } else {
+                    blank.classList.add('incorrect');
+                    blank.classList.remove('correct');
+                }
+            });
+            
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const percentage = Math.round((correct / total) * 100);
+            scoreDisplay.textContent = `Score: ${correct} / ${total} (${percentage}%)`;
+            scoreDisplay.classList.add('visible');
+        }
+        
+        function showAnswers() {
+            const blanks = document.querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                const answer = blank.dataset.answer;
+                if (answer) {
+                    // Show first answer if multiple options
+                    blank.value = answer.split('|')[0];
+                    blank.classList.add('correct');
+                    blank.classList.remove('incorrect');
+                }
+            });
+            
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.textContent = 'All answers shown';
+            scoreDisplay.classList.add('visible');
+        }
+        
+        function resetForm() {
+            const blanks = document.querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                blank.value = '';
+                blank.classList.remove('correct', 'incorrect');
+            });
+            
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(ta => ta.value = '');
+            
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.classList.remove('visible');
+        }
+        
+        // Allow Enter key to move to next blank
+        document.querySelectorAll('.blank').forEach((blank, index, blanks) => {
+            blank.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const nextBlank = blanks[index + 1];
+                    if (nextBlank) nextBlank.focus();
+                }
+            });
+        });
+
+        // --- Live sync + aggregate charts ---
+        const WORKSHEET_ID = 'WS-U3L4';
+        const chartInstances = {};
+        const LOCAL_USER_KEY = 'worksheetLiveUser';
+        const debounceTimers = {};
+        let currentDrawerQuestionId = null;
+
+        function assignQuestionIds() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach((blank, idx) => {
+                if (!blank.dataset.questionId) {
+                    blank.dataset.questionId = `${WORKSHEET_ID}-Q${idx + 1}`;
+                }
+            });
+        }
+
+        function attachLiveListeners() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach(blank => {
+                blank.addEventListener('blur', () => handleLiveUpdate(blank));
+                blank.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLiveUpdate(blank);
+                    }
+                });
+            });
+        }
+
+        function injectAggregateButtons() {
+            const questions = Array.from(document.querySelectorAll('.question'));
+            questions.forEach(q => {
+                const blank = q.querySelector('.blank');
+                if (!blank) return;
+                if (q.querySelector('.aggregate-trigger')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'aggregate-trigger';
+                btn.textContent = 'Class answers';
+                btn.addEventListener('click', () => openDrawerFor(blank));
+                q.appendChild(btn);
+            });
+        }
+
+        function getUsername() {
+            const usernameField = document.getElementById('worksheetUsername');
+            const nameField = document.getElementById('studentName');
+            const username = (usernameField?.value || '').trim();
+            if (username) {
+                // Remember locally to reduce friction
+                try {
+                    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({
+                        username,
+                        name: nameField?.value || '',
+                        klass: document.getElementById('studentClass')?.value || ''
+                    }));
+                } catch (e) {
+                    console.warn('Unable to persist username locally', e);
+                }
+                return username;
+            }
+            return '';
+        }
+
+        function restoreSavedUser() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(LOCAL_USER_KEY) || '{}');
+                if (saved.username) {
+                    const usernameField = document.getElementById('worksheetUsername');
+                    if (usernameField) usernameField.value = saved.username;
+                }
+                if (saved.name) {
+                    const nameField = document.getElementById('studentName');
+                    if (nameField) nameField.value = saved.name;
+                }
+                if (saved.klass) {
+                    const classField = document.getElementById('studentClass');
+                    if (classField) classField.value = saved.klass;
+                }
+            } catch (e) {
+                console.warn('No saved user found', e);
+            }
+        }
+
+        function normalizeForStore(str) {
+            return normalize(str) || '(blank)';
+        }
+
+        async function sendAnswer(username, questionId, answerValue) {
+            const payload = {
+                username,
+                question_id: questionId,
+                answer_value: answerValue,
+                timestamp: Date.now()
+            };
+
+            if (window.railwayClient?.submitAnswer) {
+                return window.railwayClient.submitAnswer(
+                    payload.username,
+                    payload.question_id,
+                    payload.answer_value,
+                    payload.timestamp
+                );
+            }
+
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) {
+                console.warn('No Railway server configured; skipping live submit');
+                return false;
+            }
+
+            const res = await fetch(`${baseUrl}/api/submit-answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            return !!result.success;
+        }
+
+        async function refreshAggregate(questionId, correctAnswers) {
+            await renderAggregate(questionId, correctAnswers);
+        }
+
+        async function fetchQuestionStats(questionId) {
+            if (window.railwayClient?.getStats) {
+                const stats = await window.railwayClient.getStats(questionId);
+                if (stats) return stats;
+            }
+
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) return null;
+            try {
+                const res = await fetch(`${baseUrl}/api/question-stats/${encodeURIComponent(questionId)}`);
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                console.warn('Unable to fetch stats', e);
+                return null;
+            }
+        }
+
+        function ensureDrawer() {
+            const drawer = document.getElementById('aggregateDrawer');
+            const closeBtn = document.getElementById('aggregateClose');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = 'true';
+                closeBtn.addEventListener('click', () => {
+                    drawer.classList.remove('open');
+                    currentDrawerQuestionId = null;
+                });
+            }
+            return {
+                drawer,
+                titleEl: document.getElementById('aggregateTitle'),
+                countEl: document.getElementById('aggregateCount'),
+                canvas: document.getElementById('aggregateCanvas')
+            };
+        }
+
+        function ensureRailwayDefaults() {
+            if (typeof window.USE_RAILWAY === 'undefined') {
+                window.USE_RAILWAY = true;
+            }
+            if (!window.RAILWAY_SERVER_URL) {
+                window.RAILWAY_SERVER_URL = 'https://curriculumrender-production.up.railway.app';
+            }
+        }
+
+        async function renderAggregate(questionId, correctAnswers) {
+            const { canvas, countEl } = ensureDrawer();
+            if (!canvas) return;
+            const stats = await fetchQuestionStats(questionId);
+            if (!stats) return;
+
+            const distribution = stats.distribution || {};
+            const labelsSet = new Set(Object.keys(distribution));
+            const normalizedCorrect = correctAnswers.map(a => normalize(a));
+            normalizedCorrect.forEach(ans => {
+                if (ans) labelsSet.add(ans);
+            });
+
+            const labels = Array.from(labelsSet).filter(Boolean);
+            const counts = labels.map(label => distribution[label] ?? 0);
+            const colors = labels.map(label => normalizedCorrect.includes(normalize(label))
+                ? 'rgba(76, 175, 80, 0.7)'
+                : 'rgba(54, 162, 235, 0.6)');
+
+            if (chartInstances.aggregate) {
+                chartInstances.aggregate.destroy();
+            }
+
+            chartInstances.aggregate = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Responses (%)',
+                        data: counts,
+                        backgroundColor: colors,
+                        borderColor: 'rgba(0, 51, 102, 0.8)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: value => `${value}%`
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.formattedValue}% (${Math.round((ctx.parsed.y / 100) * (stats.totalResponses || 0))} of ${stats.totalResponses || 0})`
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (countEl) {
+                countEl.textContent = `${stats.totalResponses || 0} responses`;
+            }
+        }
+
+        async function refreshAllAggregates() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const uniqueQuestions = new Map();
+            blanks.forEach(blank => {
+                if (blank.dataset.questionId && blank.dataset.answer) {
+                    uniqueQuestions.set(blank.dataset.questionId, blank.dataset.answer.split('|'));
+                }
+            });
+
+            // If drawer is open, refresh only the currently viewed question
+            if (currentDrawerQuestionId && uniqueQuestions.has(currentDrawerQuestionId)) {
+                await renderAggregate(currentDrawerQuestionId, uniqueQuestions.get(currentDrawerQuestionId));
+            }
+        }
+
+        function handleLiveUpdate(blank) {
+            const username = getUsername();
+            if (!username) return; // Skip if user hasn't provided a username
+            const questionId = blank.dataset.questionId;
+            const correctAnswers = (blank.dataset.answer || '').split('|');
+            if (!questionId) return;
+
+            // Debounce per-question to avoid flooding
+            if (debounceTimers[questionId]) {
+                clearTimeout(debounceTimers[questionId]);
+            }
+            debounceTimers[questionId] = setTimeout(async () => {
+                await sendAnswer(username, questionId, normalizeForStore(blank.value));
+                if (currentDrawerQuestionId === questionId) {
+                    await refreshAggregate(questionId, correctAnswers);
+                }
+            }, 400);
+        }
+
+        function openDrawerFor(blank) {
+            const questionId = blank.dataset.questionId;
+            const correctAnswers = (blank.dataset.answer || '').split('|');
+            if (!questionId) return;
+            const { drawer, titleEl } = ensureDrawer();
+            currentDrawerQuestionId = questionId;
+            if (titleEl) {
+                titleEl.textContent = `Class responses for ${questionId}`;
+            }
+            drawer.classList.add('open');
+            renderAggregate(questionId, correctAnswers);
+        }
+
+        async function submitWorksheetResponses() {
+            const username = getUsername();
+            if (!username) {
+                console.warn('Username is required for live sync; skipping submit.');
+                return;
+            }
+
+            ensureRailwayDefaults();
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const submissions = blanks
+                .filter(b => b.dataset.questionId)
+                .map(b => sendAnswer(username, b.dataset.questionId, normalizeForStore(b.value)));
+
+            await Promise.all(submissions);
+        }
+
+        // Extend existing button actions
+        const originalCheckAnswers = checkAnswers;
+        checkAnswers = async function() {
+            await originalCheckAnswers();
+            await submitWorksheetResponses();
+            await refreshAllAggregates();
+        };
+
+        const originalShowAnswers = showAnswers;
+        showAnswers = async function() {
+            await originalShowAnswers();
+            await refreshAllAggregates();
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            assignQuestionIds();
+            attachLiveListeners();
+            injectAggregateButtons();
+            restoreSavedUser();
+            ensureRailwayDefaults();
+            refreshAllAggregates();
+        });
+    </script>
+</body>
+</html>
