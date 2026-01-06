@@ -1,0 +1,34 @@
+Here’s what we built and how to repeat it for another lesson (e.g., Unit 3 Lesson 5, LaTeX → HTML).
+What we implemented for U3L4
+Converted the static follow-along HTML into a live worksheet that:
+Assigns stable question IDs (WS-U3L4-Q#) to each blank.
+Collects answers and submits to the existing Railway/Supabase answers table.
+Pulls aggregated stats from /api/question-stats/:id and renders a bar chart.
+Shows class answers in a slide-out drawer (per-question) instead of inline.
+Debounced live submit on blur/Enter; “Check Answers” still submits and refreshes.
+Added username fields (uses quiz username) and local persistence for convenience.
+Linked it into the main app: data/units.js Topic 3.4 now includes worksheets/u3l4_worksheet (1).html labeled “Live Worksheet (HTML, interactive).”
+How to repeat for U3L5 (or any lesson, even if starting from LaTeX)
+1) Export/convert the worksheet to HTML: keep blanks as <input class="blank" data-answer="...">. (If starting from LaTeX, generate an HTML version with those blanks and answers embedded.)
+2) Set a worksheet ID: in the script set const WORKSHEET_ID = 'WS-U3L5';.
+3) Auto-tag blanks: reuse assignQuestionIds() so each blank gets WS-U3L5-Q1, WS-U3L5-Q2, ...
+4) Wire live sync:
+Include railway_config.js, railway_client.js, and Chart.js.
+Keep sendAnswer() → railwayClient.submitAnswer (falls back to REST /api/submit-answer).
+Keep fetchQuestionStats() hitting /api/question-stats/:id.
+Normalize answers before submit (normalizeForStore).
+5) UX: keep the slide-out drawer + per-question “Class answers” button (injectAggregateButtons, openDrawerFor, renderAggregate).
+6) Username capture: include the username input; store in localStorage as done for U3L4.
+7) Debounced live updates: keep handleLiveUpdate bound to blur/Enter; only refresh the chart if its drawer is open.
+8) Link into the app: add an entry in data/units.js for the lesson’s pdfs (or resources) with the HTML path and label “Live Worksheet (HTML, interactive)”.
+9) Naming: keep filenames predictable (e.g., worksheets/u3l5_worksheet_live.html) and URL-encode spaces in data/units.js if needed.
+10) Server/schema: no schema changes—relies on the existing answers table (fields: username, question_id, answer_value, timestamp). Railway handles cache invalidation and WebSocket broadcast.
+Minimal checklist for the next worksheet
+[ ] HTML has class="blank" and data-answer for each item.
+[ ] Set WORKSHEET_ID unique per lesson.
+[ ] Include railway_config.js, railway_client.js, Chart.js.
+[ ] Keep live submit + stats fetch functions; drawer UI present.
+[ ] Add username inputs and local persistence.
+[ ] Add link in data/units.js for the lesson.
+[ ] Test: enter username, open “Class answers,” type answer, confirm bar updates.
+If you want, I can spin up a U3L5 live worksheet stub with the correct IDs and link it in.

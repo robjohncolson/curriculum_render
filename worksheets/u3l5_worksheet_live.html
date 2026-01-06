@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Topic 3.4: Potential Problems with Sampling</title>
+    <title>Topic 3.5: Introduction to Experimental Design</title>
     <style>
         * {
             box-sizing: border-box;
@@ -321,7 +321,7 @@
             color: #666;
             font-size: 0.9em;
         }
-
+        
         .aggregate-drawer {
             position: fixed;
             top: 80px;
@@ -436,12 +436,12 @@
     <div class="header">
         <span class="header-left">AP Statistics</span>
         <span class="header-center">Unit 3: Collecting Data</span>
-        <span class="header-right">Lesson 3.4</span>
+        <span class="header-right">Lesson 3.5</span>
     </div>
     
-    <h1>Topic 3.4: Potential Problems with Sampling</h1>
-    <p class="subtitle">What can go wrong when we collect data?</p>
-    <p class="worksheet-label">Video Follow-Along Worksheet</p>
+    <h1>Topic 3.5: Introduction to Experimental Design</h1>
+    <p class="subtitle">How do we design studies that can establish causation?</p>
+    <p class="worksheet-label">Video Follow-Along Worksheet (Videos 1-3)</p>
 
     <div class="student-info">
         <label>Name: <input type="text" id="studentName" placeholder="Display name"></label>
@@ -453,219 +453,444 @@
     <div class="score-display" id="scoreDisplay"></div>
     
     <div class="objective-box">
-        <strong>Learning Objective (DAT-2.E):</strong> Identify potential sources of bias in sampling methods.<br><br>
-        <strong>Essential Knowledge:</strong> Bias occurs when certain responses are systematically favored over others. Non-random sampling methods introduce potential for bias because they do not use chance to select individuals.
+        <strong>Learning Objectives:</strong>
+        <ul>
+            <li><strong>VAR-3.A:</strong> Identify the components of an experiment.</li>
+            <li><strong>VAR-3.B:</strong> Describe the elements of a well-designed experiment.</li>
+            <li><strong>VAR-3.C:</strong> Compare experimental designs and methods.</li>
+        </ul>
+        <strong>Essential Knowledge:</strong> Well-designed experiments can establish evidence of causal relationships through comparisons, random assignment, replication, and control of confounding variables.
     </div>
     
     <div class="vocab-box">
         <h3>Key Vocabulary</h3>
         <table class="vocab-table">
             <tr>
-                <td>Bias</td>
-                <td>A systematic tendency to favor certain responses over others</td>
+                <td>Experiment</td>
+                <td>A study where treatments are intentionally imposed on experimental units to observe a response.</td>
             </tr>
             <tr>
-                <td>Undercoverage bias</td>
-                <td>When part of the population has a reduced chance of being included</td>
+                <td>Experimental units</td>
+                <td>The individuals (people, animals, objects) to which treatments are applied.</td>
             </tr>
             <tr>
-                <td>Nonresponse bias</td>
-                <td>When individuals chosen for a sample do not respond, and they differ from respondents</td>
+                <td>Confounding variable</td>
+                <td>A variable related to the explanatory variable that also influences the response, creating a false perception of association.</td>
             </tr>
             <tr>
-                <td>Voluntary response bias</td>
-                <td>When volunteers who choose to participate differ from those who don't</td>
+                <td>Random assignment</td>
+                <td>Using chance to determine which treatment each experimental unit receives.</td>
             </tr>
             <tr>
-                <td>Response bias</td>
-                <td>Problems in data gathering, including confusing/leading questions or self-reported responses</td>
+                <td>Placebo</td>
+                <td>A fake treatment similar in appearance to the real treatment.</td>
+            </tr>
+            <tr>
+                <td>Blinding</td>
+                <td>When subjects and/or researchers do not know which treatment is being administered.</td>
             </tr>
         </table>
     </div>
-    
-    <!-- Part 1 -->
+
     <div class="section">
         <div class="section-header">
-            <h2>Part 1: Introduction</h2>
-            <span class="timestamp">[0:00–0:29]</span>
+            <h2>Video 1: Confounding and Components of an Experiment</h2>
+            <span class="timestamp">[6:20]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: The Problem with Observational Studies</h2>
+            <span class="timestamp">[0:00-3:12]</span>
         </div>
         <div class="question">
             <span class="question-number">1.</span>
-            Today's video discusses potential sources of <input type="text" class="blank" data-answer="bias" style="width: 80px;"> in sampling methods.
+            Research question: Do students who take notes during AP Stats earn <input type="text" class="blank" data-answer="higher scores|higher grades|better grades" style="width: 130px;"> than students who just listen?
         </div>
         <div class="question">
             <span class="question-number">2.</span>
-            We will learn how sampling methods can lead to <input type="text" class="blank" data-answer="overestimates" style="width: 120px;"> or <input type="text" class="blank" data-answer="underestimates" style="width: 120px;">.
-        </div>
-    </div>
-    
-    <!-- Part 2 -->
-    <div class="section">
-        <div class="section-header">
-            <h2>Part 2: College "Success" Data Example</h2>
-            <span class="timestamp">[0:30–2:21]</span>
+            One way to study this is through an <input type="text" class="blank" data-answer="observational study" style="width: 150px;">: observe student grades after the midterm and record which students regularly took notes.
         </div>
         <div class="question">
             <span class="question-number">3.</span>
-            A college pamphlet claimed: "Based on a random sample of recent graduates, about <input type="text" class="blank" data-answer="99.7" style="width: 60px;">% of our former students are working full time in the career of their choice!"
+            If the group who took notes earned higher grades, can we conclude taking notes caused the higher scores?
+            <span class="hint">Circle one:</span> <input type="text" class="blank" data-answer="No|no" style="width: 60px;">
         </div>
         <div class="question">
             <span class="question-number">4.</span>
-            The key phrase to notice is that they sampled "recent <input type="text" class="blank" data-answer="graduates" style="width: 100px;">"—they only included students who actually graduated!
+            Just because there is a <input type="text" class="blank" data-answer="correlation|association|relationship" style="width: 140px;"> does not automatically mean there is <input type="text" class="blank" data-answer="causation|cause and effect" style="width: 130px;">.
         </div>
         <div class="question">
             <span class="question-number">5.</span>
-            Using IPEDS data, only <input type="text" class="blank" data-answer="40" style="width: 50px;">% of incoming freshmen graduated within 6 years.
+            A <strong>confounding variable</strong> is another variable that is related to the <input type="text" class="blank" data-answer="explanatory" style="width: 120px;"> variable and influences the <input type="text" class="blank" data-answer="response" style="width: 110px;"> variable.
         </div>
         <div class="question">
             <span class="question-number">6.</span>
-            So 99.7% of that 40% had good outcomes. But the other <input type="text" class="blank" data-answer="60" style="width: 50px;">% who didn't graduate were excluded entirely.
+            In this example, <input type="text" class="blank" data-answer="academic motivation|motivation" style="width: 170px;"> is a confounding variable because:
+            <div class="sub-questions">
+                <div class="sub-question">• Students who are academically motivated are more likely to <input type="text" class="blank" data-answer="take notes" style="width: 110px;">.</div>
+                <div class="sub-question">• Students who are academically motivated are more likely to <input type="text" class="blank" data-answer="earn higher grades|get higher grades|score higher" style="width: 150px;">.</div>
+            </div>
+        </div>
+        <div class="model-box">
+            <h4>Confounding: Visualized</h4>
+            <p>Fill in the confounding variable:</p>
+            <p><input type="text" class="blank" data-answer="academic motivation|motivation" style="width: 200px;"> &rarr; Take notes &amp; Higher grades</p>
         </div>
     </div>
-    
-    <!-- Part 3 -->
+
     <div class="section">
         <div class="section-header">
-            <h2>Part 3: Defining Bias and Undercoverage</h2>
-            <span class="timestamp">[2:22–2:43]</span>
+            <h2>Part B: What Is an Experiment?</h2>
+            <span class="timestamp">[3:32-5:43]</span>
         </div>
         <div class="question">
             <span class="question-number">7.</span>
-            <strong>Bias</strong> is a <input type="text" class="blank" data-answer="systematic" style="width: 100px;"> tendency to favor certain responses over others.
+            An <strong>experiment</strong> is where a treatment or treatments are intentionally <input type="text" class="blank" data-answer="imposed" style="width: 110px;"> on the experimental units.
         </div>
         <div class="question">
             <span class="question-number">8.</span>
-            <strong>Undercoverage bias</strong> occurs when part of the <input type="text" class="blank" data-answer="population" style="width: 100px;"> has a reduced chance of being included in the sample.
+            <strong>Experimental units</strong> are the <input type="text" class="blank" data-answer="individuals|people|subjects" style="width: 140px;"> to which we apply the treatments. When experimental units are humans, we call them <input type="text" class="blank" data-answer="participants|subjects" style="width: 140px;"> or subjects.
         </div>
         <div class="question">
             <span class="question-number">9.</span>
-            In the college example, the students who didn't graduate were <input type="text" class="blank" data-answer="excluded" style="width: 100px;"> from the sample.
-        </div>
-    </div>
-    
-    <!-- Part 4 -->
-    <div class="section">
-        <div class="section-header">
-            <h2>Part 4: Nonresponse Bias Example</h2>
-            <span class="timestamp">[2:43–3:27]</span>
+            The <strong>explanatory variable</strong> (or <input type="text" class="blank" data-answer="factor" style="width: 90px;">) may help to predict a change in the response variable.
         </div>
         <div class="question">
             <span class="question-number">10.</span>
-            A university reported that 85% of students secured paid internships. They collected this data by randomly selecting students and sending them a <input type="text" class="blank" data-answer="survey" style="width: 80px;">.
+            The <strong>response variable</strong> is what we use to <input type="text" class="blank" data-answer="measure" style="width: 110px;"> the outcome of a study.
         </div>
         <div class="question">
             <span class="question-number">11.</span>
-            Only <input type="text" class="blank" data-answer="10" style="width: 50px;">% of those students actually responded to the survey.
+            <strong>Proposed experiment:</strong> Let students decide whether or not to take notes.
+            <div class="sub-questions">
+                <div class="sub-question">• Explanatory variable: Does the student take notes? (Levels: <input type="text" class="blank" data-answer="yes or no|yes/no|takes notes|does not take notes" style="width: 190px;">)</div>
+                <div class="sub-question">• Response variable: <input type="text" class="blank" data-answer="midterm grade|exam grade|test score" style="width: 170px;">.</div>
+            </div>
         </div>
         <div class="question">
             <span class="question-number">12.</span>
-            <strong>Nonresponse bias</strong> occurs when individuals chosen for a sample don't <input type="text" class="blank" data-answer="respond" style="width: 80px;">, and these individuals <input type="text" class="blank" data-answer="differ" style="width: 70px;"> from those who did respond.
+            Is this a well-designed experiment? <span class="hint">Circle one:</span> <input type="text" class="blank" data-answer="No|no" style="width: 60px;">
         </div>
-    </div>
-    
-    <!-- Part 5 -->
-    <div class="section">
-        <div class="section-header">
-            <h2>Part 5: Model Response Strategy for FRQs</h2>
-            <span class="timestamp">[3:27–4:54]</span>
-        </div>
-        <p>When writing about bias on free-response questions, follow these three steps:</p>
         <div class="question">
             <span class="question-number">13.</span>
-            <strong>Step 1:</strong> Identify the <input type="text" class="blank" data-answer="population" style="width: 100px;"> and the <input type="text" class="blank" data-answer="sample" style="width: 80px;">.
+            Why or why not? Confounding is still possible because <input type="text" class="blank" data-answer="students self-select to take notes|more motivated students choose notes|self-selection" style="width: 240px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part C: Key Takeaways</h2>
+            <span class="timestamp">[5:59-6:20]</span>
         </div>
         <div class="question">
             <span class="question-number">14.</span>
-            <strong>Step 2:</strong> Explain how sampled individuals might <input type="text" class="blank" data-answer="differ from" style="width: 100px;"> the general population.
+            Observational studies cannot determine <input type="text" class="blank" data-answer="causation|cause and effect" style="width: 140px;"> due to possible <input type="text" class="blank" data-answer="confounding|confounding variables" style="width: 170px;">.
         </div>
         <div class="question">
             <span class="question-number">15.</span>
-            <strong>Step 3:</strong> Explain how this leads to an <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> or <input type="text" class="blank" data-answer="underestimate" style="width: 110px;">.
-        </div>
-        
-        <div class="model-box">
-            <h4>Applying the 3-Step Model: Internship Example</h4>
-            <div class="model-step">
-                <strong>Step 1:</strong> Population: <input type="text" class="blank" data-answer="all students" style="width: 100px;"> &nbsp; Sample: <input type="text" class="blank" data-answer="survey respondents" style="width: 140px;">
-            </div>
-            <div class="model-step">
-                <strong>Step 2:</strong> Students without paid internships may be <input type="text" class="blank" data-answer="ashamed" style="width: 90px;"> and disproportionately choose not to respond.
-            </div>
-            <div class="model-step">
-                <strong>Step 3:</strong> Because students without internships respond less often, 85% may be an <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> of the true percentage.
-            </div>
+            An experiment intentionally imposes <input type="text" class="blank" data-answer="treatments" style="width: 130px;"> on the participants in order to observe a <input type="text" class="blank" data-answer="response|change in response" style="width: 170px;">.
         </div>
     </div>
-    
-    <!-- Part 6 -->
+
     <div class="section">
         <div class="section-header">
-            <h2>Part 6: Voluntary Response Bias</h2>
-            <span class="timestamp">[4:54–5:42]</span>
+            <h2>Video 2: Elements of a Well-Designed Experiment</h2>
+            <span class="timestamp">[6:58]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: Four Principles of Experimental Design</h2>
+            <span class="timestamp">[0:00-1:42]</span>
         </div>
         <div class="question">
             <span class="question-number">16.</span>
-            Voluntary response bias occurs when invitations are sent to <input type="text" class="blank" data-answer="all" style="width: 50px;"> individuals, and those who choose to participate (<input type="text" class="blank" data-answer="volunteers" style="width: 100px;">) may differ from those who don't.
+            A well-designed experiment must include:
+            <table class="vocab-table" style="margin-top: 10px;">
+                <tr>
+                    <td style="width: 160px;">1. <input type="text" class="blank" data-answer="Comparison" style="width: 130px;"></td>
+                    <td>Compare at least <input type="text" class="blank" data-answer="two|2" style="width: 70px;"> treatment groups (one could be a control group).</td>
+                </tr>
+                <tr>
+                    <td>2. <input type="text" class="blank" data-answer="Random assignment|Randomization" style="width: 170px;"></td>
+                    <td>Randomly assign treatments to experimental units to balance out confounding factors.</td>
+                </tr>
+                <tr>
+                    <td>3. <input type="text" class="blank" data-answer="Replication" style="width: 130px;"></td>
+                    <td>Use <input type="text" class="blank" data-answer="many|enough|multiple" style="width: 100px;"> experimental units in each treatment group.</td>
+                </tr>
+                <tr>
+                    <td>4. <input type="text" class="blank" data-answer="Control" style="width: 120px;"></td>
+                    <td>Control potential <input type="text" class="blank" data-answer="confounding variables|lurking variables" style="width: 200px;"> where appropriate.</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part B: Bulls-Eye! Example</h2>
+            <span class="timestamp">[1:43-4:17]</span>
         </div>
         <div class="question">
             <span class="question-number">17.</span>
-            <strong>Example:</strong> You want to estimate the percentage of people who enjoy running. You post an ad for a "<input type="text" class="blank" data-answer="running" style="width: 80px;"> study" and survey the people who respond.
+            Research question: Does painting eyes on cattle's rears reduce <input type="text" class="blank" data-answer="predation|lion attacks|attacks" style="width: 150px;">?
         </div>
         <div class="question">
             <span class="question-number">18.</span>
-            This would likely <input type="text" class="blank" data-answer="overestimate" style="width: 110px;"> the true proportion who like running because volunteers are more likely to already enjoy running.
-        </div>
-    </div>
-    
-    <!-- Part 7 -->
-    <div class="section">
-        <div class="section-header">
-            <h2>Part 7: Survey-Specific Bias</h2>
-            <span class="timestamp">[6:11–6:56]</span>
+            A study in <input type="text" class="blank" data-answer="Botswana" style="width: 120px;"> randomly assigned cattle to receive one of three treatments:
+            <div class="sub-questions">
+                <div class="sub-question">• Treatment 1: <input type="text" class="blank" data-answer="eyespots|painted eyes|eyes painted" style="width: 150px;"> (683 cattle)</div>
+                <div class="sub-question">• Treatment 2: <input type="text" class="blank" data-answer="cross mark|cross-marks|X mark" style="width: 150px;"> (543 cattle)</div>
+                <div class="sub-question">• Treatment 3: <input type="text" class="blank" data-answer="unmarked|no mark|no paint" style="width: 150px;"> (835 cattle)</div>
+            </div>
         </div>
         <div class="question">
             <span class="question-number">19.</span>
-            <strong>Question wording bias</strong> occurs when survey questions are <input type="text" class="blank" data-answer="confusing" style="width: 100px;"> or <input type="text" class="blank" data-answer="leading" style="width: 80px;">.
+            Results: Of the 683 cattle with eyespots, <input type="text" class="blank" data-answer="0|zero" style="width: 70px;"> were attacked. <input type="text" class="blank" data-answer="4|four" style="width: 70px;"> cross-marked and <input type="text" class="blank" data-answer="15|fifteen" style="width: 70px;"> unmarked cattle were killed.
         </div>
         <div class="question">
             <span class="question-number">20.</span>
-            <strong>Self-reported response bias</strong> occurs when individuals <input type="text" class="blank" data-answer="inaccurately" style="width: 110px;"> report their own traits.
+            This is an <input type="text" class="blank" data-answer="experiment" style="width: 120px;"> (not observational) because cattle were <input type="text" class="blank" data-answer="randomly assigned|assigned at random" style="width: 170px;"> to treatments.
         </div>
         <div class="question">
             <span class="question-number">21.</span>
-            <em>Important advice:</em> If you're unsure which specific type of bias to name on an FRQ, just <input type="text" class="blank" data-answer="describe" style="width: 90px;"> how the bias arises and whether it leads to an over or underestimate.
+            How was <strong>control</strong> achieved in this study? The experiment was conducted in the same general <input type="text" class="blank" data-answer="location|area" style="width: 120px;"> during the same general <input type="text" class="blank" data-answer="time|season|period" style="width: 120px;">.
         </div>
     </div>
-    
-    <!-- Part 8 -->
+
     <div class="section">
         <div class="section-header">
-            <h2>Part 8: Key Takeaways</h2>
-            <span class="timestamp">[6:56–7:23]</span>
+            <h2>Part C: Experimental Design Diagram</h2>
+            <span class="timestamp">[4:18-6:27]</span>
         </div>
         <div class="question">
             <span class="question-number">22.</span>
-            Bias arises when certain responses are <input type="text" class="blank" data-answer="systematically" style="width: 120px;"> favored over others.
+            Complete the experimental design diagram:
+            <div class="model-box">
+                <p>Cattle &rarr; <input type="text" class="blank" data-answer="Random assignment|Randomization" style="width: 160px;"> &rarr; three groups &rarr; treatments &rarr; compare proportion killed.</p>
+                <div class="sub-questions">
+                    <div class="sub-question">Group 1 treatment: <input type="text" class="blank" data-answer="eyespots|painted eyes" style="width: 150px;"></div>
+                    <div class="sub-question">Group 2 treatment: <input type="text" class="blank" data-answer="cross mark|cross-marks|X mark" style="width: 150px;"></div>
+                    <div class="sub-question">Group 3 treatment: <input type="text" class="blank" data-answer="unmarked|no paint" style="width: 150px;"></div>
+                </div>
+            </div>
         </div>
         <div class="question">
             <span class="question-number">23.</span>
-            When describing bias, explain how the <input type="text" class="blank" data-answer="sample" style="width: 80px;"> may differ from the <input type="text" class="blank" data-answer="population" style="width: 100px;"> and the resulting <input type="text" class="blank" data-answer="direction" style="width: 90px;"> of bias.
+            Important note: On the AP Exam, simply providing a diagram may not give full credit. You must also explain <input type="text" class="blank" data-answer="how" style="width: 80px;"> the random assignment is performed.
         </div>
         <div class="question">
             <span class="question-number">24.</span>
-            When analyzing data: Be <input type="text" class="blank" data-answer="critical" style="width: 80px;">. Be <input type="text" class="blank" data-answer="cautious" style="width: 80px;">. Be <input type="text" class="blank" data-answer="compassionate" style="width: 110px;">.
+            One method: Number all cattle from 1 to N. Use a <input type="text" class="blank" data-answer="random number generator|random digit table" style="width: 200px;"> to select which cattle go to each group. Continue until the desired number are assigned to each treatment group.
         </div>
     </div>
-    
-    <!-- Controls -->
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part D: Key Takeaways</h2>
+            <span class="timestamp">[6:38-6:58]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">25.</span>
+            A well-designed experiment should include:
+            <div class="sub-questions">
+                <div class="sub-question">• <input type="text" class="blank" data-answer="Comparison" style="width: 140px;"> between at least two groups</div>
+                <div class="sub-question">• Random <input type="text" class="blank" data-answer="assignment" style="width: 130px;"> of treatments to experimental units</div>
+                <div class="sub-question">• <input type="text" class="blank" data-answer="Replication" style="width: 140px;"> of treatments to multiple experimental units</div>
+                <div class="sub-question">• <input type="text" class="blank" data-answer="Control" style="width: 130px;"> of possible confounding factors</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Video 3: Experimental Designs and Methods</h2>
+            <span class="timestamp">[10:11]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: Completely Randomized Design</h2>
+            <span class="timestamp">[0:00-3:12]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">26.</span>
+            Example: A melanoma treatment study compared standard care to a combination treatment. The <input type="text" class="blank" data-answer="survival rate|survival" style="width: 140px;"> was measured in both groups.
+        </div>
+        <div class="question">
+            <span class="question-number">27.</span>
+            The study is described as: "randomized, <input type="text" class="blank" data-answer="controlled|placebo-controlled" style="width: 160px;">, <input type="text" class="blank" data-answer="double-blind" style="width: 140px;">".
+        </div>
+        <div class="question">
+            <span class="question-number">28.</span>
+            In a <strong>completely randomized design</strong>, treatments are assigned to experimental units completely at <input type="text" class="blank" data-answer="random" style="width: 120px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">29.</span>
+            Benefit: Random assignment tends to <input type="text" class="blank" data-answer="balance out|spread out" style="width: 150px;"> the effects of confounding variables so that differences in responses can be attributed to <input type="text" class="blank" data-answer="treatments|the treatment" style="width: 150px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">30.</span>
+            Limitation: There may still be something about the <input type="text" class="blank" data-answer="volunteers|sample|patients" style="width: 150px;"> that affects results.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part B: Randomized Block Design</h2>
+            <span class="timestamp">[3:13-5:26]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">31.</span>
+            A <strong>Randomized Block Design</strong> ensures that experimental units within each <input type="text" class="blank" data-answer="block" style="width: 110px;"> are similar with respect to a blocking variable.
+        </div>
+        <div class="question">
+            <span class="question-number">32.</span>
+            Blocking helps to separate <input type="text" class="blank" data-answer="treatment effects|effects of treatments" style="width: 200px;"> from differences due to the blocking variable.
+        </div>
+        <div class="question">
+            <span class="question-number">33.</span>
+            In the melanoma study, <input type="text" class="blank" data-answer="disease severity|stage of melanoma|severity" style="width: 190px;"> could be a blocking variable because the treatment may work differently for more severe vs. less severe cases.
+        </div>
+        <div class="question">
+            <span class="question-number">34.</span>
+            Key distinction: Blocking is <strong>not</strong> random. It is done by the <input type="text" class="blank" data-answer="researcher|experimenter" style="width: 150px;">. Then, <strong>within</strong> each block, we <input type="text" class="blank" data-answer="randomly assign treatments|randomize" style="width: 200px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part C: Placebo and the Placebo Effect</h2>
+            <span class="timestamp">[5:27-7:38]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">35.</span>
+            A <strong>placebo</strong> is a "<input type="text" class="blank" data-answer="fake|dummy" style="width: 90px;">" treatment that is similar to the treatment being tested.
+        </div>
+        <div class="question">
+            <span class="question-number">36.</span>
+            Why use a placebo? So that all patients behave the same way (for example, come in at the same <input type="text" class="blank" data-answer="time|schedule|frequency" style="width: 120px;">) regardless of which group they are in.
+        </div>
+        <div class="question">
+            <span class="question-number">37.</span>
+            The <strong>placebo effect</strong> occurs when experimental units have a <input type="text" class="blank" data-answer="response|positive response|improvement" style="width: 170px;"> to a placebo. This is a naturally occurring phenomenon.
+        </div>
+        <div class="question">
+            <span class="question-number">38.</span>
+            Using a placebo helps determine if an effect is truly due to the <input type="text" class="blank" data-answer="treatment" style="width: 130px;"> or just from receiving some treatment.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part D: Blinding</h2>
+            <span class="timestamp">[7:39-8:13]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">39.</span>
+            <strong>Single-blind experiment:</strong> The <input type="text" class="blank" data-answer="subjects|participants" style="width: 150px;"> do not know which treatment they are receiving, but the researchers do (or vice versa).
+        </div>
+        <div class="question">
+            <span class="question-number">40.</span>
+            <strong>Double-blind experiment:</strong> Neither the <input type="text" class="blank" data-answer="subjects|participants" style="width: 150px;"> nor the <input type="text" class="blank" data-answer="researchers|experimenters|evaluators" style="width: 190px;"> who interact with them know which treatment is being administered.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part E: Matched Pairs Design</h2>
+            <span class="timestamp">[8:14-9:28]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">41.</span>
+            <strong>Matched Pairs Design</strong> is a special type of block design where each block has size <input type="text" class="blank" data-answer="2|two" style="width: 80px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">42.</span>
+            Pairs are arranged such that the two units are very closely <input type="text" class="blank" data-answer="matched|similar" style="width: 130px;"> on relevant factors (like twins!).
+        </div>
+        <div class="question">
+            <span class="question-number">43.</span>
+            Within each pair, <input type="text" class="blank" data-answer="randomization|random assignment" style="width: 170px;"> is used to determine which unit receives which treatment.
+        </div>
+        <div class="question">
+            <span class="question-number">44.</span>
+            Alternate form: Each subject may receive <input type="text" class="blank" data-answer="both treatments|each treatment" style="width: 170px;">, with randomization to determine the <input type="text" class="blank" data-answer="order|sequence" style="width: 120px;"> of treatments.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part F: Key Takeaways</h2>
+            <span class="timestamp">[9:29-10:11]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">45.</span>
+            A completely randomized design helps to <input type="text" class="blank" data-answer="balance|spread out" style="width: 140px;"> potential confounding variables.
+        </div>
+        <div class="question">
+            <span class="question-number">46.</span>
+            Block design ensures <input type="text" class="blank" data-answer="similarity within blocks|homogeneity" style="width: 200px;"> within blocks before randomization of treatments.
+        </div>
+        <div class="question">
+            <span class="question-number">47.</span>
+            The use of a <input type="text" class="blank" data-answer="placebo" style="width: 120px;"> helps determine if an effect is truly due to the treatment.
+        </div>
+        <div class="question">
+            <span class="question-number">48.</span>
+            <input type="text" class="blank" data-answer="Blinding" style="width: 120px;"> occurs when subjects and/or researchers are unaware of the treatment.
+        </div>
+    </div>
+
+    <div class="reflection-box">
+        <div class="section-header">
+            <h2>Post-Video Reflection</h2>
+        </div>
+        <div class="question">
+            <span class="question-number">49.</span>
+            <strong>Identifying Components:</strong> A pharmaceutical company wants to test whether a new pain medication is more effective than a current medication. They randomly assign 200 patients with chronic back pain to receive either the new medication or the current medication for 4 weeks, then measure pain levels.
+            <div class="sub-questions">
+                <div class="sub-question">• Experimental units: <input type="text" class="blank" data-answer="200 patients with chronic back pain|patients" style="width: 240px;"></div>
+                <div class="sub-question">• Explanatory variable (factor): <input type="text" class="blank" data-answer="type of medication|which medication|new vs current medication" style="width: 260px;"></div>
+                <div class="sub-question">• Treatments: <input type="text" class="blank" data-answer="new medication and current medication|new vs current medication" style="width: 240px;"></div>
+                <div class="sub-question">• Response variable: <input type="text" class="blank" data-answer="pain level after 4 weeks|pain levels|reported pain" style="width: 220px;"></div>
+            </div>
+        </div>
+        <div class="question">
+            <span class="question-number">50.</span>
+            <strong>Design Improvement:</strong> The company is concerned that the severity of back pain (mild vs severe) might affect how well the medication works. What type of experimental design would address this concern, and how would it be implemented?
+            <textarea placeholder="Hint: consider blocking by severity, then randomize within each block."></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">51.</span>
+            <strong>Critical Distinction:</strong> Explain the difference between <strong>random selection</strong> and <strong>random assignment</strong>. Which one allows us to generalize results? Which one allows us to establish causation?
+            <textarea placeholder="Random selection -> generalize to population; random assignment -> causation."></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">52.</span>
+            <strong>Confounding Check:</strong> A researcher wants to determine if drinking coffee improves test scores. She surveys students about their coffee habits and compares their exam grades. Identify one potential confounding variable and explain why it creates a problem.
+            <textarea placeholder="Example: study habits, sleep, or prior GPA could be confounding."></textarea>
+        </div>
+    </div>
+
+    <div class="exit-ticket">
+        <h3>Exit Ticket</h3>
+        <p>In 2-3 sentences, explain why random assignment of treatments is essential for establishing a cause-and-effect relationship.</p>
+        <textarea></textarea>
+    </div>
+
     <div class="controls">
         <button class="check-btn" onclick="checkAnswers()">Check Answers</button>
         <button class="show-btn" onclick="showAnswers()">Show Answers</button>
         <button class="reset-btn" onclick="resetForm()">Reset</button>
     </div>
 
-    <!-- Slide-out aggregate panel (single instance) -->
-    <div id="aggregateDrawer" class="aggregate-drawer" aria-live="polite">
+    <div class="aggregate-drawer" id="aggregateDrawer" aria-live="polite">
         <div class="aggregate-header">
             <span id="aggregateTitle">Class responses</span>
             <button type="button" id="aggregateClose" class="aggregate-trigger" style="margin-left:0;">Close</button>
@@ -677,7 +902,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../railway_config.js"></script>
     <script src="../railway_client.js"></script>
-    
+
     <script>
         // Normalize answer for comparison
         function normalize(str) {
@@ -726,7 +951,7 @@
             });
             
             const scoreDisplay = document.getElementById('scoreDisplay');
-            const percentage = Math.round((correct / total) * 100);
+            const percentage = total === 0 ? 0 : Math.round((correct / total) * 100);
             scoreDisplay.textContent = `Score: ${correct} / ${total} (${percentage}%)`;
             scoreDisplay.classList.add('visible');
         }
@@ -736,7 +961,6 @@
             blanks.forEach(blank => {
                 const answer = blank.dataset.answer;
                 if (answer) {
-                    // Show first answer if multiple options
                     blank.value = answer.split('|')[0];
                     blank.classList.add('correct');
                     blank.classList.remove('incorrect');
@@ -774,7 +998,7 @@
         });
 
         // --- Live sync + aggregate charts ---
-        const WORKSHEET_ID = 'WS-U3L4';
+        const WORKSHEET_ID = 'WS-U3L5';
         const chartInstances = {};
         const LOCAL_USER_KEY = 'worksheetLiveUser';
         const debounceTimers = {};
@@ -855,7 +1079,6 @@
             const nameField = document.getElementById('studentName');
             const username = (usernameField?.value || '').trim();
             if (username) {
-                // Remember locally to reduce friction
                 try {
                     localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({
                         username,
@@ -1053,7 +1276,6 @@
                 }
             });
 
-            // If drawer is open, refresh only the currently viewed question
             if (currentDrawerQuestionId && uniqueQuestions.has(currentDrawerQuestionId)) {
                 await renderAggregate(currentDrawerQuestionId, uniqueQuestions.get(currentDrawerQuestionId));
             }
@@ -1061,12 +1283,11 @@
 
         function handleLiveUpdate(blank) {
             const username = getUsername();
-            if (!username) return; // Skip if user hasn't provided a username
+            if (!username) return;
             const questionId = blank.dataset.questionId;
             const correctAnswers = (blank.dataset.answer || '').split('|');
             if (!questionId) return;
 
-            // Debounce per-question to avoid flooding
             if (debounceTimers[questionId]) {
                 clearTimeout(debounceTimers[questionId]);
             }
@@ -1108,7 +1329,6 @@
             await Promise.all(submissions);
         }
 
-        // Extend existing button actions (bind to window to avoid scoping issues)
         const originalCheckAnswers = window.checkAnswers || function() {};
         window.checkAnswers = async function() {
             try {

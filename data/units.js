@@ -511,6 +511,8 @@ const ALL_UNITS_DATA = [
         ],
         pdfs: [
           { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" }
+          ,
+          { url: "worksheets/u3l5_worksheet_live.html", label: "Live Worksheet (HTML, interactive)" }
         ],
       },
       {
