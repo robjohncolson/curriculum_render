@@ -488,7 +488,7 @@ const ALL_UNITS_DATA = [
         pdfs: [
           { url: "pdf/u3l4_worksheet.pdf", label: "Follow-Along Worksheet" }
           ,
-          { url: "worksheets/u3l4_worksheet%20(1).html", label: "Live Worksheet (HTML, interactive)" }
+          { url: "worksheets/u3l4.html", label: "Live Worksheet (HTML, interactive)" }
         ],
       },
       {
@@ -512,7 +512,7 @@ const ALL_UNITS_DATA = [
         pdfs: [
           { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" }
           ,
-          { url: "worksheets/u3l5_worksheet_live.html", label: "Live Worksheet (HTML, interactive)" }
+          { url: "worksheets/u3l5.html", label: "Live Worksheet (HTML, interactive)" }
         ],
       },
       {
