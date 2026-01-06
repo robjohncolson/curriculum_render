@@ -485,6 +485,9 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1o3YuZt7Kai5qovHysWo4vaXlHp3WXtc9/view?usp=drive_link"
           }
         ],
+        pdfs: [
+          { url: "pdf/u3l4_worksheet.pdf", label: "Follow-Along Worksheet" }
+        ],
       },
       {
         id: "3-5",
@@ -503,6 +506,9 @@ const ALL_UNITS_DATA = [
             url: "https://apclassroom.collegeboard.org/d/0xfkk5691j?sui=33,3",
             altUrl: "https://drive.google.com/file/d/1pp-KwUGnBS-6RWvB4U5eKxopkCOYQ9KD/view?usp=drive_link"
           }
+        ],
+        pdfs: [
+          { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" }
         ],
       },
       {
