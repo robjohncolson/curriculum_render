@@ -1,0 +1,410 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\setlength{\headheight}{14pt}
+
+% Colors
+\definecolor{mitred}{RGB}{163, 31, 52}
+\definecolor{lightgray}{RGB}{245, 245, 245}
+\definecolor{darkblue}{RGB}{0, 51, 102}
+
+% Custom blank command
+\newcommand{\blank}[1]{\underline{\hspace{#1}}}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{MIT 6.0001} | Lecture 1: What is Computation?}
+\rhead{Follow-Along Worksheet}
+\lfoot{Name: \underline{\hspace{2in}} \quad Period: \underline{\hspace{0.5in}}}
+\rfoot{Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+\textbf{\LARGE Introduction to Computer Science and Programming in Python}\\[0.5em]
+\textbf{\Large Lecture 1: What is Computation?}\\[0.3em]
+\textit{MIT OpenCourseWare 6.0001 | Fall 2016 | Instructor: Ana Bell}
+\end{center}
+
+\vspace{0.5em}
+
+%% LEARNING OBJECTIVES BOX
+\begin{tcolorbox}[colback=white, colframe=darkblue, title=\textbf{Learning Objectives}, fonttitle=\color{white}]
+By the end of this lecture, you will be able to:
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+    \item Distinguish between \textbf{declarative} and \textbf{imperative} knowledge
+    \item Identify the three components that define an algorithm
+    \item Describe the basic architecture of a stored-program computer
+    \item Differentiate between syntax, static semantics, and semantics
+    \item Use Python's scalar object types (int, float, bool, NoneType)
+    \item Write and evaluate simple expressions using operators
+    \item Create variable bindings and understand how assignment works in memory
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{0.5em}
+
+%% VOCABULARY BOX
+\begin{tcolorbox}[colback=lightgray, colframe=gray, title=\textbf{Key Vocabulary}]
+\begin{tabularx}{\textwidth}{>{\bfseries}l X}
+Algorithm & A recipe for computation: a sequence of steps, flow of control, and a stopping condition \\[3pt]
+Declarative Knowledge & Statements of fact (``what is true'') \\[3pt]
+Imperative Knowledge & A recipe or procedure (``how to'' do something) \\[3pt]
+Syntax & The rules governing what forms are legal in a language \\[3pt]
+Semantics & The meaning of a syntactically correct expression \\[3pt]
+Binding & Associating a variable name with a value in memory \\[3pt]
+Expression & A combination of objects and operators that evaluates to a value \\
+\end{tabularx}
+\end{tcolorbox}
+
+\vspace{1em}
+
+%% SECTION 1: Course Introduction
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[0:00--4:00] Course Introduction \& The Three Pillars}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[leftmargin=*, label=\arabic*.]
+    \item This is a \textbf{fast-paced course}. The key advice for beginners is:\\ 
+    \blank{1.5in}, \blank{1.5in}, \blank{1.5in}!
+    
+    \item All learning in programming depends on three interconnected pillars:
+    \begin{itemize}[itemsep=4pt]
+        \item \blank{2in} of concepts
+        \item \blank{2in} skill
+        \item \blank{2in} solving
+    \end{itemize}
+    
+    \item Which of these pillars does \textit{practice} support? \blank{2in}
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 2: What Does a Computer Do?
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[7:30--10:30] What Does a Computer Do?}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item Fundamentally, a computer does two things:
+    \begin{itemize}[itemsep=4pt]
+        \item Performs \blank{2in}
+        \item \blank{2in} results
+    \end{itemize}
+    
+    \item \textbf{Critical principle:} A computer only knows \blank{2.5in}.
+    
+    \item \textbf{Two types of knowledge:}
+    \begin{itemize}[itemsep=4pt]
+        \item \textbf{Declarative:} Statements of \blank{1in}. Example: ``The square root of a number $x$ is $y$ such that $y \times y = x$.''
+        \item \textbf{Imperative:} A \blank{1.5in} for how to find something. Example: A step-by-step method to compute a square root.
+    \end{itemize}
+    
+    \item Can a computer directly use declarative knowledge to solve problems? \blank{1in}\\[4pt]
+    Why or why not? \blank{4.5in}
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 3: Algorithms
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[12:50--15:30] What is an Algorithm?}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item An algorithm (or ``recipe'') has \textbf{three required components}:
+    \begin{enumerate}[label=(\alph*), itemsep=6pt]
+        \item A sequence of \blank{1.5in} \blank{1.5in}
+        \item \blank{1.5in} of \blank{1.5in} (decisions, repetition)
+        \item A \blank{1.5in} condition (when to stop)
+    \end{enumerate}
+    
+    \item Consider the square root algorithm shown in lecture. Complete the trace:
+    
+    \begin{center}
+    \begin{tabular}{|c|c|c|}
+    \hline
+    \textbf{Iteration} & \textbf{Guess ($g$)} & \textbf{$g \times g$} \\
+    \hline
+    Start & 3 & 9 \\
+    \hline
+    1 & \blank{0.6in} & \blank{0.6in} \\
+    \hline
+    2 & \blank{0.6in} & \blank{0.6in} \\
+    \hline
+    \end{tabular}
+    \end{center}
+    (Finding $\sqrt{16}$ starting with guess = 3, using $g_{\text{new}} = \frac{g + \frac{x}{g}}{2}$)
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 4: Machine Architecture
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[16:30--22:00] Computers as Machines}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item A \textbf{fixed program computer} (like a calculator) can only do \blank{2in}.
+    
+    \item A \textbf{stored program computer} treats instructions as \blank{1.5in}. This means the same machine can run \blank{2in} programs.
+    
+    \item The four main components of basic machine architecture:
+    \begin{itemize}[itemsep=4pt]
+        \item \blank{1.5in} (stores data and instructions)
+        \item \blank{2in} (ALU --- does math)
+        \item \blank{1.5in} Unit (manages execution order)
+        \item Input / \blank{1in}
+    \end{itemize}
+    
+    \item Alan Turing proved that \blank{1in} primitives can compute \blank{1.5in}.
+    
+    \item \textbf{Turing completeness:} Anything computable in one language\\is \blank{2.5in}.
+\end{enumerate}
+
+\newpage
+
+%% SECTION 5: Language Structure
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[22:00--28:00] Aspects of Programming Languages}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item Every programming language has these aspects:
+    
+    \vspace{0.5em}
+    \small
+    \begin{tabularx}{\textwidth}{|>{\bfseries}p{1.5in}|X|}
+    \hline
+    Aspect & Definition \\
+    \hline
+    Primitive constructs & The basic \blank{1.2in} of the language \\
+    \hline
+    Syntax & Rules for which \blank{1.2in} are \blank{0.8in} \\
+    \hline
+    Static semantics & Which valid strings have \blank{1.2in} \\
+    \hline
+    Semantics & The \blank{1.2in} of a valid expression \\
+    \hline
+    \end{tabularx}
+    \normalsize
+    
+    \item \textbf{Example:} ``\texttt{"hi"5}'' is a \blank{1.5in} error in Python.
+    
+    \item \textbf{Example:} ``I are hungry'' is syntactically valid English but has a \blank{2in} error.
+    
+    \item Programs in Python have exactly \blank{1in} meaning. But that meaning might not match the programmer's \blank{1.5in}.
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 6: Error Types
+\begin{tcolorbox}[colback=lightgray, colframe=gray, title=\textbf{Error Taxonomy}]
+\small
+\begin{tabularx}{\textwidth}{|>{\bfseries}p{1.3in}|X|X|}
+\hline
+Error Type & What It Means & Example \\
+\hline
+Syntactic & \blank{1.2in} & Missing parenthesis \\
+\hline
+Static semantic & Legal form but \blank{1in} & \texttt{"hi" + 5} \\
+\hline
+Semantic/Logical & \blank{1.2in} but wrong result & Off-by-one loop \\
+\hline
+\end{tabularx}
+\end{tcolorbox}
+
+\vspace{1em}
+
+%% SECTION 7: Python Objects
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[28:57--33:00] Python Objects and Types}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item A Python program is a sequence of \blank{1.5in} and \blank{1.5in}.
+    
+    \item Everything in Python is an \blank{1.5in}. Every object has a \blank{1in}.
+    
+    \item The type of an object determines what \blank{2in} can be performed on it.
+    
+    \item \textbf{Scalar types} (indivisible):
+    \begin{itemize}[itemsep=4pt]
+        \item \texttt{int}: \blank{2in} (e.g., \texttt{5}, \texttt{-3})
+        \item \texttt{float}: \blank{2in} numbers (e.g., \texttt{3.14})
+        \item \texttt{bool}: \blank{1.5in} values (\texttt{True} or \texttt{False})
+        \item \texttt{NoneType}: Special type with only value \blank{1in}
+    \end{itemize}
+    
+    \item To check an object's type, use \texttt{type(\blank{1in})}
+    
+    \item \textbf{Type conversion (casting):}
+    \begin{itemize}[itemsep=4pt]
+        \item \texttt{float(3)} returns \blank{1in}
+        \item \texttt{int(3.9)} returns \blank{1in} (note: truncates, doesn't round!)
+    \end{itemize}
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 8: Expressions and Operators
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[34:30--36:00] Expressions and Operators}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item An \textbf{expression} combines \blank{1.5in} and \blank{1.5in} to produce a value.
+    
+    \item \textbf{Operators on \texttt{int} and \texttt{float}:}
+    
+    \vspace{0.3em}
+    \small
+    \begin{tabularx}{\textwidth}{|c|X|l|}
+    \hline
+    \textbf{Op} & \textbf{Operation} & \textbf{Example} \\
+    \hline
+    \texttt{+} & Addition & \texttt{3 + 2} $\rightarrow$ \texttt{5} \\
+    \hline
+    \texttt{-} & Subtraction & \texttt{5 - 1} $\rightarrow$ \texttt{4} \\
+    \hline
+    \texttt{*} & Multiplication & \texttt{2 * 3} $\rightarrow$ \texttt{6} \\
+    \hline
+    \texttt{/} & Division (returns \blank{0.6in}) & \texttt{5 / 2} $\rightarrow$ \blank{0.6in} \\
+    \hline
+    \texttt{//} & \blank{1in} division & \texttt{5 // 2} $\rightarrow$ \texttt{2} \\
+    \hline
+    \texttt{\%} & \blank{1in} (remainder) & \texttt{5 \% 2} $\rightarrow$ \blank{0.4in} \\
+    \hline
+    \texttt{**} & \blank{1in} (exponent) & \texttt{2 ** 3} $\rightarrow$ \texttt{8} \\
+    \hline
+    \end{tabularx}
+    \normalsize
+\end{enumerate}
+
+\vspace{0.8em}
+
+%% SECTION 9: Variables and Binding
+\begin{tcolorbox}[colback=mitred!5, colframe=mitred, title=\textbf{[36:13--42:14] Variables and Assignment}]
+\end{tcolorbox}
+
+\vspace{-0.5em}
+
+\begin{enumerate}[resume, leftmargin=*, label=\arabic*.]
+    \item The \texttt{=} sign in Python means \blank{1.5in}, \textbf{not} mathematical equality.
+    
+    \item Assignment \textbf{binds} a \blank{1in} to a \blank{1in} in memory.
+    
+    \item When you write \texttt{pi = 3.14159}:
+    \begin{enumerate}[label=(\alph*)]
+        \item Python evaluates the \blank{1.5in} side first
+        \item Then binds the name \texttt{pi} to that \blank{1in}
+    \end{enumerate}
+    
+    \item Why is \texttt{radius = radius + 1} valid in Python but not in math?\\[6pt]
+    \blank{5.5in}
+    
+    \item \textbf{Trace through this code:}
+    \begin{verbatim}
+    pi = 3.14
+    radius = 2.2
+    area = pi * (radius ** 2)
+    radius = radius + 1
+    \end{verbatim}
+    
+    After this code runs:
+    \begin{itemize}[itemsep=4pt]
+        \item \texttt{pi} = \blank{1in}
+        \item \texttt{radius} = \blank{1in}
+        \item \texttt{area} = \blank{1.5in}
+    \end{itemize}
+    
+    \item \textbf{Critical insight:} Does \texttt{area} automatically update when \texttt{radius} changes?\\[4pt]
+    \blank{1in}. The computer does not ``remember \blank{2in}.'' It only remembers \blank{1.5in}.
+\end{enumerate}
+
+\newpage
+
+%% POST-VIDEO REFLECTION
+\begin{tcolorbox}[colback=white, colframe=darkblue, title=\textbf{Post-Video Reflection}, fonttitle=\color{white}]
+\end{tcolorbox}
+
+\vspace{0.5em}
+
+\textbf{Directions:} Answer the following questions in complete sentences.
+
+\vspace{0.5em}
+
+\begin{enumerate}[leftmargin=*, label=\textbf{R\arabic*.}]
+    \item The lecture emphasizes that ``a computer only does what you tell it to do.'' Why is this principle so important for beginning programmers to understand? What misconceptions might this correct?
+    
+    \vspace{1.2in}
+    
+    \item Explain in your own words why a computer cannot directly use declarative knowledge (like ``the square root of 16 is 4'') to solve problems. What must a programmer provide instead?
+    
+    \vspace{1.2in}
+    
+    \item Consider this code:
+    \begin{verbatim}
+        price = 100
+        tax_rate = 0.08
+        total = price * (1 + tax_rate)
+        price = 120
+    \end{verbatim}
+    A beginning programmer might expect \texttt{total} to automatically become \texttt{129.6} after the last line. Explain why it doesn't, using the memory-binding model from the lecture.
+    
+    \vspace{1.2in}
+    
+    \item The lecture introduces three types of errors: syntactic, static semantic, and semantic/logical. Which type do you think is hardest to find and fix? Why?
+    
+    \vspace{1.2in}
+\end{enumerate}
+
+\vspace{0.5em}
+
+%% EXIT TICKET
+\begin{tcolorbox}[colback=lightgray, colframe=darkblue, title=\textbf{Exit Ticket}]
+In 2--3 sentences, explain what distinguishes a \textbf{stored-program computer} from a \textbf{fixed-program computer}, and why this distinction matters for programming.
+
+\vspace{1in}
+\end{tcolorbox}
+
+\vspace{1em}
+
+%% CONNECTION TO PROBLEM SET
+\begin{tcolorbox}[colback=white, colframe=mitred, title=\textbf{Connection to Problem Set 0}]
+Your first problem set asks you to write a program that:
+\begin{enumerate}[itemsep=2pt]
+    \item Takes user input (using \texttt{input()})
+    \item Performs calculations (power and logarithm)
+    \item Prints results (using \texttt{print()})
+\end{enumerate}
+
+\textbf{Concepts from today you'll need:}
+\begin{itemize}[itemsep=2pt]
+    \item Variable binding (\texttt{x = input("Enter x: ")})
+    \item Type conversion (\texttt{int()}, \texttt{float()})
+    \item Operators (\texttt{**} for power)
+    \item The difference between typing in the shell vs.\ running a script
+\end{itemize}
+\end{tcolorbox}
+
+\end{document}

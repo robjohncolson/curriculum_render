@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIT 6.0001 Lecture 1 — Live Worksheet</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #222;
+            background: #f7f7f9;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #a31f34;
+            padding-bottom: 10px;
+            margin-bottom: 18px;
+        }
+        .header-left, .header-right { font-weight: bold; color: #a31f34; }
+        .header-center { font-weight: bold; }
+        h1 {
+            text-align: center;
+            margin: 6px 0 2px;
+            color: #a31f34;
+        }
+        .subtitle {
+            text-align: center;
+            font-style: italic;
+            color: #555;
+            margin-bottom: 12px;
+        }
+        .worksheet-label {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #0c3c78;
+        }
+        .student-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .student-info label { font-weight: bold; color: #0c3c78; }
+        .student-info input {
+            border: none;
+            border-bottom: 1px solid #444;
+            background: transparent;
+            padding: 2px 5px;
+            font-size: 1em;
+            min-width: 140px;
+        }
+        .live-note {
+            margin: -4px 0 14px;
+            color: #444;
+            font-size: 0.95em;
+        }
+        .objective-box, .vocab-box, .exit-ticket {
+            border-radius: 6px;
+            padding: 14px;
+            background: #fff;
+            margin-bottom: 18px;
+        }
+        .objective-box { border: 2px solid #0c3c78; }
+        .objective-box strong { color: #0c3c78; }
+        .vocab-box { background: #f1f1f5; border: 1px solid #d5d5dc; }
+        .vocab-box h3 { margin-top: 0; color: #0c3c78; }
+        .vocab-table { width: 100%; }
+        .vocab-table td { padding: 5px 0; vertical-align: top; }
+        .vocab-table td:first-child { font-weight: bold; width: 190px; color: #0c3c78; }
+        .section {
+            margin-bottom: 22px;
+            background: #fff;
+            border: 1px solid #e2e2e8;
+            border-radius: 6px;
+            padding: 14px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0c3c78;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+        }
+        .section-header h2 {
+            margin: 0;
+            color: #0c3c78;
+            font-size: 1.1em;
+        }
+        .timestamp { color: #666; font-size: 0.9em; font-weight: normal; }
+        .question {
+            margin-bottom: 12px;
+            padding-left: 24px;
+            position: relative;
+        }
+        .question-number {
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            color: #0c3c78;
+        }
+        .blank {
+            display: inline-block;
+            min-width: 90px;
+            border-bottom: 2px solid #0c3c78;
+            padding: 2px 8px;
+            margin: 0 3px;
+            background: #fff;
+            font-size: 1em;
+            transition: all 0.25s;
+        }
+        .blank:focus { outline: none; border-bottom-color: #a31f34; background: #f7f0f2; }
+        .blank.correct { background: #d4edda; border-bottom-color: #2e7d32; }
+        .blank.incorrect { background: #f8d7da; border-bottom-color: #c62828; }
+        .reflection-box textarea, .exit-ticket textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1em;
+            resize: vertical;
+        }
+        .controls {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 11px 22px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .check-btn { background: #0c3c78; color: #fff; }
+        .check-btn:hover { background: #0f4d94; }
+        .show-btn { background: #2e7d32; color: #fff; }
+        .show-btn:hover { background: #256428; }
+        .reset-btn { background: #6c757d; color: #fff; }
+        .reset-btn:hover { background: #5a646c; }
+        .score-display {
+            text-align: center;
+            font-size: 1.2em;
+            padding: 12px;
+            background: #0c3c78;
+            color: #fff;
+            border-radius: 6px;
+            margin: 12px 0;
+            display: none;
+        }
+        .score-display.visible { display: block; }
+        .aggregate-drawer {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 360px;
+            max-width: 92vw;
+            background: #f8fbff;
+            border: 1px solid #cddff7;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            padding: 14px;
+            z-index: 9999;
+            display: none;
+        }
+        .aggregate-drawer.open { display: block; }
+        .aggregate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.92em;
+            color: #0c3c78;
+            margin-bottom: 8px;
+        }
+        .aggregate-meta { color: #555; font-size: 0.85em; }
+        .aggregate-trigger {
+            margin-left: 8px;
+            padding: 4px 10px;
+            font-size: 0.85em;
+            background: #e8f0ff;
+            border: 1px solid #c5d6ff;
+            border-radius: 6px;
+            color: #0c3c78;
+            cursor: pointer;
+        }
+        .aggregate-trigger:hover { background: #d7e6ff; }
+        .submit-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85em;
+            color: #2e7d32;
+            margin-left: 6px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .submit-indicator.visible { opacity: 1; }
+        .particle-up {
+            position: fixed;
+            pointer-events: none;
+            color: #2e7d32;
+            font-size: 16px;
+            animation: floatUp 0.9s ease-out forwards;
+            z-index: 9999;
+        }
+        .particle-snow {
+            position: fixed;
+            pointer-events: none;
+            color: #0c3c78;
+            font-size: 16px;
+            animation: snow 1.2s ease-out forwards;
+            z-index: 9999;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-24px); }
+        }
+        @keyframes snow {
+            0% { opacity: 0.9; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-12px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">MIT 6.0001</div>
+        <div class="header-center">Lecture 1: What is Computation?</div>
+        <div class="header-right">Follow-Along (Live)</div>
+    </div>
+
+    <h1>Introduction to Computer Science and Programming in Python</h1>
+    <div class="subtitle">MIT OpenCourseWare 6.0001 | Fall 2016 | Instructor: Ana Bell</div>
+    <div class="worksheet-label">Live Worksheet — responses save automatically with your username</div>
+
+    <div class="student-info">
+        <label>Name: <input id="studentName" type="text" placeholder="Your name"></label>
+        <label>Class/Period: <input id="studentClass" type="text" placeholder="e.g., Period 2"></label>
+        <label>Username (required for live sync): <input id="worksheetUsername" type="text" placeholder="quiz username"></label>
+    </div>
+    <div class="live-note">
+        Tip: Add a username first. Blanks save on blur/Enter. Use “Class answers” to see peer responses.
+    </div>
+
+    <div id="scoreDisplay" class="score-display"></div>
+
+    <div class="objective-box">
+        <strong>Learning Objectives:</strong>
+        <ul>
+            <li>Differentiate declarative vs. imperative knowledge</li>
+            <li>Identify the three parts of an algorithm</li>
+            <li>Describe stored-program architecture</li>
+            <li>Explain syntax, static semantics, and semantics</li>
+            <li>Work with Python scalar types and operators</li>
+            <li>Trace variable binding and assignment effects</li>
+        </ul>
+    </div>
+
+    <div class="vocab-box">
+        <h3>Key Vocabulary</h3>
+        <table class="vocab-table">
+            <tr><td>Algorithm</td><td>A recipe for computation: steps, flow of control, stopping condition</td></tr>
+            <tr><td>Declarative knowledge</td><td>Statements of fact (“what is true”)</td></tr>
+            <tr><td>Imperative knowledge</td><td>Procedure for how to do something</td></tr>
+            <tr><td>Syntax</td><td>Rules for legal forms in a language</td></tr>
+            <tr><td>Semantics</td><td>Meaning of a syntactically valid expression</td></tr>
+            <tr><td>Binding</td><td>Associating a variable name with a value in memory</td></tr>
+            <tr><td>Expression</td><td>Combination of objects and operators that evaluates to a value</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[0:00–4:00] Course Introduction & Pillars</h2>
+            <span class="timestamp">Course opening</span>
+        </div>
+        <div class="question">
+            <span class="question-number">1.</span>
+            Key advice for beginners: <input type="text" class="blank" data-answer="practice" style="width: 110px;">,
+            <input type="text" class="blank" data-answer="practice" style="width: 110px;">,
+            <input type="text" class="blank" data-answer="practice" style="width: 110px;">!
+        </div>
+        <div class="question">
+            <span class="question-number">2.</span>
+            Three pillars of programming: <input type="text" class="blank" data-answer="understanding|concepts" style="width: 130px;"> of concepts,
+            <input type="text" class="blank" data-answer="programming skill|skill" style="width: 140px;">,
+            and <input type="text" class="blank" data-answer="problem solving" style="width: 140px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">3.</span>
+            Practice primarily strengthens which pillars? <input type="text" class="blank" data-answer="skill|programming skill" style="width: 140px;">
+            and <input type="text" class="blank" data-answer="problem solving" style="width: 150px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[7:30–10:30] What Does a Computer Do?</h2>
+            <span class="timestamp">Foundations</span>
+        </div>
+        <div class="question">
+            <span class="question-number">4.</span>
+            A computer does two things: performs <input type="text" class="blank" data-answer="computations|calculations" style="width: 130px;"> and
+            <input type="text" class="blank" data-answer="remembers|stores|retains" style="width: 120px;"> results.
+        </div>
+        <div class="question">
+            <span class="question-number">5.</span>
+            Critical principle: a computer only knows <input type="text" class="blank" data-answer="what you tell it|exactly what you tell it" style="width: 230px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">6.</span>
+            Declarative knowledge is statements of <input type="text" class="blank" data-answer="fact|facts|truth" style="width: 120px;">;
+            imperative knowledge is a <input type="text" class="blank" data-answer="procedure|recipe|method" style="width: 150px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">7.</span>
+            Can a computer directly use declarative knowledge? <input type="text" class="blank" data-answer="no" style="width: 80px;"> — it needs a
+            <input type="text" class="blank" data-answer="procedure|algorithm" style="width: 160px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[12:50–15:30] Algorithms</h2>
+            <span class="timestamp">Recipes</span>
+        </div>
+        <div class="question">
+            <span class="question-number">8.</span>
+            An algorithm has: a sequence of <input type="text" class="blank" data-answer="steps|instructions" style="width: 140px;">,
+            <input type="text" class="blank" data-answer="flow of control|control flow" style="width: 160px;">,
+            and a <input type="text" class="blank" data-answer="stopping condition|halting condition" style="width: 170px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">9.</span>
+            Square root (starting g=3 for √16):
+            Iteration 1 guess = <input type="text" class="blank" data-answer="4.17|4.166|4.1667" style="width: 90px;">,
+            g×g = <input type="text" class="blank" data-answer="17.36|17.4" style="width: 90px;">;
+            Iteration 2 guess = <input type="text" class="blank" data-answer="4.003|4.0|4.00" style="width: 90px;">,
+            g×g = <input type="text" class="blank" data-answer="16.02|16.0" style="width: 90px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[16:30–22:00] Machine Architecture</h2>
+            <span class="timestamp">Stored-program</span>
+        </div>
+        <div class="question">
+            <span class="question-number">10.</span>
+            A fixed-program computer can only do <input type="text" class="blank" data-answer="one task|a single task" style="width: 140px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">11.</span>
+            A stored-program computer treats instructions as <input type="text" class="blank" data-answer="data" style="width: 90px;"> so it can run
+            <input type="text" class="blank" data-answer="many programs|multiple programs" style="width: 160px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">12.</span>
+            Four main components: <input type="text" class="blank" data-answer="memory" style="width: 90px;">,
+            <input type="text" class="blank" data-answer="arithmetic logic unit|alu|alu (math)" style="width: 170px;">,
+            <input type="text" class="blank" data-answer="control|control unit" style="width: 140px;"> unit,
+            and input / <input type="text" class="blank" data-answer="output|io" style="width: 90px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">13.</span>
+            Turing showed that <input type="text" class="blank" data-answer="simple|very simple|few" style="width: 120px;"> primitives can compute
+            <input type="text" class="blank" data-answer="anything|anything computable" style="width: 170px;"> (Turing completeness).
+        </div>
+        <div class="question">
+            <span class="question-number">14.</span>
+            Anything computable in one language is <input type="text" class="blank" data-answer="computable in any other|computable in another" style="width: 200px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[22:00–28:00] Language Structure</h2>
+            <span class="timestamp">Syntax vs. meaning</span>
+        </div>
+        <div class="question">
+            <span class="question-number">15.</span>
+            Primitive constructs are the basic <input type="text" class="blank" data-answer="building blocks" style="width: 150px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">16.</span>
+            Syntax: rules for which <input type="text" class="blank" data-answer="strings|forms" style="width: 110px;"> are
+            <input type="text" class="blank" data-answer="legal|valid" style="width: 100px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">17.</span>
+            Static semantics: which valid strings have <input type="text" class="blank" data-answer="meaning" style="width: 110px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">18.</span>
+            Semantics: the <input type="text" class="blank" data-answer="meaning" style="width: 110px;"> of a valid expression.
+        </div>
+        <div class="question">
+            <span class="question-number">19.</span>
+            Example: "<code>"hi"5</code>" is a <input type="text" class="blank" data-answer="static semantic|type" style="width: 150px;"> error.
+        </div>
+        <div class="question">
+            <span class="question-number">20.</span>
+            "I are hungry" is syntactically valid English but has a <input type="text" class="blank" data-answer="semantic|meaning" style="width: 140px;"> error.
+        </div>
+        <div class="question">
+            <span class="question-number">21.</span>
+            Python programs have exactly <input type="text" class="blank" data-answer="one" style="width: 70px;"> meaning, though it might differ from the programmer's
+            <input type="text" class="blank" data-answer="intent|intentions" style="width: 120px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Error Types</h2>
+            <span class="timestamp">Taxonomy</span>
+        </div>
+        <div class="question">
+            <span class="question-number">22.</span>
+            Syntactic error: <input type="text" class="blank" data-answer="violates grammar|invalid form" style="width: 170px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">23.</span>
+            Static semantic error: legal form but <input type="text" class="blank" data-answer="meaningless|no meaning|type mismatch" style="width: 190px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">24.</span>
+            Semantic/logical error: program runs but <input type="text" class="blank" data-answer="gives wrong result|wrong answer" style="width: 190px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[28:57–33:00] Python Objects and Types</h2>
+            <span class="timestamp">Scalars</span>
+        </div>
+        <div class="question">
+            <span class="question-number">25.</span>
+            A Python program is a sequence of <input type="text" class="blank" data-answer="definitions" style="width: 130px;"> and
+            <input type="text" class="blank" data-answer="commands|statements" style="width: 140px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">26.</span>
+            Everything in Python is an <input type="text" class="blank" data-answer="object" style="width: 110px;">; every object has a <input type="text" class="blank" data-answer="type" style="width: 90px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">27.</span>
+            A type determines what <input type="text" class="blank" data-answer="operations" style="width: 130px;"> can be performed.
+        </div>
+        <div class="question">
+            <span class="question-number">28.</span>
+            Scalars: int = <input type="text" class="blank" data-answer="integers|whole numbers" style="width: 150px;">;
+            float = <input type="text" class="blank" data-answer="decimal|real numbers" style="width: 150px;">;
+            bool = <input type="text" class="blank" data-answer="true or false|boolean" style="width: 150px;">;
+            NoneType = value <input type="text" class="blank" data-answer="None" style="width: 90px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">29.</span>
+            Check type with <code>type(<input type="text" class="blank" data-answer="object|value|x" style="width: 120px;">)</code>.
+        </div>
+        <div class="question">
+            <span class="question-number">30.</span>
+            Casting: <code>float(3)</code> → <input type="text" class="blank" data-answer="3.0" style="width: 80px;">;
+            <code>int(3.9)</code> → <input type="text" class="blank" data-answer="3" style="width: 80px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[34:30–36:00] Expressions and Operators</h2>
+            <span class="timestamp">Combining objects</span>
+        </div>
+        <div class="question">
+            <span class="question-number">31.</span>
+            An expression combines <input type="text" class="blank" data-answer="objects|values" style="width: 130px;"> and
+            <input type="text" class="blank" data-answer="operators" style="width: 130px;"> to produce a value.
+        </div>
+        <div class="question">
+            <span class="question-number">32.</span>
+            Division <code>5 / 2</code> returns a <input type="text" class="blank" data-answer="float" style="width: 90px;"> (<input type="text" class="blank" data-answer="2.5" style="width: 80px;">).
+        </div>
+        <div class="question">
+            <span class="question-number">33.</span>
+            Floor division <code>5 // 2</code> = <input type="text" class="blank" data-answer="2" style="width: 70px;">; remainder <code>5 % 2</code> = <input type="text" class="blank" data-answer="1" style="width: 70px;">; exponent <code>2 ** 3</code> = <input type="text" class="blank" data-answer="8" style="width: 70px;">.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>[36:13–42:14] Variables and Binding</h2>
+            <span class="timestamp">Assignment model</span>
+        </div>
+        <div class="question">
+            <span class="question-number">34.</span>
+            "=" means <input type="text" class="blank" data-answer="assignment|bind" style="width: 130px;">, not mathematical equality.
+        </div>
+        <div class="question">
+            <span class="question-number">35.</span>
+            Assignment binds a <input type="text" class="blank" data-answer="name" style="width: 90px;"> to a <input type="text" class="blank" data-answer="value" style="width: 100px;"> in memory.
+        </div>
+        <div class="question">
+            <span class="question-number">36.</span>
+            Python evaluates the <input type="text" class="blank" data-answer="right" style="width: 80px;"> side first, then binds the name.
+        </div>
+        <div class="question">
+            <span class="question-number">37.</span>
+            Why is <code>radius = radius + 1</code> valid? Because it updates the <input type="text" class="blank" data-answer="binding|name binding" style="width: 150px;"> to a new value.
+        </div>
+        <div class="question">
+            <span class="question-number">38.</span>
+            Trace:
+            <pre style="margin:6px 0 8px; padding:8px; background:#f4f4f6; border-radius:6px;">pi = 3.14
+radius = 2.2
+area = pi * (radius ** 2)
+radius = radius + 1</pre>
+            Final values: pi = <input type="text" class="blank" data-answer="3.14" style="width: 80px;">,
+            radius = <input type="text" class="blank" data-answer="3.2|3.20" style="width: 80px;">,
+            area = <input type="text" class="blank" data-answer="15.1976|15.20|15.2" style="width: 100px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">39.</span>
+            Does <code>area</code> automatically update when <code>radius</code> changes? <input type="text" class="blank" data-answer="no" style="width: 70px;"> — the computer remembers the
+            <input type="text" class="blank" data-answer="stored value|value not the formula" style="width: 190px;">, not the formula.
+        </div>
+    </div>
+
+    <div class="section reflection-box">
+        <div class="section-header">
+            <h2>Post-Video Reflection</h2>
+            <span class="timestamp">Free response</span>
+        </div>
+        <div class="question">
+            <span class="question-number">R1.</span>
+            Why is “a computer only does what you tell it” so important for beginners?
+            <textarea placeholder="Write your reflection here..."></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">R2.</span>
+            Explain why declarative knowledge is not enough for a computer to solve problems.
+            <textarea placeholder="Write your reflection here..."></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">R3.</span>
+            Using the memory-binding model, explain why total does not change after price is reassigned in:
+            <pre style="margin:6px 0 8px; padding:8px; background:#f4f4f6; border-radius:6px;">price = 100
+tax_rate = 0.08
+total = price * (1 + tax_rate)
+price = 120</pre>
+            <textarea placeholder="Write your reflection here..."></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">R4.</span>
+            Which error type is hardest to find and fix: syntactic, static semantic, or semantic/logical? Why?
+            <textarea placeholder="Write your reflection here..."></textarea>
+        </div>
+    </div>
+
+    <div class="exit-ticket">
+        <h3>Exit Ticket</h3>
+        In 2–3 sentences, explain what distinguishes a stored-program computer from a fixed-program computer, and why this matters for programming.
+        <textarea placeholder="Your answer..."></textarea>
+    </div>
+
+    <div class="controls">
+        <button class="check-btn" onclick="checkAnswers()">Check Answers</button>
+        <button class="show-btn" onclick="showAnswers()">Show Answers</button>
+        <button class="reset-btn" onclick="resetForm()">Reset</button>
+    </div>
+
+    <div id="aggregateDrawer" class="aggregate-drawer" aria-live="polite">
+        <div class="aggregate-header">
+            <span id="aggregateTitle">Class responses</span>
+            <button type="button" id="aggregateClose" class="aggregate-trigger" style="margin-left:0;">Close</button>
+        </div>
+        <div class="aggregate-meta" id="aggregateCount"></div>
+        <canvas id="aggregateCanvas" height="180"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../railway_config.js"></script>
+    <script src="../railway_client.js"></script>
+    <script>
+        function normalize(str) {
+            return str.toLowerCase().trim()
+                .replace(/[^\w\s]/g, '')
+                .replace(/\s+/g, ' ');
+        }
+
+        function isCorrect(input, answer) {
+            const userAnswer = normalize(input);
+            const correctAnswers = answer.split('|').map(a => normalize(a));
+            for (const correct of correctAnswers) {
+                if (userAnswer === correct) return true;
+                if (correct.length > 5 && userAnswer.includes(correct)) return true;
+                if (correct.length > 5 && correct.includes(userAnswer) && userAnswer.length > 3) return true;
+            }
+            return false;
+        }
+
+        function checkAnswers() {
+            const blanks = document.querySelectorAll('.blank');
+            let correct = 0;
+            let total = 0;
+            blanks.forEach(blank => {
+                const answer = blank.dataset.answer;
+                if (!answer) return;
+                total++;
+                const userValue = blank.value.trim();
+                if (userValue === '') {
+                    blank.classList.remove('correct', 'incorrect');
+                } else if (isCorrect(userValue, answer)) {
+                    blank.classList.add('correct');
+                    blank.classList.remove('incorrect');
+                    correct++;
+                } else {
+                    blank.classList.add('incorrect');
+                    blank.classList.remove('correct');
+                }
+            });
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const percentage = total ? Math.round((correct / total) * 100) : 0;
+            scoreDisplay.textContent = `Score: ${correct} / ${total} (${percentage}%)`;
+            scoreDisplay.classList.add('visible');
+        }
+
+        function showAnswers() {
+            const blanks = document.querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                const answer = blank.dataset.answer;
+                if (answer) {
+                    blank.value = answer.split('|')[0];
+                    blank.classList.add('correct');
+                    blank.classList.remove('incorrect');
+                }
+            });
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.textContent = 'All answers shown';
+            scoreDisplay.classList.add('visible');
+        }
+
+        function resetForm() {
+            const blanks = document.querySelectorAll('.blank');
+            blanks.forEach(blank => {
+                blank.value = '';
+                blank.classList.remove('correct', 'incorrect');
+            });
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(ta => ta.value = '');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.classList.remove('visible');
+        }
+
+        document.querySelectorAll('.blank').forEach((blank, index, blanks) => {
+            blank.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const nextBlank = blanks[index + 1];
+                    if (nextBlank) nextBlank.focus();
+                }
+            });
+        });
+
+        const WORKSHEET_ID = 'WS-MIT6-LEC1';
+        const chartInstances = {};
+        const LOCAL_USER_KEY = 'worksheetLiveUser';
+        const debounceTimers = {};
+        let currentDrawerQuestionId = null;
+
+        function assignQuestionIds() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach((blank, idx) => {
+                if (!blank.dataset.questionId) {
+                    blank.dataset.questionId = `${WORKSHEET_ID}-Q${idx + 1}`;
+                }
+            });
+        }
+
+        function attachLiveListeners() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach(blank => {
+                blank.addEventListener('blur', () => handleLiveUpdate(blank));
+                blank.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLiveUpdate(blank);
+                    }
+                });
+                ensureIndicator(blank);
+            });
+        }
+
+        function ensureIndicator(blank) {
+            if (blank.nextElementSibling && blank.nextElementSibling.classList.contains('submit-indicator')) return;
+            const indicator = document.createElement('span');
+            indicator.className = 'submit-indicator';
+            indicator.innerHTML = '✓ saved';
+            blank.insertAdjacentElement('afterend', indicator);
+        }
+
+        function markSubmitted(blank) {
+            const indicator = blank.nextElementSibling && blank.nextElementSibling.classList.contains('submit-indicator')
+                ? blank.nextElementSibling
+                : null;
+            if (indicator) {
+                indicator.classList.add('visible');
+                setTimeout(() => indicator.classList.remove('visible'), 2000);
+            }
+            spawnParticleUp(blank);
+        }
+
+        function spawnParticleUp(blank) {
+            const rect = blank.getBoundingClientRect();
+            const particle = document.createElement('div');
+            particle.className = 'particle-up';
+            particle.textContent = '↑';
+            particle.style.left = `${rect.left + rect.width / 2}px`;
+            particle.style.top = `${rect.top - 4 + window.scrollY}px`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 900);
+        }
+
+        function injectAggregateButtons() {
+            const questions = Array.from(document.querySelectorAll('.question'));
+            questions.forEach(q => {
+                const blank = q.querySelector('.blank');
+                if (!blank) return;
+                if (q.querySelector('.aggregate-trigger')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'aggregate-trigger';
+                btn.textContent = 'Class answers';
+                btn.addEventListener('click', () => openDrawerFor(blank));
+                q.appendChild(btn);
+            });
+        }
+
+        function getUsername() {
+            const usernameField = document.getElementById('worksheetUsername');
+            const nameField = document.getElementById('studentName');
+            const username = (usernameField?.value || '').trim();
+            if (username) {
+                try {
+                    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({
+                        username,
+                        name: nameField?.value || '',
+                        klass: document.getElementById('studentClass')?.value || ''
+                    }));
+                } catch (e) {
+                    console.warn('Unable to persist username locally', e);
+                }
+                return username;
+            }
+            return '';
+        }
+
+        function restoreSavedUser() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(LOCAL_USER_KEY) || '{}');
+                if (saved.username) {
+                    const usernameField = document.getElementById('worksheetUsername');
+                    if (usernameField) usernameField.value = saved.username;
+                }
+                if (saved.name) {
+                    const nameField = document.getElementById('studentName');
+                    if (nameField) nameField.value = saved.name;
+                }
+                if (saved.klass) {
+                    const classField = document.getElementById('studentClass');
+                    if (classField) classField.value = saved.klass;
+                }
+            } catch (e) {
+                console.warn('No saved user found', e);
+            }
+        }
+
+        function normalizeForStore(str) {
+            return normalize(str) || '(blank)';
+        }
+
+        async function sendAnswer(username, questionId, answerValue) {
+            const payload = {
+                username,
+                question_id: questionId,
+                answer_value: answerValue,
+                timestamp: Date.now()
+            };
+
+            if (window.railwayClient?.submitAnswer) {
+                return window.railwayClient.submitAnswer(
+                    payload.username,
+                    payload.question_id,
+                    payload.answer_value,
+                    payload.timestamp
+                );
+            }
+
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) {
+                console.warn('No Railway server configured; skipping live submit');
+                return false;
+            }
+
+            try {
+                const res = await fetch(`${baseUrl}/api/submit-answer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                return !!result.success;
+            } catch (e) {
+                console.warn('Live submit failed', e);
+                return false;
+            }
+        }
+
+        async function refreshAggregate(questionId, correctAnswers) {
+            await renderAggregate(questionId, correctAnswers);
+        }
+
+        async function fetchQuestionStats(questionId) {
+            if (window.railwayClient?.getStats) {
+                const stats = await window.railwayClient.getStats(questionId);
+                if (stats) return stats;
+            }
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) return null;
+            try {
+                const res = await fetch(`${baseUrl}/api/question-stats/${encodeURIComponent(questionId)}`);
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                console.warn('Unable to fetch stats', e);
+                return null;
+            }
+        }
+
+        function ensureDrawer() {
+            const drawer = document.getElementById('aggregateDrawer');
+            const closeBtn = document.getElementById('aggregateClose');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = 'true';
+                closeBtn.addEventListener('click', () => {
+                    drawer.classList.remove('open');
+                    currentDrawerQuestionId = null;
+                });
+            }
+            return {
+                drawer,
+                titleEl: document.getElementById('aggregateTitle'),
+                countEl: document.getElementById('aggregateCount'),
+                canvas: document.getElementById('aggregateCanvas')
+            };
+        }
+
+        function ensureRailwayDefaults() {
+            if (typeof window.USE_RAILWAY === 'undefined') {
+                window.USE_RAILWAY = true;
+            }
+            if (!window.RAILWAY_SERVER_URL) {
+                window.RAILWAY_SERVER_URL = 'https://curriculumrender-production.up.railway.app';
+            }
+        }
+
+        async function renderAggregate(questionId, correctAnswers) {
+            const { canvas, countEl } = ensureDrawer();
+            if (!canvas) return;
+            const stats = await fetchQuestionStats(questionId);
+            if (!stats) return;
+            spawnPeerSnow();
+
+            const distribution = stats.distribution || {};
+            const labelsSet = new Set(Object.keys(distribution));
+            const labels = Array.from(labelsSet).filter(Boolean);
+            const counts = labels.map(label => distribution[label] ?? 0);
+            const colors = labels.map(() => 'rgba(54, 162, 235, 0.6)');
+
+            if (chartInstances.aggregate) {
+                chartInstances.aggregate.destroy();
+            }
+
+            chartInstances.aggregate = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Responses (%)',
+                        data: counts,
+                        backgroundColor: colors,
+                        borderColor: 'rgba(0, 51, 102, 0.8)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: value => `${value}%` }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.formattedValue}% (${Math.round((ctx.parsed.y / 100) * (stats.totalResponses || 0))} of ${stats.totalResponses || 0})`
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (countEl) countEl.textContent = `${stats.totalResponses || 0} responses`;
+        }
+
+        function spawnPeerSnow() {
+            const particle = document.createElement('div');
+            particle.className = 'particle-snow';
+            particle.textContent = '❄';
+            const x = window.innerWidth - 80 + Math.random() * 40;
+            const y = 60 + Math.random() * 40 + window.scrollY;
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1400);
+        }
+
+        async function refreshAllAggregates() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const uniqueQuestions = new Map();
+            blanks.forEach(blank => {
+                if (blank.dataset.questionId && blank.dataset.answer) {
+                    uniqueQuestions.set(blank.dataset.questionId, blank.dataset.answer.split('|'));
+                }
+            });
+            if (currentDrawerQuestionId && uniqueQuestions.has(currentDrawerQuestionId)) {
+                await renderAggregate(currentDrawerQuestionId, uniqueQuestions.get(currentDrawerQuestionId));
+            }
+        }
+
+        function handleLiveUpdate(blank) {
+            const username = getUsername();
+            if (!username) return;
+            const questionId = blank.dataset.questionId;
+            const correctAnswers = (blank.dataset.answer || '').split('|');
+            if (!questionId) return;
+            if (debounceTimers[questionId]) {
+                clearTimeout(debounceTimers[questionId]);
+            }
+            debounceTimers[questionId] = setTimeout(async () => {
+                await sendAnswer(username, questionId, normalizeForStore(blank.value));
+                markSubmitted(blank);
+                if (currentDrawerQuestionId === questionId) {
+                    await refreshAggregate(questionId, correctAnswers);
+                }
+            }, 400);
+        }
+
+        function openDrawerFor(blank) {
+            const questionId = blank.dataset.questionId;
+            const correctAnswers = (blank.dataset.answer || '').split('|');
+            if (!questionId) return;
+            const { drawer, titleEl } = ensureDrawer();
+            currentDrawerQuestionId = questionId;
+            if (titleEl) titleEl.textContent = `Class responses for ${questionId}`;
+            drawer.classList.add('open');
+            renderAggregate(questionId, correctAnswers);
+        }
+
+        async function submitWorksheetResponses() {
+            const username = getUsername();
+            if (!username) {
+                console.warn('Username is required for live sync; skipping submit.');
+                return;
+            }
+            ensureRailwayDefaults();
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const submissions = blanks
+                .filter(b => b.dataset.questionId)
+                .map(b => sendAnswer(username, b.dataset.questionId, normalizeForStore(b.value)));
+            await Promise.all(submissions);
+        }
+
+        const originalCheckAnswers = window.checkAnswers || function() {};
+        window.checkAnswers = async function() {
+            try { await originalCheckAnswers(); } catch (e) { console.error('checkAnswers failed:', e); }
+            await submitWorksheetResponses();
+            await refreshAllAggregates();
+        };
+
+        const originalShowAnswers = window.showAnswers || function() {};
+        window.showAnswers = async function() {
+            try { await originalShowAnswers(); } catch (e) { console.error('showAnswers failed:', e); }
+            await refreshAllAggregates();
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            assignQuestionIds();
+            attachLiveListeners();
+            injectAggregateButtons();
+            restoreSavedUser();
+            ensureRailwayDefaults();
+            refreshAllAggregates();
+        });
+    </script>
+</body>
+</html>

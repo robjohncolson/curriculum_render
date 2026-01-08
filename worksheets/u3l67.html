@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topics 3.6–3.7: Selecting an Experimental Design & Inference</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+            background: #f9f9f9;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header-left { font-weight: bold; color: #003366; }
+        .header-center { font-weight: bold; }
+        .header-right { font-weight: bold; color: #003366; }
+        h1 { text-align: center; color: #003366; margin-bottom: 5px; }
+        .subtitle { text-align: center; font-style: italic; color: #555; margin-bottom: 10px; }
+        .worksheet-label { text-align: center; font-weight: bold; margin-bottom: 20px; }
+        .student-info { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .student-info label { font-weight: bold; }
+        .student-info input {
+            border: none;
+            border-bottom: 1px solid #333;
+            background: transparent;
+            padding: 2px 5px;
+            font-size: 1em;
+        }
+        .objective-box {
+            border: 2px solid #003366;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: white;
+        }
+        .objective-box strong { color: #003366; }
+        .vocab-box {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+        .vocab-box h3 { margin-top: 0; color: #003366; }
+        .vocab-table { width: 100%; }
+        .vocab-table td { padding: 5px 0; vertical-align: top; }
+        .vocab-table td:first-child { font-weight: bold; width: 210px; color: #003366; }
+        .section { margin-bottom: 28px; }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+        }
+        .section-header h2 { margin: 0; color: #003366; font-size: 1.15rem; }
+        .timestamp { color: #666; font-size: 0.95rem; }
+        .question {
+            margin-bottom: 12px;
+            padding-left: 6px;
+            position: relative;
+        }
+        .question-number {
+            font-weight: bold;
+            color: #003366;
+            margin-right: 8px;
+        }
+        .sub-questions { margin-left: 22px; margin-top: 6px; }
+        .sub-question { margin: 4px 0; }
+        .blank {
+            border: none;
+            border-bottom: 1px solid #003366;
+            background: transparent;
+            padding: 2px 4px;
+            font-size: 1em;
+            min-width: 90px;
+        }
+        .model-box, .note-box {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background: #fff;
+            margin: 10px 0 14px;
+        }
+        .note-box { background: #f7fbff; border-color: #cce0ff; }
+        .hint { color: #777; font-size: 0.92em; margin-left: 6px; }
+        textarea {
+            width: 100%;
+            min-height: 90px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .exit-ticket {
+            border: 2px solid #003366;
+            border-radius: 6px;
+            padding: 12px;
+            background: #f0f4ff;
+            margin-top: 18px;
+        }
+        .aggregate-drawer {
+            position: fixed;
+            top: 0;
+            right: -380px;
+            width: 360px;
+            height: 100%;
+            background: #fff;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+            transition: right 0.25s ease;
+            padding: 16px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .aggregate-drawer.open { right: 0; }
+        .aggregate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .aggregate-title { font-weight: bold; color: #003366; }
+        .aggregate-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: true;
+        }
+        .aggregate-trigger {
+            margin-top: 6px;
+            padding: 4px 10px;
+            background: #003366;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .save-indicator {
+            font-size: 0.9em;
+            color: #22863a;
+            margin-left: 6px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .save-indicator.visible { opacity: 1; }
+        .particle-up {
+            position: absolute;
+            font-size: 14px;
+            color: #22863a;
+            pointer-events: none;
+            animation: floatUp 0.9s ease-out forwards;
+        }
+        @keyframes floatUp {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-16px); }
+        }
+        .particle-snow {
+            position: absolute;
+            font-size: 14px;
+            color: #3182ce;
+            pointer-events: none;
+            animation: snowDrift 1.4s ease-out forwards;
+        }
+        @keyframes snowDrift {
+            from { opacity: 1; transform: translateY(0) rotate(0deg); }
+            to { opacity: 0; transform: translateY(-18px) rotate(10deg); }
+        }
+        canvas { background: #fff; border: 1px solid #eee; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">AP Statistics</div>
+        <div class="header-center">Unit 3: Collecting Data</div>
+        <div class="header-right">Lessons 6–7</div>
+    </div>
+
+    <h1>Topics 3.6–3.7: Selecting an Experimental Design & Inference</h1>
+    <div class="subtitle">How do we choose and interpret well-designed experiments?</div>
+    <div class="worksheet-label"><strong>Video Follow-Along Worksheet (Live)</strong></div>
+
+    <div class="student-info">
+        <label>Name: <input type="text" id="studentName" placeholder="Your name"></label>
+        <label>Period/Class: <input type="text" id="studentClass" placeholder="Class"></label>
+        <label>Username (required to save): <input type="text" id="worksheetUsername" placeholder="Username"></label>
+    </div>
+
+    <div class="objective-box">
+        <div><strong>Learning Objective (VAR-3.D):</strong> Explain why a particular experimental design is appropriate.</div>
+        <div><strong>Learning Objective (VAR-3.E):</strong> Interpret the results of a well-designed experiment.</div>
+        <div><strong>Essential Knowledge:</strong> A randomized block design separates natural variability from treatment effects. Statistical inference allows us to attribute conclusions from sample data to the population. Statistically significant differences are evidence that treatments caused the observed effect.</div>
+    </div>
+
+    <div class="vocab-box">
+        <h3>Key Vocabulary</h3>
+        <table class="vocab-table">
+            <tr>
+                <td>Randomized Block Design</td>
+                <td>Subjects are grouped into blocks by a characteristic, then randomly assigned to treatments within each block.</td>
+            </tr>
+            <tr>
+                <td>Matched Pairs Design</td>
+                <td>A special case of blocking that uses pairs of similar experimental units, with one receiving each treatment.</td>
+            </tr>
+            <tr>
+                <td>Blinding</td>
+                <td>Subjects and/or researchers are unaware of which treatment is being administered.</td>
+            </tr>
+            <tr>
+                <td>Statistical Significance</td>
+                <td>Observed differences are too large to be reasonably attributed to chance alone.</td>
+            </tr>
+            <tr>
+                <td>Statistical Inference</td>
+                <td>Using sample data to draw conclusions about a population or treatment.</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Video 1: Blocking & Blinding (Topic 3.6)</h2>
+            <span class="timestamp">[5:54]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: Introduction & High Cholesterol Example</h2>
+            <span class="timestamp">[0:00–0:53]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">1.</span>
+            In this video, we will learn how <input type="text" class="blank" data-answer="blocking|blocking and blinding" style="width: 150px;"> can improve the design of an experiment and under what conditions an experiment can be <input type="text" class="blank" data-answer="blinded|double blinded|double-blinded" style="width: 140px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">2.</span>
+            The “High Cholesterol” example is a <input type="text" class="blank" data-answer="free-response question|frq|free response question" style="width: 190px;"> from a previous AP exam.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part B: Completely Randomized Design</h2>
+            <span class="timestamp">[0:53–2:29]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">3.</span>
+            A well-designed experiment includes four key components: <input type="text" class="blank" data-answer="random assignment|randomization of treatments" style="width: 170px;"> of treatments, <input type="text" class="blank" data-answer="control" style="width: 120px;">, replication, and <input type="text" class="blank" data-answer="comparison" style="width: 130px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">4.</span>
+            To randomly assign 200 volunteers to two groups, we can number them 1 to 200, then use a <input type="text" class="blank" data-answer="random number generator|random number table|table of random digits" style="width: 210px;"> to select 100 numbers without repeat.
+        </div>
+        <div class="question">
+            <span class="question-number">5.</span>
+            The 100 randomly selected volunteers receive the <input type="text" class="blank" data-answer="new" style="width: 70px;"> drug, and the remaining 100 receive the <input type="text" class="blank" data-answer="old|control" style="width: 90px;"> drug.
+        </div>
+        <div class="question">
+            <span class="question-number">6.</span>
+            After treatment, we measure and compare the <input type="text" class="blank" data-answer="cholesterol levels|cholesterol level" style="width: 180px;"> for both groups.
+        </div>
+        <div class="note-box">Diagram (Completely Randomized Design): Volunteers → Random Assignment → Two groups → New drug vs. Old drug → Compare cholesterol.</div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part C: Randomized Block Design</h2>
+            <span class="timestamp">[2:51–4:16]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">7.</span>
+            From the prompt: “High cholesterol level can be reduced by <input type="text" class="blank" data-answer="exercise" style="width: 120px;"> or by drug treatment.”
+        </div>
+        <div class="question">
+            <span class="question-number">8.</span>
+            This suggests that <input type="text" class="blank" data-answer="exercise level|exercise" style="width: 180px;"> could be a blocking variable that affects cholesterol levels.
+        </div>
+        <div class="question">
+            <span class="question-number">9.</span>
+            In a randomized block design, we first separate volunteers into <input type="text" class="blank" data-answer="blocks" style="width: 100px;"> based on a characteristic (here: high vs. low exercise), then perform randomization <input type="text" class="blank" data-answer="within each block|inside each block" style="width: 170px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">10.</span>
+            We then compare cholesterol levels <input type="text" class="blank" data-answer="within each block|by block" style="width: 170px;"> and overall.
+        </div>
+        <div class="note-box">Diagram (Randomized Block Design): Volunteers → Block by exercise (High / Low) → Random assignment within each block → New vs. Old drug → Compare by block and overall.</div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part D: Double Blinding</h2>
+            <span class="timestamp">[4:16–5:27]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">11.</span>
+            If asked a yes/no question on the AP exam, make sure you answer <input type="text" class="blank" data-answer="yes or no|yes/no" style="width: 140px;"> somewhere in your response.
+        </div>
+        <div class="question">
+            <span class="question-number">12.</span>
+            Double blinding is possible when both the <input type="text" class="blank" data-answer="subjects|participants" style="width: 130px;"> and the <input type="text" class="blank" data-answer="researchers|experimenters" style="width: 150px;"> are unaware of what treatments are being given to each subject.
+        </div>
+        <div class="question">
+            <span class="question-number">13.</span>
+            This works best if the treatments are similar in <input type="text" class="blank" data-answer="appearance" style="width: 130px;">, taste, or administration method.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part E: Key Takeaways</h2>
+            <span class="timestamp">[5:27–5:46]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">14.</span>
+            A randomized block design helps to separate <input type="text" class="blank" data-answer="treatment effects|treatment differences" style="width: 180px;"> from differences due to the blocking variable.
+        </div>
+        <div class="question">
+            <span class="question-number">15.</span>
+            Blinding is possible when subjects and/or researchers are <input type="text" class="blank" data-answer="unaware|blind" style="width: 140px;"> of the treatment being administered.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Video 2: Matched Pairs & Replication (Topic 3.6)</h2>
+            <span class="timestamp">[6:48]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: Tractor Plots Introduction</h2>
+            <span class="timestamp">[0:00–1:22]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">16.</span>
+            This example is from the <input type="text" class="blank" data-answer="2006" style="width: 80px;"> AP exam (Form B).
+        </div>
+        <div class="question">
+            <span class="question-number">17.</span>
+            In this study, “draft” refers to the <input type="text" class="blank" data-answer="force|pulling force|energy" style="width: 130px;"> needed to pull a plow.
+        </div>
+        <div class="question">
+            <span class="question-number">18.</span>
+            Identifying components of this experiment:
+            <div class="sub-questions">
+                <div class="sub-question">• Response variable: <input type="text" class="blank" data-answer="draft|amount of draft|draft force" style="width: 180px;"></div>
+                <div class="sub-question">• Treatments: <input type="text" class="blank" data-answer="standard hitch and new hitch|two hitches|standard vs new hitch" style="width: 230px;"></div>
+                <div class="sub-question">• Experimental units: <input type="text" class="blank" data-answer="plots|plots of land|two plots" style="width: 170px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part B: Evaluating Randomization</h2>
+            <span class="timestamp">[2:10–2:41]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">19.</span>
+            Was randomization properly used? <input type="text" class="blank" data-answer="Yes|yes" style="width: 70px;">
+        </div>
+        <div class="question">
+            <span class="question-number">20.</span>
+            Evidence: “It was <input type="text" class="blank" data-answer="randomly determined|randomly decided" style="width: 190px;"> which plot was to be plowed using the standard hitch.”
+        </div>
+        <div class="question">
+            <span class="question-number">21.</span>
+            The two <input type="text" class="blank" data-answer="hitches|treatments" style="width: 130px;"> (treatments) were randomly assigned to the two <input type="text" class="blank" data-answer="plots|experimental units" style="width: 150px;"> (experimental units).
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part C: Evaluating Replication</h2>
+            <span class="timestamp">[3:09–4:02]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">22.</span>
+            Was replication properly used? <input type="text" class="blank" data-answer="No|no" style="width: 70px;">
+        </div>
+        <div class="question">
+            <span class="question-number">23.</span>
+            <strong>Key insight:</strong> Replication means applying each treatment to a sufficient number of <input type="text" class="blank" data-answer="experimental units|units" style="width: 170px;">, not just taking multiple measurements.
+        </div>
+        <div class="question">
+            <span class="question-number">24.</span>
+            Problem: Each treatment was applied to only <input type="text" class="blank" data-answer="one|1" style="width: 70px;"> experimental unit (plot). There were 25 measurements per plot, but this is not replication.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part D: Confounding Variable</h2>
+            <span class="timestamp">[4:17–5:11]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">25.</span>
+            The draft is affected by environmental conditions such as <input type="text" class="blank" data-answer="soil moisture|moisture|soil conditions" style="width: 170px;">, terrain, and <input type="text" class="blank" data-answer="weather|wind|temperature" style="width: 150px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">26.</span>
+            Because each hitch was used on only one plot, we cannot determine if the difference in draft is due to the <input type="text" class="blank" data-answer="hitch|treatment" style="width: 120px;"> or the characteristics of that specific <input type="text" class="blank" data-answer="plot" style="width: 100px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">27.</span>
+            The treatments (hitches) are <input type="text" class="blank" data-answer="confounded" style="width: 130px;"> with the plots.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part E: Improving the Design</h2>
+            <span class="timestamp">[5:11–6:20]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">28.</span>
+            <strong>Improvement 1:</strong> Split each plot in <input type="text" class="blank" data-answer="half|two halves|2" style="width: 100px;"> and use random assignment to determine which hitch is used on either half. This reduces the <input type="text" class="blank" data-answer="confounding" style="width: 140px;"> effect of the plot.
+        </div>
+        <div class="question">
+            <span class="question-number">29.</span>
+            <strong>Improvement 2:</strong> Use more than <input type="text" class="blank" data-answer="two|2" style="width: 80px;"> experimental units.
+        </div>
+        <div class="question">
+            <span class="question-number">30.</span>
+            Don't forget to mention that you will measure the <input type="text" class="blank" data-answer="draft|response" style="width: 120px;"> after applying the treatments!
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part F: Key Takeaways</h2>
+            <span class="timestamp">[6:20–6:48]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">31.</span>
+            Proper replication requires that multiple <input type="text" class="blank" data-answer="experimental units|units|plots" style="width: 180px;"> receive the same treatment.
+        </div>
+        <div class="question">
+            <span class="question-number">32.</span>
+            A <input type="text" class="blank" data-answer="matched pairs" style="width: 150px;"> design involves blocks of two similar experimental units, one receiving each treatment. OR each experimental unit receives <input type="text" class="blank" data-answer="both|two" style="width: 90px;"> treatments in random order.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Video 3: Inference & Experiments (Topic 3.7)</h2>
+            <span class="timestamp">[5:50]</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part A: Introduction & Learning Goals</h2>
+            <span class="timestamp">[0:00–0:36]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">33.</span>
+            Three learning goals for this video:
+            <div class="sub-questions">
+                <div class="sub-question">• What is <input type="text" class="blank" data-answer="statistical inference|inference" style="width: 170px;">?</div>
+                <div class="sub-question">• How does <input type="text" class="blank" data-answer="random assignment" style="width: 170px;"> help determine statistical significance?</div>
+                <div class="sub-question">• Under what conditions can results be <input type="text" class="blank" data-answer="generalized" style="width: 150px;"> to the population?</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part B: The Résumé Experiment</h2>
+            <span class="timestamp">[0:36–2:19]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">34.</span>
+            In this study, two résumés were identical except for the <input type="text" class="blank" data-answer="name" style="width: 120px;"> (Greg Baker vs. Jamal Jones).
+        </div>
+        <div class="question">
+            <span class="question-number">35.</span>
+            Résumés were sent to employers in <input type="text" class="blank" data-answer="Boston" style="width: 110px;"> and <input type="text" class="blank" data-answer="Chicago" style="width: 110px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">36.</span>
+            Each employer was <input type="text" class="blank" data-answer="randomly given|randomly assigned|sent" style="width: 170px;"> a résumé with either a commonly White name or commonly African-American name.
+        </div>
+        <div class="question">
+            <span class="question-number">37.</span>
+            Check if this is a well-designed experiment:
+            <div class="sub-questions">
+                <div class="sub-question">• Comparison? <input type="text" class="blank" data-answer="Yes|yes" style="width: 70px;"> — Two groups (White vs. African-American names)</div>
+                <div class="sub-question">• Random assignment? <input type="text" class="blank" data-answer="Yes|yes" style="width: 70px;"> — Each company given a random name</div>
+                <div class="sub-question">• Replication? <input type="text" class="blank" data-answer="Yes|yes" style="width: 70px;"> — <input type="text" class="blank" data-answer="2500|2500 resumes|2500 each" style="width: 120px;"> résumés for each group</div>
+                <div class="sub-question">• Control? <input type="text" class="blank" data-answer="Yes|yes" style="width: 70px;"> — All résumés equal except for name</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part C: Results of the Résumé Experiment</h2>
+            <span class="timestamp">[2:19–3:00]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">38.</span>
+            Callback rate for résumés with White names: <input type="text" class="blank" data-answer="9.65|9.65%" style="width: 90px;">%
+        </div>
+        <div class="question">
+            <span class="question-number">39.</span>
+            Callback rate for résumés with African-American names: <input type="text" class="blank" data-answer="6.27|6.3|6.27%" style="width: 90px;">%
+        </div>
+        <div class="question">
+            <span class="question-number">40.</span>
+            Difference between groups: <input type="text" class="blank" data-answer="3.38|3.38%" style="width: 80px;">%
+        </div>
+        <div class="question">
+            <span class="question-number">41.</span>
+            The key question: Is this difference due to <input type="text" class="blank" data-answer="chance" style="width: 90px;"> alone, or is it because of the <input type="text" class="blank" data-answer="name|type of name" style="width: 140px;">?
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part D: Statistical Significance</h2>
+            <span class="timestamp">[3:00–4:44]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">42.</span>
+            Random assignment allows us to conclude that very large observed changes are not merely by <input type="text" class="blank" data-answer="chance" style="width: 110px;"> (statistically significant).
+        </div>
+        <div class="question">
+            <span class="question-number">43.</span>
+            Statistically significant differences between treatment groups are evidence that the <input type="text" class="blank" data-answer="treatment|type of name" style="width: 160px;"> caused the effect.
+        </div>
+        <div class="question">
+            <span class="question-number">44.</span>
+            Two possibilities for the 3.38% difference:
+            <div class="sub-questions">
+                <div class="sub-question">• Option 1: Type of name does not affect callback rate; the difference happened by <input type="text" class="blank" data-answer="chance" style="width: 120px;">.</div>
+                <div class="sub-question">• Option 2: Type of name <input type="text" class="blank" data-answer="does affect|affects|changes" style="width: 150px;"> callback rate.</div>
+            </div>
+        </div>
+        <div class="question">
+            <span class="question-number">45.</span>
+            The probability of observing an outcome this extreme due to chance was <em>p</em> ≈ <input type="text" class="blank" data-answer="0.0001|<0.05|near zero" style="width: 110px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">46.</span>
+            Conclusion: We have <input type="text" class="blank" data-answer="strong|convincing|statistically significant" style="width: 190px;"> evidence that the type of name on a résumé affects the likelihood of a callback.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part E: Statistical Inference & Generalization</h2>
+            <span class="timestamp">[4:44–5:23]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">47.</span>
+            Statistical inference: Decisions from the <input type="text" class="blank" data-answer="sample" style="width: 120px;"> can be attributed to the <input type="text" class="blank" data-answer="population" style="width: 140px;"> from which the sample was drawn.
+        </div>
+        <div class="question">
+            <span class="question-number">48.</span>
+            If experimental units are <input type="text" class="blank" data-answer="randomly selected|representative" style="width: 180px;"> of the population, then results can be generalized to the population.
+        </div>
+        <div class="question">
+            <span class="question-number">49.</span>
+            <input type="text" class="blank" data-answer="Random selection|Random sampling" style="width: 180px;"> of individuals gives a better chance that the sample will be representative.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Part F: Key Takeaways</h2>
+            <span class="timestamp">[5:23–5:50]</span>
+        </div>
+        <div class="question">
+            <span class="question-number">50.</span>
+            Statistical inference allows us to make <input type="text" class="blank" data-answer="conclusions" style="width: 140px;"> about populations or treatments based on sample data.
+        </div>
+        <div class="question">
+            <span class="question-number">51.</span>
+            Observed changes larger than can be attributed to chance are considered <input type="text" class="blank" data-answer="statistically significant" style="width: 190px;">.
+        </div>
+        <div class="question">
+            <span class="question-number">52.</span>
+            <input type="text" class="blank" data-answer="Random selection|Random sampling" style="width: 180px;"> of experimental units allows results to be generalized to the population of interest.
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Post-Video Reflection</h2>
+        </div>
+        <div class="question">
+            <span class="question-number">53.</span>
+            <strong>Random Selection vs. Random Assignment:</strong> Explain the difference and when each is used.
+            <textarea placeholder="Your reflection"></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">54.</span>
+            <strong>Evaluating an Experiment:</strong> A researcher wants to test whether a new fertilizer increases crop yield. She has 10 fields available, each with different soil types. She applies the new fertilizer to 5 fields and the old fertilizer to 5 fields, then measures yield.
+            <div class="sub-questions">
+                <div class="sub-question">(a) What is a potential confounding variable in this study?</div>
+                <textarea placeholder="Answer"></textarea>
+                <div class="sub-question">(b) Propose an improved design using blocking.</div>
+                <textarea placeholder="Answer"></textarea>
+            </div>
+        </div>
+        <div class="question">
+            <span class="question-number">55.</span>
+            <strong>Interpreting Statistical Significance:</strong> In a study comparing two medications, researchers found a statistically significant difference in recovery times (p = 0.02). What does this mean, and what can we conclude about causation?
+            <textarea placeholder="Your answer"></textarea>
+        </div>
+        <div class="question">
+            <span class="question-number">56.</span>
+            <strong>Generalization:</strong> Under what two conditions can the results of an experiment be generalized to a larger population?
+            <textarea placeholder="Your answer"></textarea>
+        </div>
+    </div>
+
+    <div class="exit-ticket">
+        <strong>Exit Ticket:</strong> In 2–3 sentences, explain the relationship between random assignment, statistical significance, and establishing causation in experiments.
+        <textarea placeholder="Exit ticket response"></textarea>
+    </div>
+
+    <div id="aggregateDrawer" class="aggregate-drawer">
+        <div class="aggregate-header">
+            <div class="aggregate-title" id="aggregateTitle">Class answers</div>
+            <button id="aggregateClose" class="aggregate-close" aria-label="Close drawer">×</button>
+        </div>
+        <div id="aggregateCount" style="color:#555;"></div>
+        <canvas id="aggregateCanvas" width="320" height="260"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../railway_config.js"></script>
+    <script src="../railway_client.js"></script>
+    <script>
+        const WORKSHEET_ID = 'WS-U3L6-7';
+        const LOCAL_USER_KEY = 'worksheet-user';
+        const chartInstances = {};
+        let currentDrawerQuestionId = null;
+        const debounceMap = new Map();
+
+        function normalize(str) {
+            return (str || '').trim();
+        }
+
+        function assignQuestionIds() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach((blank, idx) => {
+                blank.dataset.questionId = `${WORKSHEET_ID}-Q${idx + 1}`;
+            });
+        }
+
+        function addSaveIndicators() {
+            const questions = Array.from(document.querySelectorAll('.question'));
+            questions.forEach(q => {
+                if (q.querySelector('.save-indicator')) return;
+                const indicator = document.createElement('span');
+                indicator.className = 'save-indicator';
+                indicator.textContent = '✓ saved';
+                q.appendChild(indicator);
+            });
+        }
+
+        function bindBlankEvents() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            blanks.forEach(blank => {
+                blank.addEventListener('blur', () => handleLiveUpdate(blank));
+                blank.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLiveUpdate(blank);
+                    }
+                });
+            });
+        }
+
+        function handleLiveUpdate(blank) {
+            const username = getUsername();
+            if (!username) {
+                console.warn('Username is required to save answers.');
+                return;
+            }
+            const questionId = blank.dataset.questionId;
+            const answerValue = normalizeForStore(blank.value);
+            if (!questionId) return;
+
+            // Debounce per question
+            const now = Date.now();
+            const last = debounceMap.get(questionId) || 0;
+            if (now - last < 250) return;
+            debounceMap.set(questionId, now);
+
+            sendAnswer(username, questionId, answerValue).then(() => {
+                showSaved(blank);
+                if (currentDrawerQuestionId === questionId) {
+                    refreshAggregate(questionId, (blank.dataset.answer || '').split('|'));
+                }
+            });
+        }
+
+        function showSaved(blank) {
+            const indicator = blank.closest('.question')?.querySelector('.save-indicator');
+            if (indicator) {
+                indicator.classList.add('visible');
+                setTimeout(() => indicator.classList.remove('visible'), 2000);
+            }
+            spawnParticleUp(blank);
+        }
+
+        function spawnParticleUp(blank) {
+            const rect = blank.getBoundingClientRect();
+            const particle = document.createElement('div');
+            particle.className = 'particle-up';
+            particle.textContent = '↑';
+            particle.style.left = `${rect.left + rect.width / 2}px`;
+            particle.style.top = `${rect.top - 4 + window.scrollY}px`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 900);
+        }
+
+        function injectAggregateButtons() {
+            const questions = Array.from(document.querySelectorAll('.question'));
+            questions.forEach(q => {
+                const blank = q.querySelector('.blank');
+                if (!blank) return;
+                if (q.querySelector('.aggregate-trigger')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'aggregate-trigger';
+                btn.textContent = 'Class answers';
+                btn.addEventListener('click', () => openDrawerFor(blank));
+                q.appendChild(btn);
+            });
+        }
+
+        function getUsername() {
+            const usernameField = document.getElementById('worksheetUsername');
+            const nameField = document.getElementById('studentName');
+            const username = (usernameField?.value || '').trim();
+            if (username) {
+                try {
+                    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({
+                        username,
+                        name: nameField?.value || '',
+                        klass: document.getElementById('studentClass')?.value || ''
+                    }));
+                } catch (e) {
+                    console.warn('Unable to persist username locally', e);
+                }
+                return username;
+            }
+            return '';
+        }
+
+        function restoreSavedUser() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(LOCAL_USER_KEY) || '{}');
+                if (saved.username) {
+                    const usernameField = document.getElementById('worksheetUsername');
+                    if (usernameField) usernameField.value = saved.username;
+                }
+                if (saved.name) {
+                    const nameField = document.getElementById('studentName');
+                    if (nameField) nameField.value = saved.name;
+                }
+                if (saved.klass) {
+                    const classField = document.getElementById('studentClass');
+                    if (classField) classField.value = saved.klass;
+                }
+            } catch (e) {
+                console.warn('No saved user found', e);
+            }
+        }
+
+        function normalizeForStore(str) {
+            return normalize(str) || '(blank)';
+        }
+
+        async function sendAnswer(username, questionId, answerValue) {
+            const payload = {
+                username,
+                question_id: questionId,
+                answer_value: answerValue,
+                timestamp: Date.now()
+            };
+
+            if (window.railwayClient?.submitAnswer) {
+                return window.railwayClient.submitAnswer(
+                    payload.username,
+                    payload.question_id,
+                    payload.answer_value,
+                    payload.timestamp
+                );
+            }
+
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) {
+                console.warn('No Railway server configured; skipping live submit');
+                return false;
+            }
+
+            const res = await fetch(`${baseUrl}/api/submit-answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            return !!result.success;
+        }
+
+        async function refreshAggregate(questionId, correctAnswers) {
+            await renderAggregate(questionId, correctAnswers);
+        }
+
+        async function fetchQuestionStats(questionId) {
+            if (window.railwayClient?.getStats) {
+                const stats = await window.railwayClient.getStats(questionId);
+                if (stats) return stats;
+            }
+
+            const baseUrl = window.RAILWAY_SERVER_URL || '';
+            if (!baseUrl) return null;
+            try {
+                const res = await fetch(`${baseUrl}/api/question-stats/${encodeURIComponent(questionId)}`);
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (e) {
+                console.warn('Unable to fetch stats', e);
+                return null;
+            }
+        }
+
+        function ensureDrawer() {
+            const drawer = document.getElementById('aggregateDrawer');
+            const closeBtn = document.getElementById('aggregateClose');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = 'true';
+                closeBtn.addEventListener('click', () => {
+                    drawer.classList.remove('open');
+                    currentDrawerQuestionId = null;
+                });
+            }
+            return {
+                drawer,
+                titleEl: document.getElementById('aggregateTitle'),
+                countEl: document.getElementById('aggregateCount'),
+                canvas: document.getElementById('aggregateCanvas')
+            };
+        }
+
+        function ensureRailwayDefaults() {
+            if (typeof window.USE_RAILWAY === 'undefined') {
+                window.USE_RAILWAY = true;
+            }
+            if (!window.RAILWAY_SERVER_URL) {
+                window.RAILWAY_SERVER_URL = 'https://curriculumrender-production.up.railway.app';
+            }
+        }
+
+        async function renderAggregate(questionId, correctAnswers) {
+            const { canvas, countEl } = ensureDrawer();
+            if (!canvas) return;
+            const stats = await fetchQuestionStats(questionId);
+            if (!stats) return;
+            spawnPeerSnow();
+
+            const distribution = stats.distribution || {};
+            const labelsSet = new Set(Object.keys(distribution));
+            const labels = Array.from(labelsSet).filter(Boolean);
+            const counts = labels.map(label => distribution[label] ?? 0);
+            const colors = labels.map(() => 'rgba(54, 162, 235, 0.6)');
+
+            if (chartInstances.aggregate) {
+                chartInstances.aggregate.destroy();
+            }
+
+            chartInstances.aggregate = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Responses (%)',
+                        data: counts,
+                        backgroundColor: colors,
+                        borderColor: 'rgba(0, 51, 102, 0.8)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: value => `${value}%`
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.formattedValue}% (${Math.round((ctx.parsed.y / 100) * (stats.totalResponses || 0))} of ${stats.totalResponses || 0})`
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (countEl) {
+                countEl.textContent = `${stats.totalResponses || 0} responses`;
+            }
+        }
+
+        function spawnPeerSnow() {
+            const particle = document.createElement('div');
+            particle.className = 'particle-snow';
+            particle.textContent = '❄';
+            const x = window.innerWidth - 80 + Math.random() * 40;
+            const y = 60 + Math.random() * 40 + window.scrollY;
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1400);
+        }
+
+        async function refreshAllAggregates() {
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const uniqueQuestions = new Map();
+            blanks.forEach(blank => {
+                if (blank.dataset.questionId && blank.dataset.answer) {
+                    uniqueQuestions.set(blank.dataset.questionId, blank.dataset.answer.split('|'));
+                }
+            });
+
+            if (currentDrawerQuestionId && uniqueQuestions.has(currentDrawerQuestionId)) {
+                await renderAggregate(currentDrawerQuestionId, uniqueQuestions.get(currentDrawerQuestionId));
+            }
+        }
+
+        function openDrawerFor(blank) {
+            const { drawer, titleEl } = ensureDrawer();
+            if (!drawer) return;
+            currentDrawerQuestionId = blank.dataset.questionId;
+            if (titleEl) titleEl.textContent = `Class answers: ${currentDrawerQuestionId}`;
+            drawer.classList.add('open');
+            renderAggregate(currentDrawerQuestionId, (blank.dataset.answer || '').split('|'));
+        }
+
+        function bindCheckAnswers() {
+            const originalCheck = window.checkAnswers;
+            if (originalCheck) {
+                window.checkAnswers = (...args) => {
+                    const result = originalCheck.apply(window, args);
+                    pushAllAnswers().then(() => refreshAllAggregates());
+                    return result;
+                };
+            }
+            const originalShow = window.showAnswers;
+            if (originalShow) {
+                window.showAnswers = (...args) => {
+                    const result = originalShow.apply(window, args);
+                    pushAllAnswers().then(() => refreshAllAggregates());
+                    return result;
+                };
+            }
+        }
+
+        async function pushAllAnswers() {
+            const username = getUsername();
+            if (!username) return;
+            const blanks = Array.from(document.querySelectorAll('.blank'));
+            const payloads = blanks.map(blank => ({
+                username,
+                questionId: blank.dataset.questionId,
+                answerValue: normalizeForStore(blank.value)
+            }));
+            for (const p of payloads) {
+                await sendAnswer(p.username, p.questionId, p.answerValue);
+            }
+        }
+
+        function init() {
+            ensureRailwayDefaults();
+            restoreSavedUser();
+            assignQuestionIds();
+            addSaveIndicators();
+            bindBlankEvents();
+            injectAggregateButtons();
+            bindCheckAnswers();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

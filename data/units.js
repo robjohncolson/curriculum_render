@@ -510,9 +510,9 @@ const ALL_UNITS_DATA = [
           }
         ],
         pdfs: [
-          { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" }
-          ,
-          { url: "worksheets/u3l5.html", label: "Live Worksheet (HTML, interactive)" }
+          { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" },
+          { url: "worksheets/u3l5.html", label: "Video Write-Along (HTML, interactive)" },
+          { url: "https://lrsl-driller.vercel.app/platform/app.html?c=exp", label: "Math practice website (experimental design)" }
         ],
       },
       {
@@ -529,6 +529,9 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1DQZQMZVzesDILUqzVetIysD7DB94UYVT/view?usp=drive_link"
           }
         ],
+        pdfs: [
+          { url: "worksheets/u3l67.html", label: "Video Follow-Along (HTML, interactive)" }
+        ],
       },
       {
         id: "3-7",
@@ -539,6 +542,9 @@ const ALL_UNITS_DATA = [
             url: "https://apclassroom.collegeboard.org/d/cgkp7vw65d?sui=33,3",
             altUrl: "https://drive.google.com/file/d/10TnxIb09QzsRvYQm-G3eiWQ5CSrELuJz/view?usp=drive_link"
           }
+        ],
+        pdfs: [
+          { url: "worksheets/u3l67.html", label: "Video Follow-Along (HTML, interactive)" }
         ],
       },
       {
