@@ -984,6 +984,7 @@
         const LOCAL_USER_KEY = 'worksheet-user';
         let currentQuestionBlanks = [];
         const debounceMap = new Map();
+        const inMemoryStats = new Map(); // questionId -> { distribution: { answer: count }, totalResponses }
 
         // ============ UTILITY FUNCTIONS ============
         function normalize(str) {
@@ -992,6 +993,48 @@
 
         function normalizeForStore(str) {
             return (str || '').trim() || '(blank)';
+        }
+
+        // In-memory aggregation to avoid stale cached stats
+        function applyAnswerToCache(questionId, rawAnswer) {
+            if (!questionId) return;
+            const key = normalizeForStore(rawAnswer);
+            const entry = inMemoryStats.get(questionId) || { distribution: {}, totalResponses: 0 };
+            entry.distribution[key] = (entry.distribution[key] || 0) + 1;
+            entry.totalResponses += 1;
+            inMemoryStats.set(questionId, entry);
+        }
+
+        function mergeRemoteStats(questionId, remoteStats) {
+            if (!remoteStats) return null;
+            const dist = {};
+            const total = remoteStats.totalResponses || 0;
+            const distribution = remoteStats.distribution || {};
+            Object.entries(distribution).forEach(([answer, value]) => {
+                if (!answer || answer === '(blank)') return;
+                // remote uses percentages; convert to counts when possible
+                let count = value;
+                if (total && value <= 100) {
+                    count = Math.max(1, Math.round((value / 100) * total));
+                }
+                dist[normalizeForStore(answer)] = count;
+            });
+            const hydrated = {
+                distribution: dist,
+                totalResponses: total
+            };
+            inMemoryStats.set(questionId, hydrated);
+            return hydrated;
+        }
+
+        async function getFreshStats(questionId) {
+            // Always attempt remote first to avoid stale caches; fall back to local cache
+            const remote = await fetchQuestionStats(questionId);
+            if (remote) return mergeRemoteStats(questionId, remote);
+            if (inMemoryStats.has(questionId)) {
+                return inMemoryStats.get(questionId);
+            }
+            return null;
         }
 
         // ============ ANSWER CHECKING ============
@@ -1145,6 +1188,7 @@
 
             sendAnswer(username, questionId, answerValue).then(() => {
                 showSaved(blank);
+                applyAnswerToCache(questionId, answerValue);
                 // Refresh drawer if this blank is in the current open question
                 if (currentQuestionBlanks.includes(blank)) {
                     const questionEl = blank.closest('.question');
@@ -1362,8 +1406,8 @@
                 // Get context around the blank
                 const context = getBlankContext(blank, questionEl);
                 
-                // Fetch stats
-                const stats = await fetchQuestionStats(questionId);
+                // Fetch stats (prefer in-memory cache, fall back to server)
+                const stats = await getFreshStats(questionId);
                 
                 // Create chart container
                 const container = document.createElement('div');
@@ -1375,31 +1419,21 @@
                 label.textContent = `Blank ${i + 1}: ${context}`;
                 container.appendChild(label);
                 
-                if (!stats || !stats.responses || stats.responses.length === 0) {
-                    // Check distribution fallback
-                    if (stats && stats.distribution && Object.keys(stats.distribution).length > 0) {
-                        const count = document.createElement('div');
-                        count.className = 'chart-count';
-                        const total = stats.totalResponses || Object.values(stats.distribution).reduce((a,b) => a + (typeof b === 'number' && b <= 100 ? 1 : b), 0);
-                        count.textContent = `${total} response${total !== 1 ? 's' : ''}`;
-                        container.appendChild(count);
-                        
-                        const chart = renderBarChartFromDistribution(stats.distribution, stats.totalResponses);
-                        container.appendChild(chart);
-                    } else {
-                        const noData = document.createElement('div');
-                        noData.style.cssText = 'color:#999; font-size:0.85em; padding:10px; text-align:center;';
-                        noData.textContent = 'No responses yet';
-                        container.appendChild(noData);
-                    }
-                } else {
+                const hasDistribution = stats && stats.distribution && Object.keys(stats.distribution).length > 0;
+                if (hasDistribution) {
+                    const total = stats.totalResponses || Object.values(stats.distribution).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
                     const count = document.createElement('div');
                     count.className = 'chart-count';
-                    count.textContent = `${stats.responses.length} response${stats.responses.length !== 1 ? 's' : ''}`;
+                    count.textContent = `${total} response${total !== 1 ? 's' : ''}`;
                     container.appendChild(count);
                     
-                    const chart = renderBarChartFromResponses(stats.responses);
+                    const chart = renderBarChartFromDistribution(stats.distribution, total);
                     container.appendChild(chart);
+                } else {
+                    const noData = document.createElement('div');
+                    noData.style.cssText = 'color:#999; font-size:0.85em; padding:10px; text-align:center;';
+                    noData.textContent = 'No responses yet';
+                    container.appendChild(noData);
                 }
                 
                 chartContainers.push(container);
@@ -1569,6 +1603,14 @@
                 }
             }
         }
+
+        // Listen for peer answers via Railway WebSocket and refresh live
+        window.addEventListener('peer:answer', (event) => {
+            const detail = event.detail || {};
+            if (!detail.question_id || detail.answer_value === undefined) return;
+            applyAnswerToCache(detail.question_id, detail.answer_value);
+            refreshAllAggregates();
+        });
 
         // ============ INITIALIZATION ============
         function init() {
