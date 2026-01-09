@@ -529,6 +529,12 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1DQZQMZVzesDILUqzVetIysD7DB94UYVT/view?usp=drive_link"
           }
         ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/69612c55f522b6ed3e3233c7",
+            title: "u3l6blooket"
+          }
+        ],
         pdfs: [
           { url: "worksheets/u3l67.html", label: "Video Follow-Along (HTML, interactive)" }
         ],
@@ -541,6 +547,12 @@ const ALL_UNITS_DATA = [
           {
             url: "https://apclassroom.collegeboard.org/d/cgkp7vw65d?sui=33,3",
             altUrl: "https://drive.google.com/file/d/10TnxIb09QzsRvYQm-G3eiWQ5CSrELuJz/view?usp=drive_link"
+          }
+        ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/69612c55f522b6ed3e3233c7",
+            title: "u3l7blooket"
           }
         ],
         pdfs: [
