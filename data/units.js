@@ -509,6 +509,12 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1pp-KwUGnBS-6RWvB4U5eKxopkCOYQ9KD/view?usp=drive_link"
           }
         ],
+        blookets: [
+          {
+            url: "https://dashboard.blooket.com/set/69612ff7084e6af8ddb3ea4a",
+            title: "u3l5blooket"
+          }
+        ],
         pdfs: [
           { url: "pdf/u3l5_worksheet.pdf", label: "Follow-Along Worksheet" },
           { url: "worksheets/u3l5.html", label: "Video Write-Along (HTML, interactive)" },
