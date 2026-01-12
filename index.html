@@ -6283,6 +6283,28 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 </div>
             `;
 
+            // AI Grading Escalation UI for progressive FRQ
+            html += `
+                <div id="escalation-${questionId}" class="escalation-container">
+                    <div id="grading-feedback-${questionId}" class="grading-feedback-container"></div>
+
+                    <div id="escalation-buttons-${questionId}" class="escalation-buttons">
+                        <button id="btn-appeal-${questionId}" class="escalation-btn appeal-btn" onclick="showAppealForm('${questionId}')" style="display: none;">
+                            📝 Appeal AI Grading
+                        </button>
+                    </div>
+
+                    <div id="appeal-form-${questionId}" class="appeal-form" style="display: none;">
+                        <label for="appeal-text-${questionId}">Explain why you believe your answer deserves a higher score:</label>
+                        <textarea id="appeal-text-${questionId}" class="appeal-textarea" placeholder="e.g., 'I mentioned the key concept of... because...'"></textarea>
+                        <div class="appeal-actions">
+                            <button onclick="submitAppeal('${questionId}', 'free-response')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
+                            <button onclick="hideAppealForm('${questionId}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             return html;
         }
 
@@ -6518,6 +6540,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             if (!question) return;
 
+            // Show escalation container
+            const escalationContainer = document.getElementById(`escalation-${questionId}`);
+            if (escalationContainer) {
+                escalationContainer.style.display = 'block';
+            }
+
             // Find or create feedback container
             let feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
             if (!feedbackContainer) {
@@ -6555,6 +6583,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 // Grade the combined answer
                 const result = await engine.gradeAnswer(combinedAnswer, rule, context);
+
+                // Store result for potential appeals
+                window.gradingResults[questionId] = {
+                    ...result,
+                    answer: combinedAnswer,
+                    questionType: 'free-response'
+                };
 
                 // Display combined feedback
                 displayGradingFeedback(questionId, result);
