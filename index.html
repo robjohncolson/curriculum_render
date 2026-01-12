@@ -5031,7 +5031,11 @@ function renderLessonSelector(unitInfo) {
             const hasExplanation = isFRQ ? (value && value.length > 0) : (reason && reason.length > 0);
             console.log(`DEBUG: Has explanation: ${hasExplanation}`);
 
-            displayAnswerKey(questionId, isCorrect, hasExplanation, attempts + 1);
+            // Only call displayAnswerKey for MCQs - FRQ solution display is handled by gradeFRQAnswer
+            // (which conditionally shows solution only if AI grading fails)
+            if (!isFRQ) {
+                displayAnswerKey(questionId, isCorrect, hasExplanation, attempts + 1);
+            }
         }
 
         // Graph input helper: Add a new row for histogram data entry
