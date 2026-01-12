@@ -5965,6 +5965,12 @@ if (chartInstances[`dotplot-${questionId}`]) {
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             if (!question || question.type !== 'free-response') return;
 
+            // Show escalation container
+            const escalationContainer = document.getElementById(`escalation-${questionId}`);
+            if (escalationContainer) {
+                escalationContainer.style.display = 'block';
+            }
+
             // Find or create grading feedback container
             let feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
             if (!feedbackContainer) {
@@ -6005,6 +6011,13 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 // Grade the answer
                 const result = await engine.gradeAnswer(answer, rule, context);
+
+                // Store result for potential appeals
+                window.gradingResults[questionId] = {
+                    ...result,
+                    answer: answer,
+                    questionType: 'free-response'
+                };
 
                 // Display the result
                 displayGradingFeedback(questionId, result);
@@ -6070,6 +6083,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     ${detailsHtml}
                 </div>
             `;
+
+            // Show appeal button for non-E scores (P or I)
+            if (result.score !== 'E') {
+                const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+                if (appealBtn) {
+                    appealBtn.style.display = 'inline-block';
+                }
+            }
         }
 
         // Helper: extract variable name from prompt
