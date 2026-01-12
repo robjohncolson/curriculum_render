@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curriculum Render - Test Suite</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background: #00d9ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #00b8d4;
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.secondary {
+            background: #333;
+            color: #eee;
+        }
+        button.secondary:hover {
+            background: #444;
+        }
+        .summary {
+            background: #2d2d44;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .summary.show {
+            display: block;
+        }
+        .summary h2 {
+            margin-top: 0;
+            color: #00d9ff;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .stat-label {
+            color: #888;
+            font-size: 14px;
+        }
+        .stat.passed .stat-value {
+            color: #4caf50;
+        }
+        .stat.failed .stat-value {
+            color: #f44336;
+        }
+        .stat.total .stat-value {
+            color: #00d9ff;
+        }
+        .progress-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            transition: width 0.3s;
+        }
+        .progress-fill.has-failures {
+            background: linear-gradient(90deg, #4caf50, #ff9800);
+        }
+        .results {
+            background: #2d2d44;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .suite {
+            border-bottom: 1px solid #3d3d5c;
+        }
+        .suite:last-child {
+            border-bottom: none;
+        }
+        .suite-header {
+            padding: 15px 20px;
+            background: #252540;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .suite-header:hover {
+            background: #2a2a48;
+        }
+        .suite-icon {
+            font-size: 18px;
+        }
+        .suite-name {
+            flex: 1;
+            font-weight: bold;
+        }
+        .suite-stats {
+            color: #888;
+            font-size: 14px;
+        }
+        .suite-tests {
+            display: none;
+            padding: 10px 20px;
+        }
+        .suite.expanded .suite-tests {
+            display: block;
+        }
+        .test {
+            padding: 8px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            border-bottom: 1px solid #3d3d5c;
+        }
+        .test:last-child {
+            border-bottom: none;
+        }
+        .test-icon {
+            flex-shrink: 0;
+        }
+        .test-name {
+            flex: 1;
+        }
+        .test.failed .test-name {
+            color: #f44336;
+        }
+        .test-error {
+            color: #ff9800;
+            font-size: 13px;
+            margin-top: 5px;
+            padding: 8px;
+            background: rgba(255, 152, 0, 0.1);
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .console-output {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            display: none;
+        }
+        .console-output.show {
+            display: block;
+        }
+        .console-output pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.pass {
+            background: #4caf50;
+            color: white;
+        }
+        .badge.fail {
+            background: #f44336;
+            color: white;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Curriculum Render Test Suite</h1>
+    <p class="subtitle">Progressive Multi-Part FRQ System Tests</p>
+
+    <div class="controls">
+        <button id="runTests" onclick="runAllTests()">Run All Tests</button>
+        <button class="secondary" onclick="toggleConsole()">Toggle Console</button>
+        <button class="secondary" onclick="clearResults()">Clear</button>
+    </div>
+
+    <div class="summary" id="summary">
+        <h2>Test Results</h2>
+        <div class="stats">
+            <div class="stat total">
+                <div class="stat-value" id="totalTests">0</div>
+                <div class="stat-label">Total Tests</div>
+            </div>
+            <div class="stat passed">
+                <div class="stat-value" id="passedTests">0</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat failed">
+                <div class="stat-value" id="failedTests">0</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="suiteCount">0</div>
+                <div class="stat-label">Suites</div>
+            </div>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <div class="timestamp" id="timestamp"></div>
+    </div>
+
+    <div class="results" id="results"></div>
+
+    <div class="console-output" id="consoleOutput">
+        <pre id="consoleText"></pre>
+    </div>
+
+    <!-- Test Framework -->
+    <script src="test-utils.js"></script>
+
+    <!-- Test Suites -->
+    <script src="progressive-frq.test.js"></script>
+
+    <script>
+        // Capture console output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalGroup = console.group;
+        const originalGroupEnd = console.groupEnd;
+        let consoleBuffer = [];
+        let indentLevel = 0;
+
+        console.log = function(...args) {
+            const indent = '  '.repeat(indentLevel);
+            consoleBuffer.push(indent + args.join(' '));
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            const indent = '  '.repeat(indentLevel);
+            consoleBuffer.push(indent + '[ERROR] ' + args.join(' '));
+            originalError.apply(console, args);
+        };
+
+        console.group = function(label) {
+            const indent = '  '.repeat(indentLevel);
+            consoleBuffer.push(indent + label);
+            indentLevel++;
+            originalGroup.apply(console, arguments);
+        };
+
+        console.groupEnd = function() {
+            indentLevel = Math.max(0, indentLevel - 1);
+            originalGroupEnd.apply(console, arguments);
+        };
+
+        function runAllTests() {
+            // Reset
+            TestRunner.reset();
+            consoleBuffer = [];
+            indentLevel = 0;
+
+            // Run tests
+            if (typeof runProgressiveFRQTests === 'function') {
+                runProgressiveFRQTests();
+            }
+
+            // Display results
+            displayResults();
+        }
+
+        function displayResults() {
+            const summary = TestRunner.getSummary();
+
+            // Update summary section
+            document.getElementById('summary').classList.add('show');
+            document.getElementById('totalTests').textContent = summary.total;
+            document.getElementById('passedTests').textContent = summary.passed;
+            document.getElementById('failedTests').textContent = summary.failed;
+            document.getElementById('suiteCount').textContent = summary.suites;
+
+            const progressPercent = summary.total > 0 ? (summary.passed / summary.total) * 100 : 0;
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = progressPercent + '%';
+            progressFill.classList.toggle('has-failures', summary.failed > 0);
+
+            document.getElementById('timestamp').textContent = 'Run at: ' + new Date().toLocaleString();
+
+            // Build results HTML
+            let resultsHtml = '';
+            TestRunner.results.forEach((suite, idx) => {
+                const allPassed = suite.failed === 0;
+                resultsHtml += `
+                    <div class="suite ${idx === 0 ? 'expanded' : ''}" onclick="toggleSuite(this)">
+                        <div class="suite-header">
+                            <span class="suite-icon">${allPassed ? '✅' : '❌'}</span>
+                            <span class="suite-name">${escapeHtml(suite.name)}</span>
+                            <span class="suite-stats">${suite.passed}/${suite.tests.length} passed</span>
+                        </div>
+                        <div class="suite-tests">
+                            ${suite.tests.map(test => `
+                                <div class="test ${test.passed ? 'passed' : 'failed'}">
+                                    <span class="test-icon">${test.passed ? '✓' : '✗'}</span>
+                                    <div>
+                                        <div class="test-name">${escapeHtml(test.name)}</div>
+                                        ${test.error ? `<div class="test-error">${escapeHtml(test.error.message)}</div>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('results').innerHTML = resultsHtml;
+
+            // Update console output
+            document.getElementById('consoleText').textContent = consoleBuffer.join('\n');
+        }
+
+        function toggleSuite(element) {
+            element.classList.toggle('expanded');
+        }
+
+        function toggleConsole() {
+            document.getElementById('consoleOutput').classList.toggle('show');
+        }
+
+        function clearResults() {
+            TestRunner.reset();
+            consoleBuffer = [];
+            document.getElementById('summary').classList.remove('show');
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('consoleOutput').classList.remove('show');
+            document.getElementById('consoleText').textContent = '';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Run tests automatically on load
+        window.addEventListener('load', function() {
+            setTimeout(runAllTests, 100);
+        });
+    </script>
+</body>
+</html>
