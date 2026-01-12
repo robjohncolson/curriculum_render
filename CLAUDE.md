@@ -23,6 +23,10 @@ npm run dev            # Dev with auto-reload
 curl http://localhost:3000/health
 curl http://localhost:3000/api/peer-data
 curl http://localhost:3000/api/question-stats/U1-L3-Q01
+
+# Analyze FRQ chart requirements (Node.js script)
+node scripts/analyze_frq_charts.js
+# Outputs: docs/analysis/frq_chart_inventory.{json,csv}
 ```
 
 ## Architecture
@@ -75,7 +79,7 @@ Load order matters (see `index.html` script tags):
 
 ## Configuration
 
-**Enable Supabase sync:** Edit `supabase_config.js` with project URL and anon key. Schema in `docs/supabase_schema.sql`.
+**Enable Supabase sync:** Edit `supabase_config.js` with project URL and anon key. Schema reference in `docs/supabase_schema.sql` (context only, not executable).
 
 **Enable Railway server:** Set `USE_RAILWAY = true` and `RAILWAY_SERVER_URL` in `railway_config.js`. Deploy `railway-server/` to Railway.app with `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars.
 
@@ -86,4 +90,10 @@ Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_acti
 ## Deployment
 
 - **Frontend**: Any static host (GitHub Pages, Netlify)
-- **Railway server**: Node.js host with `SUPABASE_URL`, `SUPABASE_ANON_KEY` env vars
+- **Railway server**: Node.js 18+ host with `SUPABASE_URL`, `SUPABASE_ANON_KEY` env vars (ES modules)
+
+## Directory Notes
+
+- `worksheets/`: Standalone HTML files for specific lesson activities (e.g., `u3l67.html` for Unit 3 Lessons 6-7)
+- `scripts/`: Node.js utilities for analysis and data processing
+- `docs/`: Integration guides, sync documentation, and SQL schema reference

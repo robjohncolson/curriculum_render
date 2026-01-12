@@ -25,6 +25,10 @@
     <script src="js/entities/peer_sprite.js"></script>
     <script src="js/sprite_manager.js"></script>
 
+    <!-- AI Grading System -->
+    <script src="js/grading/grading-engine.js"></script>
+    <script src="js/grading/frq-grading-rules.js"></script>
+
 </head>
 <body>
     <canvas id="spriteCanvas"></canvas>
@@ -4923,6 +4927,8 @@ function renderLessonSelector(unitInfo) {
                 // Ensure FRQ official solution is displayed immediately after submission
                 if (questionType === 'free-response') {
                     displayFRQSolution(questionId);
+                    // Trigger AI grading for FRQ answers
+                    gradeFRQAnswer(questionId, value);
                 }
             }, 50);
 
@@ -5845,6 +5851,152 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Trigger MathJax rendering
             // (Chart rendering handled by Phase 2 code above)
             if (window.MathJax?.typesetPromise) MathJax.typesetPromise();
+        }
+
+        // ============================
+        // AI GRADING FOR FRQ ANSWERS
+        // ============================
+
+        // Initialize grading engine
+        let gradingEngine = null;
+        function getGradingEngine() {
+            if (!gradingEngine && window.GradingEngine) {
+                gradingEngine = new GradingEngine({
+                    serverUrl: window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app',
+                    aiEnabled: true
+                });
+            }
+            return gradingEngine;
+        }
+
+        // Grade an FRQ answer using AI/rubric
+        async function gradeFRQAnswer(questionId, answer) {
+            if (!answer || !answer.trim()) return;
+
+            const engine = getGradingEngine();
+            if (!engine) {
+                console.log('Grading engine not available');
+                return;
+            }
+
+            // Get the question data
+            const question = currentQuestions.find(q => q.id === questionId) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question || question.type !== 'free-response') return;
+
+            // Find or create grading feedback container
+            let feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (!feedbackContainer) {
+                const solutionContainer = document.getElementById(`frq-solution-${questionId}`);
+                if (solutionContainer) {
+                    feedbackContainer = document.createElement('div');
+                    feedbackContainer.id = `grading-feedback-${questionId}`;
+                    feedbackContainer.className = 'grading-feedback-container';
+                    solutionContainer.parentNode.insertBefore(feedbackContainer, solutionContainer);
+                } else {
+                    return;
+                }
+            }
+
+            // Show loading state
+            feedbackContainer.innerHTML = `
+                <div class="grading-feedback loading">
+                    <span class="grading-icon">🤖</span>
+                    <span class="grading-text">Analyzing your response...</span>
+                </div>
+            `;
+            feedbackContainer.style.display = 'block';
+
+            try {
+                // Build context for grading
+                const context = {
+                    questionId,
+                    topic: question.prompt?.substring(0, 100) || 'AP Statistics FRQ',
+                    prompt: question.prompt,
+                    variable: extractVariable(question.prompt),
+                    expectedElements: question.solution?.parts?.map(p => p.description) || []
+                };
+
+                // Get appropriate grading rule
+                const rule = window.getGradingRule
+                    ? window.getGradingRule(questionId, 'answer', question)
+                    : window.FRQGradingRules?.genericFRQ || { type: 'ai' };
+
+                // Grade the answer
+                const result = await engine.gradeAnswer(answer, rule, context);
+
+                // Display the result
+                displayGradingFeedback(questionId, result);
+
+            } catch (error) {
+                console.error('Grading failed:', error);
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback error">
+                        <span class="grading-icon">⚠️</span>
+                        <span class="grading-text">Grading unavailable. Compare your answer with the official solution above.</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Display grading feedback in UI
+        function displayGradingFeedback(questionId, result) {
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (!feedbackContainer) return;
+
+            // Determine score class and icon
+            const scoreClasses = {
+                'E': { class: 'excellent', icon: '✅', label: 'Essentially Correct' },
+                'P': { class: 'partial', icon: '🔶', label: 'Partially Correct' },
+                'I': { class: 'incorrect', icon: '❌', label: 'Needs Improvement' }
+            };
+
+            const scoreInfo = scoreClasses[result.score] || scoreClasses['I'];
+
+            // Build matched/missing lists
+            let detailsHtml = '';
+            if (result.matched?.length > 0) {
+                detailsHtml += `
+                    <div class="grading-matched">
+                        <strong>✓ You included:</strong>
+                        <ul>${result.matched.map(m => `<li>${m}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+            if (result.missing?.length > 0) {
+                detailsHtml += `
+                    <div class="grading-missing">
+                        <strong>△ Consider adding:</strong>
+                        <ul>${result.missing.map(m => `<li>${m}</li>`).join('')}</ul>
+                    </div>
+                `;
+            }
+
+            // AI provider badge
+            const providerBadge = result._aiGraded
+                ? `<span class="ai-badge" title="Graded by ${result._model || 'AI'}">⚡ ${result._provider || 'AI'}</span>`
+                : `<span class="ai-badge" title="Rubric-based grading">📋 Rubric</span>`;
+
+            feedbackContainer.innerHTML = `
+                <div class="grading-feedback ${scoreInfo.class}">
+                    <div class="grading-header">
+                        <span class="grading-score">${scoreInfo.icon} ${scoreInfo.label}</span>
+                        ${providerBadge}
+                    </div>
+                    <div class="grading-feedback-text">
+                        ${result.feedback || 'Review the official solution for detailed grading criteria.'}
+                    </div>
+                    ${detailsHtml}
+                </div>
+            `;
+        }
+
+        // Helper: extract variable name from prompt
+        function extractVariable(prompt) {
+            if (!prompt) return null;
+            // Look for common patterns like "the [variable]" or quoted terms
+            const match = prompt.match(/the\s+(\w+(?:\s+\w+)?)\s+(?:of|for|in)/i);
+            return match ? match[1] : null;
         }
 
         // Display answer key with timer-based logic

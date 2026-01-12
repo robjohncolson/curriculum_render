@@ -299,6 +299,256 @@ app.post('/api/batch-submit', async (req, res) => {
   }
 });
 
+// ============================
+// AI GRADING ENDPOINTS (Groq only)
+// ============================
+
+// Groq API Key
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+// Groq rate limits: 30 RPM for free tier, be conservative
+const GROQ_RATE_LIMIT = {
+  maxRequestsPerMinute: 25,  // Stay under 30 RPM limit
+  minDelayBetweenRequests: 2500  // 2.5 seconds between requests
+};
+
+// Request queue for rate limiting
+class GradingQueue {
+  constructor() {
+    this.queue = [];
+    this.processing = false;
+    this.lastRequestTime = 0;
+    this.requestsThisMinute = 0;
+    this.minuteStart = Date.now();
+  }
+
+  async add(task) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ task, resolve, reject });
+      this.process();
+    });
+  }
+
+  async process() {
+    if (this.processing || this.queue.length === 0) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const { task, resolve, reject } = this.queue.shift();
+
+      try {
+        // Check rate limit window
+        const now = Date.now();
+        if (now - this.minuteStart > 60000) {
+          this.requestsThisMinute = 0;
+          this.minuteStart = now;
+        }
+
+        // Wait if we've hit the per-minute limit
+        if (this.requestsThisMinute >= GROQ_RATE_LIMIT.maxRequestsPerMinute) {
+          const waitTime = 60000 - (now - this.minuteStart) + 1000;
+          console.log(`⏳ Rate limit reached, waiting ${Math.round(waitTime/1000)}s...`);
+          await this.delay(waitTime);
+          this.requestsThisMinute = 0;
+          this.minuteStart = Date.now();
+        }
+
+        // Ensure minimum delay between requests
+        const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+        if (timeSinceLastRequest < GROQ_RATE_LIMIT.minDelayBetweenRequests) {
+          const waitTime = GROQ_RATE_LIMIT.minDelayBetweenRequests - timeSinceLastRequest;
+          await this.delay(waitTime);
+        }
+
+        // Execute the task
+        this.lastRequestTime = Date.now();
+        this.requestsThisMinute++;
+        const result = await task();
+        resolve(result);
+
+      } catch (error) {
+        // Check if it's a rate limit error (429)
+        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+          console.log('⚠️ Hit rate limit, backing off 30s...');
+          await this.delay(30000);
+          // Re-queue the task
+          this.queue.unshift({ task, resolve, reject });
+        } else {
+          reject(error);
+        }
+      }
+    }
+
+    this.processing = false;
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  getQueueLength() {
+    return this.queue.length;
+  }
+
+  getStats() {
+    return {
+      queueLength: this.queue.length,
+      requestsThisMinute: this.requestsThisMinute,
+      processing: this.processing
+    };
+  }
+}
+
+const gradingQueue = new GradingQueue();
+
+// Check AI availability
+app.get('/api/ai/status', (req, res) => {
+  const stats = gradingQueue.getStats();
+  res.json({
+    available: !!GROQ_API_KEY,
+    provider: 'groq',
+    model: GROQ_MODEL,
+    queue: stats,
+    rateLimit: {
+      maxPerMinute: GROQ_RATE_LIMIT.maxRequestsPerMinute,
+      currentUsage: stats.requestsThisMinute
+    }
+  });
+});
+
+// Grade FRQ answer with AI
+app.post('/api/ai/grade', async (req, res) => {
+  try {
+    const { scenario, answers, prompt, aiPromptTemplate } = req.body;
+
+    if (!scenario || !answers) {
+      return res.status(400).json({ error: 'Missing scenario or answers' });
+    }
+
+    if (!GROQ_API_KEY) {
+      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
+    }
+
+    // Build the prompt
+    const gradingPrompt = prompt || buildDefaultGradingPrompt(scenario, answers, aiPromptTemplate);
+
+    const queuePos = gradingQueue.getQueueLength();
+    console.log(`🤖 AI grading queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
+
+    // Queue the request
+    const result = await gradingQueue.add(() => callGroq(gradingPrompt));
+
+    // Add metadata
+    result._provider = 'groq';
+    result._model = GROQ_MODEL;
+    result._gradingMode = 'ai';
+    result._serverGraded = true;
+
+    console.log(`✅ AI grading complete: score=${result.score || 'unknown'}`);
+
+    res.json(result);
+  } catch (err) {
+    console.error('AI grading error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Call Groq API with llama-3.3-70b-versatile
+async function callGroq(prompt) {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1024,
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error('Empty response from Groq');
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch (e) {
+    // Try to extract JSON from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    throw new Error('Failed to parse Groq response as JSON');
+  }
+}
+
+// Build default grading prompt
+function buildDefaultGradingPrompt(scenario, answers, template) {
+  if (template) {
+    // Replace template placeholders
+    let prompt = template;
+    for (const [key, value] of Object.entries(scenario)) {
+      prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
+    }
+    for (const [key, value] of Object.entries(answers)) {
+      prompt = prompt.replace(new RegExp(`\\{\\{${key}Answer\\}\\}`, 'g'), String(value || ''));
+      prompt = prompt.replace(/\{\{answer\}\}/gi, String(value || ''));
+    }
+    return prompt;
+  }
+
+  // Default prompt
+  const answerText = Object.entries(answers)
+    .map(([field, value]) => `${field}: ${value}`)
+    .join('\n');
+
+  return `You are an AP Statistics teacher grading a student's free-response answer.
+
+Question: ${scenario.prompt || scenario.topic || 'AP Statistics FRQ'}
+Part: ${scenario.partId || 'answer'}
+
+Expected elements to check:
+${(scenario.expectedElements || []).map((e, i) => `${i + 1}. ${e}`).join('\n') || 'Standard AP Statistics rubric elements'}
+
+Student's Answer:
+${answerText}
+
+Grade the response using the AP FRQ rubric:
+- E (Essentially correct): All key elements present and correct
+- P (Partially correct): Some key elements present, minor errors
+- I (Incorrect): Missing most key elements or major errors
+
+Respond in JSON format:
+{
+  "score": "E" or "P" or "I",
+  "feedback": "Brief explanation of the score",
+  "matched": ["list of correct elements"],
+  "missing": ["list of missing elements"]
+}`;
+}
+
 // Get server statistics
 app.get('/api/stats', async (req, res) => {
   try {
