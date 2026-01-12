@@ -119,6 +119,25 @@ Legacy single-string answers are detected (`typeof value === 'string'`) and trea
 
 See `docs/state-machines.md` for full state diagram.
 
+## MCQ Retry Policy
+
+**Policy:** Unlimited attempts with reasoning requirement (no max attempt cap).
+
+- **MCQs:** Unlimited attempts, but reasoning required after first attempt
+- **FRQs:** Unlimited attempts, no reasoning requirement
+
+**Key Function:** `canRetry(questionId)` in index.html
+- Returns `true` for FRQs always
+- Returns `true` for first MCQ attempt
+- Returns `true` for MCQ retries only if reasoning was provided
+
+**UI States:**
+- First attempt: "Submit Answer"
+- Retry allowed: "Update Answer"
+- Retry blocked (no reasoning): "Add Reasoning to Retry" (disabled)
+
+See `STATE_MACHINES.md` section 6 for flow diagram.
+
 ## AI Grading Escalation System
 
 Three-tier escalation system for fair, AI-augmented grading with student appeals.

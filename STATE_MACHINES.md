@@ -975,6 +975,56 @@ STATE TRANSITIONS:
               └─────────────────────────────────────────────────────┘
 ```
 
+### MCQ Retry Policy
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MCQ RETRY POLICY                                    │
+│                                                                              │
+│  MCQs: Unlimited attempts, but reasoning required after first attempt       │
+│  FRQs: Unlimited attempts, no reasoning requirement                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    canRetry(questionId) Logic
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+              ▼                               ▼
+      ┌─────────────────┐           ┌─────────────────┐
+      │   FRQ Question  │           │   MCQ Question  │
+      │                 │           │                 │
+      │  Always return  │           │  Check attempt  │
+      │  true           │           │  count          │
+      └────────┬────────┘           └────────┬────────┘
+               │                              │
+               ▼                    ┌─────────┴─────────┐
+         ALLOW RETRY                │                   │
+                                    ▼                   ▼
+                            First attempt         Retry attempt
+                            (attempts === 0)      (attempts > 0)
+                                    │                   │
+                                    ▼                   ▼
+                              ALLOW RETRY       Check for reasoning
+                                                        │
+                                            ┌───────────┴───────────┐
+                                            │                       │
+                                            ▼                       ▼
+                                    Has reasoning           No reasoning
+                                    (non-empty)             (empty)
+                                            │                       │
+                                            ▼                       ▼
+                                      ALLOW RETRY            BLOCK RETRY
+                                                             "Add Reasoning
+                                                              to Retry"
+
+    REMOVED: Maximum 3-attempt limit (was punitive and limiting)
+    KEPT: Reasoning requirement (encourages thoughtful engagement)
+```
+
+**Key Functions:**
+- `canRetry(questionId)` - Returns true/false based on question type and reasoning
+- `getAttemptCount(questionId)` - Gets current attempt count from storage
+
 ### Peer Data Sync Flow
 
 ```
