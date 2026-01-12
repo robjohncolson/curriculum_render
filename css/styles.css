@@ -365,6 +365,384 @@ body.dark-theme .frq-part-description {
     color: #e0e0e0;
 }
 
+/* =============================================
+   Progressive Multi-Part FRQ Accordion System
+   ============================================= */
+.frq-parts-progressive {
+    margin: 20px 0;
+}
+
+.frq-part-accordion {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.frq-part-accordion.current {
+    border-color: #2196F3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+.frq-part-accordion.completed {
+    border-color: #4CAF50;
+}
+
+.frq-part-accordion.locked {
+    border-color: #ccc;
+    opacity: 0.7;
+}
+
+.frq-part-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    cursor: pointer;
+    gap: 12px;
+    user-select: none;
+}
+
+.frq-part-header:hover:not(.disabled) {
+    background: #e8f4fc;
+}
+
+.frq-part-header.disabled {
+    cursor: default;
+}
+
+.frq-part-status {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.frq-part-accordion.completed .frq-part-status {
+    color: #4CAF50;
+}
+
+.frq-part-accordion.current .frq-part-status {
+    color: #2196F3;
+}
+
+.frq-part-accordion.locked .frq-part-status {
+    color: #999;
+}
+
+.frq-part-label-accordion {
+    font-weight: bold;
+    color: #1976D2;
+    min-width: 60px;
+    flex-shrink: 0;
+}
+
+.frq-part-description-preview {
+    flex: 1;
+    color: #555;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.frq-part-toggle {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.frq-part-accordion.expanded .frq-part-toggle {
+    transform: rotate(180deg);
+}
+
+.frq-part-lock {
+    color: #999;
+    flex-shrink: 0;
+}
+
+.frq-part-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, padding 0.3s ease;
+    padding: 0 16px;
+}
+
+.frq-part-content.expanded {
+    max-height: 800px;
+    padding: 16px;
+}
+
+.frq-part-full-description {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #2196F3;
+}
+
+.frq-part-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    margin: 12px 0;
+    transition: border-color 0.2s;
+}
+
+.frq-part-textarea:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 5px rgba(33, 150, 243, 0.2);
+}
+
+.frq-part-textarea:disabled {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.frq-part-submit,
+.frq-part-update {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.frq-part-submit:hover,
+.frq-part-update:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+.frq-part-update {
+    background: #4CAF50;
+}
+
+.frq-part-update:hover {
+    background: #388E3C;
+}
+
+/* Progress Bar */
+.frq-progress {
+    margin: 20px 0;
+    background: #e0e0e0;
+    border-radius: 10px;
+    height: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.frq-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.frq-progress-text {
+    display: block;
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+    margin-top: 8px;
+}
+
+/* Final Submit Section */
+.frq-final-submit {
+    margin-top: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border-radius: 8px;
+    text-align: center;
+    border: 2px solid #4CAF50;
+}
+
+.frq-final-submit .submit-button {
+    font-size: 16px;
+    padding: 14px 28px;
+}
+
+/* Animation for new part sliding in */
+@keyframes slideInPart {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.frq-part-accordion.animate-in {
+    animation: slideInPart 0.4s ease forwards;
+}
+
+/* Grading Feedback Container */
+.grading-feedback-container {
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 8px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.grading-feedback.excellent {
+    background: #e8f5e9;
+    border: 2px solid #4CAF50;
+}
+
+.grading-feedback.partial {
+    background: #fff3e0;
+    border: 2px solid #ff9800;
+}
+
+.grading-feedback.incorrect {
+    background: #ffebee;
+    border: 2px solid #f44336;
+}
+
+.grading-overall {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 16px;
+}
+
+.grading-icon {
+    font-size: 24px;
+}
+
+.grading-percentage {
+    margin-left: auto;
+    font-size: 16px;
+    color: #666;
+}
+
+.grading-parts-breakdown {
+    margin-top: 12px;
+}
+
+.grading-part-result {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.7);
+}
+
+.grading-part-result strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.grading-part-result p {
+    margin: 0;
+    color: #555;
+    font-size: 14px;
+}
+
+/* Dark Mode for Progressive FRQ */
+.dark-mode .frq-part-accordion,
+body.dark-theme .frq-part-accordion {
+    border-color: #444;
+}
+
+.dark-mode .frq-part-accordion.current,
+body.dark-theme .frq-part-accordion.current {
+    border-color: #64b5f6;
+    box-shadow: 0 2px 8px rgba(100, 181, 246, 0.3);
+}
+
+.dark-mode .frq-part-accordion.completed,
+body.dark-theme .frq-part-accordion.completed {
+    border-color: #66bb6a;
+}
+
+.dark-mode .frq-part-header,
+body.dark-theme .frq-part-header {
+    background: #2d2d2d;
+}
+
+.dark-mode .frq-part-header:hover:not(.disabled),
+body.dark-theme .frq-part-header:hover:not(.disabled) {
+    background: #3d3d3d;
+}
+
+.dark-mode .frq-part-label-accordion,
+body.dark-theme .frq-part-label-accordion {
+    color: #64b5f6;
+}
+
+.dark-mode .frq-part-description-preview,
+body.dark-theme .frq-part-description-preview {
+    color: #aaa;
+}
+
+.dark-mode .frq-part-full-description,
+body.dark-theme .frq-part-full-description {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border-left-color: #64b5f6;
+}
+
+.dark-mode .frq-part-textarea,
+body.dark-theme .frq-part-textarea {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+.dark-mode .frq-part-textarea:focus,
+body.dark-theme .frq-part-textarea:focus {
+    border-color: #64b5f6;
+}
+
+.dark-mode .frq-progress,
+body.dark-theme .frq-progress {
+    background: #444;
+}
+
+.dark-mode .frq-progress-text,
+body.dark-theme .frq-progress-text {
+    color: #aaa;
+}
+
+.dark-mode .frq-final-submit,
+body.dark-theme .frq-final-submit {
+    background: linear-gradient(135deg, #1b3d1f, #2e5a32);
+    border-color: #66bb6a;
+}
+
+.dark-mode .grading-feedback-container,
+body.dark-theme .grading-feedback-container {
+    background: #2d2d2d;
+}
+
+.dark-mode .grading-part-result,
+body.dark-theme .grading-part-result {
+    background: rgba(0,0,0,0.3);
+}
+
+.dark-mode .grading-part-result p,
+body.dark-theme .grading-part-result p {
+    color: #bbb;
+}
+
 .submit-button {
     background: #4CAF50;
     color: white;

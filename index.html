@@ -2066,7 +2066,19 @@ function refreshQuestionIfVisible(questionId) {
 
         // Check if question has been answered
         function isQuestionAnswered(questionId) {
-            return classData.users[currentUsername]?.answers?.[questionId] !== undefined;
+            const answer = classData.users[currentUsername]?.answers?.[questionId];
+            if (!answer) return false;
+
+            // Check for new multi-part FRQ format
+            if (typeof answer.value === 'object' && answer.value !== null) {
+                // For progressive FRQs, only count as answered if all parts complete
+                if (answer.value.allComplete !== undefined) {
+                    return answer.value.allComplete === true;
+                }
+            }
+
+            // Legacy format: any truthy value counts as answered
+            return answer.value !== undefined && answer.value !== null && answer.value !== '';
         }
 
         // Get attempt count for a question
@@ -4076,33 +4088,14 @@ function renderLessonSelector(unitInfo) {
                 const savedChart = classData?.users?.[currentUsername]?.charts?.[question.id] || null;
                 const chartButtonLabel = savedChart ? 'Edit Chart' : 'Create Chart';
 
-                // Render multi-part FRQ sub-questions from solution.parts
+                // Render multi-part FRQ using progressive accordion system
                 const frqParts = question.solution?.parts || [];
-                if (frqParts.length > 0) {
-                    html += '<div class="frq-parts">';
-                    frqParts.forEach((part, partIndex) => {
-                        if (part.description) {
-                            // Format partId for display (e.g., "a", "b-i" -> "(a)", "(b)(i)")
-                            let partLabel = part.partId || String.fromCharCode(97 + partIndex);
-                            // Convert formats like "b-i" to "(b)(i)" or "a-i" to "(a)(i)"
-                            if (partLabel.includes('-')) {
-                                const segments = partLabel.split('-');
-                                partLabel = segments.map(s => `(${s})`).join('');
-                            } else {
-                                partLabel = `(${partLabel})`;
-                            }
-                            html += `
-                                <div class="frq-part" data-part-id="${part.partId}">
-                                    <span class="frq-part-label">${partLabel}</span>
-                                    <span class="frq-part-description">${part.description}</span>
-                                </div>
-                            `;
-                        }
-                    });
-                    html += '</div>';
-                }
+                const hasMultipleParts = frqParts.length > 0;
 
-                if (question.requiresGraph === 'histogram') {
+                if (hasMultipleParts && !question.requiresGraph) {
+                    // Use progressive accordion for multi-part text FRQs
+                    html += renderProgressiveFRQParts(question.id, frqParts);
+                } else if (question.requiresGraph === 'histogram') {
                     // Graph-based FRQ: Show histogram input UI
                     let graphData = [];
                     if (savedAnswer) {
@@ -4695,6 +4688,17 @@ function renderLessonSelector(unitInfo) {
 
             // Determine if this is a free-response question
             const isFRQ = (questionType === 'free-response');
+
+            // Multi-part FRQs are handled by the progressive accordion system
+            if (isFRQ) {
+                const question = (typeof currentQuestions !== 'undefined' ? currentQuestions.find(q => q.id === questionId) : null) ||
+                                 EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+                if (question?.solution?.parts?.length > 0 && !question.requiresGraph) {
+                    // This is a multi-part FRQ - handled by submitPartAnswer instead
+                    console.log('Multi-part FRQ submission handled by progressive system');
+                    return;
+                }
+            }
 
             const errorSpan = document.getElementById(`error-${questionId}`);
             const successSpan = document.getElementById(`success-${questionId}`);
@@ -6074,6 +6078,477 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Look for common patterns like "the [variable]" or quoted terms
             const match = prompt.match(/the\s+(\w+(?:\s+\w+)?)\s+(?:of|for|in)/i);
             return match ? match[1] : null;
+        }
+
+        // ====================================================
+        // PROGRESSIVE MULTI-PART FRQ SYSTEM
+        // ====================================================
+
+        // FRQ Part State Manager - tracks progress through multi-part FRQs
+        const frqPartState = {
+            questions: {}, // questionId -> { parts: {...}, currentPart, completedParts, allComplete }
+
+            // Initialize or restore state for a question
+            initialize(questionId, parts) {
+                const savedAnswer = classData.users[currentUsername]?.answers?.[questionId];
+                const normalized = this.normalizeAnswer(savedAnswer);
+
+                if (normalized?.legacyAnswer) {
+                    // Legacy single-string answer - treat as all parts complete
+                    this.questions[questionId] = {
+                        parts: {},
+                        legacyAnswer: normalized.legacyAnswer,
+                        currentPart: null,
+                        completedParts: parts.map(p => p.partId),
+                        allComplete: true
+                    };
+                } else if (normalized?.parts) {
+                    // Restore from saved state
+                    this.questions[questionId] = normalized;
+                } else {
+                    // Fresh start - first part is current
+                    this.questions[questionId] = {
+                        parts: {},
+                        currentPart: parts[0]?.partId || null,
+                        completedParts: [],
+                        allComplete: false
+                    };
+                }
+                return this.questions[questionId];
+            },
+
+            // Normalize saved answer to handle both legacy and new formats
+            normalizeAnswer(savedAnswer) {
+                if (!savedAnswer?.value) return null;
+
+                // Legacy format: single string
+                if (typeof savedAnswer.value === 'string') {
+                    return {
+                        legacyAnswer: savedAnswer.value,
+                        parts: {},
+                        completedParts: [],
+                        allComplete: true
+                    };
+                }
+
+                // New format: structured object
+                return savedAnswer.value;
+            },
+
+            getState(questionId) {
+                return this.questions[questionId];
+            },
+
+            // Submit a part answer and advance to next part
+            submitPart(questionId, partId, answer, allPartIds) {
+                const state = this.questions[questionId];
+                if (!state) return null;
+
+                // Save answer for this part
+                state.parts[partId] = answer;
+
+                // Mark as completed if not already
+                if (!state.completedParts.includes(partId)) {
+                    state.completedParts.push(partId);
+                }
+
+                // Find next incomplete part
+                const nextPart = allPartIds.find(id => !state.completedParts.includes(id));
+                state.currentPart = nextPart || null;
+                state.allComplete = state.completedParts.length === allPartIds.length;
+
+                return state;
+            },
+
+            // Update an already-completed part's answer
+            updatePart(questionId, partId, answer) {
+                const state = this.questions[questionId];
+                if (!state) return null;
+                state.parts[partId] = answer;
+                return state;
+            }
+        };
+
+        // Truncate text with ellipsis
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) return text || '';
+            return text.substring(0, maxLength - 3) + '...';
+        }
+
+        // Format partId for display (e.g., "a", "b-i" -> "(a)", "(b)(i)")
+        function formatPartLabel(partId) {
+            if (!partId) return '';
+            if (partId.includes('-')) {
+                return partId.split('-').map(s => `(${s})`).join('');
+            }
+            return `(${partId})`;
+        }
+
+        // Render progressive FRQ parts as accordion
+        function renderProgressiveFRQParts(questionId, parts) {
+            // Initialize or restore state
+            const state = frqPartState.initialize(questionId, parts);
+            const partIds = parts.map(p => p.partId);
+
+            let html = `<div class="frq-parts-progressive" data-question-id="${questionId}">`;
+
+            parts.forEach((part, index) => {
+                const partId = part.partId;
+                const isCompleted = state.completedParts.includes(partId);
+                const isCurrent = state.currentPart === partId;
+                const isLocked = !isCompleted && !isCurrent;
+
+                const statusClass = isCompleted ? 'completed' : (isCurrent ? 'current' : 'locked');
+                const expandedClass = isCurrent ? 'expanded' : '';
+                const partLabel = formatPartLabel(partId);
+
+                // Get saved answer for this part (or legacy answer if applicable)
+                let savedPartAnswer = state.parts[partId] || '';
+                if (state.legacyAnswer && isCompleted && !savedPartAnswer) {
+                    savedPartAnswer = '[Legacy answer - see combined response above]';
+                }
+
+                // Status icon
+                const statusIcon = isCompleted ? '✓' : (isCurrent ? '●' : '○');
+
+                // Header click handler (only for completed parts to toggle)
+                const headerOnClick = isCompleted
+                    ? `onclick="togglePartAccordion('${questionId}', '${partId}')"`
+                    : '';
+
+                html += `
+                    <div class="frq-part-accordion ${statusClass} ${expandedClass ? 'expanded' : ''}" data-part-id="${partId}">
+                        <div class="frq-part-header ${isLocked ? 'disabled' : ''}" ${headerOnClick}>
+                            <span class="frq-part-status">${statusIcon}</span>
+                            <span class="frq-part-label-accordion">${partLabel}</span>
+                            <span class="frq-part-description-preview">${truncateText(part.description, 60)}</span>
+                            ${isCompleted ? '<span class="frq-part-toggle">▼</span>' : ''}
+                            ${isLocked ? '<span class="frq-part-lock">🔒</span>' : ''}
+                        </div>
+                        <div class="frq-part-content ${expandedClass}">
+                            <div class="frq-part-full-description">${part.description}</div>
+                            <textarea
+                                id="frq-part-${questionId}-${partId}"
+                                class="frq-part-textarea"
+                                placeholder="Enter your answer for part ${partLabel}..."
+                                ${isLocked ? 'disabled' : ''}
+                            >${savedPartAnswer}</textarea>
+                            ${isCompleted
+                                ? `<button class="frq-part-update" onclick="updatePartAnswer('${questionId}', '${partId}')">Update Answer</button>`
+                                : `<button class="frq-part-submit" onclick="submitPartAnswer('${questionId}', '${partId}')">Submit Part ${partLabel}</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            // Progress bar
+            const progress = parts.length > 0 ? (state.completedParts.length / parts.length) * 100 : 0;
+            html += `
+                <div class="frq-progress" data-question-id="${questionId}">
+                    <div class="frq-progress-bar" style="width: ${progress}%"></div>
+                </div>
+                <div class="frq-progress-text" data-question-id="${questionId}">${state.completedParts.length} of ${parts.length} parts complete</div>
+            `;
+
+            // Final submit button (hidden until all complete)
+            html += `
+                <div class="frq-final-submit" id="final-submit-${questionId}" style="display: ${state.allComplete ? 'block' : 'none'};">
+                    <button class="submit-button" onclick="finalSubmitFRQ('${questionId}')">
+                        View Grading Feedback
+                    </button>
+                </div>
+            `;
+
+            return html;
+        }
+
+        // Toggle accordion expand/collapse for completed parts
+        window.togglePartAccordion = function(questionId, partId) {
+            const accordion = document.querySelector(
+                `.frq-parts-progressive[data-question-id="${questionId}"] .frq-part-accordion[data-part-id="${partId}"]`
+            );
+            if (!accordion) return;
+
+            const content = accordion.querySelector('.frq-part-content');
+            const isExpanded = accordion.classList.contains('expanded');
+
+            if (isExpanded) {
+                content.classList.remove('expanded');
+                accordion.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+                accordion.classList.add('expanded');
+            }
+        };
+
+        // Submit answer for a single part
+        window.submitPartAnswer = async function(questionId, partId) {
+            const textarea = document.getElementById(`frq-part-${questionId}-${partId}`);
+            if (!textarea || !textarea.value.trim()) {
+                alert('Please enter an answer before submitting.');
+                return;
+            }
+
+            const answer = textarea.value.trim();
+            const question = (typeof currentQuestions !== 'undefined' ? currentQuestions.find(q => q.id === questionId) : null) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question?.solution?.parts) return;
+
+            const allPartIds = question.solution.parts.map(p => p.partId);
+
+            // Update state
+            const state = frqPartState.submitPart(questionId, partId, answer, allPartIds);
+
+            // Build combined answer object for storage
+            const answerValue = {
+                parts: state.parts,
+                currentPart: state.currentPart,
+                completedParts: state.completedParts,
+                allComplete: state.allComplete
+            };
+
+            // Save to classData
+            ensureClassDataInitialized();
+            if (!classData.users[currentUsername]) {
+                classData.users[currentUsername] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+            }
+            classData.users[currentUsername].answers[questionId] = {
+                value: answerValue,
+                timestamp: Date.now()
+            };
+            saveClassData();
+
+            // Also save via storage adapter if available
+            if (typeof saveAnswer === 'function') {
+                await saveAnswer(currentUsername, questionId, answerValue, Date.now());
+            }
+
+            // Animate UI transition to next part
+            transitionToNextPart(questionId, partId, state, question.solution.parts);
+
+            // Show message when all complete
+            if (state.allComplete) {
+                document.getElementById(`final-submit-${questionId}`).style.display = 'block';
+            }
+        };
+
+        // Update an already-submitted part's answer
+        window.updatePartAnswer = async function(questionId, partId) {
+            const textarea = document.getElementById(`frq-part-${questionId}-${partId}`);
+            if (!textarea || !textarea.value.trim()) {
+                alert('Please enter an answer before updating.');
+                return;
+            }
+
+            const answer = textarea.value.trim();
+            const state = frqPartState.updatePart(questionId, partId, answer);
+            if (!state) return;
+
+            // Save updated state
+            const answerValue = {
+                parts: state.parts,
+                currentPart: state.currentPart,
+                completedParts: state.completedParts,
+                allComplete: state.allComplete
+            };
+
+            classData.users[currentUsername].answers[questionId] = {
+                value: answerValue,
+                timestamp: Date.now()
+            };
+            saveClassData();
+
+            if (typeof saveAnswer === 'function') {
+                await saveAnswer(currentUsername, questionId, answerValue, Date.now());
+            }
+
+            // Visual feedback
+            const button = document.querySelector(
+                `.frq-parts-progressive[data-question-id="${questionId}"] .frq-part-accordion[data-part-id="${partId}"] .frq-part-update`
+            );
+            if (button) {
+                const originalText = button.textContent;
+                button.textContent = 'Updated ✓';
+                button.style.background = '#66bb6a';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = '';
+                }, 1500);
+            }
+        };
+
+        // Animate transition from completed part to next part
+        function transitionToNextPart(questionId, completedPartId, state, parts) {
+            const container = document.querySelector(`.frq-parts-progressive[data-question-id="${questionId}"]`);
+            if (!container) return;
+
+            // Collapse completed part
+            const completedAccordion = container.querySelector(`[data-part-id="${completedPartId}"]`);
+            if (completedAccordion) {
+                completedAccordion.classList.remove('current');
+                completedAccordion.classList.add('completed');
+                completedAccordion.classList.remove('expanded');
+
+                const content = completedAccordion.querySelector('.frq-part-content');
+                if (content) content.classList.remove('expanded');
+
+                // Update status icon
+                const statusEl = completedAccordion.querySelector('.frq-part-status');
+                if (statusEl) statusEl.textContent = '✓';
+
+                // Add toggle arrow
+                const header = completedAccordion.querySelector('.frq-part-header');
+                if (header && !header.querySelector('.frq-part-toggle')) {
+                    const toggle = document.createElement('span');
+                    toggle.className = 'frq-part-toggle';
+                    toggle.textContent = '▼';
+                    header.appendChild(toggle);
+                }
+
+                // Add click handler for toggle
+                const headerEl = completedAccordion.querySelector('.frq-part-header');
+                if (headerEl) {
+                    headerEl.onclick = () => togglePartAccordion(questionId, completedPartId);
+                }
+
+                // Change submit button to update button
+                const submitBtn = completedAccordion.querySelector('.frq-part-submit');
+                if (submitBtn) {
+                    submitBtn.className = 'frq-part-update';
+                    submitBtn.textContent = 'Update Answer';
+                    submitBtn.onclick = () => updatePartAnswer(questionId, completedPartId);
+                }
+            }
+
+            // Expand next part if exists
+            if (state.currentPart) {
+                const nextAccordion = container.querySelector(`[data-part-id="${state.currentPart}"]`);
+                if (nextAccordion) {
+                    nextAccordion.classList.remove('locked');
+                    nextAccordion.classList.add('current', 'animate-in');
+
+                    const content = nextAccordion.querySelector('.frq-part-content');
+                    if (content) content.classList.add('expanded');
+
+                    // Update status icon
+                    const statusEl = nextAccordion.querySelector('.frq-part-status');
+                    if (statusEl) statusEl.textContent = '●';
+
+                    // Enable textarea
+                    const textarea = nextAccordion.querySelector('.frq-part-textarea');
+                    if (textarea) {
+                        textarea.disabled = false;
+                        textarea.placeholder = `Enter your answer for part ${formatPartLabel(state.currentPart)}...`;
+                    }
+
+                    // Remove lock icon
+                    const lockIcon = nextAccordion.querySelector('.frq-part-lock');
+                    if (lockIcon) lockIcon.remove();
+
+                    // Scroll into view after animation
+                    setTimeout(() => {
+                        nextAccordion.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            }
+
+            // Update progress bar
+            updateFRQProgressBar(questionId, state, parts.length);
+        }
+
+        // Update the progress bar display
+        function updateFRQProgressBar(questionId, state, totalParts) {
+            const progress = totalParts > 0 ? (state.completedParts.length / totalParts) * 100 : 0;
+
+            const progressBar = document.querySelector(`.frq-progress[data-question-id="${questionId}"] .frq-progress-bar`);
+            const progressText = document.querySelector(`.frq-progress-text[data-question-id="${questionId}"]`);
+
+            if (progressBar) progressBar.style.width = `${progress}%`;
+            if (progressText) progressText.textContent = `${state.completedParts.length} of ${totalParts} parts complete`;
+        }
+
+        // Final submit - display solution and trigger grading
+        window.finalSubmitFRQ = async function(questionId) {
+            const state = frqPartState.getState(questionId);
+            if (!state || !state.allComplete) {
+                alert('Please complete all parts before viewing feedback.');
+                return;
+            }
+
+            // Display the official solution
+            displayFRQSolution(questionId);
+
+            // Trigger AI grading with all parts combined
+            await gradeMultiPartFRQ(questionId, state.parts);
+        };
+
+        // Grade all parts of a multi-part FRQ
+        async function gradeMultiPartFRQ(questionId, partsAnswers) {
+            const engine = getGradingEngine();
+            if (!engine) {
+                console.log('Grading engine not available');
+                return;
+            }
+
+            const question = (typeof currentQuestions !== 'undefined' ? currentQuestions.find(q => q.id === questionId) : null) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question) return;
+
+            // Find or create feedback container
+            let feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (!feedbackContainer) {
+                const solutionContainer = document.getElementById(`frq-solution-${questionId}`);
+                if (solutionContainer) {
+                    feedbackContainer = document.createElement('div');
+                    feedbackContainer.id = `grading-feedback-${questionId}`;
+                    feedbackContainer.className = 'grading-feedback-container';
+                    solutionContainer.parentNode.insertBefore(feedbackContainer, solutionContainer);
+                }
+            }
+
+            if (feedbackContainer) {
+                feedbackContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><span class="loading-spinner"></span> Grading your responses...</div>';
+            }
+
+            try {
+                // Build context
+                const context = {
+                    questionId,
+                    topic: question.prompt?.substring(0, 100) || 'AP Statistics FRQ',
+                    prompt: question.prompt,
+                    expectedElements: question.solution?.parts?.map(p => p.description) || []
+                };
+
+                // Combine all part answers into a single string for grading
+                const combinedAnswer = Object.entries(partsAnswers)
+                    .map(([partId, answer]) => `Part ${formatPartLabel(partId)}: ${answer}`)
+                    .join('\n\n');
+
+                // Get grading rule
+                const rule = window.getGradingRule
+                    ? window.getGradingRule(questionId, 'answer', question)
+                    : window.FRQGradingRules?.genericFRQ || { type: 'ai' };
+
+                // Grade the combined answer
+                const result = await engine.gradeAnswer(combinedAnswer, rule, context);
+
+                // Display combined feedback
+                displayGradingFeedback(questionId, result);
+
+            } catch (error) {
+                console.error('Multi-part grading failed:', error);
+                if (feedbackContainer) {
+                    feedbackContainer.innerHTML = `
+                        <div class="grading-feedback error">
+                            <span class="grading-icon">⚠️</span>
+                            <span class="grading-text">Grading unavailable. Compare your answers with the official solution above.</span>
+                        </div>
+                    `;
+                }
+            }
         }
 
         // ============================
