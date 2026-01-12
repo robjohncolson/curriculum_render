@@ -316,6 +316,55 @@ tr:nth-child(even) {
     border-color: #2196F3;
     box-shadow: 0 0 5px rgba(33, 150, 243, 0.2);
 }
+
+/* FRQ Multi-Part Question Display */
+.frq-parts {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f0f7ff;
+    border-left: 4px solid #2196F3;
+    border-radius: 4px;
+}
+.frq-part {
+    margin: 12px 0;
+    padding: 10px 0;
+    border-bottom: 1px solid #dce6f0;
+    line-height: 1.6;
+}
+.frq-part:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+.frq-part-label {
+    display: inline-block;
+    font-weight: bold;
+    color: #1976D2;
+    min-width: 50px;
+    margin-right: 8px;
+}
+.frq-part-description {
+    color: #333;
+}
+
+/* Dark mode for FRQ parts */
+.dark-mode .frq-parts,
+body.dark-theme .frq-parts {
+    background: #1a2a3a;
+    border-left-color: #64b5f6;
+}
+.dark-mode .frq-part,
+body.dark-theme .frq-part {
+    border-bottom-color: #2a3a4a;
+}
+.dark-mode .frq-part-label,
+body.dark-theme .frq-part-label {
+    color: #64b5f6;
+}
+.dark-mode .frq-part-description,
+body.dark-theme .frq-part-description {
+    color: #e0e0e0;
+}
+
 .submit-button {
     background: #4CAF50;
     color: white;

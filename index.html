@@ -4076,6 +4076,32 @@ function renderLessonSelector(unitInfo) {
                 const savedChart = classData?.users?.[currentUsername]?.charts?.[question.id] || null;
                 const chartButtonLabel = savedChart ? 'Edit Chart' : 'Create Chart';
 
+                // Render multi-part FRQ sub-questions from solution.parts
+                const frqParts = question.solution?.parts || [];
+                if (frqParts.length > 0) {
+                    html += '<div class="frq-parts">';
+                    frqParts.forEach((part, partIndex) => {
+                        if (part.description) {
+                            // Format partId for display (e.g., "a", "b-i" -> "(a)", "(b)(i)")
+                            let partLabel = part.partId || String.fromCharCode(97 + partIndex);
+                            // Convert formats like "b-i" to "(b)(i)" or "a-i" to "(a)(i)"
+                            if (partLabel.includes('-')) {
+                                const segments = partLabel.split('-');
+                                partLabel = segments.map(s => `(${s})`).join('');
+                            } else {
+                                partLabel = `(${partLabel})`;
+                            }
+                            html += `
+                                <div class="frq-part" data-part-id="${part.partId}">
+                                    <span class="frq-part-label">${partLabel}</span>
+                                    <span class="frq-part-description">${part.description}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    html += '</div>';
+                }
+
                 if (question.requiresGraph === 'histogram') {
                     // Graph-based FRQ: Show histogram input UI
                     let graphData = [];
