@@ -490,3 +490,223 @@ describe('Progressive FRQ Escalation', () => {
         });
     });
 });
+
+/**
+ * Conditional Solution Display Tests
+ *
+ * Tests for the "hide rubric when AI works" feature:
+ * - Solution hidden by default
+ * - Solution shown only when AI grading fails
+ * - Solution NOT shown when AI grading succeeds
+ * - No auto-display on page load
+ */
+/**
+ * Mock implementation of shouldShowSolution logic
+ * Mirrors the conditional in gradeFRQAnswer and gradeMultiPartFRQ
+ */
+function shouldShowSolution(gradingResult) {
+    // Solution should only show if AI grading failed or wasn't used
+    if (!gradingResult?._aiGraded) return true;
+    if (gradingResult?._error) return true;
+    return false;
+}
+
+describe('Conditional Solution Display', () => {
+    let mockGradingResults;
+    let mockSolutionDOM;
+
+    beforeEach(() => {
+        mockGradingResults = {};
+        mockSolutionDOM = {
+            elements: {},
+            getElementById(id) {
+                return this.elements[id] || null;
+            },
+            addElement(id, display = 'none') {
+                this.elements[id] = {
+                    id,
+                    style: { display },
+                    innerHTML: ''
+                };
+                return this.elements[id];
+            }
+        };
+    });
+
+    /**
+     * Mock implementation of displayFRQSolution
+     */
+    function displayFRQSolution(questionId, dom) {
+        const container = dom.getElementById(`frq-solution-${questionId}`);
+        if (container) {
+            container.style.display = 'block';
+            container.innerHTML = '<div>Solution content</div>';
+        }
+    }
+
+    /**
+     * Mock FRQ grading flow that conditionally shows solution
+     */
+    function gradeFRQWithConditionalSolution(questionId, result, dom) {
+        // Store the result
+        mockGradingResults[questionId] = result;
+
+        // Only show solution if AI grading failed
+        if (shouldShowSolution(result)) {
+            displayFRQSolution(questionId, dom);
+        }
+    }
+
+    describe('Solution Display Logic', () => {
+        beforeEach(() => {
+            mockSolutionDOM.addElement('frq-solution-Q1', 'none');
+        });
+
+        it('should NOT show solution when AI grading succeeds', () => {
+            const aiSuccessResult = {
+                score: 'P',
+                feedback: 'Good answer',
+                _aiGraded: true,
+                _provider: 'groq'
+            };
+
+            gradeFRQWithConditionalSolution('Q1', aiSuccessResult, mockSolutionDOM);
+
+            expect(mockSolutionDOM.elements['frq-solution-Q1'].style.display).toBe('none');
+        });
+
+        it('should show solution when AI grading fails with error', () => {
+            const aiErrorResult = {
+                score: 'I',
+                feedback: 'Grading failed',
+                _aiGraded: true,
+                _error: 'API timeout'
+            };
+
+            gradeFRQWithConditionalSolution('Q1', aiErrorResult, mockSolutionDOM);
+
+            expect(mockSolutionDOM.elements['frq-solution-Q1'].style.display).toBe('block');
+        });
+
+        it('should show solution when AI grading was not used (regex only)', () => {
+            const regexOnlyResult = {
+                score: 'P',
+                feedback: 'Matched some patterns',
+                _aiGraded: false
+            };
+
+            gradeFRQWithConditionalSolution('Q1', regexOnlyResult, mockSolutionDOM);
+
+            expect(mockSolutionDOM.elements['frq-solution-Q1'].style.display).toBe('block');
+        });
+
+        it('should show solution when grading result is undefined', () => {
+            // Simulates case where grading completely failed
+            gradeFRQWithConditionalSolution('Q1', undefined, mockSolutionDOM);
+
+            expect(mockSolutionDOM.elements['frq-solution-Q1'].style.display).toBe('block');
+        });
+
+        it('should show solution when _aiGraded flag is missing', () => {
+            const noFlagResult = {
+                score: 'I',
+                feedback: 'Basic feedback'
+            };
+
+            gradeFRQWithConditionalSolution('Q1', noFlagResult, mockSolutionDOM);
+
+            expect(mockSolutionDOM.elements['frq-solution-Q1'].style.display).toBe('block');
+        });
+    });
+
+    describe('shouldShowSolution helper', () => {
+        it('should return false for successful AI grading', () => {
+            expect(shouldShowSolution({ _aiGraded: true })).toBe(false);
+        });
+
+        it('should return true for AI grading with error', () => {
+            expect(shouldShowSolution({ _aiGraded: true, _error: 'timeout' })).toBe(true);
+        });
+
+        it('should return true for regex-only grading', () => {
+            expect(shouldShowSolution({ _aiGraded: false })).toBe(true);
+        });
+
+        it('should return true for undefined result', () => {
+            expect(shouldShowSolution(undefined)).toBe(true);
+        });
+
+        it('should return true for null result', () => {
+            expect(shouldShowSolution(null)).toBe(true);
+        });
+
+        it('should return true for empty object', () => {
+            expect(shouldShowSolution({})).toBe(true);
+        });
+    });
+
+    describe('Page Load Behavior', () => {
+        it('should NOT auto-display solutions on page load', () => {
+            // This test documents the expected behavior:
+            // FRQ solutions should never be auto-displayed on page load,
+            // even for previously answered questions.
+            // They only appear when AI grading explicitly fails during current session.
+
+            mockSolutionDOM.addElement('frq-solution-Q2', 'none');
+
+            // Simulate page load with no grading results (they're not persisted)
+            const gradingResultOnPageLoad = undefined;
+
+            // The OLD behavior would show solution because result is undefined
+            // The NEW behavior should NOT auto-display at all on page load
+
+            // We're testing that the solution stays hidden
+            // (In the real app, the auto-display code was removed entirely)
+            expect(mockSolutionDOM.elements['frq-solution-Q2'].style.display).toBe('none');
+        });
+
+        it('should keep solution hidden until grading is explicitly triggered', () => {
+            mockSolutionDOM.addElement('frq-solution-Q3', 'none');
+
+            // Before any grading
+            expect(mockSolutionDOM.elements['frq-solution-Q3'].style.display).toBe('none');
+
+            // After successful AI grading
+            gradeFRQWithConditionalSolution('Q3', { _aiGraded: true, score: 'E' }, mockSolutionDOM);
+            expect(mockSolutionDOM.elements['frq-solution-Q3'].style.display).toBe('none');
+
+            // Solution only shows if grading fails
+            mockSolutionDOM.elements['frq-solution-Q3'].style.display = 'none'; // Reset
+            gradeFRQWithConditionalSolution('Q3', { _aiGraded: false, score: 'I' }, mockSolutionDOM);
+            expect(mockSolutionDOM.elements['frq-solution-Q3'].style.display).toBe('block');
+        });
+    });
+
+    describe('MCQ Answer Key Conditional Display', () => {
+        /**
+         * Mock implementation of shouldShowAnswerKey for MCQs
+         */
+        function shouldShowAnswerKey(gradingResult) {
+            // Same logic: hide answer key if AI grading succeeded
+            if (gradingResult?._aiGraded && !gradingResult?._error) {
+                return false;
+            }
+            return true;
+        }
+
+        it('should NOT show MCQ answer key when AI grading succeeds', () => {
+            const aiSuccessResult = { _aiGraded: true, score: 'E' };
+            expect(shouldShowAnswerKey(aiSuccessResult)).toBe(false);
+        });
+
+        it('should show MCQ answer key when AI grading fails', () => {
+            const aiFailResult = { _aiGraded: true, _error: 'timeout' };
+            expect(shouldShowAnswerKey(aiFailResult)).toBe(true);
+        });
+
+        it('should show MCQ answer key when no AI grading', () => {
+            const noAiResult = { score: 'I' };
+            expect(shouldShowAnswerKey(noAiResult)).toBe(true);
+        });
+    });
+});

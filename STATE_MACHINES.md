@@ -2359,6 +2359,99 @@ POST /api/ai/appeal
 └─────────────────────────────────────────┘
 ```
 
+### Conditional Solution Display
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│               SOLUTION/RUBRIC VISIBILITY LOGIC                              │
+│                                                                              │
+│  Design Philosophy: When AI grading works, students should rely on AI       │
+│  feedback rather than immediately seeing the answer key.                    │
+│                                                                              │
+│  The solution/rubric is shown ONLY as a fallback when AI fails.            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    Student submits FRQ answer
+                              │
+                              ▼
+                ┌─────────────────────────────┐
+                │    AI Grading Attempt       │
+                │                             │
+                │  gradeFRQAnswer() or        │
+                │  gradeMultiPartFRQ()        │
+                └───────────────┬─────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    │                       │
+                    ▼                       ▼
+          ┌─────────────────┐     ┌─────────────────┐
+          │  AI SUCCESS     │     │  AI FAILURE     │
+          │                 │     │                 │
+          │  _aiGraded:true │     │  _error: true   │
+          │  No _error      │     │  OR no _aiGraded│
+          │                 │     │  OR exception   │
+          └────────┬────────┘     └────────┬────────┘
+                   │                       │
+                   ▼                       ▼
+          ┌─────────────────┐     ┌─────────────────┐
+          │  HIDE SOLUTION  │     │  SHOW SOLUTION  │
+          │                 │     │                 │
+          │  frq-solution-  │     │  displayFRQ-    │
+          │  {id} stays     │     │  Solution()     │
+          │  display: none  │     │  called         │
+          │                 │     │                 │
+          │  Student relies │     │  Student can    │
+          │  on AI feedback │     │  compare to     │
+          │  for learning   │     │  official rubric│
+          └─────────────────┘     └─────────────────┘
+
+                    Page Load (Answered Questions)
+                              │
+                              ▼
+                ┌─────────────────────────────┐
+                │    NO Auto-Display          │
+                │                             │
+                │  Solutions never auto-shown │
+                │  on page load.              │
+                │                             │
+                │  Student must click         │
+                │  "View Grading Feedback"    │
+                │  to trigger grading flow.   │
+                └─────────────────────────────┘
+
+                    MCQ Answer Key Logic
+                              │
+                              ▼
+                ┌─────────────────────────────┐
+                │   displayAnswerKey()        │
+                │                             │
+                │  Check: window.gradingResults│
+                │  [questionId]?._aiGraded    │
+                └───────────────┬─────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    │                       │
+                    ▼                       ▼
+          ┌─────────────────┐     ┌─────────────────┐
+          │  AI worked      │     │  AI failed      │
+          │                 │     │                 │
+          │  Hide answer    │     │  Show answer    │
+          │  key - student  │     │  key with timer │
+          │  uses AI        │     │  logic          │
+          │  feedback       │     │                 │
+          └─────────────────┘     └─────────────────┘
+```
+
+**Decision Flow Helper:**
+```javascript
+function shouldShowSolution(gradingResult) {
+    // Show solution if AI NOT successful
+    if (!gradingResult?._aiGraded) return true;  // No AI grading
+    if (gradingResult?._error) return true;       // AI had error
+    return false;                                  // AI worked - hide solution
+}
+```
+
 ---
 
 ## State Summary Table

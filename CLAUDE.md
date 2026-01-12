@@ -132,6 +132,8 @@ Three-tier escalation system for fair, AI-augmented grading with student appeals
 
 **Critical Rule:** AI can only UPGRADE scores, never downgrade. This protects students from AI hallucinations.
 
+**Conditional Solution Display:** When AI grading succeeds, the rubric/answer key is hidden to encourage students to rely on AI feedback. Solutions only appear as a fallback when AI fails. Check `result._aiGraded` and `result._error` to determine visibility.
+
 **Key Functions:**
 - `gradeMCQAnswer(questionId, answer, isCorrect)` - MCQ grading with escalation UI
 - `gradeFRQAnswer(questionId, answer)` - Single-part FRQ grading
@@ -149,7 +151,11 @@ window.gradingResults[questionId] = {
     matched: [...],
     missing: [...],
     answer: "...",
-    questionType: 'multiple-choice' | 'free-response'
+    questionType: 'multiple-choice' | 'free-response',
+    _aiGraded: true | false,  // True if AI was used successfully
+    _error: "..." | undefined, // Error message if AI failed
+    _provider: 'groq',
+    _model: 'llama-3.3-70b-versatile'
 };
 ```
 
@@ -179,13 +185,13 @@ npm run test:coverage       # Generate coverage report
 ```
 
 **Test Suites:**
-- `tests/grading-engine.test.ts` - GradingEngine class, scoring, appeals
-- `tests/escalation.test.ts` - Escalation UI flow, MCQ/FRQ grading
+- `tests/grading-engine.test.js` - GradingEngine class, scoring, appeals
+- `tests/escalation.test.js` - Escalation UI flow, MCQ/FRQ grading, conditional solution display
 - `tests/progressive-frq.test.ts` - Multi-part FRQ state machine
 
 **Test Coverage:**
 - Grading engine: E/P/I scoring, regex matching, dual grading, appeal validation
-- Escalation: Container visibility, button states, result storage
+- Escalation: Container visibility, button states, result storage, solution display logic
 - Progressive FRQ: State transitions, part submission, backward compatibility
 
 ## Deployment

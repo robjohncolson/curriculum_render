@@ -3909,16 +3909,9 @@ function renderLessonSelector(unitInfo) {
                 // Load saved progress
                 loadProgress();
 
-                // Auto-display FRQ solutions for already answered questions
-                // Only show if AI grading failed or wasn't used
-                currentQuestions.forEach(question => {
-                    if (question.type === 'free-response' && isQuestionAnswered(question.id)) {
-                        const gradingResult = window.gradingResults?.[question.id];
-                        if (!gradingResult?._aiGraded || gradingResult?._error) {
-                            displayFRQSolution(question.id);
-                        }
-                    }
-                });
+                // FRQ solutions are NOT auto-displayed on page load
+                // They only appear when AI grading explicitly fails during the current session
+                // This encourages students to rely on AI feedback rather than the answer key
 
                 // Render MathJax
                 if (window.MathJax) {
@@ -8081,18 +8074,9 @@ Respond with JSON:
                 document.getElementById('loading-msg').style.display = 'none';
                 loadProgress();
 
-                // Auto-display FRQ solutions for already answered questions
-                // Only show if AI grading failed or wasn't used
-                if (Array.isArray(currentQuestions)) {
-                    currentQuestions.forEach(q => {
-                        if (q && q.type === 'free-response' && isQuestionAnswered(q.id)) {
-                            const gradingResult = window.gradingResults?.[q.id];
-                            if (!gradingResult?._aiGraded || gradingResult?._error) {
-                                displayFRQSolution(q.id);
-                            }
-                        }
-                    });
-                }
+                // FRQ solutions are NOT auto-displayed on page load
+                // They only appear when AI grading explicitly fails during the current session
+                // This encourages students to rely on AI feedback rather than the answer key
 
                 if (window.MathJax) {
                     MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
