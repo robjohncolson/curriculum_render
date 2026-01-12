@@ -1,0 +1,26 @@
+{
+  "name": "curriculum-render",
+  "version": "1.0.0",
+  "description": "AP Statistics Consensus Quiz - collaborative learning web app",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "serve": "npx http-server -p 8000"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "@vitest/ui": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0"
+  },
+  "keywords": [
+    "ap-statistics",
+    "education",
+    "quiz",
+    "collaborative-learning"
+  ],
+  "author": "",
+  "license": "MIT"
+}

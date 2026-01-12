@@ -24,6 +24,11 @@ curl http://localhost:3000/health
 curl http://localhost:3000/api/peer-data
 curl http://localhost:3000/api/question-stats/U1-L3-Q01
 
+# Run tests (Vitest)
+npm test               # Run all tests
+npm run test:watch     # Watch mode
+npm run test:ui        # Browser UI
+
 # Analyze FRQ chart requirements (Node.js script)
 node scripts/analyze_frq_charts.js
 # Outputs: docs/analysis/frq_chart_inventory.{json,csv}
@@ -60,6 +65,7 @@ Load order matters (see `index.html` script tags):
 - `storage`: Initialized storage adapter (access via `getStorage()` or `waitForStorage()`)
 - `TURBO_MODE`: Whether Supabase sync is enabled (from `supabase_config.js`)
 - `USE_RAILWAY`: Whether to use Railway caching proxy (from `railway_config.js`)
+- `frqPartState`: In-memory state manager for progressive multi-part FRQs
 
 ## Data Structures
 
@@ -77,6 +83,82 @@ Load order matters (see `index.html` script tags):
 }
 ```
 
+**Progressive FRQ Answer Format:**
+```javascript
+// Multi-part FRQs store structured answers
+{
+  value: {
+    parts: { "a": "answer a", "b-i": "answer b-i", ... },
+    currentPart: "c",              // Currently active part (null if done)
+    completedParts: ["a", "b-i"],  // Submitted parts in order
+    allComplete: false             // True when all parts submitted
+  },
+  timestamp: 1704067200000
+}
+```
+
+## Progressive Multi-Part FRQ System
+
+Multi-part FRQs use an accordion-based progressive disclosure pattern:
+
+**State Machine:**
+- `locked` → Part not yet accessible (grayed out, 🔒 icon)
+- `current` → Active part for answering (blue border, expanded)
+- `completed` → Part submitted (green border, collapsed, can expand to edit)
+- `allComplete` → All parts done, grading available
+
+**Key Functions (in index.html):**
+- `frqPartState.initialize(questionId, parts)` - Set up or restore state
+- `frqPartState.submitPart(questionId, partId, answer, allPartIds)` - Submit one part
+- `renderProgressiveFRQParts(questionId, parts)` - Generate accordion HTML
+- `transitionToNextPart()` - Animate from completed to next part
+- `finalSubmitFRQ(questionId)` - Trigger grading when all parts done
+
+**Backward Compatibility:**
+Legacy single-string answers are detected (`typeof value === 'string'`) and treated as fully complete.
+
+See `docs/state-machines.md` for full state diagram.
+
+## AI Grading Escalation System
+
+Three-tier escalation system for fair, AI-augmented grading with student appeals.
+
+**Tiers:**
+1. **Tier 1 (Auto-Grade)** - MCQ exact match, FRQ regex/rubric pattern matching (instant)
+2. **Tier 2 (AI Review)** - Groq llama-3.3-70b-versatile via Railway server
+3. **Tier 3 (Appeal)** - Student explains reasoning, AI re-evaluates
+
+**Scoring:** E (Essentially Correct), P (Partially Correct), I (Incorrect)
+
+**Critical Rule:** AI can only UPGRADE scores, never downgrade. This protects students from AI hallucinations.
+
+**Key Functions:**
+- `gradeMCQAnswer(questionId, answer, isCorrect)` - MCQ grading with escalation UI
+- `gradeFRQAnswer(questionId, answer)` - Single-part FRQ grading
+- `gradeMultiPartFRQ(questionId, partsAnswers)` - Progressive FRQ grading
+- `requestAIReview(questionId, questionType)` - Request AI to review MCQ
+- `showAppealForm(questionId)` / `hideAppealForm(questionId)` - Toggle appeal form
+- `submitAppeal(questionId, questionType)` - Submit appeal to Railway
+- `displayGradingFeedback(questionId, result)` - Render E/P/I feedback
+
+**Data Storage:**
+```javascript
+window.gradingResults[questionId] = {
+    score: 'E' | 'P' | 'I',
+    feedback: "...",
+    matched: [...],
+    missing: [...],
+    answer: "...",
+    questionType: 'multiple-choice' | 'free-response'
+};
+```
+
+**Railway Endpoints:**
+- `POST /api/ai/grade` - AI grading request
+- `POST /api/ai/appeal` - Appeal processing
+
+See `STATE_MACHINES.md` section 13 for complete flow diagrams
+
 ## Configuration
 
 **Enable Supabase sync:** Edit `supabase_config.js` with project URL and anon key. Schema reference in `docs/supabase_schema.sql` (context only, not executable).
@@ -87,6 +169,25 @@ Load order matters (see `index.html` script tags):
 
 Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_activity`, `votes`
 
+## Testing
+
+```bash
+# Vitest (recommended)
+npm test                    # Run all tests once
+npm run test:watch          # Watch mode for development
+npm run test:coverage       # Generate coverage report
+```
+
+**Test Suites:**
+- `tests/grading-engine.test.ts` - GradingEngine class, scoring, appeals
+- `tests/escalation.test.ts` - Escalation UI flow, MCQ/FRQ grading
+- `tests/progressive-frq.test.ts` - Multi-part FRQ state machine
+
+**Test Coverage:**
+- Grading engine: E/P/I scoring, regex matching, dual grading, appeal validation
+- Escalation: Container visibility, button states, result storage
+- Progressive FRQ: State transitions, part submission, backward compatibility
+
 ## Deployment
 
 - **Frontend**: Any static host (GitHub Pages, Netlify)
@@ -96,4 +197,15 @@ Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_acti
 
 - `worksheets/`: Standalone HTML files for specific lesson activities (e.g., `u3l67.html` for Unit 3 Lessons 6-7)
 - `scripts/`: Node.js utilities for analysis and data processing
-- `docs/`: Integration guides, sync documentation, and SQL schema reference
+- `docs/`: Integration guides, sync documentation, state machines, and SQL schema reference
+- `tests/`: Vitest test suites and browser-based test runner
+- `railway-server/`: Express.js caching proxy for Supabase
+
+## Key Documentation
+
+| Document | Purpose |
+|----------|---------|
+| `docs/state-machines.md` | All state machine diagrams and transitions |
+| `docs/sync_ux_plan.md` | Cloud sync UX improvement plan |
+| `docs/chart-wizard-usage.md` | Chart creation wizard documentation |
+| `tests/README.md` | Test suite documentation |
