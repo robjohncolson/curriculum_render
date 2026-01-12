@@ -203,15 +203,34 @@ npm run test:watch          # Watch mode for development
 npm run test:coverage       # Generate coverage report
 ```
 
-**Test Suites:**
-- `tests/grading-engine.test.js` - GradingEngine class, scoring, appeals
-- `tests/escalation.test.js` - Escalation UI flow, MCQ/FRQ grading, conditional solution display
-- `tests/progressive-frq.test.ts` - Multi-part FRQ state machine
+**Test Suites (430+ tests covering all STATE_MACHINES.md features):**
 
-**Test Coverage:**
-- Grading engine: E/P/I scoring, regex matching, dual grading, appeal validation
-- Escalation: Container visibility, button states, result storage, solution display logic
-- Progressive FRQ: State transitions, part submission, backward compatibility
+| Test File | Coverage |
+|-----------|----------|
+| `grading-engine.test.js` | GradingEngine class, E/P/I scoring, appeals |
+| `escalation.test.js` | Escalation UI, MCQ/FRQ grading, solution display |
+| `progressive-frq.test.ts` | Multi-part FRQ state machine |
+| `storage-layer.test.js` | IDB/localStorage init, dual-write, migration |
+| `user-auth.test.js` | Username generation, validation, auth states |
+| `data-management.test.js` | classData lifecycle, answers, reasons, attempts |
+| `quiz-consensus.test.js` | Quiz flow, peer aggregation, percentages |
+| `websocket-railway.test.js` | WebSocket connection, turbo mode, reconnection |
+| `sprite-system.test.js` | Animation states, physics, peer sprites |
+| `chart-system.test.js` | Chart types, config building, instances |
+| `export-import.test.js` | Recovery packs, validation, merge logic |
+| `error-handling.test.js` | Storage/network errors, fallback chains, outbox |
+
+**Test Coverage Areas:**
+- Storage layer: IDB availability, dual-write adapter, migration key parsing
+- User authentication: Fruit_Animal usernames, session states, duplicate detection
+- Data management: classData initialization, answer/reason persistence, attempt counting
+- Quiz flow: State transitions, answer correctness, submission processing
+- Peer consensus: Answer aggregation, percentage calculation, most popular detection
+- WebSocket/Turbo: Connection states, message handling, exponential backoff
+- Sprite system: IDLE/JUMPING/SUSPENDED/FALLING states, hue resolution, positioning
+- Chart system: Type mapping, config building, instance management
+- Export/Import: Pack building, validation, timestamp-based merge conflict resolution
+- Error handling: Fallback chains, outbox retry logic, graceful degradation
 
 ## Deployment
 
