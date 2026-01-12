@@ -2086,7 +2086,7 @@ function refreshQuestionIfVisible(questionId) {
             return classData.users[currentUsername]?.attempts?.[questionId] || 0;
         }
 
-        // Check if can retry (has reason in previous attempt and < 3 attempts)
+        // Check if can retry (has reason in previous attempt - no max attempt limit)
         function canRetry(questionId) {
             // Detect question type - FRQs always allow unlimited retries
             const q = currentQuestions.find(q => q.id === questionId) ||
@@ -2096,9 +2096,8 @@ function refreshQuestionIfVisible(questionId) {
             // FRQs have unlimited retries
             if (isFRQ) return true;
 
-            // MCQs: limited to 3 attempts and require reasoning after first attempt
+            // MCQs: unlimited attempts but require reasoning after first attempt
             const attempts = getAttemptCount(questionId);
-            if (attempts >= 3) return false;
             if (attempts === 0) return true;
 
             // Check if previous attempt had a reason
@@ -4187,7 +4186,6 @@ function renderLessonSelector(unitInfo) {
                                     placeholder="${attempts > 0 && !canRetryQuestion ?
                                         'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
                                         'Explain why you chose this answer...'}"
-                                    ${!canRetryQuestion && attempts >= 3 ? 'disabled' : ''}
                                 >${getReasonString(classData.users[currentUsername]?.reasons?.[question.id])}</textarea>
                             </div>
                             <div>
@@ -4197,10 +4195,10 @@ function renderLessonSelector(unitInfo) {
                                     onclick="submitAnswer('${question.id}', '${question.type}')"
                                     ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
                                 >
-                                    ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Max Attempts Reached') : 'Submit Answer'}
+                                    ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Add Reasoning to Retry') : 'Submit Answer'}
                                 </button>
 
-                                ${isAnswered && !canRetryQuestion && attempts < 3 && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
+                                ${isAnswered && !canRetryQuestion && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
                                     <button
                                         id="add-explanation-${question.id}"
                                         class="add-explanation-button"
@@ -4716,9 +4714,7 @@ function renderLessonSelector(unitInfo) {
             // Check if can retry - only check reasoning requirement for MCQ
             if (attempts > 0 && !isFRQ && !canRetry(questionId)) {
                 if (errorSpan) {
-                    errorSpan.textContent = attempts >= 3 ?
-                        'Maximum attempts reached (3).' :
-                        'Please provide reasoning with your previous answer to enable retry.';
+                    errorSpan.textContent = 'Please provide reasoning with your previous answer to enable retry.';
                     errorSpan.classList.add('show');
                 }
                 return;
@@ -4915,8 +4911,8 @@ function renderLessonSelector(unitInfo) {
             // Update button
             if (submitBtn) {
                 if (!isFRQ && !canRetry(questionId)) {
-                    // MCQ only: disable after max attempts
-                    submitBtn.textContent = 'Max Attempts Reached';
+                    // MCQ only: needs reasoning to retry
+                    submitBtn.textContent = 'Add Reasoning to Retry';
                     submitBtn.disabled = true;
                 } else {
                     // FRQ or retryable MCQ: keep enabled
@@ -7011,7 +7007,7 @@ Respond with JSON:
                         showMessage('Answer key revealed after 15 minutes (correct answer)', 'info');
                     }, 15 * 60 * 1000); // 15 minutes
                 } else {
-                    // ❌ Incorrect: No answer key until explanation provided or max attempts
+                    // ❌ Incorrect: No answer key until explanation provided
                     console.log(`Answer key blocked for ${questionId} (incorrect answer)`);
                 }
             } else if (attemptNumber === 2) {
@@ -7141,8 +7137,8 @@ Respond with JSON:
                     if (submitBtn) {
                         const isFRQ = questionType === 'free-response';
                         if (!isFRQ && !canRetry(qId)) {
-                            // MCQ only: disable after max attempts
-                            submitBtn.textContent = 'Max Attempts Reached';
+                            // MCQ only: needs reasoning to retry
+                            submitBtn.textContent = 'Add Reasoning to Retry';
                             submitBtn.disabled = true;
                         } else {
                             // FRQ or retryable MCQ: keep enabled
