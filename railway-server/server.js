@@ -651,6 +651,103 @@ Respond in JSON format:
 }`;
 }
 
+// ============================
+// AI APPEAL ENDPOINT
+// ============================
+
+// Appeal an AI grading decision
+app.post('/api/ai/appeal', async (req, res) => {
+  try {
+    const { scenario, answers, appealText, previousResults } = req.body;
+
+    if (!scenario || !answers || !appealText) {
+      return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
+    }
+
+    if (!GROQ_API_KEY) {
+      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
+    }
+
+    // Build appeal-specific prompt
+    const appealPrompt = buildAppealPrompt(scenario, answers, appealText, previousResults);
+
+    const queuePos = gradingQueue.getQueueLength();
+    console.log(`🔄 AI appeal queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
+
+    // Queue the request
+    const result = await gradingQueue.add(() => callGroq(appealPrompt));
+
+    // Add metadata
+    result._provider = 'groq';
+    result._model = GROQ_MODEL;
+    result._gradingMode = 'ai-appeal';
+    result._serverGraded = true;
+    result._appealProcessed = true;
+
+    console.log(`✅ AI appeal complete: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}`);
+
+    res.json(result);
+  } catch (err) {
+    console.error('AI appeal error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Build appeal prompt - different from regular grading prompt
+function buildAppealPrompt(scenario, answers, appealText, previousResults) {
+  // Format previous results
+  const previousFeedback = previousResults
+    ? Object.entries(previousResults).map(([field, result]) =>
+        `- ${field}: Score=${result.score || result}, Feedback="${result.feedback || 'No feedback'}"`
+      ).join('\n')
+    : 'No previous grading results available';
+
+  // Format student answers
+  const studentAnswers = Object.entries(answers)
+    .map(([field, value]) => `- ${field}: "${value}"`)
+    .join('\n');
+
+  return `You are an AP Statistics teacher reviewing a student's APPEAL of their grade.
+
+## Context
+Question: ${scenario.prompt || scenario.topic || 'AP Statistics Question'}
+Question Type: ${scenario.questionType || 'unknown'}
+${scenario.correctAnswer ? `Correct Answer: ${scenario.correctAnswer}` : ''}
+${scenario.choices ? `Answer Choices:\n${scenario.choices.map(c => `  ${c.key}: ${c.text}`).join('\n')}` : ''}
+
+## Student's Answer
+${studentAnswers}
+
+## Previous Grading
+${previousFeedback}
+
+## Student's Appeal
+The student disagrees with the grading and explains:
+"${appealText}"
+
+## Your Task
+Carefully reconsider the student's answer in light of their explanation. The student may have:
+1. Valid reasoning that wasn't initially recognized
+2. Used correct but different terminology or approach
+3. Demonstrated understanding despite a technically incorrect answer
+4. Made a valid point that deserves reconsideration
+
+BE FAIR but also ACCURATE. Consider:
+- For MCQ: Did the student show understanding of the concept even if they chose wrong?
+- For FRQ: Did the student's reasoning demonstrate partial credit worthy understanding?
+- Is the student's explanation logically sound?
+
+You may UPGRADE the score if the appeal shows genuine understanding. You should NOT downgrade.
+
+Respond with ONLY valid JSON:
+{
+  "score": "E" or "P" or "I",
+  "feedback": "Explanation addressing the student's appeal",
+  "appealGranted": true or false,
+  "appealResponse": "Direct message to student explaining your decision"
+}`;
+}
+
 // Get server statistics
 app.get('/api/stats', async (req, res) => {
   try {

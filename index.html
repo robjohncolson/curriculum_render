@@ -4224,6 +4224,29 @@ function renderLessonSelector(unitInfo) {
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
+
+                            <!-- AI Grading Escalation UI -->
+                            <div id="escalation-${question.id}" class="escalation-container" style="display: none;">
+                                <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
+
+                                <div id="escalation-buttons-${question.id}" class="escalation-buttons">
+                                    <button id="btn-ai-review-${question.id}" class="escalation-btn ai-review-btn" onclick="requestAIReview('${question.id}', '${question.type}')" style="display: none;">
+                                        🤖 Request AI Review
+                                    </button>
+                                    <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
+                                        📝 Appeal AI Decision
+                                    </button>
+                                </div>
+
+                                <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
+                                    <label for="appeal-text-${question.id}">Explain why you believe your answer deserves reconsideration:</label>
+                                    <textarea id="appeal-text-${question.id}" class="appeal-textarea" placeholder="e.g., 'I chose B because the question asks about... and my reasoning was...'"></textarea>
+                                    <div class="appeal-actions">
+                                        <button onclick="submitAppeal('${question.id}', '${question.type}')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
+                                        <button onclick="hideAppealForm('${question.id}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                 `;
             } else {
@@ -4241,6 +4264,26 @@ function renderLessonSelector(unitInfo) {
 
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
+                            </div>
+
+                            <!-- AI Grading Escalation UI for FRQ -->
+                            <div id="escalation-${question.id}" class="escalation-container">
+                                <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
+
+                                <div id="escalation-buttons-${question.id}" class="escalation-buttons">
+                                    <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
+                                        📝 Appeal AI Grading
+                                    </button>
+                                </div>
+
+                                <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
+                                    <label for="appeal-text-${question.id}">Explain why you believe your answer deserves a higher score:</label>
+                                    <textarea id="appeal-text-${question.id}" class="appeal-textarea" placeholder="e.g., 'I mentioned the key concept of... because...'"></textarea>
+                                    <div class="appeal-actions">
+                                        <button onclick="submitAppeal('${question.id}', '${question.type}')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
+                                        <button onclick="hideAppealForm('${question.id}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -4955,6 +4998,14 @@ function renderLessonSelector(unitInfo) {
                     displayFRQSolution(questionId);
                     // Trigger AI grading for FRQ answers
                     gradeFRQAnswer(questionId, value);
+                }
+
+                // Trigger AI grading escalation UI for MCQ answers
+                if (questionType === 'multiple-choice') {
+                    const correctAnswer = getCorrectAnswer(questionId);
+                    const mcqIsCorrect = correctAnswer && value ?
+                        (value.toString().toLowerCase().trim() === correctAnswer.toString().toLowerCase().trim()) : false;
+                    gradeMCQAnswer(questionId, value, mcqIsCorrect);
                 }
             }, 50);
 
@@ -6024,6 +6075,330 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const match = prompt.match(/the\s+(\w+(?:\s+\w+)?)\s+(?:of|for|in)/i);
             return match ? match[1] : null;
         }
+
+        // ============================
+        // AI GRADING ESCALATION SYSTEM
+        // ============================
+
+        // Store grading results for appeals
+        window.gradingResults = {};
+
+        // Grade MCQ answer after submission (for wrong/partial answers)
+        async function gradeMCQAnswer(questionId, answer, isCorrect) {
+            const question = currentQuestions.find(q => q.id === questionId) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question) return;
+
+            const escalationContainer = document.getElementById(`escalation-${questionId}`);
+            if (!escalationContainer) return;
+
+            // Show escalation container
+            escalationContainer.style.display = 'block';
+
+            // For correct answers, just show positive feedback
+            if (isCorrect) {
+                const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+                if (feedbackContainer) {
+                    feedbackContainer.innerHTML = `
+                        <div class="grading-feedback excellent">
+                            <div class="grading-header">
+                                <span class="grading-score">✅ Correct!</span>
+                            </div>
+                            <div class="grading-feedback-text">
+                                Great job! You selected the correct answer.
+                            </div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            // For wrong answers, show "Request AI Review" button
+            const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+            if (aiReviewBtn) {
+                aiReviewBtn.style.display = 'inline-block';
+            }
+
+            // Store initial result for potential appeal
+            window.gradingResults[questionId] = {
+                score: 'I',
+                feedback: 'Incorrect answer selected.',
+                answer: answer,
+                questionType: 'multiple-choice'
+            };
+
+            // Show initial feedback
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (feedbackContainer) {
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback incorrect">
+                        <div class="grading-header">
+                            <span class="grading-score">❌ Incorrect</span>
+                            <span class="ai-badge">📋 Auto-graded</span>
+                        </div>
+                        <div class="grading-feedback-text">
+                            Your answer was not correct. If you believe you have valid reasoning, you can request an AI review.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Request AI review for MCQ
+        window.requestAIReview = async function(questionId, questionType) {
+            const engine = getGradingEngine();
+            if (!engine) {
+                alert('AI grading is not available.');
+                return;
+            }
+
+            const question = currentQuestions.find(q => q.id === questionId) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question) return;
+
+            const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
+            const answer = userAnswer?.value || userAnswer;
+            const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+
+            // Show loading state
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (feedbackContainer) {
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback loading">
+                        <span class="grading-icon">🤖</span>
+                        <span class="grading-text">AI is reviewing your answer...</span>
+                    </div>
+                `;
+            }
+
+            // Hide AI review button
+            const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+            if (aiReviewBtn) aiReviewBtn.style.display = 'none';
+
+            try {
+                // Build context for AI grading
+                const context = {
+                    questionId,
+                    topic: question.prompt?.substring(0, 200) || 'AP Statistics',
+                    prompt: question.prompt,
+                    questionType: questionType,
+                    correctAnswer: getCorrectAnswer(questionId),
+                    choices: question.attachments?.choices,
+                    studentReasoning: reason
+                };
+
+                // Use AI grading
+                const rule = { type: 'ai', promptTemplate: buildMCQGradingPrompt(question, answer, reason) };
+                const result = await engine.gradeAnswer(answer, rule, context);
+
+                // Store result for potential appeal
+                window.gradingResults[questionId] = {
+                    ...result,
+                    answer: answer,
+                    questionType: questionType
+                };
+
+                // Display result
+                displayGradingFeedback(questionId, result);
+
+                // Show appeal button if not perfect score
+                if (result.score !== 'E') {
+                    const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+                    if (appealBtn) appealBtn.style.display = 'inline-block';
+                }
+
+            } catch (error) {
+                console.error('AI review failed:', error);
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback error">
+                        <span class="grading-icon">⚠️</span>
+                        <span class="grading-text">AI review unavailable. Please try again later.</span>
+                    </div>
+                `;
+                // Re-show AI review button
+                if (aiReviewBtn) aiReviewBtn.style.display = 'inline-block';
+            }
+        };
+
+        // Build MCQ grading prompt
+        function buildMCQGradingPrompt(question, answer, reason) {
+            const choices = question.attachments?.choices || [];
+            const choicesText = choices.map(c => `${c.key}: ${c.text}`).join('\n');
+            const correctAnswer = getCorrectAnswer(question.id);
+
+            return `You are an AP Statistics teacher evaluating a student's multiple choice answer.
+
+## Question
+${question.prompt}
+
+## Answer Choices
+${choicesText}
+
+## Correct Answer
+${correctAnswer}
+
+## Student's Answer
+${answer}
+
+## Student's Reasoning (if provided)
+${reason || 'No reasoning provided'}
+
+## Grading Instructions
+Even though the student selected the wrong answer, evaluate if they demonstrated understanding:
+- E (Essentially correct): Student shows deep understanding despite selecting wrong answer, OR reasoning reveals the question/choices may have been misread
+- P (Partially correct): Student shows partial understanding, made a reasonable error, or their reasoning has merit
+- I (Incorrect): No evidence of understanding the concept
+
+Be generous if the student's reasoning shows genuine statistical thinking.
+
+Respond with JSON:
+{
+  "score": "E" or "P" or "I",
+  "feedback": "Explanation of the evaluation",
+  "matched": ["concepts the student understood"],
+  "missing": ["concepts that were missed or misunderstood"]
+}`;
+        }
+
+        // Show appeal form
+        window.showAppealForm = function(questionId) {
+            const appealForm = document.getElementById(`appeal-form-${questionId}`);
+            const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+            if (appealForm) appealForm.style.display = 'block';
+            if (appealBtn) appealBtn.style.display = 'none';
+        };
+
+        // Hide appeal form
+        window.hideAppealForm = function(questionId) {
+            const appealForm = document.getElementById(`appeal-form-${questionId}`);
+            const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+            if (appealForm) appealForm.style.display = 'none';
+            if (appealBtn) appealBtn.style.display = 'inline-block';
+        };
+
+        // Submit appeal
+        window.submitAppeal = async function(questionId, questionType) {
+            const engine = getGradingEngine();
+            if (!engine) {
+                alert('AI appeals are not available.');
+                return;
+            }
+
+            const appealTextarea = document.getElementById(`appeal-text-${questionId}`);
+            const appealText = appealTextarea?.value?.trim();
+
+            if (!appealText) {
+                alert('Please explain your reasoning for the appeal.');
+                return;
+            }
+
+            const question = currentQuestions.find(q => q.id === questionId) ||
+                             EMBEDDED_CURRICULUM.find(q => q.id === questionId);
+            if (!question) return;
+
+            const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
+            const answer = userAnswer?.value || userAnswer;
+            const previousResult = window.gradingResults[questionId];
+
+            // Show loading state
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (feedbackContainer) {
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback loading">
+                        <span class="grading-icon">🔄</span>
+                        <span class="grading-text">AI is reviewing your appeal...</span>
+                    </div>
+                `;
+            }
+
+            // Hide appeal form
+            const appealForm = document.getElementById(`appeal-form-${questionId}`);
+            if (appealForm) appealForm.style.display = 'none';
+
+            try {
+                const context = {
+                    questionId,
+                    topic: question.prompt?.substring(0, 200) || 'AP Statistics',
+                    prompt: question.prompt,
+                    questionType: questionType,
+                    correctAnswer: getCorrectAnswer(questionId),
+                    choices: question.attachments?.choices
+                };
+
+                const result = await engine.submitAppeal(answer, appealText, previousResult, context);
+
+                if (result.success) {
+                    // Update stored result
+                    window.gradingResults[questionId] = {
+                        ...window.gradingResults[questionId],
+                        ...result
+                    };
+
+                    // Display appeal result
+                    displayAppealResult(questionId, result, previousResult);
+                } else {
+                    throw new Error(result.error || 'Appeal failed');
+                }
+
+            } catch (error) {
+                console.error('Appeal failed:', error);
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback error">
+                        <span class="grading-icon">⚠️</span>
+                        <span class="grading-text">Appeal failed: ${error.message}</span>
+                    </div>
+                `;
+                // Re-show appeal button
+                const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+                if (appealBtn) appealBtn.style.display = 'inline-block';
+            }
+        };
+
+        // Display appeal result
+        function displayAppealResult(questionId, result, previousResult) {
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (!feedbackContainer) return;
+
+            const scoreClasses = {
+                'E': { class: 'excellent', icon: '✅', label: 'Essentially Correct' },
+                'P': { class: 'partial', icon: '🔶', label: 'Partially Correct' },
+                'I': { class: 'incorrect', icon: '❌', label: 'Needs Improvement' }
+            };
+
+            const scoreInfo = scoreClasses[result.score] || scoreClasses['I'];
+            const upgraded = result.upgraded || result.appealGranted;
+
+            let upgradeMessage = '';
+            if (upgraded) {
+                upgradeMessage = `
+                    <div class="appeal-upgrade-notice">
+                        🎉 <strong>Appeal Granted!</strong> Your score was upgraded from ${previousResult?.score || 'I'} to ${result.score}.
+                    </div>
+                `;
+            } else {
+                upgradeMessage = `
+                    <div class="appeal-denied-notice">
+                        Score remains ${result.score}. The AI reviewed your reasoning but maintained the original assessment.
+                    </div>
+                `;
+            }
+
+            feedbackContainer.innerHTML = `
+                <div class="grading-feedback ${scoreInfo.class}">
+                    <div class="grading-header">
+                        <span class="grading-score">${scoreInfo.icon} ${scoreInfo.label}</span>
+                        <span class="ai-badge" title="Appeal reviewed by AI">🔄 Appeal</span>
+                    </div>
+                    ${upgradeMessage}
+                    <div class="grading-feedback-text">
+                        ${result.appealResponse || result.feedback || 'Review complete.'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Modify gradeFRQAnswer to show appeal button for non-E scores
+        const originalGradeFRQAnswer = typeof gradeFRQAnswer === 'function' ? gradeFRQAnswer : null;
 
         // Display answer key with timer-based logic
         function displayAnswerKey(questionId, isCorrect, hasExplanation, attemptNumber) {

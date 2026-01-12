@@ -402,6 +402,85 @@ class GradingEngine {
     };
   }
 
+  /**
+   * Appeal a previous grading decision
+   * Student provides reasoning for why they believe their answer deserves reconsideration
+   * @param {string} answer - Original answer
+   * @param {string} appealText - Student's reasoning/explanation
+   * @param {object} previousResult - Previous grading result to appeal
+   * @param {object} context - Question context
+   * @returns {Promise<object>} Appeal result
+   */
+  async submitAppeal(answer, appealText, previousResult, context = {}) {
+    if (!appealText || !appealText.trim()) {
+      return {
+        success: false,
+        error: 'Please provide reasoning for your appeal.',
+        score: previousResult?.score || 'I'
+      };
+    }
+
+    if (!this.aiEnabled) {
+      return {
+        success: false,
+        error: 'AI appeals are not available.',
+        score: previousResult?.score || 'I'
+      };
+    }
+
+    try {
+      const response = await fetch(`${this.serverUrl}/api/ai/appeal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario: {
+            questionId: context.questionId,
+            topic: context.topic || 'AP Statistics',
+            prompt: context.prompt,
+            questionType: context.questionType,
+            correctAnswer: context.correctAnswer,
+            choices: context.choices
+          },
+          answers: { answer: answer },
+          appealText: appealText,
+          previousResults: { answer: previousResult }
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Appeal failed');
+      }
+
+      // Determine if appeal was successful (score upgraded)
+      const scoreOrder = { 'E': 3, 'P': 2, 'I': 1 };
+      const previousScore = scoreOrder[previousResult?.score] || 0;
+      const newScore = scoreOrder[result.score] || 0;
+      const upgraded = newScore > previousScore;
+
+      return {
+        success: true,
+        score: result.score,
+        feedback: result.feedback || '',
+        appealGranted: result.appealGranted || upgraded,
+        appealResponse: result.appealResponse || result.feedback,
+        upgraded,
+        previousScore: previousResult?.score,
+        _provider: result._provider,
+        _model: result._model,
+        _appealProcessed: true
+      };
+    } catch (err) {
+      console.error('Appeal error:', err);
+      return {
+        success: false,
+        error: err.message,
+        score: previousResult?.score || 'I'
+      };
+    }
+  }
+
   // ============== HELPERS ==============
 
   /**

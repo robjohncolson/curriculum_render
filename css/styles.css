@@ -5277,3 +5277,245 @@ body.dark-theme .grading-missing {
 body.dark-theme .grading-text {
     color: var(--text-secondary, #aaa);
 }
+
+/* ======================================== */
+/* ESCALATION UI STYLES */
+/* ======================================== */
+
+.escalation-container {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-tertiary, #fafafa);
+    border-radius: 12px;
+    border: 1px solid var(--border-secondary, #e0e0e0);
+}
+
+.escalation-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.escalation-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: none;
+}
+
+.escalation-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ai-review-btn {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.ai-review-btn:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #1f6f9f 100%);
+}
+
+.appeal-btn {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+}
+
+.appeal-btn:hover {
+    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+}
+
+/* Appeal Form */
+.appeal-form {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 10px;
+    border: 1px dashed var(--border-primary, #ddd);
+}
+
+.appeal-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary, #333);
+}
+
+.appeal-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 2px solid var(--border-secondary, #e0e0e0);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95em;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.appeal-textarea:focus {
+    outline: none;
+    border-color: #9b59b6;
+}
+
+.appeal-textarea::placeholder {
+    color: var(--text-tertiary, #999);
+}
+
+.appeal-form button {
+    margin-top: 12px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.appeal-form button:hover {
+    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+    transform: translateY(-1px);
+}
+
+.appeal-form button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.cancel-appeal-btn {
+    background: var(--bg-tertiary, #f0f0f0) !important;
+    color: var(--text-secondary, #666) !important;
+    margin-left: 10px;
+}
+
+.cancel-appeal-btn:hover {
+    background: var(--bg-secondary, #e0e0e0) !important;
+}
+
+/* Appeal Result */
+.appeal-result {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 10px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.appeal-result.granted {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border-left: 4px solid #28a745;
+}
+
+.appeal-result.denied {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border-left: 4px solid #f39c12;
+}
+
+.appeal-result-header {
+    font-weight: 600;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+}
+
+.appeal-result.granted .appeal-result-header {
+    color: #155724;
+}
+
+.appeal-result.denied .appeal-result-header {
+    color: #856404;
+}
+
+.appeal-result-text {
+    color: var(--text-primary, #333);
+    line-height: 1.5;
+}
+
+/* Score upgrade notice */
+.score-upgrade-notice {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #28a745;
+    color: white;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-left: 10px;
+    animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Dark theme for escalation UI */
+body.dark-theme .escalation-container {
+    background: var(--bg-tertiary, #252525);
+    border-color: var(--border-secondary, #404040);
+}
+
+body.dark-theme .appeal-form {
+    background: var(--bg-secondary, #2d2d2d);
+    border-color: var(--border-primary, #444);
+}
+
+body.dark-theme .appeal-form label {
+    color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-theme .appeal-textarea {
+    background: var(--bg-primary, #1a1a1a);
+    border-color: var(--border-secondary, #404040);
+    color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-theme .appeal-textarea:focus {
+    border-color: #9b59b6;
+}
+
+body.dark-theme .appeal-result.granted {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(40, 167, 69, 0.1) 100%);
+}
+
+body.dark-theme .appeal-result.denied {
+    background: linear-gradient(135deg, rgba(243, 156, 18, 0.2) 0%, rgba(243, 156, 18, 0.1) 100%);
+}
+
+body.dark-theme .appeal-result.granted .appeal-result-header {
+    color: #5dd879;
+}
+
+body.dark-theme .appeal-result.denied .appeal-result-header {
+    color: #ffc107;
+}
+
+body.dark-theme .appeal-result-text {
+    color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-theme .cancel-appeal-btn {
+    background: var(--bg-tertiary, #333) !important;
+    color: var(--text-secondary, #aaa) !important;
+}
