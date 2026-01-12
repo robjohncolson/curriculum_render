@@ -5371,8 +5371,19 @@ body.dark-theme .grading-text {
     color: var(--text-tertiary, #999);
 }
 
-.appeal-form button {
+.appeal-actions {
+    display: flex;
+    gap: 10px;
     margin-top: 12px;
+}
+
+/* Override escalation-btn display:none for buttons inside appeal form */
+.appeal-form .escalation-btn {
+    display: inline-block !important;
+}
+
+.appeal-form button,
+.submit-appeal-btn {
     padding: 10px 20px;
     background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
     color: white;
@@ -5381,14 +5392,17 @@ body.dark-theme .grading-text {
     cursor: pointer;
     font-weight: 500;
     transition: all 0.2s ease;
+    display: inline-block !important;
 }
 
-.appeal-form button:hover {
+.appeal-form button:hover,
+.submit-appeal-btn:hover {
     background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
     transform: translateY(-1px);
 }
 
-.appeal-form button:disabled {
+.appeal-form button:disabled,
+.submit-appeal-btn:disabled {
     background: #ccc;
     cursor: not-allowed;
     transform: none;
@@ -5397,7 +5411,6 @@ body.dark-theme .grading-text {
 .cancel-appeal-btn {
     background: var(--bg-tertiary, #f0f0f0) !important;
     color: var(--text-secondary, #666) !important;
-    margin-left: 10px;
 }
 
 .cancel-appeal-btn:hover {
