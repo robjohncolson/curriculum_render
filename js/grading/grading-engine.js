@@ -332,13 +332,15 @@ class GradingEngine {
   }
 
   /**
-   * Dual grading: regex + AI, take best score
+   * Dual grading: regex + AI
+   * KEY RULE: AI can only UPGRADE a score, never downgrade
+   * This prevents AI hallucinations from hurting students
    */
   async gradeDual(answer, rule, context) {
-    // Run regex grading synchronously
+    // Run regex grading first (instant, reliable baseline)
     const regexResult = this.gradeRegex(answer, rule, context);
 
-    // Run AI grading in parallel
+    // Run AI grading
     let aiResult = null;
     if (this.aiEnabled) {
       try {
@@ -348,22 +350,51 @@ class GradingEngine {
       }
     }
 
-    // Take the better score
+    // Score ordering: E > P > I
     const scoreOrder = { 'E': 3, 'P': 2, 'I': 1 };
 
+    // AI CAN ONLY UPGRADE - never downgrade
+    // This is critical for student fairness
     if (aiResult && aiResult.score && !aiResult._error) {
       const regexScore = scoreOrder[regexResult.score] || 0;
       const aiScore = scoreOrder[aiResult.score] || 0;
 
       if (aiScore > regexScore) {
+        // AI upgraded the score - use AI result
         return {
           ...aiResult,
-          _regexResult: regexResult,
+          _regexScore: regexResult.score,
+          _upgraded: true,
           _bestOf: 'ai'
+        };
+      } else if (aiScore < regexScore) {
+        // AI would downgrade - IGNORE AI, keep regex score
+        // But include AI feedback as supplementary info
+        console.log(`AI would downgrade ${regexResult.score} → ${aiResult.score}, keeping regex score`);
+        return {
+          ...regexResult,
+          _aiScore: aiResult.score,
+          _aiFeedback: aiResult.feedback,
+          _aiIgnored: true,
+          _bestOf: 'regex'
+        };
+      } else {
+        // Same score - prefer AI feedback (usually more detailed)
+        return {
+          score: regexResult.score,
+          feedback: aiResult.feedback || regexResult.feedback,
+          matched: [...new Set([...(regexResult.matched || []), ...(aiResult.matched || [])])],
+          missing: aiResult.missing || regexResult.missing,
+          correct: regexResult.correct,
+          _aiGraded: true,
+          _provider: aiResult._provider,
+          _model: aiResult._model,
+          _bestOf: 'both'
         };
       }
     }
 
+    // AI failed or unavailable - use regex result
     return {
       ...regexResult,
       _aiResult: aiResult,

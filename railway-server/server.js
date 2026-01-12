@@ -467,15 +467,15 @@ async function callGroq(prompt) {
       messages: [
         {
           role: 'system',
-          content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON.'
+          content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.'
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      temperature: 0.3,
-      max_tokens: 1024,
+      temperature: 0.1,  // Low for consistent grading
+      max_tokens: 1500,
       response_format: { type: 'json_object' }
     })
   });
@@ -492,16 +492,118 @@ async function callGroq(prompt) {
     throw new Error('Empty response from Groq');
   }
 
+  // Parse and validate the response
+  const parsed = extractAndParseJSON(content);
+  if (!parsed) {
+    throw new Error('Failed to parse Groq response as JSON');
+  }
+
+  if (!isValidGradingResponse(parsed)) {
+    console.warn('Invalid grading response format, attempting normalization');
+  }
+
+  return normalizeGradingResponse(parsed);
+}
+
+// Robust JSON extraction with multiple fallback strategies
+function extractAndParseJSON(text) {
+  // Strategy 1: Direct JSON extraction
   try {
-    return JSON.parse(content);
-  } catch (e) {
-    // Try to extract JSON from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    throw new Error('Failed to parse Groq response as JSON');
+  } catch (e) { /* continue to next strategy */ }
+
+  // Strategy 2: Repair common LLM quirks
+  try {
+    let jsonStr = text.match(/\{[\s\S]*\}/)?.[0];
+    if (jsonStr) {
+      // Fix smart quotes: " " → "
+      jsonStr = jsonStr.replace(/[\u201C\u201D]/g, '"');
+      // Fix smart single quotes: ' ' → '
+      jsonStr = jsonStr.replace(/[\u2018\u2019]/g, "'");
+      // Remove trailing commas before } or ]
+      jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+      // Fix unquoted keys (common LLM mistake)
+      jsonStr = jsonStr.replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+      return JSON.parse(jsonStr);
+    }
+  } catch (e) { /* continue to next strategy */ }
+
+  // Strategy 3: Extract score/feedback via regex (last resort)
+  try {
+    const scoreMatch = text.match(/["']?score["']?\s*[":]\s*["']?([EPI])["']?/i);
+    const feedbackMatch = text.match(/["']?feedback["']?\s*[":]\s*["']([^"']+)["']/i);
+
+    if (scoreMatch) {
+      return {
+        score: scoreMatch[1].toUpperCase(),
+        feedback: feedbackMatch ? feedbackMatch[1] : ''
+      };
+    }
+  } catch (e) { /* give up */ }
+
+  return null;
+}
+
+// Validate that response contains valid E/P/I grading
+function isValidGradingResponse(parsed) {
+  if (!parsed || typeof parsed !== 'object') return false;
+
+  const validScores = ['E', 'P', 'I', 'e', 'p', 'i'];
+
+  // Direct format: { score: "E", feedback: "..." }
+  if ('score' in parsed && validScores.includes(parsed.score)) {
+    return true;
   }
+
+  // Field-keyed format: { fieldId: { score: "E", feedback: "..." } }
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key.startsWith('_')) continue; // Skip metadata
+    if (value && typeof value === 'object' && 'score' in value) {
+      if (validScores.includes(value.score)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Normalize response to consistent format
+function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
+  if (!parsed) return { score: 'I', feedback: 'Unable to parse AI response' };
+
+  // Already in direct format with valid score
+  if ('score' in parsed && ['E', 'P', 'I'].includes(parsed.score?.toUpperCase?.())) {
+    return {
+      score: parsed.score.toUpperCase(),
+      feedback: parsed.feedback || '',
+      matched: parsed.matched || [],
+      missing: parsed.missing || []
+    };
+  }
+
+  // Field-keyed format: extract first valid field result
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key.startsWith('_')) continue;
+    if (value && typeof value === 'object' && value.score) {
+      return {
+        score: value.score.toUpperCase(),
+        feedback: value.feedback || '',
+        matched: value.matched || [],
+        missing: value.missing || [],
+        _fieldId: key
+      };
+    }
+  }
+
+  // Fallback
+  return {
+    score: 'I',
+    feedback: 'Unable to determine score from AI response'
+  };
 }
 
 // Build default grading prompt
