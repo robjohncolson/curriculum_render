@@ -3910,9 +3910,13 @@ function renderLessonSelector(unitInfo) {
                 loadProgress();
 
                 // Auto-display FRQ solutions for already answered questions
+                // Only show if AI grading failed or wasn't used
                 currentQuestions.forEach(question => {
                     if (question.type === 'free-response' && isQuestionAnswered(question.id)) {
-                        displayFRQSolution(question.id);
+                        const gradingResult = window.gradingResults?.[question.id];
+                        if (!gradingResult?._aiGraded || gradingResult?._error) {
+                            displayFRQSolution(question.id);
+                        }
                     }
                 });
 
@@ -4997,10 +5001,9 @@ function renderLessonSelector(unitInfo) {
                 // Populate peer reasoning after chart rendering
                 populatePeerResponses(questionId, questionType);
 
-                // Ensure FRQ official solution is displayed immediately after submission
+                // Trigger AI grading for FRQ answers
+                // Solution/rubric will only be shown if AI grading fails
                 if (questionType === 'free-response') {
-                    displayFRQSolution(questionId);
-                    // Trigger AI grading for FRQ answers
                     gradeFRQAnswer(questionId, value);
                 }
 
@@ -6022,14 +6025,21 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Display the result
                 displayGradingFeedback(questionId, result);
 
+                // Only show solution/rubric if AI grading failed or wasn't used
+                if (!result._aiGraded || result._error) {
+                    displayFRQSolution(questionId);
+                }
+
             } catch (error) {
                 console.error('Grading failed:', error);
                 feedbackContainer.innerHTML = `
                     <div class="grading-feedback error">
                         <span class="grading-icon">⚠️</span>
-                        <span class="grading-text">Grading unavailable. Compare your answer with the official solution above.</span>
+                        <span class="grading-text">Grading unavailable. Compare your answer with the official solution below.</span>
                     </div>
                 `;
+                // AI grading failed - show the solution/rubric as fallback
+                displayFRQSolution(questionId);
             }
         }
 
@@ -6513,7 +6523,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (progressText) progressText.textContent = `${state.completedParts.length} of ${totalParts} parts complete`;
         }
 
-        // Final submit - display solution and trigger grading
+        // Final submit - trigger AI grading (solution shown only if AI fails)
         window.finalSubmitFRQ = async function(questionId) {
             const state = frqPartState.getState(questionId);
             if (!state || !state.allComplete) {
@@ -6521,10 +6531,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 return;
             }
 
-            // Display the official solution
-            displayFRQSolution(questionId);
-
             // Trigger AI grading with all parts combined
+            // Solution/rubric will only be shown if AI grading fails
             await gradeMultiPartFRQ(questionId, state.parts);
         };
 
@@ -6594,16 +6602,23 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Display combined feedback
                 displayGradingFeedback(questionId, result);
 
+                // Only show solution/rubric if AI grading failed or wasn't used
+                if (!result._aiGraded || result._error) {
+                    displayFRQSolution(questionId);
+                }
+
             } catch (error) {
                 console.error('Multi-part grading failed:', error);
                 if (feedbackContainer) {
                     feedbackContainer.innerHTML = `
                         <div class="grading-feedback error">
                             <span class="grading-icon">⚠️</span>
-                            <span class="grading-text">Grading unavailable. Compare your answers with the official solution above.</span>
+                            <span class="grading-text">Grading unavailable. Compare your answers with the official solution below.</span>
                         </div>
                     `;
                 }
+                // AI grading failed - show the solution/rubric as fallback
+                displayFRQSolution(questionId);
             }
         }
 
@@ -6933,12 +6948,23 @@ Respond with JSON:
 
         // Display answer key with timer-based logic
         function displayAnswerKey(questionId, isCorrect, hasExplanation, attemptNumber) {
-            // Check if this is an FRQ - if so, display solution immediately
+            // Check if this is an FRQ - if so, display solution only if AI grading failed
             const question = currentQuestions.find(q => q.id === questionId) ||
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             if (question?.type === 'free-response') {
-                displayFRQSolution(questionId);
+                // Only show solution if AI grading failed or wasn't used
+                const gradingResult = window.gradingResults?.[questionId];
+                if (!gradingResult?._aiGraded || gradingResult?._error) {
+                    displayFRQSolution(questionId);
+                }
                 return; // Skip MCQ timing logic
+            }
+
+            // For MCQs: Check if AI grading succeeded - if so, skip showing answer key
+            const mcqGradingResult = window.gradingResults?.[questionId];
+            if (mcqGradingResult?._aiGraded && !mcqGradingResult?._error) {
+                console.log(`Answer key hidden for ${questionId} - AI grading is providing feedback`);
+                return; // AI is working, don't show answer key
             }
 
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
@@ -8052,10 +8078,14 @@ Respond with JSON:
                 loadProgress();
 
                 // Auto-display FRQ solutions for already answered questions
+                // Only show if AI grading failed or wasn't used
                 if (Array.isArray(currentQuestions)) {
                     currentQuestions.forEach(q => {
                         if (q && q.type === 'free-response' && isQuestionAnswered(q.id)) {
-                            displayFRQSolution(q.id);
+                            const gradingResult = window.gradingResults?.[q.id];
+                            if (!gradingResult?._aiGraded || gradingResult?._error) {
+                                displayFRQSolution(q.id);
+                            }
                         }
                     });
                 }
