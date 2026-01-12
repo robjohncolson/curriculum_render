@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escalation System Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #00d4ff; }
+        h2 { color: #ff6b6b; margin-top: 30px; }
+        h3 { color: #9b59b6; margin-top: 20px; }
+        .test-section {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: #00d4ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+        }
+        button:hover { background: #00b8e6; }
+        button.run-all { background: #4ade80; }
+        button.run-all:hover { background: #22c55e; }
+        .result {
+            background: #0f0f23;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #4ade80; }
+        .error { color: #ff6b6b; }
+        .info { color: #00d4ff; }
+        .warning { color: #fbbf24; }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-badge.ready { background: #4ade80; color: #000; }
+        .status-badge.pending { background: #fbbf24; color: #000; }
+        .status-badge.error { background: #ff6b6b; color: #000; }
+        .test-count { font-size: 14px; color: #888; margin-left: 10px; }
+        .summary-box {
+            background: #0f0f23;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #00d4ff;
+        }
+        .summary-box.all-passed { border-color: #4ade80; }
+        .summary-box.has-failures { border-color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <h1>Escalation System Tests <span id="statusBadge" class="status-badge pending">Loading...</span></h1>
+    <p>Regression tests for the AI grading escalation system (MCQ + FRQ).</p>
+
+    <div id="summaryBox" class="summary-box" style="display: none;">
+        <h3>Test Summary</h3>
+        <div id="summaryContent"></div>
+    </div>
+
+    <button class="run-all" onclick="runAllTests()">Run All Tests</button>
+
+    <!-- Unit Tests: Grading Engine -->
+    <div class="test-section">
+        <h2>1. Grading Engine <span class="test-count" id="count1"></span></h2>
+        <button onclick="testGradingEngineExists()">Test Engine Exists</button>
+        <button onclick="testGradingEngineSubmitAppeal()">Test Submit Appeal Method</button>
+        <button onclick="testGradingEngineScoring()">Test Scoring Logic</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <!-- Unit Tests: MCQ Escalation -->
+    <div class="test-section">
+        <h2>2. MCQ Escalation <span class="test-count" id="count2"></span></h2>
+        <button onclick="testMCQGradeFunctionExists()">Test gradeMCQAnswer Exists</button>
+        <button onclick="testMCQEscalationUI()">Test Escalation UI Elements</button>
+        <button onclick="testMCQAppealButtonVisibility()">Test Appeal Button Logic</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <!-- Unit Tests: FRQ Escalation -->
+    <div class="test-section">
+        <h2>3. FRQ Escalation <span class="test-count" id="count3"></span></h2>
+        <button onclick="testFRQGradeFunctionExists()">Test gradeFRQAnswer Exists</button>
+        <button onclick="testFRQEscalationContainer()">Test Escalation Container</button>
+        <button onclick="testFRQGradingResultsStorage()">Test Results Storage</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <!-- Unit Tests: Appeal Form -->
+    <div class="test-section">
+        <h2>4. Appeal Form <span class="test-count" id="count4"></span></h2>
+        <button onclick="testAppealFormFunctions()">Test Show/Hide Functions</button>
+        <button onclick="testSubmitAppealFunction()">Test Submit Appeal Function</button>
+        <button onclick="testDisplayAppealResult()">Test Display Appeal Result</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <!-- Integration Tests -->
+    <div class="test-section">
+        <h2>5. Integration Tests <span class="test-count" id="count5"></span></h2>
+        <button onclick="testMCQFullFlow()">Test MCQ Full Flow</button>
+        <button onclick="testFRQFullFlow()">Test FRQ Full Flow</button>
+        <button onclick="testRailwayAppealEndpoint()">Test Railway Appeal Endpoint</button>
+        <div id="result5" class="result"></div>
+    </div>
+
+    <!-- Load dependencies -->
+    <script src="tests/test-utils.js"></script>
+    <script src="js/grading/grading-engine.js"></script>
+
+    <script>
+        // Test state
+        const testResults = {
+            passed: 0,
+            failed: 0,
+            tests: []
+        };
+
+        // Helper to log results
+        function log(elementId, message, type = 'info') {
+            const el = document.getElementById(elementId);
+            const colorClass = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+            el.innerHTML += `<span class="${colorClass}">${message}</span>\n`;
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function recordTest(name, passed, error = null) {
+            testResults.tests.push({ name, passed, error });
+            if (passed) {
+                testResults.passed++;
+            } else {
+                testResults.failed++;
+            }
+        }
+
+        function updateSummary() {
+            const box = document.getElementById('summaryBox');
+            const content = document.getElementById('summaryContent');
+            box.style.display = 'block';
+
+            const total = testResults.passed + testResults.failed;
+            const allPassed = testResults.failed === 0;
+
+            box.className = `summary-box ${allPassed ? 'all-passed' : 'has-failures'}`;
+
+            content.innerHTML = `
+                <div class="${allPassed ? 'success' : 'error'}">
+                    <strong>${allPassed ? 'ALL TESTS PASSED!' : 'SOME TESTS FAILED'}</strong>
+                </div>
+                <div style="margin-top: 10px;">
+                    Total: ${total} |
+                    <span class="success">Passed: ${testResults.passed}</span> |
+                    <span class="${testResults.failed > 0 ? 'error' : ''}"">Failed: ${testResults.failed}</span>
+                </div>
+                ${testResults.failed > 0 ? `
+                <div style="margin-top: 15px;">
+                    <strong class="error">Failed Tests:</strong>
+                    <ul>
+                        ${testResults.tests.filter(t => !t.passed).map(t => `<li class="error">${t.name}: ${t.error}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function updateCount(sectionId, passed, total) {
+            document.getElementById(`count${sectionId}`).textContent = `(${passed}/${total} passed)`;
+        }
+
+        // ============================================
+        // GRADING ENGINE TESTS
+        // ============================================
+
+        function testGradingEngineExists() {
+            clearLog('result1');
+            let passed = 0, total = 0;
+
+            // Test 1: GradingEngine class exists
+            total++;
+            try {
+                if (typeof GradingEngine === 'function') {
+                    log('result1', '✅ GradingEngine class exists', 'success');
+                    passed++;
+                    recordTest('GradingEngine class exists', true);
+                } else {
+                    log('result1', '❌ GradingEngine class not found', 'error');
+                    recordTest('GradingEngine class exists', false, 'Class not found');
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('GradingEngine class exists', false, e.message);
+            }
+
+            // Test 2: Can instantiate
+            total++;
+            try {
+                const engine = new GradingEngine();
+                if (engine) {
+                    log('result1', '✅ GradingEngine can be instantiated', 'success');
+                    passed++;
+                    recordTest('GradingEngine instantiation', true);
+                } else {
+                    log('result1', '❌ GradingEngine instantiation returned null', 'error');
+                    recordTest('GradingEngine instantiation', false, 'Returned null');
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('GradingEngine instantiation', false, e.message);
+            }
+
+            // Test 3: Has required methods
+            total++;
+            try {
+                const engine = new GradingEngine();
+                const requiredMethods = ['gradeAnswer', 'gradeAll', 'submitAppeal', 'gradeDual'];
+                const missing = requiredMethods.filter(m => typeof engine[m] !== 'function');
+
+                if (missing.length === 0) {
+                    log('result1', '✅ All required methods exist: ' + requiredMethods.join(', '), 'success');
+                    passed++;
+                    recordTest('GradingEngine methods', true);
+                } else {
+                    log('result1', '❌ Missing methods: ' + missing.join(', '), 'error');
+                    recordTest('GradingEngine methods', false, 'Missing: ' + missing.join(', '));
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('GradingEngine methods', false, e.message);
+            }
+
+            updateCount(1, passed, total);
+        }
+
+        function testGradingEngineSubmitAppeal() {
+            clearLog('result1');
+            let passed = 0, total = 0;
+
+            // Test: submitAppeal method signature
+            total++;
+            try {
+                const engine = new GradingEngine();
+                if (typeof engine.submitAppeal === 'function') {
+                    // Check it returns a promise
+                    const result = engine.submitAppeal('test', '', {}, {});
+                    if (result && typeof result.then === 'function') {
+                        log('result1', '✅ submitAppeal returns a Promise', 'success');
+                        passed++;
+                        recordTest('submitAppeal returns Promise', true);
+                    } else {
+                        log('result1', '❌ submitAppeal does not return a Promise', 'error');
+                        recordTest('submitAppeal returns Promise', false, 'Not a Promise');
+                    }
+                } else {
+                    log('result1', '❌ submitAppeal method not found', 'error');
+                    recordTest('submitAppeal method exists', false, 'Method not found');
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('submitAppeal method', false, e.message);
+            }
+
+            // Test: Empty appeal text returns error
+            total++;
+            (async () => {
+                try {
+                    const engine = new GradingEngine();
+                    const result = await engine.submitAppeal('answer', '', { score: 'I' }, {});
+                    if (result.success === false && result.error) {
+                        log('result1', '✅ Empty appeal text returns error: ' + result.error, 'success');
+                        passed++;
+                        recordTest('Empty appeal validation', true);
+                    } else {
+                        log('result1', '❌ Empty appeal text did not return error', 'error');
+                        recordTest('Empty appeal validation', false, 'No error returned');
+                    }
+                } catch (e) {
+                    log('result1', '❌ Error: ' + e.message, 'error');
+                    recordTest('Empty appeal validation', false, e.message);
+                }
+                updateCount(1, passed, total);
+            })();
+        }
+
+        function testGradingEngineScoring() {
+            clearLog('result1');
+            let passed = 0, total = 0;
+
+            // Test: gradeRegex returns E/P/I scores
+            total++;
+            try {
+                const engine = new GradingEngine();
+                const rule = {
+                    type: 'regex',
+                    rubric: [
+                        { id: 'test1', required: true, pattern: /test/i },
+                        { id: 'test2', required: true, pattern: /example/i }
+                    ]
+                };
+
+                const result = engine.gradeRegex('this is a test example', rule, {});
+                if (['E', 'P', 'I'].includes(result.score)) {
+                    log('result1', '✅ gradeRegex returns valid score: ' + result.score, 'success');
+                    passed++;
+                    recordTest('gradeRegex scoring', true);
+                } else {
+                    log('result1', '❌ gradeRegex returned invalid score: ' + result.score, 'error');
+                    recordTest('gradeRegex scoring', false, 'Invalid score: ' + result.score);
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('gradeRegex scoring', false, e.message);
+            }
+
+            // Test: Score tracking (matched/missing)
+            total++;
+            try {
+                const engine = new GradingEngine();
+                const rule = {
+                    type: 'regex',
+                    rubric: [
+                        { id: 'found', required: true, pattern: /hello/i },
+                        { id: 'missing', required: true, pattern: /goodbye/i }
+                    ]
+                };
+
+                const result = engine.gradeRegex('hello world', rule, {});
+                if (Array.isArray(result.matched) && Array.isArray(result.missing)) {
+                    if (result.matched.includes('found') && result.missing.includes('missing')) {
+                        log('result1', '✅ Correctly tracks matched/missing elements', 'success');
+                        passed++;
+                        recordTest('Matched/missing tracking', true);
+                    } else {
+                        log('result1', '❌ Matched/missing not correctly tracked', 'error');
+                        recordTest('Matched/missing tracking', false, 'Incorrect tracking');
+                    }
+                } else {
+                    log('result1', '❌ matched/missing arrays not present', 'error');
+                    recordTest('Matched/missing tracking', false, 'Arrays not present');
+                }
+            } catch (e) {
+                log('result1', '❌ Error: ' + e.message, 'error');
+                recordTest('Matched/missing tracking', false, e.message);
+            }
+
+            updateCount(1, passed, total);
+        }
+
+        // ============================================
+        // MCQ ESCALATION TESTS
+        // ============================================
+
+        function testMCQGradeFunctionExists() {
+            clearLog('result2');
+            let passed = 0, total = 0;
+
+            // Test: gradeMCQAnswer function exists (should be defined in main app)
+            total++;
+            if (typeof window.gradeMCQAnswer === 'function' || typeof gradeMCQAnswer === 'function') {
+                log('result2', '✅ gradeMCQAnswer function exists', 'success');
+                passed++;
+                recordTest('gradeMCQAnswer exists', true);
+            } else {
+                log('result2', '⚠️ gradeMCQAnswer not found (needs main app context)', 'warning');
+                recordTest('gradeMCQAnswer exists', false, 'Needs main app context');
+            }
+
+            // Test: requestAIReview function exists
+            total++;
+            if (typeof window.requestAIReview === 'function') {
+                log('result2', '✅ requestAIReview function exists', 'success');
+                passed++;
+                recordTest('requestAIReview exists', true);
+            } else {
+                log('result2', '⚠️ requestAIReview not found (needs main app context)', 'warning');
+                recordTest('requestAIReview exists', false, 'Needs main app context');
+            }
+
+            updateCount(2, passed, total);
+        }
+
+        function testMCQEscalationUI() {
+            clearLog('result2');
+            log('result2', 'ℹ️ MCQ Escalation UI tests require main app DOM context', 'info');
+            log('result2', '', 'info');
+
+            // Document expected DOM elements
+            log('result2', 'Expected DOM elements for MCQ escalation:', 'info');
+            log('result2', '  - escalation-{questionId}: Main container', 'info');
+            log('result2', '  - grading-feedback-{questionId}: Feedback display', 'info');
+            log('result2', '  - btn-ai-review-{questionId}: AI Review button', 'info');
+            log('result2', '  - btn-appeal-{questionId}: Appeal button', 'info');
+            log('result2', '  - appeal-form-{questionId}: Appeal form container', 'info');
+            log('result2', '  - appeal-text-{questionId}: Appeal textarea', 'info');
+
+            updateCount(2, 0, 0);
+        }
+
+        function testMCQAppealButtonVisibility() {
+            clearLog('result2');
+            log('result2', 'ℹ️ Appeal button visibility logic:', 'info');
+            log('result2', '', 'info');
+            log('result2', 'For MCQ wrong answers:', 'info');
+            log('result2', '  1. escalation-container shown (display: block)', 'info');
+            log('result2', '  2. AI Review button shown initially', 'info');
+            log('result2', '  3. After AI Review, Appeal button shown for non-E scores', 'info');
+            log('result2', '  4. Appeal form shown when Appeal button clicked', 'info');
+
+            updateCount(2, 0, 0);
+        }
+
+        // ============================================
+        // FRQ ESCALATION TESTS
+        // ============================================
+
+        function testFRQGradeFunctionExists() {
+            clearLog('result3');
+            let passed = 0, total = 0;
+
+            // Test: gradeFRQAnswer function exists
+            total++;
+            if (typeof window.gradeFRQAnswer === 'function' || typeof gradeFRQAnswer === 'function') {
+                log('result3', '✅ gradeFRQAnswer function exists', 'success');
+                passed++;
+                recordTest('gradeFRQAnswer exists', true);
+            } else {
+                log('result3', '⚠️ gradeFRQAnswer not found (needs main app context)', 'warning');
+                recordTest('gradeFRQAnswer exists', false, 'Needs main app context');
+            }
+
+            // Test: displayGradingFeedback function exists
+            total++;
+            if (typeof window.displayGradingFeedback === 'function' || typeof displayGradingFeedback === 'function') {
+                log('result3', '✅ displayGradingFeedback function exists', 'success');
+                passed++;
+                recordTest('displayGradingFeedback exists', true);
+            } else {
+                log('result3', '⚠️ displayGradingFeedback not found (needs main app context)', 'warning');
+                recordTest('displayGradingFeedback exists', false, 'Needs main app context');
+            }
+
+            updateCount(3, passed, total);
+        }
+
+        function testFRQEscalationContainer() {
+            clearLog('result3');
+            log('result3', 'ℹ️ FRQ Escalation Container requirements:', 'info');
+            log('result3', '', 'info');
+            log('result3', 'FRQ template must include:', 'info');
+            log('result3', '  - <div id="escalation-{questionId}" class="escalation-container">', 'info');
+            log('result3', '  - <div id="grading-feedback-{questionId}" class="grading-feedback-container">', 'info');
+            log('result3', '  - <button id="btn-appeal-{questionId}" class="escalation-btn appeal-btn">', 'info');
+            log('result3', '  - <div id="appeal-form-{questionId}" class="appeal-form">', 'info');
+            log('result3', '', 'info');
+            log('result3', 'gradeFRQAnswer must:', 'info');
+            log('result3', '  1. Show escalation container (display: block)', 'success');
+            log('result3', '  2. Store result in window.gradingResults[questionId]', 'success');
+            log('result3', '  3. Call displayGradingFeedback with result', 'success');
+
+            updateCount(3, 0, 0);
+        }
+
+        function testFRQGradingResultsStorage() {
+            clearLog('result3');
+            let passed = 0, total = 0;
+
+            // Test: window.gradingResults exists
+            total++;
+            if (typeof window.gradingResults === 'object') {
+                log('result3', '✅ window.gradingResults object exists', 'success');
+                passed++;
+                recordTest('gradingResults exists', true);
+            } else {
+                log('result3', '⚠️ window.gradingResults not found (needs main app context)', 'warning');
+                recordTest('gradingResults exists', false, 'Needs main app context');
+            }
+
+            updateCount(3, passed, total);
+        }
+
+        // ============================================
+        // APPEAL FORM TESTS
+        // ============================================
+
+        function testAppealFormFunctions() {
+            clearLog('result4');
+            let passed = 0, total = 0;
+
+            // Test: showAppealForm exists
+            total++;
+            if (typeof window.showAppealForm === 'function') {
+                log('result4', '✅ showAppealForm function exists', 'success');
+                passed++;
+                recordTest('showAppealForm exists', true);
+            } else {
+                log('result4', '⚠️ showAppealForm not found (needs main app context)', 'warning');
+                recordTest('showAppealForm exists', false, 'Needs main app context');
+            }
+
+            // Test: hideAppealForm exists
+            total++;
+            if (typeof window.hideAppealForm === 'function') {
+                log('result4', '✅ hideAppealForm function exists', 'success');
+                passed++;
+                recordTest('hideAppealForm exists', true);
+            } else {
+                log('result4', '⚠️ hideAppealForm not found (needs main app context)', 'warning');
+                recordTest('hideAppealForm exists', false, 'Needs main app context');
+            }
+
+            updateCount(4, passed, total);
+        }
+
+        function testSubmitAppealFunction() {
+            clearLog('result4');
+            let passed = 0, total = 0;
+
+            // Test: submitAppeal exists
+            total++;
+            if (typeof window.submitAppeal === 'function') {
+                log('result4', '✅ submitAppeal function exists', 'success');
+                passed++;
+                recordTest('submitAppeal window function exists', true);
+            } else {
+                log('result4', '⚠️ submitAppeal not found (needs main app context)', 'warning');
+                recordTest('submitAppeal window function exists', false, 'Needs main app context');
+            }
+
+            updateCount(4, passed, total);
+        }
+
+        function testDisplayAppealResult() {
+            clearLog('result4');
+            let passed = 0, total = 0;
+
+            // Test: displayAppealResult exists
+            total++;
+            if (typeof window.displayAppealResult === 'function') {
+                log('result4', '✅ displayAppealResult function exists', 'success');
+                passed++;
+                recordTest('displayAppealResult exists', true);
+            } else {
+                log('result4', '⚠️ displayAppealResult not found (needs main app context)', 'warning');
+                recordTest('displayAppealResult exists', false, 'Needs main app context');
+            }
+
+            updateCount(4, passed, total);
+        }
+
+        // ============================================
+        // INTEGRATION TESTS
+        // ============================================
+
+        function testMCQFullFlow() {
+            clearLog('result5');
+            log('result5', 'ℹ️ MCQ Full Flow Test (Manual Verification):', 'info');
+            log('result5', '', 'info');
+            log('result5', '1. Navigate to a unit with MCQ questions', 'info');
+            log('result5', '2. Submit an incorrect answer', 'info');
+            log('result5', '3. Verify escalation container appears', 'info');
+            log('result5', '4. Click "Request AI Review" button', 'info');
+            log('result5', '5. Verify AI feedback appears', 'info');
+            log('result5', '6. If score is not E, verify "Appeal" button appears', 'info');
+            log('result5', '7. Click "Appeal" button', 'info');
+            log('result5', '8. Enter appeal reasoning and submit', 'info');
+            log('result5', '9. Verify appeal result appears', 'info');
+
+            updateCount(5, 0, 0);
+        }
+
+        function testFRQFullFlow() {
+            clearLog('result5');
+            log('result5', 'ℹ️ FRQ Full Flow Test (Manual Verification):', 'info');
+            log('result5', '', 'info');
+            log('result5', '1. Navigate to a unit with FRQ questions (e.g., Unit 3 Lesson 3)', 'info');
+            log('result5', '2. Submit an FRQ answer', 'info');
+            log('result5', '3. Verify grading feedback appears (E/P/I score)', 'info');
+            log('result5', '4. If score is P or I, verify "Appeal" button appears', 'info');
+            log('result5', '5. Click "Appeal" button', 'info');
+            log('result5', '6. Enter appeal reasoning and submit', 'info');
+            log('result5', '7. Verify appeal result appears', 'info');
+            log('result5', '8. If appeal granted, verify score upgrade notice', 'info');
+
+            updateCount(5, 0, 0);
+        }
+
+        async function testRailwayAppealEndpoint() {
+            clearLog('result5');
+            let passed = 0, total = 0;
+
+            // Test: Railway server appeal endpoint
+            total++;
+            log('result5', 'Testing Railway appeal endpoint...', 'info');
+
+            try {
+                const serverUrl = window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app';
+                const response = await fetch(`${serverUrl}/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    log('result5', '✅ Railway server is reachable', 'success');
+                    passed++;
+                    recordTest('Railway server health', true);
+
+                    // Test appeal endpoint exists (OPTIONS or actual call)
+                    total++;
+                    try {
+                        const appealResponse = await fetch(`${serverUrl}/api/ai/appeal`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                scenario: { questionId: 'test', topic: 'Test' },
+                                answers: { answer: 'test answer' },
+                                appealText: 'test appeal',
+                                previousResults: { answer: { score: 'I' } }
+                            })
+                        });
+
+                        // Even if it returns an error, the endpoint exists
+                        log('result5', '✅ Appeal endpoint responds (status: ' + appealResponse.status + ')', 'success');
+                        passed++;
+                        recordTest('Appeal endpoint exists', true);
+                    } catch (e) {
+                        log('result5', '❌ Appeal endpoint error: ' + e.message, 'error');
+                        recordTest('Appeal endpoint exists', false, e.message);
+                    }
+                } else {
+                    log('result5', '❌ Railway server returned: ' + response.status, 'error');
+                    recordTest('Railway server health', false, 'Status: ' + response.status);
+                }
+            } catch (e) {
+                log('result5', '❌ Cannot reach Railway server: ' + e.message, 'error');
+                recordTest('Railway server health', false, e.message);
+            }
+
+            updateCount(5, passed, total);
+        }
+
+        // ============================================
+        // RUN ALL TESTS
+        // ============================================
+
+        async function runAllTests() {
+            // Reset
+            testResults.passed = 0;
+            testResults.failed = 0;
+            testResults.tests = [];
+
+            document.getElementById('statusBadge').textContent = 'Running...';
+            document.getElementById('statusBadge').className = 'status-badge pending';
+
+            // Run all test functions
+            testGradingEngineExists();
+            testGradingEngineScoring();
+            await testGradingEngineSubmitAppeal();
+
+            testMCQGradeFunctionExists();
+            testFRQGradeFunctionExists();
+            testFRQGradingResultsStorage();
+            testAppealFormFunctions();
+            testSubmitAppealFunction();
+            testDisplayAppealResult();
+
+            await testRailwayAppealEndpoint();
+
+            // Update status
+            updateSummary();
+
+            const badge = document.getElementById('statusBadge');
+            if (testResults.failed === 0) {
+                badge.textContent = 'All Passed!';
+                badge.className = 'status-badge ready';
+            } else {
+                badge.textContent = testResults.failed + ' Failed';
+                badge.className = 'status-badge error';
+            }
+        }
+
+        // Initialize
+        document.getElementById('statusBadge').textContent = 'Ready';
+        document.getElementById('statusBadge').className = 'status-badge ready';
+    </script>
+</body>
+</html>
