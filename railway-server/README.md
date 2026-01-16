@@ -104,6 +104,40 @@ curl http://localhost:3000/api/stats
 | `/api/submit-answer` | POST | Submit single answer |
 | `/api/batch-submit` | POST | Submit multiple answers |
 | `/api/stats` | GET | Server statistics |
+| `/api/ai/status` | GET | AI grading availability and rate limits |
+| `/api/ai/grade` | POST | Grade FRQ answer with AI |
+| `/api/ai/appeal` | POST | Appeal an AI grading decision |
+| `/api/ai/chat` | POST | Redox Signaling AI tutor chat |
+
+### Redox Chat Endpoint
+
+The `/api/ai/chat` endpoint powers the AI tutor for Edgar's Redox Signaling presentation.
+
+**Request:**
+```json
+{
+  "message": "What is ROS?",
+  "history": [
+    {"role": "user", "content": "previous message"},
+    {"role": "assistant", "content": "previous response"}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "response": "ROS are reactive oxygen species...",
+  "_provider": "groq",
+  "_model": "llama-3.3-70b-versatile"
+}
+```
+
+**Features:**
+- Brief responses (6 sentences max, 400 tokens)
+- References specific sections, diagrams, and videos
+- Emulates Edgar's philosophical-scientific voice
+- Covers all redox signaling concepts from the paper
 
 ### WebSocket Events
 

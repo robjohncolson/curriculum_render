@@ -420,6 +420,107 @@ Manages user identification via Fruit_Animal username pattern.
 
 ---
 
+## 6. Redox Chat AI Tutor State Machine
+
+### Overview
+Manages the AI chat panel for Edgar's Redox Signaling presentation. The AI tutor answers questions about redox biology while referencing specific sections, diagrams, and videos in the presentation.
+
+### State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 REDOX CHAT AI TUTOR STATE MACHINE                │
+└─────────────────────────────────────────────────────────────────┘
+
+                      ┌─────────────┐
+                      │   CLOSED    │
+                      │  (hidden)   │
+                      └──────┬──────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │ Click "Ask AI Tutor" button │
+              │         OR                  │
+              │    openChat()               │
+              └──────────────┬──────────────┘
+                             ▼
+                      ┌─────────────┐
+                      │    OPEN     │
+                      │   (IDLE)    │◀──────────────────┐
+                      └──────┬──────┘                   │
+                             │                          │
+           ┌─────────────────┼─────────────────┐        │
+           │                 │                 │        │
+           ▼                 ▼                 ▼        │
+    ┌────────────┐   ┌────────────┐   ┌────────────┐   │
+    │   Type     │   │   Click    │   │  Press     │   │
+    │  message   │   │ suggestion │   │  Escape    │   │
+    └─────┬──────┘   └─────┬──────┘   └─────┬──────┘   │
+          │                │                │          │
+          └────────┬───────┘                ▼          │
+                   │                 ┌────────────┐    │
+                   ▼                 │   CLOSED   │    │
+            ┌────────────┐           └────────────┘    │
+            │ sendMessage│                             │
+            └─────┬──────┘                             │
+                  │                                    │
+                  ▼                                    │
+           ┌────────────┐                              │
+           │  LOADING   │                              │
+           │ (typing    │                              │
+           │ indicator) │                              │
+           └─────┬──────┘                              │
+                 │                                     │
+       ┌─────────┼─────────┐                           │
+       │         │         │                           │
+       ▼         ▼         ▼                           │
+  ┌────────┐ ┌────────┐ ┌────────┐                     │
+  │SUCCESS │ │ ERROR  │ │TIMEOUT │                     │
+  │response│ │ shown  │ │        │                     │
+  └───┬────┘ └───┬────┘ └───┬────┘                     │
+      │          │          │                          │
+      └──────────┴──────────┴──────────────────────────┘
+```
+
+### States
+
+| State | UI Indicator | Send Button | Description |
+|-------|--------------|-------------|-------------|
+| CLOSED | Modal hidden | N/A | Chat not visible |
+| OPEN/IDLE | Input enabled | Enabled | Waiting for user input |
+| LOADING | Typing indicator | Disabled | Waiting for AI response |
+| ERROR | Error message | Enabled | Request failed, user can retry |
+
+### System Prompt Features
+
+The AI tutor is configured with:
+
+1. **Brevity requirement**: Maximum 6 sentences per response
+2. **Page structure knowledge**: All 8 sections, 6 diagrams, 10 videos
+3. **Specific references**: Can direct students to exact content locations
+4. **Edgar's voice**: Emulates the author's philosophical-scientific style
+5. **Biology concepts**: Full knowledge of ROS, PTEN, signaling pathways
+
+### Content References Available
+
+| Content Type | Examples |
+|--------------|----------|
+| Sections | "See Section 2: The Nature of ROS" |
+| Diagrams | "The ETC diagram in Section 2 shows..." |
+| Videos | "Watch the Ninja Nerd video in Section 2" |
+| Concepts | Concentration-dependent effects, PTEN-Akt mechanism |
+
+### Configuration
+
+```javascript
+// Max tokens reduced for brevity
+max_tokens: 400
+
+// History limited to prevent context overflow
+history.slice(-10)
+```
+
+---
+
 ## Implementation Reference
 
 | State Machine | Primary File | Key Functions |
@@ -429,6 +530,7 @@ Manages user identification via Fruit_Animal username pattern.
 | Sync Status | `index.html` | `updateSyncStatusIndicator()` |
 | AI Grading | `index.html` | `gradeFRQAnswer()`, `gradeMultiPartFRQ()` |
 | User Auth | `index.html` | `acceptUsername()`, `loadUsernameFromStorage()` |
+| Redox Chat | `railway-server/server.js` | `REDOX_SYSTEM_PROMPT`, `/api/ai/chat` |
 
 ---
 

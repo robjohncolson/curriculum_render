@@ -181,6 +181,7 @@ window.gradingResults[questionId] = {
 **Railway Endpoints:**
 - `POST /api/ai/grade` - AI grading request
 - `POST /api/ai/appeal` - Appeal processing
+- `POST /api/ai/chat` - Redox Signaling AI tutor (for edgar-redox-signaling project)
 
 See `STATE_MACHINES.md` section 13 for complete flow diagrams
 
@@ -203,7 +204,7 @@ npm run test:watch          # Watch mode for development
 npm run test:coverage       # Generate coverage report
 ```
 
-**Test Suites (430+ tests covering all STATE_MACHINES.md features):**
+**Test Suites (453 tests covering all STATE_MACHINES.md features):**
 
 | Test File | Coverage |
 |-----------|----------|
@@ -219,6 +220,7 @@ npm run test:coverage       # Generate coverage report
 | `chart-system.test.js` | Chart types, config building, instances |
 | `export-import.test.js` | Recovery packs, validation, merge logic |
 | `error-handling.test.js` | Storage/network errors, fallback chains, outbox |
+| `redox-chat.test.js` | Redox AI tutor system prompt, page structure, brevity |
 
 **Test Coverage Areas:**
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
