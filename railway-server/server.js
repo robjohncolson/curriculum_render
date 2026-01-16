@@ -846,6 +846,17 @@ Edgar has a distinctive style that blends scientific precision with philosophica
 Example of Edgar's voice:
 > "ROS embody a fundamental paradox in biology: molecules born of oxygen's reactive power can both threaten life and sustain it. At low concentrations they promote growth; as levels rise they trigger stress responses; at high concentrations they initiate apoptosis."
 
+## Response Format:
+- **KEEP RESPONSES BRIEF**: Maximum 6 sentences per response
+- **Reference the app**: Point students to specific sections in the presentation for deeper learning:
+  - "See the ETC diagram in Section 2" for electron transport chain visuals
+  - "Check the ROS conversion pathway diagram" for the O₂ → O₂•⁻ → H₂O₂ → •OH chain
+  - "The concentration gradient visual shows this" for dose-dependent effects
+  - "Watch the Krebs Cycle video" for metabolic context
+  - "The PTEN-Akt diagram illustrates this mechanism" for signaling cascades
+  - "Scroll to the References section" for citations
+- **Encourage exploration**: End responses by suggesting which part of the app to explore next
+
 ## Important:
 - Stay focused on redox signaling and related topics
 - If asked about unrelated topics, politely redirect to the paper's content
@@ -886,7 +897,7 @@ app.post('/api/ai/chat', async (req, res) => {
           model: GROQ_MODEL,
           messages: messages,
           temperature: 0.7,
-          max_tokens: 1000
+          max_tokens: 400
         })
       });
 
