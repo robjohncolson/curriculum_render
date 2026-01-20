@@ -590,6 +590,15 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1lNfQZIrnUbG6JkCzw4wB-kcYNHpckwc-/view?usp=drive_link"
         }
     ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/696edcfa2761a89ccdaf2fdc",
+            title: "u4l1-2blooket"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1-2_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
+    ],
   },
   {
     id: "4-2",
@@ -604,6 +613,15 @@ const ALL_UNITS_DATA = [
             url: "https://apclassroom.collegeboard.org/d/v5phdup7pz?sui=33,4",
             altUrl: "https://drive.google.com/file/d/1ksMiLGYx5cFCg1-Zosq4m_D_mlt2M7qo/view?usp=drive_link"
         }
+    ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/696edcfa2761a89ccdaf2fdc",
+            title: "u4l1-2blooket"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1-2_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
     ],
   },
   {

@@ -521,6 +521,81 @@ history.slice(-10)
 
 ---
 
+## 7. Curriculum Data Structure
+
+### Overview
+The curriculum is organized hierarchically: Units → Topics → Resources. Each topic can have videos, blookets (game-based learning), and PDFs/worksheets.
+
+### Data Structure
+
+```javascript
+// ALL_UNITS_DATA in data/units.js
+[
+    {
+        unitId: 'unit4',
+        displayName: "Unit 4: Probability, Random Variables...",
+        examWeight: "10-20%",
+        topics: [
+            {
+                id: "4-1",
+                name: "Topic 4.1",
+                description: "Introducing Statistics: Random and Non-Random Patterns?",
+                videos: [
+                    {
+                        url: "https://apclassroom.collegeboard.org/d/...",
+                        altUrl: "https://drive.google.com/..."
+                    }
+                ],
+                blookets: [
+                    {
+                        url: "https://dashboard.blooket.com/set/...",
+                        title: "u4l1-2blooket"
+                    }
+                ],
+                pdfs: [
+                    { url: "https://...", label: "Follow-Along Worksheet (HTML, interactive)" }
+                ]
+            },
+            // ... more topics
+            {
+                id: "4-capstone",
+                name: "Unit 4 Progress Check",
+                description: "Capstone Assessment",
+                videos: [],
+                isCapstone: true
+            }
+        ]
+    }
+]
+```
+
+### Topic ID Format
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| `N-M` | `4-1` | Unit N, Topic M |
+| `N-capstone` | `4-capstone` | Unit N Progress Check |
+
+### Resource Types
+
+| Resource | Structure | Required Fields |
+|----------|-----------|-----------------|
+| Videos | Array of objects | `url` (required), `altUrl` (optional) |
+| Blookets | Array of objects | `url`, `title` |
+| PDFs | Array of objects or strings | `url`, `label` (if object) |
+
+### Shared Resources
+
+Some resources are shared across multiple topics (e.g., Unit 4 Lessons 1-2 share the same Blooket and worksheet):
+
+```javascript
+// Both 4-1 and 4-2 have:
+blookets: [{ url: "https://dashboard.blooket.com/set/696edcfa2761a89ccdaf2fdc", title: "u4l1-2blooket" }]
+pdfs: [{ url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1-2_live.html", label: "..." }]
+```
+
+---
+
 ## Implementation Reference
 
 | State Machine | Primary File | Key Functions |
@@ -531,6 +606,7 @@ history.slice(-10)
 | AI Grading | `index.html` | `gradeFRQAnswer()`, `gradeMultiPartFRQ()` |
 | User Auth | `index.html` | `acceptUsername()`, `loadUsernameFromStorage()` |
 | Redox Chat | `railway-server/server.js` | `REDOX_SYSTEM_PROMPT`, `/api/ai/chat` |
+| Curriculum Data | `data/units.js` | `ALL_UNITS_DATA`, `getTotalItemCounts()` |
 
 ---
 

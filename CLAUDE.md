@@ -204,7 +204,7 @@ npm run test:watch          # Watch mode for development
 npm run test:coverage       # Generate coverage report
 ```
 
-**Test Suites (453 tests covering all STATE_MACHINES.md features):**
+**Test Suites (480+ tests covering all STATE_MACHINES.md features):**
 
 | Test File | Coverage |
 |-----------|----------|
@@ -221,6 +221,7 @@ npm run test:coverage       # Generate coverage report
 | `export-import.test.js` | Recovery packs, validation, merge logic |
 | `error-handling.test.js` | Storage/network errors, fallback chains, outbox |
 | `redox-chat.test.js` | Redox AI tutor system prompt, page structure, brevity |
+| `curriculum-data.test.js` | Units/topics structure, blookets, pdfs, resource URLs |
 
 **Test Coverage Areas:**
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
@@ -233,6 +234,7 @@ npm run test:coverage       # Generate coverage report
 - Chart system: Type mapping, config building, instance management
 - Export/Import: Pack building, validation, timestamp-based merge conflict resolution
 - Error handling: Fallback chains, outbox retry logic, graceful degradation
+- Curriculum data: Unit/topic structure validation, blooket URLs, PDF/worksheet links, resource consistency
 
 ## Deployment
 
