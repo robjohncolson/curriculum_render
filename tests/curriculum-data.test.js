@@ -188,6 +188,16 @@ describe('Unit 4 Content Regression Tests', () => {
             expect(u4Blooket.title).toBe('u4l1-2blooket');
         });
 
+        it('should have blookets array with practice drills app', () => {
+            expect(topic.blookets).toBeDefined();
+
+            const drillApp = topic.blookets.find(b =>
+                b.url === 'https://lrsl-driller.vercel.app/platform/app.html?c=apstatu4l1l2'
+            );
+            expect(drillApp).toBeDefined();
+            expect(drillApp.title).toBe('Practice Drills App');
+        });
+
         it('should have pdfs array with follow-along worksheet', () => {
             expect(topic.pdfs).toBeDefined();
             expect(topic.pdfs.length).toBeGreaterThanOrEqual(1);
@@ -232,6 +242,16 @@ describe('Unit 4 Content Regression Tests', () => {
             expect(u4Blooket.title).toBe('u4l1-2blooket');
         });
 
+        it('should have blookets array with practice drills app', () => {
+            expect(topic.blookets).toBeDefined();
+
+            const drillApp = topic.blookets.find(b =>
+                b.url === 'https://lrsl-driller.vercel.app/platform/app.html?c=apstatu4l1l2'
+            );
+            expect(drillApp).toBeDefined();
+            expect(drillApp.title).toBe('Practice Drills App');
+        });
+
         it('should have pdfs array with follow-along worksheet', () => {
             expect(topic.pdfs).toBeDefined();
             expect(topic.pdfs.length).toBeGreaterThanOrEqual(1);
@@ -253,6 +273,16 @@ describe('Unit 4 Content Regression Tests', () => {
             const blooket2 = topic2.blookets.find(b => b.title === 'u4l1-2blooket');
 
             expect(blooket1.url).toBe(blooket2.url);
+        });
+
+        it('should have same drill app URL for lessons 1 and 2', () => {
+            const topic1 = getTopic('unit4', '4-1');
+            const topic2 = getTopic('unit4', '4-2');
+
+            const drillApp1 = topic1.blookets.find(b => b.title === 'Practice Drills App');
+            const drillApp2 = topic2.blookets.find(b => b.title === 'Practice Drills App');
+
+            expect(drillApp1.url).toBe(drillApp2.url);
         });
 
         it('should have same worksheet URL for lessons 1 and 2', () => {

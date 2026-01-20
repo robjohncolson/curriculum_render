@@ -594,6 +594,10 @@ const ALL_UNITS_DATA = [
         {
             url: "https://dashboard.blooket.com/set/696edcfa2761a89ccdaf2fdc",
             title: "u4l1-2blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?c=apstatu4l1l2",
+            title: "Practice Drills App"
         }
     ],
     pdfs: [
@@ -618,6 +622,10 @@ const ALL_UNITS_DATA = [
         {
             url: "https://dashboard.blooket.com/set/696edcfa2761a89ccdaf2fdc",
             title: "u4l1-2blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?c=apstatu4l1l2",
+            title: "Practice Drills App"
         }
     ],
     pdfs: [
