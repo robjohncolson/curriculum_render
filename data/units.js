@@ -642,6 +642,15 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1eAYcRNceHy01t7bmARB3vtTDZnNNqmOV/view?usp=drive_link"
         }
     ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
+            title: "u4l3-5blooket"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson3-4-5_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
+    ],
 },
 
 // Unit 4 Topic 4.4
@@ -655,6 +664,15 @@ const ALL_UNITS_DATA = [
             altUrl: "https://drive.google.com/file/d/1TRJBAVaIbAWWLREvsDgRCxf0sNcFkpxf/view?usp=drive_link"
         }
     ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
+            title: "u4l3-5blooket"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson3-4-5_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
+    ],
 },
 
 // Unit 4 Topic 4.5
@@ -667,6 +685,15 @@ const ALL_UNITS_DATA = [
             url: "https://apclassroom.collegeboard.org/d/d4g6056pk8?sui=33,4",
             altUrl: "https://drive.google.com/file/d/1fpXLiPwBKO3kqppTWm4FpqjCcHX3Qf84/view?usp=drive_link"
         }
+    ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
+            title: "u4l3-5blooket"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson3-4-5_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
     ],
 },
 
