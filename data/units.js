@@ -646,6 +646,10 @@ const ALL_UNITS_DATA = [
         {
             url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
             title: "u4l3-5blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=apstatu4l1l2&start=11",
+            title: "Practice Drills App"
         }
     ],
     pdfs: [
@@ -668,6 +672,10 @@ const ALL_UNITS_DATA = [
         {
             url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
             title: "u4l3-5blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=apstatu4l1l2&level=l17-mutually-exclusive-def",
+            title: "Practice Drills App"
         }
     ],
     pdfs: [
@@ -690,6 +698,10 @@ const ALL_UNITS_DATA = [
         {
             url: "https://dashboard.blooket.com/set/6970461b0b6fcb7e199c7134",
             title: "u4l3-5blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=apstatu4l1l2&level=l20-conditional-def",
+            title: "Practice Drills App"
         }
     ],
     pdfs: [
