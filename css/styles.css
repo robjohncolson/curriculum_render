@@ -5946,6 +5946,93 @@ body.dark-theme .grading-text {
     50% { transform: scale(1.05); }
 }
 
+/* AI Interaction Section in Peer Sidebar */
+.ai-interaction-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary, #e0e0e0);
+}
+
+.ai-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-primary, #e0e0e0);
+}
+
+.ai-section-header h4 {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.ai-section-hint {
+    color: var(--text-secondary, #666);
+    font-size: 0.9em;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+/* Override escalation container when inside AI section */
+.ai-interaction-section .escalation-container {
+    margin-top: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+/* Share Reasoning Button */
+.share-reasoning-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    margin-top: 10px;
+}
+
+.share-reasoning-btn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+}
+
+.share-reasoning-btn.shared {
+    background: linear-gradient(135deg, #6ee7b7 0%, #34d399 100%);
+    color: #064e3b;
+    cursor: default;
+}
+
+.share-reasoning-btn.shared:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.share-reasoning-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Dark theme for AI section */
+body.dark-theme .ai-interaction-section {
+    background: var(--bg-tertiary, #252525);
+    border-color: var(--border-secondary, #404040);
+}
+
+body.dark-theme .ai-section-header {
+    border-color: var(--border-secondary, #404040);
+}
+
+body.dark-theme .ai-section-hint {
+    color: var(--text-secondary, #999);
+}
+
+body.dark-theme .share-reasoning-btn.shared {
+    background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+    color: #6ee7b7;
+}
+
 /* Dark theme for escalation UI */
 body.dark-theme .escalation-container {
     background: var(--bg-tertiary, #252525);

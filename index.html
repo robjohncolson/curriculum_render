@@ -4216,39 +4216,6 @@ function renderLessonSelector(unitInfo) {
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
-
-                            <!-- AI Grading Escalation UI -->
-                            <div id="escalation-${question.id}" class="escalation-container" style="display: none;">
-                                <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
-
-                                <div id="escalation-buttons-${question.id}" class="escalation-buttons">
-                                    <button id="btn-ai-review-${question.id}" class="escalation-btn ai-review-btn" onclick="showReasoningForm('${question.id}', '${question.type}')" style="display: none;">
-                                        🤖 Request AI Review
-                                    </button>
-                                    <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
-                                        📝 Appeal AI Decision
-                                    </button>
-                                </div>
-
-                                <div id="reasoning-form-${question.id}" class="reasoning-form" style="display: none;">
-                                    <label for="reasoning-text-${question.id}"><strong>Why did you choose this answer?</strong></label>
-                                    <p class="reasoning-hint">Explain your thought process so the AI can evaluate your understanding of the concept.</p>
-                                    <textarea id="reasoning-text-${question.id}" class="reasoning-textarea" placeholder="e.g., 'I chose C because the question is asking about probability of at most 2 events, which means I need to add P(0) + P(1) + P(2)...'"></textarea>
-                                    <div class="reasoning-actions">
-                                        <button onclick="submitForAIReview('${question.id}', '${question.type}')" class="escalation-btn submit-reasoning-btn">🤖 Submit for AI Review</button>
-                                        <button onclick="hideReasoningForm('${question.id}')" class="escalation-btn cancel-reasoning-btn">Cancel</button>
-                                    </div>
-                                </div>
-
-                                <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
-                                    <label for="appeal-text-${question.id}">Explain why you believe your answer deserves reconsideration:</label>
-                                    <textarea id="appeal-text-${question.id}" class="appeal-textarea" placeholder="e.g., 'I chose B because the question asks about... and my reasoning was...'"></textarea>
-                                    <div class="appeal-actions">
-                                        <button onclick="submitAppeal('${question.id}', '${question.type}')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
-                                        <button onclick="hideAppealForm('${question.id}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                 `;
             } else {
@@ -4267,26 +4234,6 @@ function renderLessonSelector(unitInfo) {
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
-
-                            <!-- AI Grading Escalation UI for FRQ -->
-                            <div id="escalation-${question.id}" class="escalation-container">
-                                <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
-
-                                <div id="escalation-buttons-${question.id}" class="escalation-buttons">
-                                    <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
-                                        📝 Appeal AI Grading
-                                    </button>
-                                </div>
-
-                                <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
-                                    <label for="appeal-text-${question.id}">Explain why you believe your answer deserves a higher score:</label>
-                                    <textarea id="appeal-text-${question.id}" class="appeal-textarea" placeholder="e.g., 'I mentioned the key concept of... because...'"></textarea>
-                                    <div class="appeal-actions">
-                                        <button onclick="submitAppeal('${question.id}', '${question.type}')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
-                                        <button onclick="hideAppealForm('${question.id}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- FRQ Solution Container -->
@@ -4300,7 +4247,54 @@ function renderLessonSelector(unitInfo) {
                     <!-- RIGHT COLUMN: Peer Reasoning Sidebar -->
                     <div class="peer-sidebar">
                         <div class="peer-sidebar-content">
-                            <!-- Peer reasoning section (main focus) -->
+                            <!-- AI Interaction Section (above peer responses) -->
+                            <div class="ai-interaction-section" id="ai-section-${question.id}">
+                                <div class="ai-section-header">
+                                    <h4>🤖 AI Review</h4>
+                                </div>
+
+                                <!-- AI Grading Escalation UI -->
+                                <div id="escalation-${question.id}" class="escalation-container" style="display: none;">
+                                    <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
+
+                                    <div id="escalation-buttons-${question.id}" class="escalation-buttons">
+                                        <button id="btn-ai-review-${question.id}" class="escalation-btn ai-review-btn" onclick="showReasoningForm('${question.id}', '${question.type}')" style="display: none;">
+                                            🤖 Request AI Review
+                                        </button>
+                                        <button id="btn-share-reasoning-${question.id}" class="escalation-btn share-reasoning-btn" onclick="shareReasoningWithPeers('${question.id}')" style="display: none;">
+                                            📤 Share My Reasoning with Peers
+                                        </button>
+                                        <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
+                                            📝 Appeal AI Decision
+                                        </button>
+                                    </div>
+
+                                    <div id="reasoning-form-${question.id}" class="reasoning-form" style="display: none;">
+                                        <label for="reasoning-text-${question.id}"><strong>Why did you choose this answer?</strong></label>
+                                        <p class="reasoning-hint">Explain your thought process so the AI can evaluate your understanding of the concept.</p>
+                                        <textarea id="reasoning-text-${question.id}" class="reasoning-textarea" placeholder="e.g., 'I chose C because the question is asking about probability of at most 2 events, which means I need to add P(0) + P(1) + P(2)...'"></textarea>
+                                        <div class="reasoning-actions">
+                                            <button onclick="submitForAIReview('${question.id}', '${question.type}')" class="escalation-btn submit-reasoning-btn">🤖 Submit for AI Review</button>
+                                            <button onclick="hideReasoningForm('${question.id}')" class="escalation-btn cancel-reasoning-btn">Cancel</button>
+                                        </div>
+                                    </div>
+
+                                    <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
+                                        <label for="appeal-text-${question.id}">Explain why you believe your answer deserves reconsideration:</label>
+                                        <textarea id="appeal-text-${question.id}" class="appeal-textarea" placeholder="e.g., 'I chose B because the question asks about... and my reasoning was...'"></textarea>
+                                        <div class="appeal-actions">
+                                            <button onclick="submitAppeal('${question.id}', '${question.type}')" class="escalation-btn submit-appeal-btn">Submit Appeal</button>
+                                            <button onclick="hideAppealForm('${question.id}')" class="escalation-btn cancel-appeal-btn">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="ai-section-hint-${question.id}" class="ai-section-hint">
+                                    Submit an answer to interact with AI
+                                </div>
+                            </div>
+
+                            <!-- Peer reasoning section -->
                             <div class="peer-reasoning-section" id="peer-reasoning-${question.id}">
                                 <div class="peer-reasoning-header">
                                     <h4>🤝 Peer Responses</h4>
@@ -5979,6 +5973,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const escalationContainer = document.getElementById(`escalation-${questionId}`);
             if (escalationContainer) {
                 escalationContainer.style.display = 'block';
+                // Hide the AI section hint
+                const aiHint = document.getElementById(`ai-section-hint-${questionId}`);
+                if (aiHint) aiHint.style.display = 'none';
             }
 
             // Find or create grading feedback container
@@ -6106,6 +6103,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                 if (appealBtn) {
                     appealBtn.style.display = 'inline-block';
+                }
+            }
+
+            // Show share reasoning button for E scores (AI-graded only)
+            if (result.score === 'E' && result._aiGraded) {
+                const shareBtn = document.getElementById(`btn-share-reasoning-${questionId}`);
+                // Only show if user provided reasoning during AI review
+                const userReason = classData.users[currentUsername]?.reasons?.[questionId];
+                if (shareBtn && userReason && userReason.trim().length > 0) {
+                    shareBtn.style.display = 'inline-block';
                 }
             }
         }
@@ -6559,6 +6566,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const escalationContainer = document.getElementById(`escalation-${questionId}`);
             if (escalationContainer) {
                 escalationContainer.style.display = 'block';
+                // Hide the AI section hint
+                const aiHint = document.getElementById(`ai-section-hint-${questionId}`);
+                if (aiHint) aiHint.style.display = 'none';
             }
 
             // Find or create feedback container
@@ -6647,6 +6657,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // Show escalation container
             escalationContainer.style.display = 'block';
+            // Hide the AI section hint
+            const aiHint = document.getElementById(`ai-section-hint-${questionId}`);
+            if (aiHint) aiHint.style.display = 'none';
 
             // For correct answers, show positive feedback but also offer AI understanding check
             if (isCorrect) {
@@ -7010,7 +7023,100 @@ Respond with JSON:
                     </div>
                 </div>
             `;
+
+            // Show share reasoning button if appeal resulted in E score
+            if (result.score === 'E') {
+                const shareBtn = document.getElementById(`btn-share-reasoning-${questionId}`);
+                const userReason = classData.users[currentUsername]?.reasons?.[questionId];
+                if (shareBtn && userReason && userReason.trim().length > 0) {
+                    shareBtn.style.display = 'inline-block';
+                }
+            }
         }
+
+        // Share reasoning with peers after getting E score from AI
+        window.shareReasoningWithPeers = async function(questionId) {
+            const reason = classData.users[currentUsername]?.reasons?.[questionId];
+            if (!reason || reason.trim().length === 0) {
+                showMessage('No reasoning to share. Please explain your answer during AI review first.', 'error');
+                return;
+            }
+
+            const shareBtn = document.getElementById(`btn-share-reasoning-${questionId}`);
+            if (shareBtn) {
+                shareBtn.disabled = true;
+                shareBtn.innerHTML = '📤 Sharing...';
+            }
+
+            try {
+                // Save reason to localStorage for peer visibility
+                try {
+                    const reasonsKey = `reasons_${currentUsername}`;
+                    const existingReasons = JSON.parse(localStorage.getItem(reasonsKey) || '{}');
+                    existingReasons[questionId] = reason;
+                    localStorage.setItem(reasonsKey, JSON.stringify(existingReasons));
+                } catch (e) {
+                    console.warn('localStorage write failed:', e);
+                }
+
+                // Save reason to IDB
+                if (typeof waitForStorage === 'function') {
+                    try {
+                        const storage = await waitForStorage();
+                        await storage.set('reasons', [currentUsername, questionId], {
+                            username: currentUsername,
+                            questionId: questionId,
+                            value: reason,
+                            timestamp: Date.now()
+                        });
+                    } catch (e) {
+                        console.warn('IDB write failed:', e);
+                    }
+                }
+
+                // Re-submit answer to trigger sync update (with updated timestamp)
+                const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
+                const answerValue = userAnswer?.value || userAnswer;
+                const newTimestamp = Date.now();
+
+                // Update local timestamp
+                classData.users[currentUsername].answers[questionId] = {
+                    value: answerValue,
+                    timestamp: newTimestamp
+                };
+                classData.users[currentUsername].timestamps[questionId] = new Date().toISOString();
+
+                // Sync to server if turbo mode is active
+                if (turboModeActive && window.submitAnswerViaRailway) {
+                    await window.submitAnswerViaRailway(currentUsername, questionId, answerValue, newTimestamp);
+                    console.log(`✅ Reasoning shared for ${questionId}`);
+                }
+
+                // Update button to show success
+                if (shareBtn) {
+                    shareBtn.innerHTML = '✅ Shared with Peers!';
+                    shareBtn.classList.add('shared');
+                    shareBtn.disabled = true;
+                }
+
+                showMessage('Your reasoning has been shared with your peers!', 'success');
+
+                // Refresh peer display to show own reasoning
+                if (typeof populatePeerReasoningSection === 'function') {
+                    populatePeerReasoningSection(questionId);
+                } else if (typeof populateFRQPeerReasoningSection === 'function') {
+                    populateFRQPeerReasoningSection(questionId);
+                }
+
+            } catch (error) {
+                console.error('Failed to share reasoning:', error);
+                showMessage('Failed to share reasoning. Please try again.', 'error');
+                if (shareBtn) {
+                    shareBtn.disabled = false;
+                    shareBtn.innerHTML = '📤 Share My Reasoning with Peers';
+                }
+            }
+        };
 
         // Modify gradeFRQAnswer to show appeal button for non-E scores
         const originalGradeFRQAnswer = typeof gradeFRQAnswer === 'function' ? gradeFRQAnswer : null;
