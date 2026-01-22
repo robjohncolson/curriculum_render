@@ -6,7 +6,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { getFrameworkForQuestion, buildFrameworkContext } from '../data/frameworks.js';
+import { getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 
 // Load environment variables
 dotenv.config();
