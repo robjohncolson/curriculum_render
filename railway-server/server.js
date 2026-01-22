@@ -6,6 +6,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { getFrameworkForQuestion, buildFrameworkContext } from '../data/frameworks.js';
 
 // Load environment variables
 dotenv.config();
@@ -672,7 +673,9 @@ app.post('/api/ai/appeal', async (req, res) => {
     const appealPrompt = buildAppealPrompt(scenario, answers, appealText, previousResults);
 
     const queuePos = gradingQueue.getQueueLength();
-    console.log(`🔄 AI appeal queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
+    const framework = getFrameworkForQuestion(scenario.questionId);
+    const frameworkInfo = framework ? `Topic ${framework.unit}.${framework.lesson}` : 'no framework';
+    console.log(`🔄 AI appeal queued (position ${queuePos}): ${scenario.questionId || 'unknown'} [${frameworkInfo}]`);
 
     // Queue the request
     const result = await gradingQueue.add(() => callGroq(appealPrompt));
@@ -707,9 +710,13 @@ function buildAppealPrompt(scenario, answers, appealText, previousResults) {
     .map(([field, value]) => `- ${field}: "${value}"`)
     .join('\n');
 
+  // Get framework context for this question's unit/lesson
+  const framework = getFrameworkForQuestion(scenario.questionId);
+  const frameworkContext = framework ? buildFrameworkContext(framework) : '';
+
   return `You are an AP Statistics teacher reviewing a student's APPEAL of their grade.
 
-## Context
+${frameworkContext}## Question Context
 Question: ${scenario.prompt || scenario.topic || 'AP Statistics Question'}
 Question Type: ${scenario.questionType || 'unknown'}
 ${scenario.correctAnswer ? `Correct Answer: ${scenario.correctAnswer}` : ''}
@@ -726,25 +733,27 @@ The student disagrees with the grading and explains:
 "${appealText}"
 
 ## Your Task
-Carefully reconsider the student's answer in light of their explanation. The student may have:
+Carefully reconsider the student's answer in light of their explanation AND the AP framework above. The student may have:
 1. Valid reasoning that wasn't initially recognized
 2. Used correct but different terminology or approach
-3. Demonstrated understanding despite a technically incorrect answer
-4. Made a valid point that deserves reconsideration
+3. Demonstrated understanding of essential knowledge even if their answer was technically incorrect
+4. Made a valid point that connects to the learning objectives
 
-BE FAIR but also ACCURATE. Consider:
-- For MCQ: Did the student show understanding of the concept even if they chose wrong?
-- For FRQ: Did the student's reasoning demonstrate partial credit worthy understanding?
-- Is the student's explanation logically sound?
+BE FAIR but also ACCURATE. When evaluating:
+- Connect your feedback to the specific concepts from this lesson (e.g., simulation, relative frequency, law of large numbers)
+- Reference relevant essential knowledge when the student demonstrates or misses understanding
+- For MCQ: Did the student show understanding of the underlying concept?
+- For FRQ: Does the student's reasoning align with the learning objectives?
+- Is the student's explanation logically sound given the framework?
 
 You may UPGRADE the score if the appeal shows genuine understanding. You should NOT downgrade.
 
 Respond with ONLY valid JSON:
 {
   "score": "E" or "P" or "I",
-  "feedback": "Explanation addressing the student's appeal",
+  "feedback": "Explanation connecting their answer to the lesson's key concepts",
   "appealGranted": true or false,
-  "appealResponse": "Direct message to student explaining your decision"
+  "appealResponse": "Direct message to student that naturally references the relevant statistical concepts and explains how their reasoning does or doesn't demonstrate understanding of the essential knowledge"
 }`;
 }
 

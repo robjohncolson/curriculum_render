@@ -378,6 +378,120 @@ Manages the 3-tier grading system with appeal capability.
 | P | Partially Correct | 2 | Yes |
 | I | Incorrect | 1 | Yes |
 
+### Framework Context Injection
+
+When students appeal, the AI receives lesson-specific context from the AP Statistics Course and Exam Description framework. This enables more precise, educational feedback that connects student reasoning to specific learning objectives.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              FRAMEWORK CONTEXT INJECTION (APPEALS)               │
+└─────────────────────────────────────────────────────────────────┘
+
+     ┌─────────────────┐
+     │  Student        │
+     │  submits appeal │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │  Parse question │
+     │  ID: U4-L2-Q01  │
+     │  → unit=4       │
+     │  → lesson=2     │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐      ┌─────────────────────────────────┐
+     │  getFramework   │─────▶│  data/frameworks.js             │
+     │  ForQuestion()  │      │  - Topic 4.2: Simulation        │
+     └────────┬────────┘      │  - Skills: 3.A                  │
+              │               │  - LO: UNC-2.A                  │
+              │               │  - EK: Law of Large Numbers...  │
+              │               │  - Key Concepts                 │
+              │               │  - Common Misconceptions        │
+              │               └─────────────────────────────────┘
+              ▼
+     ┌─────────────────┐
+     │ buildFramework  │
+     │ Context()       │
+     │                 │
+     │ Generates:      │
+     │ - Unit/Topic    │
+     │ - Skills        │
+     │ - Learning Obj  │
+     │ - Essential     │
+     │   Knowledge     │
+     │ - Key Concepts  │
+     │ - Formulas      │
+     │ - Misconceptions│
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ buildAppeal     │
+     │ Prompt()        │
+     │                 │
+     │ Injects context │
+     │ into AI prompt  │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ AI generates    │
+     │ response that   │
+     │ references:     │
+     │ - Lesson        │
+     │   concepts      │
+     │ - Essential     │
+     │   knowledge     │
+     │ - Specific      │
+     │   terminology   │
+     └─────────────────┘
+```
+
+### Question ID Format
+
+| Pattern | Example | Parsed Result |
+|---------|---------|---------------|
+| `U{unit}-L{lesson}-Q{number}` | `U4-L2-Q01` | unit=4, lesson=2, question=1 |
+
+### Framework Data Structure
+
+```javascript
+// data/frameworks.js
+UNIT_FRAMEWORKS = {
+  4: {
+    title: "Probability, Random Variables, and Probability Distributions",
+    examWeight: "10-20%",
+    lessons: {
+      2: {
+        topic: "Estimating Probabilities Using Simulation",
+        skills: ["3.A: Determine relative frequencies..."],
+        learningObjectives: [{
+          id: "UNC-2.A",
+          text: "Estimate probabilities using simulation",
+          essentialKnowledge: [
+            "UNC-2.A.5: The relative frequency of an outcome...",
+            "UNC-2.A.6: The law of large numbers states..."
+          ]
+        }],
+        keyConcepts: ["Relative frequency = count/total", ...],
+        keyFormulas: [...],
+        commonMisconceptions: [...]
+      }
+    }
+  }
+}
+```
+
+### AI Response Enhancement
+
+With framework context, AI appeal responses:
+- Reference specific concepts (e.g., "relative frequency," "law of large numbers")
+- Connect student reasoning to learning objectives
+- Identify which essential knowledge the student demonstrates or misses
+- Use lesson-appropriate terminology naturally
+
 ---
 
 ## 5. User Authentication State Machine
@@ -604,6 +718,7 @@ pdfs: [{ url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1
 | Question Answer | `index.html` | `submitAnswer()`, `isQuestionAnswered()` |
 | Sync Status | `index.html` | `updateSyncStatusIndicator()` |
 | AI Grading | `index.html` | `gradeFRQAnswer()`, `gradeMultiPartFRQ()` |
+| Framework Context | `data/frameworks.js`, `railway-server/server.js` | `getFrameworkForQuestion()`, `buildFrameworkContext()`, `buildAppealPrompt()` |
 | User Auth | `index.html` | `acceptUsername()`, `loadUsernameFromStorage()` |
 | Redox Chat | `railway-server/server.js` | `REDOX_SYSTEM_PROMPT`, `/api/ai/chat` |
 | Curriculum Data | `data/units.js` | `ALL_UNITS_DATA`, `getTotalItemCounts()` |

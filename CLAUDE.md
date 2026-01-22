@@ -180,10 +180,41 @@ window.gradingResults[questionId] = {
 
 **Railway Endpoints:**
 - `POST /api/ai/grade` - AI grading request
-- `POST /api/ai/appeal` - Appeal processing
+- `POST /api/ai/appeal` - Appeal processing (with framework context injection)
 - `POST /api/ai/chat` - Redox Signaling AI tutor (for edgar-redox-signaling project)
 
 See `STATE_MACHINES.md` section 13 for complete flow diagrams
+
+## AP Framework Context System
+
+The appeal system injects lesson-specific context from the AP Statistics Course and Exam Description to enable AI responses that reference specific learning objectives and essential knowledge.
+
+**Framework Data:** `data/frameworks.js` contains Unit 4 (Probability) with all 12 lessons (4.1-4.12).
+
+**Key Functions:**
+- `parseQuestionId(questionId)` - Parse `U4-L2-Q01` → `{unit: 4, lesson: 2, question: 1}`
+- `getFrameworkForQuestion(questionId)` - Get lesson framework from question ID
+- `buildFrameworkContext(framework)` - Generate context string for AI prompts
+
+**Framework Data Structure:**
+```javascript
+UNIT_FRAMEWORKS[4].lessons[2] = {
+  topic: "Estimating Probabilities Using Simulation",
+  skills: ["3.A: Determine relative frequencies..."],
+  learningObjectives: [{
+    id: "UNC-2.A",
+    text: "Estimate probabilities using simulation",
+    essentialKnowledge: ["UNC-2.A.5: The relative frequency...", "UNC-2.A.6: Law of large numbers..."]
+  }],
+  keyConcepts: ["Relative frequency = count/total", ...],
+  keyFormulas: [...],
+  commonMisconceptions: [...]
+}
+```
+
+**Appeal Response Enhancement:** With framework context, AI appeal responses naturally reference lesson concepts (e.g., "relative frequency," "law of large numbers") rather than giving generic feedback.
+
+See `docs/state-machines.md` section 4 for framework context injection flow diagram.
 
 ## Configuration
 
@@ -222,6 +253,7 @@ npm run test:coverage       # Generate coverage report
 | `error-handling.test.js` | Storage/network errors, fallback chains, outbox |
 | `redox-chat.test.js` | Redox AI tutor system prompt, page structure, brevity |
 | `curriculum-data.test.js` | Units/topics structure, blookets, pdfs, resource URLs |
+| `framework-context.test.js` | AP framework data, question ID parsing, context generation |
 
 **Test Coverage Areas:**
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
@@ -235,6 +267,7 @@ npm run test:coverage       # Generate coverage report
 - Export/Import: Pack building, validation, timestamp-based merge conflict resolution
 - Error handling: Fallback chains, outbox retry logic, graceful degradation
 - Curriculum data: Unit/topic structure validation, blooket URLs, PDF/worksheet links, resource consistency
+- Framework context: Question ID parsing, framework lookup, context string generation, appeal prompt integration
 
 ## Deployment
 
@@ -243,6 +276,7 @@ npm run test:coverage       # Generate coverage report
 
 ## Directory Notes
 
+- `data/`: Curriculum data files (`curriculum.js`, `units.js`, `frameworks.js` for AP framework context)
 - `worksheets/`: Standalone HTML files for specific lesson activities (e.g., `u3l67.html` for Unit 3 Lessons 6-7)
 - `scripts/`: Node.js utilities for analysis and data processing
 - `docs/`: Integration guides, sync documentation, state machines, and SQL schema reference
