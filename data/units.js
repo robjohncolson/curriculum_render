@@ -728,6 +728,19 @@ const ALL_UNITS_DATA = [
             altUrl: null
         }
     ],
+    blookets: [
+        {
+            url: "https://dashboard.blooket.com/set/69719a57390d28db6d7edfa9",
+            title: "u4l6blooket"
+        },
+        {
+            url: "https://lrsl-driller.vercel.app/platform/app.html?cartridge=apstatu4l1l2&level=l25-independent-def",
+            title: "Practice Drills App"
+        }
+    ],
+    pdfs: [
+        { url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson6_live.html", label: "Follow-Along Worksheet (HTML, interactive)" }
+    ],
 },
 
 // Unit 4 Topic 4.7
