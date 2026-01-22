@@ -1352,6 +1352,10 @@
                 if (!classData.users[username]) {
                     classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                 }
+                // Ensure all required properties exist (may be missing from older data)
+                if (!classData.users[username].answers) classData.users[username].answers = {};
+                if (!classData.users[username].timestamps) classData.users[username].timestamps = {};
+
                 for (const [questionId, answerData] of Object.entries(userData.answers)) {
                     const existingAnswer = classData.users[username].answers[questionId];
                     const existingTimestamp = classData.users[username].timestamps[questionId] || existingAnswer?.timestamp || 0;
