@@ -151,6 +151,8 @@ Three-tier escalation system for fair, AI-augmented grading with student appeals
 
 **Critical Rule:** AI can only UPGRADE scores, never downgrade. This protects students from AI hallucinations.
 
+**AI Review for Correct Answers:** Students can request AI review even when their answer is correct (button shows "Verify My Understanding"). This helps students who may have guessed correctly or used test-taking strategies verify they actually understand the concept.
+
 **Conditional Solution Display:** When AI grading succeeds, the rubric/answer key is hidden to encourage students to rely on AI feedback. Solutions only appear as a fallback when AI fails. Check `result._aiGraded` and `result._error` to determine visibility.
 
 **Key Functions:**

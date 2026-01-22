@@ -6634,20 +6634,38 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Show escalation container
             escalationContainer.style.display = 'block';
 
-            // For correct answers, just show positive feedback
+            // For correct answers, show positive feedback but also offer AI understanding check
             if (isCorrect) {
+                // Store result (correct = E)
+                window.gradingResults[questionId] = {
+                    score: 'E',
+                    feedback: 'Correct answer selected.',
+                    answer: answer,
+                    questionType: 'multiple-choice',
+                    _autoGraded: true
+                };
+
                 const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
                 if (feedbackContainer) {
                     feedbackContainer.innerHTML = `
                         <div class="grading-feedback excellent">
                             <div class="grading-header">
                                 <span class="grading-score">✅ Correct!</span>
+                                <span class="ai-badge">📋 Auto-graded</span>
                             </div>
                             <div class="grading-feedback-text">
                                 Great job! You selected the correct answer.
+                                <br><small style="color: #666;">Want to verify your understanding? Request an AI review of your reasoning.</small>
                             </div>
                         </div>
                     `;
+                }
+
+                // Show AI review button for correct answers too (different text)
+                const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+                if (aiReviewBtn) {
+                    aiReviewBtn.textContent = '🤖 Verify My Understanding';
+                    aiReviewBtn.style.display = 'inline-block';
                 }
                 return;
             }
@@ -6655,6 +6673,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // For wrong answers, show "Request AI Review" button
             const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
             if (aiReviewBtn) {
+                aiReviewBtn.textContent = '🤖 Request AI Review';
                 aiReviewBtn.style.display = 'inline-block';
             }
 
