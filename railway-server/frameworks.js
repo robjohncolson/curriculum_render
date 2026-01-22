@@ -536,19 +536,11 @@ function buildFrameworkContext(framework) {
   return context;
 }
 
-// Export for use in browser (curriculum_render) and Node.js (railway-server)
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    UNIT_FRAMEWORKS,
-    getFramework,
-    parseQuestionId,
-    getFrameworkForQuestion,
-    buildFrameworkContext
-  };
-} else if (typeof window !== 'undefined') {
-  window.UNIT_FRAMEWORKS = UNIT_FRAMEWORKS;
-  window.getFramework = getFramework;
-  window.parseQuestionId = parseQuestionId;
-  window.getFrameworkForQuestion = getFrameworkForQuestion;
-  window.buildFrameworkContext = buildFrameworkContext;
-}
+// ESM exports for Railway server (Node.js with "type": "module")
+export {
+  UNIT_FRAMEWORKS,
+  getFramework,
+  parseQuestionId,
+  getFrameworkForQuestion,
+  buildFrameworkContext
+};
