@@ -710,6 +710,167 @@ pdfs: [{ url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1
 
 ---
 
+## 8. Auto Cloud Restore State Machine
+
+### Overview
+
+Automatically detects when a user logs in with a known username but has no local data, and offers to restore their data from Supabase. This solves the "lost progress" problem when users clear browser storage, switch devices, or use incognito mode.
+
+### State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AUTO CLOUD RESTORE FLOW                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              User enters username
+                                      │
+                                      ▼
+                         ┌────────────────────────┐
+                         │   Check Local Data     │
+                         │  (IDB + localStorage)  │
+                         └────────────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+                    ▼                                   ▼
+         ┌──────────────────┐               ┌──────────────────┐
+         │  Has Local Data  │               │  No Local Data   │
+         │   (answers > 0)  │               │   (answers = 0)  │
+         └──────────────────┘               └──────────────────┘
+                    │                                   │
+                    ▼                                   ▼
+         ┌──────────────────┐               ┌──────────────────┐
+         │  Skip - Normal   │               │  Check Turbo Mode│
+         │     Login        │               │    Active?       │
+         └──────────────────┘               └──────────────────┘
+                                                       │
+                                      ┌────────────────┴────────────────┐
+                                      │                                 │
+                                      ▼                                 ▼
+                           ┌──────────────────┐              ┌──────────────────┐
+                           │  Turbo Active    │              │  Turbo Inactive  │
+                           │ (can query cloud)│              │  (skip restore)  │
+                           └──────────────────┘              └──────────────────┘
+                                      │                                 │
+                                      ▼                                 ▼
+                           ┌──────────────────┐              ┌──────────────────┐
+                           │ Query Supabase   │              │  Normal Login    │
+                           │ for user's data  │              │  (no restore)    │
+                           └──────────────────┘              └──────────────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+                    ▼                                   ▼
+         ┌──────────────────┐               ┌──────────────────┐
+         │  Cloud Has Data  │               │  No Cloud Data   │
+         │   (count > 0)    │               │   (new user)     │
+         └──────────────────┘               └──────────────────┘
+                    │                                   │
+                    ▼                                   ▼
+         ┌──────────────────┐               ┌──────────────────┐
+         │  Show Restore    │               │  Normal Login    │
+         │     Prompt       │               │  (fresh start)   │
+         └──────────────────┘               └──────────────────┘
+                    │
+      ┌─────────────┴─────────────┐
+      │                           │
+      ▼                           ▼
+┌────────────┐             ┌────────────┐
+│  User Says │             │  User Says │
+│    YES     │             │    NO      │
+└────────────┘             └────────────┘
+      │                           │
+      ▼                           ▼
+┌────────────────────┐    ┌────────────────────┐
+│  Perform Restore   │    │  Skip - Continue   │
+│  Show Progress UI  │    │  with empty state  │
+└────────────────────┘    └────────────────────┘
+      │
+      ▼
+┌────────────────────┐
+│  Refresh UI with   │
+│  restored data     │
+└────────────────────┘
+```
+
+### States
+
+| State | Description |
+|-------|-------------|
+| `checking_local` | Checking if user has local data |
+| `has_local_data` | User has existing local answers - skip restore |
+| `checking_cloud` | Querying Supabase for user's cloud data |
+| `cloud_has_data` | Cloud data found - prompt user |
+| `no_cloud_data` | No cloud data - new user, fresh start |
+| `restoring` | Actively restoring data from cloud |
+| `restored` | Restore complete, UI refreshed |
+| `skipped` | User declined restore or turbo inactive |
+
+### Trigger Conditions
+
+Auto cloud restore is triggered when ALL of these are true:
+1. User enters/confirms a username (Fruit_Animal format)
+2. Local storage has NO answers for this username
+3. Turbo mode is active (WebSocket connected, Supabase available)
+4. Cloud has data for this username (answer count > 0)
+
+### Key Functions
+
+| Function | Purpose |
+|----------|---------|
+| `checkAndOfferCloudRestore(username)` | Main entry point - orchestrates the flow |
+| `hasLocalData(username)` | Checks IDB + localStorage for existing answers |
+| `getCloudAnswerCount(username)` | Queries Supabase for user's answer count |
+| `performAutoRestore(username)` | Executes the restore with progress UI |
+
+### Data Flow
+
+```javascript
+// 1. On username acceptance, check for auto-restore opportunity
+async function checkAndOfferCloudRestore(username) {
+    // Skip if user has local data
+    if (await hasLocalData(username)) return false;
+
+    // Skip if turbo mode not active
+    if (!turboModeActive || !supabaseClient) return false;
+
+    // Check cloud for this user's data
+    const cloudCount = await getCloudAnswerCount(username);
+    if (cloudCount === 0) return false;
+
+    // Prompt user
+    const shouldRestore = confirm(
+        `Found ${cloudCount} saved answers in the cloud for ${username}.\n\n` +
+        `Would you like to restore your progress?`
+    );
+
+    if (shouldRestore) {
+        await performAutoRestore(username);
+        return true;
+    }
+    return false;
+}
+```
+
+### User Experience
+
+1. **Seamless for existing users**: If local data exists, no interruption
+2. **Helpful prompt for returning users**: Clear message explaining what was found
+3. **Progress indicator**: Visual feedback during restore
+4. **Graceful fallback**: If turbo mode inactive, silent skip (user can manually restore later)
+
+### Error Handling
+
+| Scenario | Behavior |
+|----------|----------|
+| Supabase query fails | Silent skip, log warning |
+| Restore fails mid-way | Show error, partial data may exist |
+| User cancels | Continue with empty local state |
+| Network timeout | Silent skip with console warning |
+
+---
+
 ## Implementation Reference
 
 | State Machine | Primary File | Key Functions |
@@ -722,6 +883,7 @@ pdfs: [{ url: "https://robjohncolson.github.io/apstats-live-worksheet/u4_lesson1
 | User Auth | `index.html` | `acceptUsername()`, `loadUsernameFromStorage()` |
 | Redox Chat | `railway-server/server.js` | `REDOX_SYSTEM_PROMPT`, `/api/ai/chat` |
 | Curriculum Data | `data/units.js` | `ALL_UNITS_DATA`, `getTotalItemCounts()` |
+| Auto Cloud Restore | `index.html` | `checkAndOfferCloudRestore()`, `hasLocalData()`, `getCloudAnswerCount()` |
 
 ---
 

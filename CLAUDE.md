@@ -224,6 +224,24 @@ See `docs/state-machines.md` section 4 for framework context injection flow diag
 
 **Enable Railway server:** Set `USE_RAILWAY = true` and `RAILWAY_SERVER_URL` in `railway_config.js`. Deploy `railway-server/` to Railway.app with `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars.
 
+## Auto Cloud Restore
+
+When a user logs in with a username that has no local data but exists in Supabase, the app automatically offers to restore their progress. This solves the "lost progress" problem when users clear browser storage or switch devices.
+
+**Trigger conditions (all must be true):**
+1. User enters a valid Fruit_Animal username
+2. No local answers exist for this username (IDB + localStorage empty)
+3. Turbo mode is active (WebSocket connected)
+4. Cloud has data for this username (Supabase answer count > 0)
+
+**Key functions:**
+- `checkAndOfferCloudRestore(username)` - Main orchestrator, called after username acceptance
+- `hasLocalData(username)` - Checks IDB + localStorage for existing answers
+- `getCloudAnswerCount(username)` - Queries Supabase for user's answer count
+- `performAutoRestore(username)` - Executes restore with progress UI
+
+See `docs/state-machines.md` section 8 for the full state diagram.
+
 ## Database Schema (Supabase)
 
 Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_activity`, `votes`
@@ -256,6 +274,7 @@ npm run test:coverage       # Generate coverage report
 | `redox-chat.test.js` | Redox AI tutor system prompt, page structure, brevity |
 | `curriculum-data.test.js` | Units/topics structure, blookets, pdfs, resource URLs |
 | `framework-context.test.js` | AP framework data, question ID parsing, context generation |
+| `auto-cloud-restore.test.js` | Auto-restore detection, cloud count check, restore flow |
 
 **Test Coverage Areas:**
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
@@ -265,6 +284,7 @@ npm run test:coverage       # Generate coverage report
 - Peer consensus: Answer aggregation, percentage calculation, most popular detection
 - WebSocket/Turbo: Connection states, message handling, exponential backoff
 - Sprite system: IDLE/JUMPING/SUSPENDED/FALLING states, hue resolution, positioning
+- Auto cloud restore: Local data detection, cloud count queries, restore prompts, error handling
 - Chart system: Type mapping, config building, instance management
 - Export/Import: Pack building, validation, timestamp-based merge conflict resolution
 - Error handling: Fallback chains, outbox retry logic, graceful degradation

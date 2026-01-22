@@ -1429,7 +1429,7 @@
                     }
 
                     if (cloudAnswers && cloudAnswers.length > 0) {
-                        console.log(`☁️ Found ${cloudAnswers.length} answers in Supabase for ${currentUser}, restoring...`);
+                        console.log(`☁️ Found ${cloudAnswers.length} answers in Supabase for ${currentUser}`);
 
                         // Calculate lesson progress for display
                         const lessonProgress = {};
@@ -1443,6 +1443,32 @@
                             const ts = Number(row.timestamp) || 0;
                             if (ts > lastActivity) lastActivity = ts;
                         });
+
+                        // Format last activity for display
+                        const lastActivityStr = lastActivity > 0
+                            ? new Date(lastActivity).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : 'unknown';
+
+                        // Build lesson summary
+                        const lessonCount = Object.keys(lessonProgress).length;
+                        const lessonSummary = lessonCount > 0
+                            ? `across ${lessonCount} lesson${lessonCount > 1 ? 's' : ''}`
+                            : '';
+
+                        // AUTO CLOUD RESTORE: Prompt user before restoring
+                        const confirmRestore = confirm(
+                            `📊 Found ${cloudAnswers.length} saved answers for ${currentUser} ${lessonSummary}!\n\n` +
+                            `Last activity: ${lastActivityStr}\n\n` +
+                            `Would you like to restore your progress from the cloud?`
+                        );
+
+                        if (!confirmRestore) {
+                            console.log('🚫 User declined cloud restore - continuing with empty local data');
+                            updateSyncState({ status: 'idle', message: 'Skipped restore' });
+                            return true;
+                        }
+
+                        console.log(`✅ User confirmed restore - restoring ${cloudAnswers.length} answers...`);
 
                         // Show blocking progress screen
                         showSyncProgressScreen({
