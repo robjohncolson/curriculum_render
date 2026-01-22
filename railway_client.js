@@ -85,7 +85,7 @@
 
           // Identify with current username as soon as connected
           const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
-          if (username) {
+          if (username && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'identify', username }));
           }
           };
