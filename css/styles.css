@@ -5795,6 +5795,91 @@ body.dark-theme .grading-text {
     background: var(--bg-secondary, #e0e0e0) !important;
 }
 
+/* Reasoning Form (for AI review) */
+.reasoning-form {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #e8f4fd 0%, #d1e9fc 100%);
+    border-radius: 10px;
+    border: 2px solid #3498db;
+}
+
+.reasoning-form label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: #2980b9;
+}
+
+.reasoning-hint {
+    margin: 0 0 12px 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.reasoning-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 2px solid #bde0fe;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95em;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+    background: white;
+}
+
+.reasoning-textarea:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.reasoning-textarea::placeholder {
+    color: #999;
+}
+
+.reasoning-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.reasoning-form .escalation-btn {
+    display: inline-block !important;
+}
+
+.submit-reasoning-btn {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.submit-reasoning-btn:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #1f6dad 100%);
+    transform: translateY(-1px);
+}
+
+.cancel-reasoning-btn {
+    background: var(--bg-tertiary, #f0f0f0) !important;
+    color: var(--text-secondary, #666) !important;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.cancel-reasoning-btn:hover {
+    background: var(--bg-secondary, #e0e0e0) !important;
+}
+
 /* Appeal Result */
 .appeal-result {
     margin-top: 15px;
@@ -5892,6 +5977,29 @@ body.dark-theme .appeal-result.granted {
 
 body.dark-theme .appeal-result.denied {
     background: linear-gradient(135deg, rgba(243, 156, 18, 0.2) 0%, rgba(243, 156, 18, 0.1) 100%);
+}
+
+body.dark-theme .reasoning-form {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(52, 152, 219, 0.1) 100%);
+    border-color: #3498db;
+}
+
+body.dark-theme .reasoning-form label {
+    color: #5dade2;
+}
+
+body.dark-theme .reasoning-hint {
+    color: #999;
+}
+
+body.dark-theme .reasoning-textarea {
+    background: var(--bg-primary, #1a1a1a);
+    border-color: #2980b9;
+    color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-theme .reasoning-textarea:focus {
+    border-color: #3498db;
 }
 
 body.dark-theme .appeal-result.granted .appeal-result-header {

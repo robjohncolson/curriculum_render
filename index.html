@@ -4218,12 +4218,22 @@ function renderLessonSelector(unitInfo) {
                                 <div id="grading-feedback-${question.id}" class="grading-feedback-container"></div>
 
                                 <div id="escalation-buttons-${question.id}" class="escalation-buttons">
-                                    <button id="btn-ai-review-${question.id}" class="escalation-btn ai-review-btn" onclick="requestAIReview('${question.id}', '${question.type}')" style="display: none;">
+                                    <button id="btn-ai-review-${question.id}" class="escalation-btn ai-review-btn" onclick="showReasoningForm('${question.id}', '${question.type}')" style="display: none;">
                                         🤖 Request AI Review
                                     </button>
                                     <button id="btn-appeal-${question.id}" class="escalation-btn appeal-btn" onclick="showAppealForm('${question.id}')" style="display: none;">
                                         📝 Appeal AI Decision
                                     </button>
+                                </div>
+
+                                <div id="reasoning-form-${question.id}" class="reasoning-form" style="display: none;">
+                                    <label for="reasoning-text-${question.id}"><strong>Why did you choose this answer?</strong></label>
+                                    <p class="reasoning-hint">Explain your thought process so the AI can evaluate your understanding of the concept.</p>
+                                    <textarea id="reasoning-text-${question.id}" class="reasoning-textarea" placeholder="e.g., 'I chose C because the question is asking about probability of at most 2 events, which means I need to add P(0) + P(1) + P(2)...'"></textarea>
+                                    <div class="reasoning-actions">
+                                        <button onclick="submitForAIReview('${question.id}', '${question.type}')" class="escalation-btn submit-reasoning-btn">🤖 Submit for AI Review</button>
+                                        <button onclick="hideReasoningForm('${question.id}')" class="escalation-btn cancel-reasoning-btn">Cancel</button>
+                                    </div>
                                 </div>
 
                                 <div id="appeal-form-${question.id}" class="appeal-form" style="display: none;">
@@ -6817,6 +6827,49 @@ Respond with JSON:
   "missing": ["concepts that were missed or misunderstood"]
 }`;
         }
+
+        // Show reasoning form (for AI review)
+        window.showReasoningForm = function(questionId, questionType) {
+            const reasoningForm = document.getElementById(`reasoning-form-${questionId}`);
+            const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+            if (reasoningForm) reasoningForm.style.display = 'block';
+            if (aiReviewBtn) aiReviewBtn.style.display = 'none';
+        };
+
+        // Hide reasoning form
+        window.hideReasoningForm = function(questionId) {
+            const reasoningForm = document.getElementById(`reasoning-form-${questionId}`);
+            const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+            if (reasoningForm) reasoningForm.style.display = 'none';
+            if (aiReviewBtn) aiReviewBtn.style.display = 'inline-block';
+        };
+
+        // Submit for AI review (after student explains reasoning)
+        window.submitForAIReview = async function(questionId, questionType) {
+            const reasoningTextarea = document.getElementById(`reasoning-text-${questionId}`);
+            const reasoningText = reasoningTextarea?.value?.trim();
+
+            if (!reasoningText) {
+                alert('Please explain why you chose this answer so the AI can evaluate your understanding.');
+                return;
+            }
+
+            // Hide the reasoning form
+            const reasoningForm = document.getElementById(`reasoning-form-${questionId}`);
+            if (reasoningForm) reasoningForm.style.display = 'none';
+
+            // Store the reasoning for use in AI review
+            if (!classData.users[currentUsername]) {
+                classData.users[currentUsername] = {};
+            }
+            if (!classData.users[currentUsername].reasons) {
+                classData.users[currentUsername].reasons = {};
+            }
+            classData.users[currentUsername].reasons[questionId] = reasoningText;
+
+            // Now call the actual AI review
+            await requestAIReview(questionId, questionType);
+        };
 
         // Show appeal form
         window.showAppealForm = function(questionId) {
