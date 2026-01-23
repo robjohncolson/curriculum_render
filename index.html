@@ -7407,8 +7407,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const choices = question.attachments?.choices || [];
             const choicesText = choices.map(c => `${c.key}: ${c.text}`).join('\n');
             const correctAnswer = getCorrectAnswer(question.id);
+            const isCorrect = answer?.toString().toLowerCase().trim() === correctAnswer?.toString().toLowerCase().trim();
 
-            return `You are an AP Statistics teacher evaluating a student's multiple choice answer.
+            return `You are an AP Statistics teacher evaluating a student's multiple choice answer AND their reasoning.
 
 ## Question
 ${question.prompt}
@@ -7420,25 +7421,35 @@ ${choicesText}
 ${correctAnswer}
 
 ## Student's Answer
-${answer}
+${answer} (${isCorrect ? 'CORRECT' : 'INCORRECT'})
 
-## Student's Reasoning (if provided)
+## Student's Reasoning
 ${reason || 'No reasoning provided'}
 
-## Grading Instructions
-Even though the student selected the wrong answer, evaluate if they demonstrated understanding:
-- E (Essentially correct): Student shows deep understanding despite selecting wrong answer, OR reasoning reveals the question/choices may have been misread
-- P (Partially correct): Student shows partial understanding, made a reasonable error, or their reasoning has merit
-- I (Incorrect): No evidence of understanding the concept
+## CRITICAL: Grading Instructions
 
-Be generous if the student's reasoning shows genuine statistical thinking.
+You must evaluate BOTH the selected answer AND the reasoning independently. A correct answer with flawed reasoning does NOT earn full credit.
+
+${isCorrect ? `
+### The student selected the CORRECT answer. However:
+- E (Essentially correct): Reasoning demonstrates genuine understanding of the statistical concept and correctly explains WHY the answer is right
+- P (Partially correct): Answer is correct but reasoning is incomplete, vague, or shows partial understanding
+- I (Incorrect): Answer is correct BUT reasoning is nonsensical, irrelevant, contradicts the answer, or suggests the student guessed without understanding
+
+IMPORTANT: If the reasoning does not match the statistical concepts needed to answer this question, or if it's gibberish/irrelevant, score as P or I even though the answer is correct. A lucky guess is NOT the same as understanding.
+` : `
+### The student selected the WRONG answer. Evaluate if they still demonstrated understanding:
+- E (Essentially correct): Reasoning shows deep understanding despite wrong answer (e.g., misread question, calculation error but sound logic)
+- P (Partially correct): Shows partial understanding, made a reasonable error, or reasoning has some merit
+- I (Incorrect): No evidence of understanding the concept
+`}
 
 Respond with JSON:
 {
   "score": "E" or "P" or "I",
-  "feedback": "Explanation of the evaluation",
-  "matched": ["concepts the student understood"],
-  "missing": ["concepts that were missed or misunderstood"]
+  "feedback": "Explanation focusing on the quality of reasoning, not just answer correctness",
+  "matched": ["statistical concepts the student demonstrated understanding of"],
+  "missing": ["concepts that were missed, misunderstood, or not demonstrated in reasoning"]
 }`;
         }
 
