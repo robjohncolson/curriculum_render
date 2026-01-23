@@ -978,6 +978,25 @@ app.post('/api/ai/chat', async (req, res) => {
 // IDENTITY CLAIM RESOLUTION
 // ============================
 
+// Get registered students with real names (for identity claim candidate selection)
+app.get('/api/students', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('username, real_name, user_type')
+      .eq('user_type', 'student')
+      .order('real_name');
+
+    if (error) throw error;
+
+    res.json({ students: data });
+
+  } catch (error) {
+    console.error('Error getting students:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get orphaned usernames (usernames with answers but no user record)
 app.get('/api/identity-claims/orphans', async (req, res) => {
   try {

@@ -2031,14 +2031,12 @@ async function loadOrphanedUsernames() {
  * Show modal to create an identity claim
  */
 async function showCreateClaimModal(orphanUsername, answerCount) {
-    // Fetch registered students to select candidates
+    // Fetch registered students with real names
     let students = [];
     try {
-        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/peer-data`);
-        const { data } = await response.json();
-        // Get unique usernames
-        const usernames = [...new Set(data.map(a => a.username))];
-        students = usernames.filter(u => u !== orphanUsername);
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/students`);
+        const { students: studentList } = await response.json();
+        students = studentList.filter(s => s.username !== orphanUsername);
     } catch (e) {
         console.error('Failed to fetch students:', e);
     }
@@ -2062,8 +2060,8 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
                         <label style="display: block; padding: 6px; cursor: pointer; border-radius: 4px;"
                                onmouseover="this.style.background='#f0f0f0'"
                                onmouseout="this.style.background='transparent'">
-                            <input type="checkbox" name="candidate" value="${s}" style="margin-right: 8px;">
-                            ${s}
+                            <input type="checkbox" name="candidate" value="${s.username}" style="margin-right: 8px;">
+                            <strong>${s.real_name}</strong> <span style="color: #888; font-size: 0.9em;">(${s.username})</span>
                         </label>
                     `).join('') : '<p style="color: #888;">No registered students found</p>'}
                 </div>
