@@ -64,6 +64,26 @@ function generateRandomUsername() {
     return `${fruit}_${animal}`;
 }
 
+/**
+ * Normalizes a username to Title_Case format
+ * Converts "apple_monkey" or "APPLE_MONKEY" to "Apple_Monkey"
+ * This prevents case-sensitivity orphans (same user, different casing)
+ * @param {string} username - The username to normalize
+ * @returns {string} Normalized username in Title_Case
+ */
+function normalizeUsername(username) {
+    if (!username || typeof username !== 'string') return username;
+
+    // Split by underscore or space, title-case each part, rejoin with underscore
+    return username
+        .split(/[_\s]+/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join('_');
+}
+
+// Expose for use in other modules
+window.normalizeUsername = normalizeUsername;
+
 // ========================================
 // USERNAME PROMPTING & SESSION MANAGEMENT
 // ========================================
@@ -95,7 +115,18 @@ async function promptUsername() {
     }
 
     if (savedUsername && savedUsername !== 'null') {
-        currentUsername = savedUsername;
+        // Normalize saved username to Title_Case (fixes legacy lowercase usernames)
+        currentUsername = normalizeUsername(savedUsername);
+
+        // If normalization changed the username, update storage
+        if (currentUsername !== savedUsername) {
+            console.log(`📝 Normalized username: ${savedUsername} → ${currentUsername}`);
+            await storage.setMeta('username', currentUsername);
+            try {
+                localStorage.setItem('consensusUsername', currentUsername);
+            } catch (e) { /* ignore */ }
+        }
+
         await initClassData();
         initializeProgressTracking(); // Initialize progress tracking for returning user
         showUsernameWelcome();
@@ -742,7 +773,8 @@ window.rerollUsername = function() {
  * @param {string} name - The username to accept
  */
 window.acceptUsername = async function(name) {
-    currentUsername = name;
+    // Normalize username to Title_Case to prevent case-sensitivity orphans
+    currentUsername = normalizeUsername(name);
 
     // Save to storage adapter (IDB + localStorage dual-write)
     const storage = await waitForStorage();
