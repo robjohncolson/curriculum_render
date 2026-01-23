@@ -1000,10 +1000,10 @@ app.get('/api/students', async (req, res) => {
 // Get orphaned usernames (usernames with answers but no user record)
 app.get('/api/identity-claims/orphans', async (req, res) => {
   try {
-    // Get all unique usernames from answers
-    const { data: answerUsers, error: answerError } = await supabase
+    // Get all answers with question_ids
+    const { data: answers, error: answerError } = await supabase
       .from('answers')
-      .select('username');
+      .select('username, question_id');
 
     if (answerError) throw answerError;
 
@@ -1016,17 +1016,43 @@ app.get('/api/identity-claims/orphans', async (req, res) => {
 
     const registeredSet = new Set(registeredUsers.map(u => u.username));
 
-    // Count answers per username
-    const answerCounts = {};
-    answerUsers.forEach(a => {
-      answerCounts[a.username] = (answerCounts[a.username] || 0) + 1;
+    // Build detailed stats per username
+    const userStats = {};
+    answers.forEach(a => {
+      if (!userStats[a.username]) {
+        userStats[a.username] = {
+          total: 0,
+          curriculum: 0,
+          worksheet: 0,
+          units: new Set()
+        };
+      }
+      userStats[a.username].total++;
+
+      // Categorize by question_id pattern
+      if (/^U\d+-L\d+-Q/i.test(a.question_id)) {
+        userStats[a.username].curriculum++;
+        // Extract unit number
+        const unitMatch = a.question_id.match(/^U(\d+)/i);
+        if (unitMatch) {
+          userStats[a.username].units.add(`U${unitMatch[1]}`);
+        }
+      } else if (/^WS-/i.test(a.question_id)) {
+        userStats[a.username].worksheet++;
+      }
     });
 
-    // Find orphans (in answers but not in users)
-    const orphans = Object.entries(answerCounts)
+    // Find orphans (in answers but not in users) with detailed stats
+    const orphans = Object.entries(userStats)
       .filter(([username]) => !registeredSet.has(username))
-      .map(([username, count]) => ({ username, answerCount: count }))
-      .sort((a, b) => b.answerCount - a.answerCount);
+      .map(([username, stats]) => ({
+        username,
+        answerCount: stats.total,
+        curriculumCount: stats.curriculum,
+        worksheetCount: stats.worksheet,
+        units: Array.from(stats.units).sort()
+      }))
+      .sort((a, b) => b.curriculumCount - a.curriculumCount || b.answerCount - a.answerCount);
 
     res.json({ orphans, total: orphans.length });
 

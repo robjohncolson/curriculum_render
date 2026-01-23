@@ -1996,15 +1996,25 @@ async function loadOrphanedUsernames() {
 
             list.innerHTML = `
                 <p style="margin-bottom: 10px;"><strong>${total}</strong> orphaned username${total > 1 ? 's' : ''} found:</p>
-                ${orphans.map(o => `
-                    <div style="padding: 12px; margin-bottom: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                ${orphans.map(o => {
+                    const hasCurriculum = o.curriculumCount > 0;
+                    const borderColor = hasCurriculum ? '#3498db' : '#ddd';
+                    const bgColor = hasCurriculum ? '#f0f7ff' : 'white';
+                    return `
+                    <div style="padding: 12px; margin-bottom: 10px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <strong style="color: #2c3e50;">${o.username}</strong>
-                                <span style="color: #666; font-size: 0.9em; margin-left: 10px;">${o.answerCount} answers</span>
+                                ${hasCurriculum ? '<span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">HAS CURRICULUM</span>' : ''}
+                                <div style="font-size: 0.85em; color: #666; margin-top: 4px;">
+                                    📚 <strong>${o.curriculumCount}</strong> curriculum
+                                    ${o.units && o.units.length > 0 ? `<span style="color: #3498db;">(${o.units.join(', ')})</span>` : ''}
+                                    &nbsp;|&nbsp;
+                                    📝 <strong>${o.worksheetCount}</strong> worksheet
+                                </div>
                             </div>
                             <button onclick="showCreateClaimModal('${o.username}', ${o.answerCount})" style="
-                                background: #9b59b6;
+                                background: ${hasCurriculum ? '#3498db' : '#9b59b6'};
                                 color: white;
                                 border: none;
                                 padding: 6px 12px;
@@ -2014,7 +2024,7 @@ async function loadOrphanedUsernames() {
                             ">Create Claim</button>
                         </div>
                     </div>
-                `).join('')}
+                `}).join('')}
             `;
         }
     } catch (error) {
