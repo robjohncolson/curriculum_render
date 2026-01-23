@@ -5946,6 +5946,65 @@ body.dark-theme .grading-text {
     50% { transform: scale(1.05); }
 }
 
+/* Sidebar Answer Section (MCQ reasoning + submit moved to sidebar) */
+.sidebar-answer-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--bg-secondary, #f8f9fa);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary, #e0e0e0);
+}
+
+.sidebar-answer-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-primary, #e0e0e0);
+}
+
+.sidebar-answer-header h4 {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+
+.sidebar-answer-section .reason-wrapper {
+    margin-bottom: 12px;
+}
+
+.sidebar-answer-section .reason-textarea {
+    min-height: 100px;
+}
+
+.sidebar-submit-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-submit-wrapper .submit-button {
+    flex-shrink: 0;
+}
+
+.sidebar-submit-wrapper .error-msg,
+.sidebar-submit-wrapper .success-msg {
+    flex-basis: 100%;
+    margin-top: 8px;
+}
+
+/* Dark theme for sidebar answer section */
+body.dark-theme .sidebar-answer-section {
+    background: var(--bg-tertiary, #252525);
+    border-color: var(--border-secondary, #404040);
+}
+
+body.dark-theme .sidebar-answer-header {
+    border-color: var(--border-secondary, #404040);
+}
+
 /* AI Interaction Section in Peer Sidebar */
 .ai-interaction-section {
     margin-bottom: 20px;

@@ -4771,51 +4771,9 @@ function renderLessonSelector(unitInfo) {
                 }
             }
 
-            // Add reasoning section in main column (ONLY for MCQs, not FRQs)
-            if (question.type !== 'free-response') {
-                html += `
-                        <div class="answer-section">
-                            <div class="reason-wrapper">
-                                <label class="reason-label">
-                                    ${attempts > 0 && !canRetryQuestion ?
-                                        'Your explanation (required for retry):' :
-                                        'Explain your reasoning (optional but enables retry):'}
-                                </label>
-                                <textarea
-                                    id="reason-${question.id}"
-                                    class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
-                                    placeholder="${attempts > 0 && !canRetryQuestion ?
-                                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
-                                        'Explain why you chose this answer...'}"
-                                >${getReasonString(classData.users[currentUsername]?.reasons?.[question.id])}</textarea>
-                            </div>
-                            <div>
-                                <button
-                                    id="submit-${question.id}"
-                                    class="submit-button"
-                                    onclick="submitAnswer('${question.id}', '${question.type}')"
-                                    ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
-                                >
-                                    ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Add Reasoning to Retry') : 'Submit Answer'}
-                                </button>
-
-                                ${isAnswered && !canRetryQuestion && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
-                                    <button
-                                        id="add-explanation-${question.id}"
-                                        class="add-explanation-button"
-                                        onclick="addExplanationToRetry('${question.id}')"
-                                        style="margin-left: 10px; background: #28a745; color: white;"
-                                    >
-                                        Add Explanation to Retry
-                                    </button>
-                                ` : ''}
-
-                                <span id="error-${question.id}" class="error-msg"></span>
-                                <span id="success-${question.id}" class="success-msg"></span>
-                            </div>
-                        </div>
-                `;
-            } else {
+            // MCQs: reasoning section moved to sidebar (below)
+            // FRQs: submit button stays in main column
+            if (question.type === 'free-response') {
                 // For FRQs, submit button is never disabled (unlimited retries)
                 html += `
                         <div class="answer-section">
@@ -4844,6 +4802,53 @@ function renderLessonSelector(unitInfo) {
                     <!-- RIGHT COLUMN: Peer Reasoning Sidebar -->
                     <div class="peer-sidebar">
                         <div class="peer-sidebar-content">
+                            ${question.type !== 'free-response' ? `
+                            <!-- MCQ Answer Section (moved to sidebar) -->
+                            <div class="sidebar-answer-section">
+                                <div class="sidebar-answer-header">
+                                    <h4>✏️ Your Response</h4>
+                                </div>
+                                <div class="reason-wrapper">
+                                    <label class="reason-label">
+                                        ${attempts > 0 && !canRetryQuestion ?
+                                            'Your explanation (required for retry):' :
+                                            'Explain your reasoning (optional but enables retry):'}
+                                    </label>
+                                    <textarea
+                                        id="reason-${question.id}"
+                                        class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
+                                        placeholder="${attempts > 0 && !canRetryQuestion ?
+                                            'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
+                                            'Explain why you chose this answer...'}"
+                                    >${getReasonString(classData.users[currentUsername]?.reasons?.[question.id])}</textarea>
+                                </div>
+                                <div class="sidebar-submit-wrapper">
+                                    <button
+                                        id="submit-${question.id}"
+                                        class="submit-button"
+                                        onclick="submitAnswer('${question.id}', '${question.type}')"
+                                        ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
+                                    >
+                                        ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Add Reasoning to Retry') : 'Submit Answer'}
+                                    </button>
+
+                                    ${isAnswered && !canRetryQuestion && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
+                                        <button
+                                            id="add-explanation-${question.id}"
+                                            class="add-explanation-button"
+                                            onclick="addExplanationToRetry('${question.id}')"
+                                            style="margin-left: 10px; background: #28a745; color: white;"
+                                        >
+                                            Add Explanation to Retry
+                                        </button>
+                                    ` : ''}
+
+                                    <span id="error-${question.id}" class="error-msg"></span>
+                                    <span id="success-${question.id}" class="success-msg"></span>
+                                </div>
+                            </div>
+                            ` : ''}
+
                             <!-- AI Interaction Section (above peer responses) -->
                             <div class="ai-interaction-section" id="ai-section-${question.id}">
                                 <div class="ai-section-header">
