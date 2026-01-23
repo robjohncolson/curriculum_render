@@ -191,7 +191,16 @@ See `STATE_MACHINES.md` section 13 for complete flow diagrams
 
 The appeal system injects lesson-specific context from the AP Statistics Course and Exam Description to enable AI responses that reference specific learning objectives and essential knowledge.
 
-**Framework Data:** `data/frameworks.js` contains Unit 4 (Probability) with all 12 lessons (4.1-4.12).
+**Framework Data:** `data/frameworks.js` contains all 9 AP Statistics units with complete lesson coverage:
+- Unit 1: Exploring One-Variable Data (10 lessons)
+- Unit 2: Exploring Two-Variable Data (9 lessons)
+- Unit 3: Collecting Data (7 lessons)
+- Unit 4: Probability, Random Variables, and Probability Distributions (12 lessons)
+- Unit 5: Sampling Distributions (8 lessons)
+- Unit 6: Inference for Categorical Data: Proportions (11 lessons)
+- Unit 7: Inference for Quantitative Data: Means (9 lessons)
+- Unit 8: Inference for Categorical Data: Chi-Square (6 lessons)
+- Unit 9: Inference for Quantitative Data: Slopes (5 lessons)
 
 **Key Functions:**
 - `parseQuestionId(questionId)` - Parse `U4-L2-Q01` → `{unit: 4, lesson: 2, question: 1}`

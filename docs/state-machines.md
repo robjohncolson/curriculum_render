@@ -457,8 +457,22 @@ When students appeal, the AI receives lesson-specific context from the AP Statis
 
 ### Framework Data Structure
 
+The framework data covers all 9 AP Statistics units:
+
+| Unit | Title | Lessons | Exam Weight |
+|------|-------|---------|-------------|
+| 1 | Exploring One-Variable Data | 10 | 15-23% |
+| 2 | Exploring Two-Variable Data | 9 | 5-7% |
+| 3 | Collecting Data | 7 | 12-15% |
+| 4 | Probability, Random Variables, and Probability Distributions | 12 | 10-20% |
+| 5 | Sampling Distributions | 8 | 7-12% |
+| 6 | Inference for Categorical Data: Proportions | 11 | 12-15% |
+| 7 | Inference for Quantitative Data: Means | 9 | 10-18% |
+| 8 | Inference for Categorical Data: Chi-Square | 6 | 2-5% |
+| 9 | Inference for Quantitative Data: Slopes | 5 | 2-5% |
+
 ```javascript
-// data/frameworks.js
+// data/frameworks.js (example: Unit 4, Lesson 2)
 UNIT_FRAMEWORKS = {
   4: {
     title: "Probability, Random Variables, and Probability Distributions",
@@ -481,6 +495,7 @@ UNIT_FRAMEWORKS = {
       }
     }
   }
+  // ... Units 1-9 all follow the same structure
 }
 ```
 
