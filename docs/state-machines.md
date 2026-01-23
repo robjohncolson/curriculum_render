@@ -1132,6 +1132,79 @@ async function mergeUserData(fromUsername, toUsername) {
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Username Normalization (Orphan Prevention)
+
+To prevent case-sensitivity orphans (e.g., `apple_monkey` vs `Apple_Monkey`), usernames are automatically normalized to Title_Case on login.
+
+```javascript
+function normalizeUsername(username) {
+    if (!username || typeof username !== 'string') return username;
+    return username
+        .split(/[_\s]+/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join('_');
+}
+
+// Examples:
+// 'apple_monkey' → 'Apple_Monkey'
+// 'BANANA_FOX'   → 'Banana_Fox'
+// 'ApPlE_mOnKeY' → 'Apple_Monkey'
+```
+
+**When applied:**
+- On `acceptUsername()` when a new username is accepted
+- On startup when loading saved username from storage
+- If normalization changes the username, storage is updated automatically
+
+### Orphan Stats Display
+
+The orphan list shows detailed statistics to help teachers identify which orphans are worth investigating:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ apple_rabbit                              [HAS CURRICULUM]          │
+│ 📚 15 curriculum (U1)  |  📝 0 worksheet                            │
+│                                                    [Create Claim]   │
+├─────────────────────────────────────────────────────────────────────┤
+│ banana_cat                                                          │
+│ 📚 0 curriculum  |  📝 123 worksheet                                │
+│                                                    [Create Claim]   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Stats returned by `/api/identity-claims/orphans`:**
+
+| Field | Description |
+|-------|-------------|
+| `username` | The orphaned username |
+| `answerCount` | Total number of answers |
+| `curriculumCount` | Answers matching `U#-L#-Q##` pattern |
+| `worksheetCount` | Answers matching `WS-*` pattern |
+| `units` | Array of unique unit numbers (e.g., `['U1', 'U2']`) |
+
+**Sorting:** Orphans are sorted by `curriculumCount` descending, so the most likely real students appear first.
+
+**Visual cues:**
+- Blue border/background for orphans with curriculum answers
+- "HAS CURRICULUM" badge for easy identification
+- Unit numbers displayed inline
+
+### Student List Endpoint
+
+The `/api/students` endpoint returns registered students with their real names for the claim candidate selection UI:
+
+```javascript
+// GET /api/students
+{
+    "students": [
+        { "username": "Mango_Panda", "real_name": "Janelle", "user_type": "student" },
+        { "username": "Banana_Fox", "real_name": "Julissa", "user_type": "student" }
+    ]
+}
+```
+
+**UI Display:** `Janelle (Mango_Panda)` instead of just `Mango_Panda`
+
 ### Error Handling
 
 | Scenario | Behavior |

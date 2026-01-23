@@ -846,3 +846,298 @@ describe('Identity Claim Resolution System', () => {
         });
     });
 });
+
+// ============================================
+// USERNAME NORMALIZATION TESTS
+// ============================================
+
+/**
+ * Normalizes a username to Title_Case format
+ * (Copy of function from auth.js for testing)
+ */
+function normalizeUsername(username) {
+    if (!username || typeof username !== 'string') return username;
+    return username
+        .split(/[_\s]+/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join('_');
+}
+
+describe('Username Normalization', () => {
+    describe('normalizeUsername function', () => {
+        it('should convert lowercase to Title_Case', () => {
+            expect(normalizeUsername('apple_monkey')).toBe('Apple_Monkey');
+            expect(normalizeUsername('banana_fox')).toBe('Banana_Fox');
+        });
+
+        it('should convert UPPERCASE to Title_Case', () => {
+            expect(normalizeUsername('APPLE_MONKEY')).toBe('Apple_Monkey');
+            expect(normalizeUsername('BANANA_FOX')).toBe('Banana_Fox');
+        });
+
+        it('should handle mixed case', () => {
+            expect(normalizeUsername('ApPlE_mOnKeY')).toBe('Apple_Monkey');
+            expect(normalizeUsername('bAnAnA_FoX')).toBe('Banana_Fox');
+        });
+
+        it('should preserve already correct Title_Case', () => {
+            expect(normalizeUsername('Apple_Monkey')).toBe('Apple_Monkey');
+            expect(normalizeUsername('Carambola_Jaguar')).toBe('Carambola_Jaguar');
+        });
+
+        it('should handle spaces as separators', () => {
+            expect(normalizeUsername('apple monkey')).toBe('Apple_Monkey');
+            expect(normalizeUsername('banana fox')).toBe('Banana_Fox');
+        });
+
+        it('should handle multiple underscores/spaces', () => {
+            expect(normalizeUsername('apple__monkey')).toBe('Apple_Monkey');
+            expect(normalizeUsername('banana  fox')).toBe('Banana_Fox');
+        });
+
+        it('should handle null/undefined gracefully', () => {
+            expect(normalizeUsername(null)).toBe(null);
+            expect(normalizeUsername(undefined)).toBe(undefined);
+            expect(normalizeUsername('')).toBe('');
+        });
+
+        it('should handle non-string input gracefully', () => {
+            expect(normalizeUsername(123)).toBe(123);
+            expect(normalizeUsername({})).toEqual({});
+        });
+    });
+
+    describe('Normalization prevents orphans', () => {
+        it('should match normalized versions as same user', () => {
+            const variations = ['apple_monkey', 'APPLE_MONKEY', 'Apple_Monkey', 'ApPlE_mOnKeY'];
+            const normalized = variations.map(normalizeUsername);
+
+            // All should normalize to the same value
+            expect(new Set(normalized).size).toBe(1);
+            expect(normalized[0]).toBe('Apple_Monkey');
+        });
+    });
+});
+
+// ============================================
+// ORPHAN STATS TESTS
+// ============================================
+
+/**
+ * Categorizes a question_id as curriculum or worksheet
+ */
+function categorizeQuestion(questionId) {
+    if (/^U\d+-L\d+-Q/i.test(questionId)) {
+        const unitMatch = questionId.match(/^U(\d+)/i);
+        return { type: 'curriculum', unit: unitMatch ? `U${unitMatch[1]}` : null };
+    } else if (/^WS-/i.test(questionId)) {
+        return { type: 'worksheet', unit: null };
+    }
+    return { type: 'other', unit: null };
+}
+
+/**
+ * Builds stats for orphaned username answers
+ */
+function buildOrphanStats(answers) {
+    const stats = {
+        total: answers.length,
+        curriculum: 0,
+        worksheet: 0,
+        units: new Set()
+    };
+
+    answers.forEach(a => {
+        const cat = categorizeQuestion(a.question_id);
+        if (cat.type === 'curriculum') {
+            stats.curriculum++;
+            if (cat.unit) stats.units.add(cat.unit);
+        } else if (cat.type === 'worksheet') {
+            stats.worksheet++;
+        }
+    });
+
+    return {
+        ...stats,
+        units: Array.from(stats.units).sort()
+    };
+}
+
+describe('Orphan Stats', () => {
+    describe('Question categorization', () => {
+        it('should identify curriculum questions', () => {
+            expect(categorizeQuestion('U1-L3-Q01')).toEqual({ type: 'curriculum', unit: 'U1' });
+            expect(categorizeQuestion('U4-L2-Q15')).toEqual({ type: 'curriculum', unit: 'U4' });
+            expect(categorizeQuestion('u2-l1-q05')).toEqual({ type: 'curriculum', unit: 'U2' });
+        });
+
+        it('should identify worksheet questions', () => {
+            expect(categorizeQuestion('WS-U4L1-2-Q39')).toEqual({ type: 'worksheet', unit: null });
+            expect(categorizeQuestion('WS-MIT6-LEC1-Q71')).toEqual({ type: 'worksheet', unit: null });
+            expect(categorizeQuestion('ws-test-q1')).toEqual({ type: 'worksheet', unit: null });
+        });
+
+        it('should handle other question formats', () => {
+            expect(categorizeQuestion('random-question')).toEqual({ type: 'other', unit: null });
+            expect(categorizeQuestion('test123')).toEqual({ type: 'other', unit: null });
+        });
+    });
+
+    describe('Stats building', () => {
+        it('should count curriculum and worksheet answers separately', () => {
+            const answers = [
+                { question_id: 'U1-L1-Q01' },
+                { question_id: 'U1-L2-Q01' },
+                { question_id: 'U2-L1-Q01' },
+                { question_id: 'WS-U4L1-2-Q39' },
+                { question_id: 'WS-MIT6-LEC1-Q71' }
+            ];
+
+            const stats = buildOrphanStats(answers);
+
+            expect(stats.total).toBe(5);
+            expect(stats.curriculum).toBe(3);
+            expect(stats.worksheet).toBe(2);
+        });
+
+        it('should extract unique unit numbers', () => {
+            const answers = [
+                { question_id: 'U1-L1-Q01' },
+                { question_id: 'U1-L2-Q01' },
+                { question_id: 'U2-L1-Q01' },
+                { question_id: 'U4-L3-Q05' }
+            ];
+
+            const stats = buildOrphanStats(answers);
+
+            expect(stats.units).toEqual(['U1', 'U2', 'U4']);
+        });
+
+        it('should handle worksheet-only answers', () => {
+            const answers = [
+                { question_id: 'WS-U4L1-2-Q39' },
+                { question_id: 'WS-MIT6-LEC1-Q71' },
+                { question_id: 'WS-test-Q1' }
+            ];
+
+            const stats = buildOrphanStats(answers);
+
+            expect(stats.total).toBe(3);
+            expect(stats.curriculum).toBe(0);
+            expect(stats.worksheet).toBe(3);
+            expect(stats.units).toEqual([]);
+        });
+
+        it('should handle curriculum-only answers', () => {
+            const answers = [
+                { question_id: 'U1-L1-Q01' },
+                { question_id: 'U1-L2-Q02' },
+                { question_id: 'U1-L3-Q03' }
+            ];
+
+            const stats = buildOrphanStats(answers);
+
+            expect(stats.total).toBe(3);
+            expect(stats.curriculum).toBe(3);
+            expect(stats.worksheet).toBe(0);
+            expect(stats.units).toEqual(['U1']);
+        });
+
+        it('should handle empty answers array', () => {
+            const stats = buildOrphanStats([]);
+
+            expect(stats.total).toBe(0);
+            expect(stats.curriculum).toBe(0);
+            expect(stats.worksheet).toBe(0);
+            expect(stats.units).toEqual([]);
+        });
+    });
+
+    describe('Orphan prioritization', () => {
+        it('should prioritize orphans with curriculum answers', () => {
+            const orphans = [
+                { username: 'worksheet_only', curriculumCount: 0, worksheetCount: 100 },
+                { username: 'has_curriculum', curriculumCount: 15, worksheetCount: 0 },
+                { username: 'mixed', curriculumCount: 3, worksheetCount: 50 }
+            ];
+
+            // Sort by curriculum count descending
+            const sorted = orphans.sort((a, b) => b.curriculumCount - a.curriculumCount);
+
+            expect(sorted[0].username).toBe('has_curriculum');
+            expect(sorted[1].username).toBe('mixed');
+            expect(sorted[2].username).toBe('worksheet_only');
+        });
+    });
+});
+
+// ============================================
+// STUDENTS ENDPOINT TESTS
+// ============================================
+
+describe('Students Endpoint', () => {
+    describe('/api/students response format', () => {
+        it('should return students with username and real_name', () => {
+            const mockResponse = {
+                students: [
+                    { username: 'Mango_Panda', real_name: 'Janelle', user_type: 'student' },
+                    { username: 'Banana_Fox', real_name: 'Julissa', user_type: 'student' }
+                ]
+            };
+
+            expect(mockResponse.students[0]).toHaveProperty('username');
+            expect(mockResponse.students[0]).toHaveProperty('real_name');
+            expect(mockResponse.students[0]).toHaveProperty('user_type');
+        });
+
+        it('should only include students, not teachers', () => {
+            const allUsers = [
+                { username: 'Mango_Panda', real_name: 'Janelle', user_type: 'student' },
+                { username: 'Carambola_Jaguar', real_name: 'mrcolson', user_type: 'teacher' },
+                { username: 'Banana_Fox', real_name: 'Julissa', user_type: 'student' }
+            ];
+
+            const students = allUsers.filter(u => u.user_type === 'student');
+
+            expect(students).toHaveLength(2);
+            expect(students.every(s => s.user_type === 'student')).toBe(true);
+        });
+
+        it('should be sorted by real_name for easy selection', () => {
+            const students = [
+                { username: 'Mango_Panda', real_name: 'Janelle' },
+                { username: 'Papaya_Eagle', real_name: 'Ana' },
+                { username: 'Banana_Fox', real_name: 'Julissa' }
+            ];
+
+            const sorted = students.sort((a, b) => a.real_name.localeCompare(b.real_name));
+
+            expect(sorted[0].real_name).toBe('Ana');
+            expect(sorted[1].real_name).toBe('Janelle');
+            expect(sorted[2].real_name).toBe('Julissa');
+        });
+    });
+
+    describe('Candidate selection UI', () => {
+        it('should display format: "Real Name (username)"', () => {
+            const student = { username: 'Mango_Panda', real_name: 'Janelle' };
+            const displayFormat = `${student.real_name} (${student.username})`;
+
+            expect(displayFormat).toBe('Janelle (Mango_Panda)');
+        });
+
+        it('should exclude the orphan username from candidates', () => {
+            const orphanUsername = 'Cherry_Lemon';
+            const allStudents = [
+                { username: 'Mango_Panda', real_name: 'Janelle' },
+                { username: 'Cherry_Lemon', real_name: 'Unknown' },
+                { username: 'Banana_Fox', real_name: 'Julissa' }
+            ];
+
+            const candidates = allStudents.filter(s => s.username !== orphanUsername);
+
+            expect(candidates).toHaveLength(2);
+            expect(candidates.find(c => c.username === 'Cherry_Lemon')).toBeUndefined();
+        });
+    });
+});

@@ -256,6 +256,19 @@ Resolves orphaned usernames (usernames with answers but no registered user) by p
    - Both yes → Notify teacher for manual resolution
    - Both no → Mark as confirmed orphan (unknown student)
 
+**Username Normalization (Orphan Prevention):**
+Usernames are auto-normalized to Title_Case on login to prevent case-sensitivity orphans:
+- `apple_monkey` → `Apple_Monkey`
+- `BANANA_FOX` → `Banana_Fox`
+
+**Orphan Stats Display:**
+The orphan list shows curriculum vs worksheet breakdown to help identify real students:
+- `curriculumCount` - Answers matching `U#-L#-Q##` pattern
+- `worksheetCount` - Answers matching `WS-*` pattern
+- `units` - Unique unit numbers covered (e.g., `['U1', 'U2']`)
+- Sorted by curriculum count (real students first)
+- Blue highlight + "HAS CURRICULUM" badge for orphans with curriculum answers
+
 **Database Tables:**
 - `identity_claims` - Stores orphan/candidate pairs with responses
 - `teacher_notifications` - Alerts for conflicts and resolutions
@@ -264,10 +277,12 @@ Resolves orphaned usernames (usernames with answers but no registered user) by p
 - `POST /api/identity-claims` - Create claim (teacher only)
 - `GET /api/identity-claims/:username` - Check for pending claims on login
 - `POST /api/identity-claims/:id/respond` - Submit yes/no response
-- `GET /api/identity-claims/orphans` - List orphaned usernames
+- `GET /api/identity-claims/orphans` - List orphaned usernames with stats
+- `GET /api/students` - Get registered students with real names
 - `GET /api/notifications/:username` - Get teacher notifications
 
 **Key Functions:**
+- `normalizeUsername(name)` - Convert to Title_Case (auth.js)
 - `createIdentityClaim(orphan, candidates, teacher)` - Teacher initiates claim
 - `checkPendingClaims(username)` - Client checks on login, shows modal if pending
 - `respondToClaim(claimId, response)` - Student submits response
