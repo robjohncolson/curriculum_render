@@ -884,6 +884,269 @@ async function checkAndOfferCloudRestore(username) {
 | Redox Chat | `railway-server/server.js` | `REDOX_SYSTEM_PROMPT`, `/api/ai/chat` |
 | Curriculum Data | `data/units.js` | `ALL_UNITS_DATA`, `getTotalItemCounts()` |
 | Auto Cloud Restore | `index.html` | `checkAndOfferCloudRestore()`, `hasLocalData()`, `getCloudAnswerCount()` |
+| Identity Claim Resolution | `railway-server/server.js`, `index.html` | `createIdentityClaim()`, `respondToClaim()`, `resolveClaimsForOrphan()`, `mergeUserData()`, `checkPendingClaims()` |
+
+---
+
+## 9. Identity Claim Resolution State Machine
+
+### Overview
+
+Resolves orphaned usernames (usernames with answers but no registered user) by prompting likely candidates and handling merge logic. Teachers initiate claims, students respond, and the system auto-merges when unambiguous or notifies the teacher when there's a conflict.
+
+### State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    IDENTITY CLAIM RESOLUTION FLOW                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    Teacher identifies orphaned username
+                           (e.g., Cherry_Lemon)
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │   Teacher selects candidates  │
+                    │   (e.g., Mango_Panda,         │
+                    │    Banana_Fox)                │
+                    └───────────────────────────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │   Create identity_claims      │
+                    │   records in Supabase         │
+                    │   status = 'pending'          │
+                    └───────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │                               │
+                    ▼                               ▼
+        ┌───────────────────┐           ┌───────────────────┐
+        │  Candidate 1      │           │  Candidate 2      │
+        │  logs in          │           │  logs in          │
+        └─────────┬─────────┘           └─────────┬─────────┘
+                  │                               │
+                  ▼                               ▼
+        ┌───────────────────┐           ┌───────────────────┐
+        │  See modal:       │           │  See modal:       │
+        │  "Are you also    │           │  "Are you also    │
+        │   Cherry_Lemon?"  │           │   Cherry_Lemon?"  │
+        └─────────┬─────────┘           └─────────┬─────────┘
+                  │                               │
+           ┌──────┴──────┐                 ┌──────┴──────┐
+           │             │                 │             │
+           ▼             ▼                 ▼             ▼
+      ┌────────┐   ┌────────┐         ┌────────┐   ┌────────┐
+      │  YES   │   │   NO   │         │  YES   │   │   NO   │
+      └────┬───┘   └────┬───┘         └────┬───┘   └────┬───┘
+           │            │                  │            │
+           └────────────┴──────────────────┴────────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │      Resolution Logic         │
+                    └───────────────────────────────┘
+                                    │
+           ┌────────────────────────┼────────────────────────┐
+           │                        │                        │
+           ▼                        ▼                        ▼
+┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
+│  ONE YES, ONE NO    │  │    BOTH YES         │  │    BOTH NO          │
+│                     │  │                     │  │                     │
+│  Auto-merge data    │  │  Notify teacher     │  │  Mark as orphan     │
+│  into YES user      │  │  for manual         │  │  (unknown student)  │
+│                     │  │  resolution         │  │                     │
+└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
+           │                        │                        │
+           ▼                        ▼                        ▼
+┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
+│  UPDATE answers     │  │  Teacher sees       │  │  No action taken    │
+│  SET username =     │  │  notification in    │  │  Orphan data        │
+│  confirmed_user     │  │  admin panel        │  │  remains            │
+│  WHERE username =   │  │                     │  │                     │
+│  orphan_username    │  │  Teacher decides    │  │                     │
+└─────────────────────┘  │  which user to      │  └─────────────────────┘
+                         │  merge into         │
+                         └─────────────────────┘
+```
+
+### Claim States
+
+| State | Description |
+|-------|-------------|
+| `pending` | Claim created, awaiting candidate responses |
+| `partial` | One candidate has responded, waiting for other |
+| `resolved_auto` | System auto-merged (one yes, one no) |
+| `resolved_manual` | Teacher resolved conflict (both said yes) |
+| `resolved_orphan` | Both said no, username confirmed as orphan |
+| `expired` | Timeout reached, not enough responses |
+
+### Database Schema
+
+```sql
+-- Store identity claims
+CREATE TABLE identity_claims (
+    id SERIAL PRIMARY KEY,
+    orphan_username TEXT NOT NULL,      -- 'Cherry_Lemon'
+    candidate_username TEXT NOT NULL,   -- 'Mango_Panda'
+    response TEXT,                      -- 'yes', 'no', or null
+    created_by TEXT NOT NULL,           -- Teacher username
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    responded_at TIMESTAMPTZ,
+    UNIQUE(orphan_username, candidate_username)
+);
+
+-- Store teacher notifications
+CREATE TABLE teacher_notifications (
+    id SERIAL PRIMARY KEY,
+    teacher_username TEXT NOT NULL,
+    notification_type TEXT NOT NULL,    -- 'claim_conflict', 'claim_resolved'
+    message TEXT NOT NULL,
+    related_orphan TEXT,                -- Orphan username for context
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Key Functions
+
+| Function | Location | Purpose |
+|----------|----------|---------|
+| `createIdentityClaim(orphan, candidates, teacher)` | Railway server | Teacher initiates claim |
+| `getPendingClaims(username)` | Railway server | Check for claims on login |
+| `respondToClaim(claimId, response)` | Railway server | Student submits yes/no |
+| `resolveClaimsForOrphan(orphan)` | Railway server | Run resolution logic |
+| `mergeUserData(fromUser, toUser)` | Railway server | Execute Supabase merge |
+| `getTeacherNotifications(username)` | Railway server | Fetch unread notifications |
+| `showClaimModal(claim)` | Client | Display claim prompt |
+| `checkPendingClaims()` | Client | Check on login |
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/identity-claims` | POST | Create new claim (teacher only) |
+| `/api/identity-claims/:username` | GET | Get pending claims for user |
+| `/api/identity-claims/:id/respond` | POST | Submit yes/no response |
+| `/api/identity-claims/orphans` | GET | List orphaned usernames |
+| `/api/notifications/:username` | GET | Get teacher notifications |
+| `/api/notifications/:id/read` | POST | Mark notification as read |
+
+### Resolution Logic
+
+```javascript
+async function resolveClaimsForOrphan(orphanUsername) {
+    const claims = await getClaims(orphanUsername);
+    const responses = claims.filter(c => c.response !== null);
+
+    // Not all candidates have responded yet
+    if (responses.length < claims.length) {
+        return { status: 'waiting', responded: responses.length, total: claims.length };
+    }
+
+    const yesClaims = claims.filter(c => c.response === 'yes');
+    const noClaims = claims.filter(c => c.response === 'no');
+
+    if (yesClaims.length === 0) {
+        // Both said no - orphan confirmed
+        return { status: 'orphan_confirmed' };
+    }
+
+    if (yesClaims.length === 1) {
+        // Exactly one yes (regardless of no count) - auto merge
+        const confirmedUser = yesClaims[0].candidate_username;
+        await mergeUserData(orphanUsername, confirmedUser);
+        return { status: 'auto_merged', mergedInto: confirmedUser };
+    }
+
+    if (yesClaims.length > 1) {
+        // Multiple yes - notify teacher
+        await createTeacherNotification(
+            claims[0].created_by,
+            'claim_conflict',
+            `Multiple students claim "${orphanUsername}": ${yesClaims.map(c => c.candidate_username).join(', ')}`
+        );
+        return { status: 'conflict', claimants: yesClaims.map(c => c.candidate_username) };
+    }
+}
+```
+
+### Merge Operation
+
+```javascript
+async function mergeUserData(fromUsername, toUsername) {
+    // Update all answers from orphan to confirmed user
+    const { error } = await supabase
+        .from('answers')
+        .update({ username: toUsername })
+        .eq('username', fromUsername);
+
+    if (error) throw error;
+
+    // Log the merge
+    console.log(`Merged ${fromUsername} → ${toUsername}`);
+
+    // Notify teacher of successful merge
+    // The merged user will see data on next sync
+}
+```
+
+### User Experience
+
+**For Students:**
+1. Login normally with their username
+2. If pending claim exists, see modal: "Are you also [orphan]?"
+3. Click Yes or No
+4. If they were the only "Yes", their data is automatically merged
+5. On next sync, they see the merged answers
+
+**For Teachers:**
+1. View list of orphaned usernames in admin panel
+2. Select orphan and candidate students
+3. Create claim with one click
+4. Receive notification if conflict (multiple students claim same orphan)
+5. Manually resolve by selecting correct student
+
+### Modal UI
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Identity Confirmation                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  We found answers submitted under the username:             │
+│                                                              │
+│              🔍  Cherry_Lemon                                │
+│                                                              │
+│  This username has 80 answers but isn't linked to a         │
+│  registered student. Is this you?                           │
+│                                                              │
+│  If you used a different browser or device before           │
+│  registering, this might be your old data.                  │
+│                                                              │
+│         ┌─────────────┐      ┌─────────────┐                │
+│         │  Yes, that's│      │  No, that's │                │
+│         │     me      │      │  not me     │                │
+│         └─────────────┘      └─────────────┘                │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Error Handling
+
+| Scenario | Behavior |
+|----------|----------|
+| Supabase unavailable | Claim check skipped, no modal shown |
+| Merge fails | Notify teacher, leave data unchanged |
+| Student dismisses modal | Treated as "no response", claim remains pending |
+| Timeout (7 days) | Claims expire, teacher notified |
+
+### Security Considerations
+
+1. **Teacher-only claim creation**: Only users with `role='teacher'` can create claims
+2. **Self-claim prevention**: Candidates cannot be the orphan username
+3. **Duplicate prevention**: UNIQUE constraint on (orphan, candidate)
+4. **Audit trail**: All claims and responses timestamped
 
 ---
 

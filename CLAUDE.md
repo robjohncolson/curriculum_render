@@ -242,6 +242,45 @@ When a user logs in with a username that has no local data but exists in Supabas
 
 See `docs/state-machines.md` section 8 for the full state diagram.
 
+## Identity Claim Resolution System
+
+Resolves orphaned usernames (usernames with answers but no registered user) by prompting likely candidates and handling merge logic automatically.
+
+**Use Case:** A student submits work under "Cherry_Lemon" before properly registering, then registers as "Mango_Panda". The teacher identifies Cherry_Lemon as orphaned and creates a claim targeting likely candidates (students with zero/few answers).
+
+**Flow:**
+1. Teacher creates identity claim for orphan username, selecting candidate students
+2. Candidates see modal on next login: "Are you also [orphan]?"
+3. Resolution based on responses:
+   - One yes, one no → Auto-merge data into confirming user
+   - Both yes → Notify teacher for manual resolution
+   - Both no → Mark as confirmed orphan (unknown student)
+
+**Database Tables:**
+- `identity_claims` - Stores orphan/candidate pairs with responses
+- `teacher_notifications` - Alerts for conflicts and resolutions
+
+**API Endpoints (Railway server):**
+- `POST /api/identity-claims` - Create claim (teacher only)
+- `GET /api/identity-claims/:username` - Check for pending claims on login
+- `POST /api/identity-claims/:id/respond` - Submit yes/no response
+- `GET /api/identity-claims/orphans` - List orphaned usernames
+- `GET /api/notifications/:username` - Get teacher notifications
+
+**Key Functions:**
+- `createIdentityClaim(orphan, candidates, teacher)` - Teacher initiates claim
+- `checkPendingClaims(username)` - Client checks on login, shows modal if pending
+- `respondToClaim(claimId, response)` - Student submits response
+- `resolveClaimsForOrphan(orphan)` - Run resolution logic after all respond
+- `mergeUserData(fromUser, toUser)` - Execute Supabase UPDATE for merge
+
+**Security:**
+- Only teachers can create claims
+- Candidates cannot be the orphan username
+- All claims timestamped for audit trail
+
+See `docs/state-machines.md` section 9 for the full state diagram.
+
 ## Database Schema (Supabase)
 
 Core tables: `users`, `answers` (PK: username+question_id), `badges`, `user_activity`, `votes`
@@ -275,6 +314,7 @@ npm run test:coverage       # Generate coverage report
 | `curriculum-data.test.js` | Units/topics structure, blookets, pdfs, resource URLs |
 | `framework-context.test.js` | AP framework data, question ID parsing, context generation |
 | `auto-cloud-restore.test.js` | Auto-restore detection, cloud count check, restore flow |
+| `identity-claim.test.js` | Orphan detection, claim creation, response handling, merge logic |
 
 **Test Coverage Areas:**
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
@@ -290,6 +330,7 @@ npm run test:coverage       # Generate coverage report
 - Error handling: Fallback chains, outbox retry logic, graceful degradation
 - Curriculum data: Unit/topic structure validation, blooket URLs, PDF/worksheet links, resource consistency
 - Framework context: Question ID parsing, framework lookup, context string generation, appeal prompt integration
+- Identity claims: Orphan detection, claim creation/response, auto-merge logic, teacher notifications
 
 ## Deployment
 

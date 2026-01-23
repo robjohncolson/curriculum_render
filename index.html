@@ -97,7 +97,28 @@
 
             <!-- Teacher section - collapsible -->
             <details class="sync-section teacher-section">
-                <summary><i class="fas fa-chalkboard-teacher"></i> Teacher Tools</summary>
+                <summary><i class="fas fa-chalkboard-teacher"></i> Teacher Tools <span id="teacherNotificationBadge" style="display: none; background: #e74c3c; color: white; border-radius: 50%; padding: 2px 8px; font-size: 0.8em; margin-left: 8px;"></span></summary>
+
+                <!-- Teacher Notifications -->
+                <div id="teacherNotificationsSection" style="display: none; margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <h4 style="margin: 0 0 10px 0; color: #856404;"><i class="fas fa-bell"></i> Notifications</h4>
+                    <div id="teacherNotificationsList"></div>
+                </div>
+
+                <!-- Orphaned Usernames Section -->
+                <div id="orphanedUsernamesSection" style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2c3e50;"><i class="fas fa-user-secret"></i> Orphaned Usernames</h4>
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Usernames with answers but no registered student</p>
+                    <button id="loadOrphansBtn" class="modal-btn" style="margin-bottom: 10px;" onclick="loadOrphanedUsernames()">
+                        <i class="fas fa-search"></i>
+                        <span>
+                            <strong>Find Orphaned Usernames</strong>
+                            <small>Check for unlinked student data</small>
+                        </span>
+                    </button>
+                    <div id="orphansList" style="display: none;"></div>
+                </div>
+
                 <div class="sync-buttons" style="margin-top: 12px;">
                     <button id="masterExportBtn" class="modal-btn">
                         <i class="fas fa-database"></i>
@@ -1702,11 +1723,553 @@ function refreshQuestionIfVisible(questionId) {
 
 // --- END: NEW Real-Time Update Handling System ---
 
+// ============================
+// IDENTITY CLAIM RESOLUTION
+// ============================
+
+/**
+ * Check for pending identity claims for the current user
+ * Shows a modal if there are orphaned usernames that might belong to this user
+ */
+async function checkPendingIdentityClaims() {
+    const currentUser = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+    if (!currentUser) return;
+
+    // Only check if Railway is enabled
+    if (!window.USE_RAILWAY || !window.RAILWAY_SERVER_URL) {
+        console.log('Identity claims check skipped: Railway not configured');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims/${currentUser}`);
+        if (!response.ok) {
+            console.warn('Failed to check identity claims:', response.status);
+            return;
+        }
+
+        const { claims, count } = await response.json();
+        if (count === 0) {
+            console.log('No pending identity claims for', currentUser);
+            return;
+        }
+
+        console.log(`Found ${count} pending identity claim(s) for ${currentUser}`);
+
+        // Show modal for each pending claim (one at a time)
+        for (const claim of claims) {
+            await showIdentityClaimModal(claim);
+        }
+    } catch (error) {
+        console.warn('Error checking identity claims:', error);
+    }
+}
+
+/**
+ * Show a modal asking if the user is the orphaned username
+ */
+function showIdentityClaimModal(claim) {
+    return new Promise((resolve) => {
+        // Remove any existing modal
+        const existingModal = document.getElementById('identityClaimModal');
+        if (existingModal) existingModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'identityClaimModal';
+        modal.className = 'modal';
+        modal.style.cssText = 'display: block; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+        modal.innerHTML = `
+            <div style="background: white; margin: 10% auto; padding: 30px; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                <h3 style="margin-top: 0; color: #2c3e50; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 28px;">🔍</span>
+                    Identity Confirmation
+                </h3>
+                <p style="color: #555; line-height: 1.6;">
+                    We found answers submitted under the username:
+                </p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; border-left: 4px solid #3498db;">
+                    <strong style="font-size: 1.3em; color: #2c3e50;">${claim.orphan_username}</strong>
+                </div>
+                <p style="color: #555; line-height: 1.6;">
+                    This username has answers but isn't linked to a registered student.
+                    <strong>Is this you?</strong>
+                </p>
+                <p style="color: #777; font-size: 0.9em; margin-bottom: 20px;">
+                    If you used a different browser or device before registering, this might be your old data.
+                </p>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button id="claimYesBtn" style="
+                        padding: 12px 30px;
+                        background: #27ae60;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 1em;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    ">Yes, that's me</button>
+                    <button id="claimNoBtn" style="
+                        padding: 12px 30px;
+                        background: #e74c3c;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 1em;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    ">No, that's not me</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        const yesBtn = document.getElementById('claimYesBtn');
+        const noBtn = document.getElementById('claimNoBtn');
+
+        yesBtn.onclick = async () => {
+            yesBtn.disabled = true;
+            noBtn.disabled = true;
+            yesBtn.textContent = 'Processing...';
+            await respondToIdentityClaim(claim.id, 'yes');
+            modal.remove();
+            resolve();
+        };
+
+        noBtn.onclick = async () => {
+            yesBtn.disabled = true;
+            noBtn.disabled = true;
+            noBtn.textContent = 'Processing...';
+            await respondToIdentityClaim(claim.id, 'no');
+            modal.remove();
+            resolve();
+        };
+    });
+}
+
+/**
+ * Submit response to an identity claim
+ */
+async function respondToIdentityClaim(claimId, response) {
+    const currentUser = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+
+    try {
+        const res = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims/${claimId}/respond`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ response, username: currentUser })
+        });
+
+        if (!res.ok) {
+            throw new Error(`Failed to submit response: ${res.status}`);
+        }
+
+        const result = await res.json();
+        console.log('Identity claim response:', result);
+
+        if (result.resolution?.status === 'auto_merged') {
+            showMessage(`Your data has been restored! ${result.resolution.mergedInto} now includes your previous work.`, 'success');
+            // Trigger a sync to pull the merged data
+            if (typeof smartSyncWithSupabase === 'function') {
+                await smartSyncWithSupabase();
+            }
+            if (typeof renderUnitMenu === 'function') {
+                renderUnitMenu();
+            }
+        } else if (result.resolution?.status === 'waiting') {
+            showMessage('Response recorded. Waiting for other students to respond.', 'info');
+        } else if (result.resolution?.status === 'conflict') {
+            showMessage('Multiple students claimed this username. Your teacher will resolve this.', 'info');
+        } else if (result.resolution?.status === 'orphan_confirmed') {
+            showMessage('Thanks for confirming. The data will remain unlinked.', 'info');
+        }
+    } catch (error) {
+        console.error('Error responding to identity claim:', error);
+        showMessage('Failed to submit response. Please try again.', 'error');
+    }
+}
+
+// Expose for potential admin use
+window.checkPendingIdentityClaims = checkPendingIdentityClaims;
+
+// ============================
+// TEACHER TOOLS: NOTIFICATIONS & ORPHAN MANAGEMENT
+// ============================
+
+/**
+ * Load and display teacher notifications
+ */
+async function loadTeacherNotifications() {
+    const currentUser = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+    if (!currentUser || !window.USE_RAILWAY || !window.RAILWAY_SERVER_URL) return;
+
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/notifications/${currentUser}`);
+        if (!response.ok) {
+            // User might not be a teacher, that's fine
+            return;
+        }
+
+        const { notifications, unread } = await response.json();
+
+        // Update badge
+        const badge = document.getElementById('teacherNotificationBadge');
+        if (badge) {
+            if (unread > 0) {
+                badge.textContent = unread;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Update notifications section
+        const section = document.getElementById('teacherNotificationsSection');
+        const list = document.getElementById('teacherNotificationsList');
+        if (section && list) {
+            if (notifications.length > 0) {
+                section.style.display = 'block';
+                list.innerHTML = notifications.map(n => `
+                    <div style="padding: 10px; margin-bottom: 8px; background: ${n.read ? '#f8f9fa' : 'white'}; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong style="color: ${n.notification_type === 'claim_conflict' ? '#e74c3c' : '#27ae60'};">
+                                    ${n.notification_type === 'claim_conflict' ? '⚠️ Conflict' : '✅ Resolved'}
+                                </strong>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9em;">${n.message}</p>
+                                <small style="color: #888;">${new Date(n.created_at).toLocaleString()}</small>
+                            </div>
+                            ${n.notification_type === 'claim_conflict' && n.related_orphan ? `
+                                <button onclick="showConflictResolutionModal('${n.related_orphan}')" style="
+                                    background: #3498db;
+                                    color: white;
+                                    border: none;
+                                    padding: 6px 12px;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                    font-size: 0.85em;
+                                ">Resolve</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                section.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.warn('Error loading teacher notifications:', error);
+    }
+}
+
+/**
+ * Load orphaned usernames from the server
+ */
+async function loadOrphanedUsernames() {
+    if (!window.USE_RAILWAY || !window.RAILWAY_SERVER_URL) {
+        showMessage('Railway server not configured', 'error');
+        return;
+    }
+
+    const list = document.getElementById('orphansList');
+    const btn = document.getElementById('loadOrphansBtn');
+    if (!list) return;
+
+    try {
+        btn.disabled = true;
+        btn.querySelector('strong').textContent = 'Loading...';
+
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims/orphans`);
+        if (!response.ok) throw new Error('Failed to fetch orphans');
+
+        const { orphans, total } = await response.json();
+
+        list.style.display = 'block';
+
+        if (total === 0) {
+            list.innerHTML = '<p style="color: #27ae60; text-align: center;"><i class="fas fa-check-circle"></i> No orphaned usernames found!</p>';
+        } else {
+            // Also fetch registered students with few/no answers for candidate selection
+            const studentsResponse = await fetch(`${window.RAILWAY_SERVER_URL}/api/peer-data`);
+            const studentsData = await studentsResponse.json();
+
+            list.innerHTML = `
+                <p style="margin-bottom: 10px;"><strong>${total}</strong> orphaned username${total > 1 ? 's' : ''} found:</p>
+                ${orphans.map(o => `
+                    <div style="padding: 12px; margin-bottom: 10px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #2c3e50;">${o.username}</strong>
+                                <span style="color: #666; font-size: 0.9em; margin-left: 10px;">${o.answerCount} answers</span>
+                            </div>
+                            <button onclick="showCreateClaimModal('${o.username}', ${o.answerCount})" style="
+                                background: #9b59b6;
+                                color: white;
+                                border: none;
+                                padding: 6px 12px;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 0.85em;
+                            ">Create Claim</button>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading orphans:', error);
+        list.style.display = 'block';
+        list.innerHTML = '<p style="color: #e74c3c;"><i class="fas fa-exclamation-triangle"></i> Failed to load orphaned usernames</p>';
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('strong').textContent = 'Find Orphaned Usernames';
+    }
+}
+
+/**
+ * Show modal to create an identity claim
+ */
+async function showCreateClaimModal(orphanUsername, answerCount) {
+    // Fetch registered students to select candidates
+    let students = [];
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/peer-data`);
+        const { data } = await response.json();
+        // Get unique usernames
+        const usernames = [...new Set(data.map(a => a.username))];
+        students = usernames.filter(u => u !== orphanUsername);
+    } catch (e) {
+        console.error('Failed to fetch students:', e);
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'createClaimModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'display: block; position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+    modal.innerHTML = `
+        <div style="background: white; margin: 5% auto; padding: 25px; border-radius: 12px; max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-top: 0; color: #2c3e50;">
+                <i class="fas fa-user-plus"></i> Create Identity Claim
+            </h3>
+            <p>Ask students if <strong>${orphanUsername}</strong> (${answerCount} answers) belongs to them.</p>
+
+            <div style="margin: 15px 0;">
+                <label style="font-weight: bold; display: block; margin-bottom: 8px;">Select candidates to ask:</label>
+                <div id="candidateCheckboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+                    ${students.length > 0 ? students.map(s => `
+                        <label style="display: block; padding: 6px; cursor: pointer; border-radius: 4px;"
+                               onmouseover="this.style.background='#f0f0f0'"
+                               onmouseout="this.style.background='transparent'">
+                            <input type="checkbox" name="candidate" value="${s}" style="margin-right: 8px;">
+                            ${s}
+                        </label>
+                    `).join('') : '<p style="color: #888;">No registered students found</p>'}
+                </div>
+                <small style="color: #666; margin-top: 5px; display: block;">
+                    Tip: Select students with zero or few answers who might have used a different username
+                </small>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="document.getElementById('createClaimModal').remove()" style="
+                    padding: 10px 20px;
+                    background: #95a5a6;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                ">Cancel</button>
+                <button onclick="submitCreateClaim('${orphanUsername}')" style="
+                    padding: 10px 20px;
+                    background: #9b59b6;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                ">Create Claim</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * Submit the identity claim creation
+ */
+async function submitCreateClaim(orphanUsername) {
+    const checkboxes = document.querySelectorAll('#candidateCheckboxes input[name="candidate"]:checked');
+    const candidates = Array.from(checkboxes).map(cb => cb.value);
+
+    if (candidates.length === 0) {
+        showMessage('Please select at least one candidate', 'error');
+        return;
+    }
+
+    const currentUser = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orphan_username: orphanUsername,
+                candidate_usernames: candidates,
+                created_by: currentUser
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create claim');
+        }
+
+        const result = await response.json();
+        showMessage(`Created ${result.claims.length} identity claim(s) for ${orphanUsername}`, 'success');
+
+        // Close modal and refresh orphans list
+        document.getElementById('createClaimModal')?.remove();
+        loadOrphanedUsernames();
+
+    } catch (error) {
+        console.error('Error creating claim:', error);
+        showMessage(error.message, 'error');
+    }
+}
+
+/**
+ * Show modal to resolve a conflict (multiple students claimed same username)
+ */
+async function showConflictResolutionModal(orphanUsername) {
+    // Fetch claims for this orphan
+    let claimants = [];
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims/orphans`);
+        // For now, we'll show a simple modal - in a full implementation we'd fetch specific claims
+    } catch (e) {
+        console.error('Failed to fetch claims:', e);
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'resolveConflictModal';
+    modal.className = 'modal';
+    modal.style.cssText = 'display: block; position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+    modal.innerHTML = `
+        <div style="background: white; margin: 10% auto; padding: 25px; border-radius: 12px; max-width: 450px;">
+            <h3 style="margin-top: 0; color: #e74c3c;">
+                <i class="fas fa-exclamation-triangle"></i> Resolve Conflict
+            </h3>
+            <p>Multiple students claimed <strong>${orphanUsername}</strong>.</p>
+            <p>Enter the username of the correct student to merge the data into:</p>
+
+            <input type="text" id="mergeTargetUsername" placeholder="e.g., Mango_Panda" style="
+                width: 100%;
+                padding: 10px;
+                margin: 15px 0;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 1em;
+                box-sizing: border-box;
+            ">
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="document.getElementById('resolveConflictModal').remove()" style="
+                    padding: 10px 20px;
+                    background: #95a5a6;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                ">Cancel</button>
+                <button onclick="submitManualMerge('${orphanUsername}')" style="
+                    padding: 10px 20px;
+                    background: #27ae60;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                ">Merge Data</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+/**
+ * Submit manual merge for conflict resolution
+ */
+async function submitManualMerge(orphanUsername) {
+    const targetInput = document.getElementById('mergeTargetUsername');
+    const targetUsername = targetInput?.value?.trim();
+
+    if (!targetUsername) {
+        showMessage('Please enter a target username', 'error');
+        return;
+    }
+
+    const currentUser = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+
+    try {
+        const response = await fetch(`${window.RAILWAY_SERVER_URL}/api/identity-claims/merge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                orphan_username: orphanUsername,
+                target_username: targetUsername,
+                teacher_username: currentUser
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to merge');
+        }
+
+        showMessage(`Successfully merged ${orphanUsername} into ${targetUsername}`, 'success');
+
+        // Close modal and refresh
+        document.getElementById('resolveConflictModal')?.remove();
+        loadTeacherNotifications();
+        loadOrphanedUsernames();
+
+    } catch (error) {
+        console.error('Error merging:', error);
+        showMessage(error.message, 'error');
+    }
+}
+
+// Load notifications when sync modal opens
+const originalShowSyncModal = window.showSyncModal;
+window.showSyncModal = function() {
+    if (typeof originalShowSyncModal === 'function') {
+        originalShowSyncModal();
+    }
+    // Load teacher notifications after modal is shown
+    setTimeout(() => {
+        loadTeacherNotifications();
+    }, 100);
+};
+
+// Expose functions globally
+window.loadOrphanedUsernames = loadOrphanedUsernames;
+window.loadTeacherNotifications = loadTeacherNotifications;
+window.showCreateClaimModal = showCreateClaimModal;
+window.submitCreateClaim = submitCreateClaim;
+window.showConflictResolutionModal = showConflictResolutionModal;
+window.submitManualMerge = submitManualMerge;
+
         async function initializeTurboMode() {
             // Test connection
             if (await testSupabaseConnection()) {
                 // Do a smart sync (only sync what's needed)
                 await smartSyncWithSupabase();
+
+                // Check for pending identity claims (orphaned usernames that might belong to this user)
+                await checkPendingIdentityClaims();
 
                 // Pull initial peer data and merge into stores for display
                 const initialPeerData = await pullPeerDataFromSupabase();

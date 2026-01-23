@@ -975,6 +975,372 @@ app.post('/api/ai/chat', async (req, res) => {
 });
 
 // ============================
+// IDENTITY CLAIM RESOLUTION
+// ============================
+
+// Get orphaned usernames (usernames with answers but no user record)
+app.get('/api/identity-claims/orphans', async (req, res) => {
+  try {
+    // Get all unique usernames from answers
+    const { data: answerUsers, error: answerError } = await supabase
+      .from('answers')
+      .select('username');
+
+    if (answerError) throw answerError;
+
+    // Get all registered usernames
+    const { data: registeredUsers, error: userError } = await supabase
+      .from('users')
+      .select('username');
+
+    if (userError) throw userError;
+
+    const registeredSet = new Set(registeredUsers.map(u => u.username));
+
+    // Count answers per username
+    const answerCounts = {};
+    answerUsers.forEach(a => {
+      answerCounts[a.username] = (answerCounts[a.username] || 0) + 1;
+    });
+
+    // Find orphans (in answers but not in users)
+    const orphans = Object.entries(answerCounts)
+      .filter(([username]) => !registeredSet.has(username))
+      .map(([username, count]) => ({ username, answerCount: count }))
+      .sort((a, b) => b.answerCount - a.answerCount);
+
+    res.json({ orphans, total: orphans.length });
+
+  } catch (error) {
+    console.error('Error getting orphans:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create identity claim (teacher only)
+app.post('/api/identity-claims', async (req, res) => {
+  try {
+    const { orphan_username, candidate_usernames, created_by } = req.body;
+
+    if (!orphan_username || !candidate_usernames || !created_by) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Verify creator is a teacher
+    const { data: creator, error: creatorError } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('username', created_by)
+      .single();
+
+    if (creatorError || !creator || creator.user_type !== 'teacher') {
+      return res.status(403).json({ error: 'Only teachers can create identity claims' });
+    }
+
+    // Validate candidates are not the orphan
+    if (candidate_usernames.includes(orphan_username)) {
+      return res.status(400).json({ error: 'Orphan username cannot be a candidate' });
+    }
+
+    // Create claims for each candidate
+    const claims = candidate_usernames.map(candidate => ({
+      orphan_username,
+      candidate_username: candidate,
+      response: null,
+      created_by
+    }));
+
+    const { data, error } = await supabase
+      .from('identity_claims')
+      .upsert(claims, { onConflict: 'orphan_username,candidate_username' })
+      .select();
+
+    if (error) throw error;
+
+    console.log(`📋 Created ${data.length} identity claims for ${orphan_username} by ${created_by}`);
+
+    res.json({ success: true, claims: data });
+
+  } catch (error) {
+    console.error('Error creating identity claims:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get pending claims for a user (called on login)
+app.get('/api/identity-claims/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const { data, error } = await supabase
+      .from('identity_claims')
+      .select('*')
+      .eq('candidate_username', username)
+      .is('response', null);
+
+    if (error) throw error;
+
+    res.json({ claims: data || [], count: (data || []).length });
+
+  } catch (error) {
+    console.error('Error getting pending claims:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Respond to identity claim
+app.post('/api/identity-claims/:id/respond', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { response, username } = req.body;
+
+    if (!['yes', 'no'].includes(response)) {
+      return res.status(400).json({ error: 'Response must be "yes" or "no"' });
+    }
+
+    // Get the claim first
+    const { data: claim, error: claimError } = await supabase
+      .from('identity_claims')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (claimError || !claim) {
+      return res.status(404).json({ error: 'Claim not found' });
+    }
+
+    // Verify the responder is the candidate
+    if (claim.candidate_username !== username) {
+      return res.status(403).json({ error: 'You are not authorized to respond to this claim' });
+    }
+
+    // Update the claim
+    const { error: updateError } = await supabase
+      .from('identity_claims')
+      .update({
+        response,
+        responded_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ Claim ${id} responded: ${username} said "${response}" for ${claim.orphan_username}`);
+
+    // Check if we can resolve the claims for this orphan
+    const resolution = await resolveClaimsForOrphan(claim.orphan_username);
+
+    res.json({
+      success: true,
+      response,
+      resolution
+    });
+
+  } catch (error) {
+    console.error('Error responding to claim:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Resolution logic for orphan claims
+async function resolveClaimsForOrphan(orphanUsername) {
+  // Get all claims for this orphan
+  const { data: claims, error } = await supabase
+    .from('identity_claims')
+    .select('*')
+    .eq('orphan_username', orphanUsername);
+
+  if (error || !claims || claims.length === 0) {
+    return { status: 'no_claims' };
+  }
+
+  const responses = claims.filter(c => c.response !== null);
+
+  // Not all candidates have responded yet
+  if (responses.length < claims.length) {
+    return {
+      status: 'waiting',
+      responded: responses.length,
+      total: claims.length
+    };
+  }
+
+  const yesClaims = claims.filter(c => c.response === 'yes');
+  const noClaims = claims.filter(c => c.response === 'no');
+
+  if (yesClaims.length === 0) {
+    // All said no - orphan confirmed
+    console.log(`🔍 Orphan confirmed: ${orphanUsername} - no one claimed it`);
+    return { status: 'orphan_confirmed' };
+  }
+
+  if (yesClaims.length === 1) {
+    // Exactly one yes - auto merge
+    const confirmedUser = yesClaims[0].candidate_username;
+    await mergeUserData(orphanUsername, confirmedUser);
+
+    // Notify teacher of successful merge
+    await createTeacherNotification(
+      claims[0].created_by,
+      'claim_resolved',
+      `Identity resolved: ${orphanUsername} merged into ${confirmedUser}`,
+      orphanUsername
+    );
+
+    console.log(`🔀 Auto-merged: ${orphanUsername} → ${confirmedUser}`);
+    return { status: 'auto_merged', mergedInto: confirmedUser };
+  }
+
+  if (yesClaims.length > 1) {
+    // Multiple yes - notify teacher for manual resolution
+    const claimants = yesClaims.map(c => c.candidate_username);
+    await createTeacherNotification(
+      claims[0].created_by,
+      'claim_conflict',
+      `Multiple students claim "${orphanUsername}": ${claimants.join(', ')}`,
+      orphanUsername
+    );
+
+    console.log(`⚠️ Conflict: ${orphanUsername} claimed by ${claimants.join(', ')}`);
+    return { status: 'conflict', claimants };
+  }
+
+  return { status: 'unknown' };
+}
+
+// Merge user data from orphan to confirmed user
+async function mergeUserData(fromUsername, toUsername) {
+  const { data, error } = await supabase
+    .from('answers')
+    .update({ username: toUsername })
+    .eq('username', fromUsername);
+
+  if (error) {
+    console.error(`Failed to merge ${fromUsername} → ${toUsername}:`, error);
+    throw error;
+  }
+
+  console.log(`✅ Merged answers: ${fromUsername} → ${toUsername}`);
+
+  // Invalidate cache
+  cache.lastUpdate = 0;
+
+  return true;
+}
+
+// Create teacher notification
+async function createTeacherNotification(teacherUsername, notificationType, message, relatedOrphan = null) {
+  const { error } = await supabase
+    .from('teacher_notifications')
+    .insert({
+      teacher_username: teacherUsername,
+      notification_type: notificationType,
+      message,
+      related_orphan: relatedOrphan,
+      read: false
+    });
+
+  if (error) {
+    console.error('Failed to create notification:', error);
+  }
+}
+
+// Get teacher notifications
+app.get('/api/notifications/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // Verify user is a teacher
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('username', username)
+      .single();
+
+    if (userError || !user || user.user_type !== 'teacher') {
+      return res.status(403).json({ error: 'Only teachers can view notifications' });
+    }
+
+    const { data, error } = await supabase
+      .from('teacher_notifications')
+      .select('*')
+      .eq('teacher_username', username)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const unread = (data || []).filter(n => !n.read).length;
+
+    res.json({ notifications: data || [], unread });
+
+  } catch (error) {
+    console.error('Error getting notifications:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark notification as read
+app.post('/api/notifications/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('teacher_notifications')
+      .update({ read: true })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error marking notification read:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual merge by teacher (for conflict resolution)
+app.post('/api/identity-claims/merge', async (req, res) => {
+  try {
+    const { orphan_username, target_username, teacher_username } = req.body;
+
+    if (!orphan_username || !target_username || !teacher_username) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Verify teacher
+    const { data: teacher, error: teacherError } = await supabase
+      .from('users')
+      .select('user_type')
+      .eq('username', teacher_username)
+      .single();
+
+    if (teacherError || !teacher || teacher.user_type !== 'teacher') {
+      return res.status(403).json({ error: 'Only teachers can perform manual merges' });
+    }
+
+    // Perform the merge
+    await mergeUserData(orphan_username, target_username);
+
+    // Create notification
+    await createTeacherNotification(
+      teacher_username,
+      'claim_resolved',
+      `Manual merge completed: ${orphan_username} → ${target_username}`,
+      orphan_username
+    );
+
+    console.log(`👨‍🏫 Manual merge by ${teacher_username}: ${orphan_username} → ${target_username}`);
+
+    res.json({ success: true, merged: { from: orphan_username, to: target_username } });
+
+  } catch (error) {
+    console.error('Error performing manual merge:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================
 // WEBSOCKET SERVER
 // ============================
 

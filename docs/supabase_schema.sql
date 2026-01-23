@@ -63,3 +63,35 @@ ALTER TABLE public.votes ALTER COLUMN question_id SET NOT NULL;
 ALTER TABLE public.votes ALTER COLUMN voter_username SET NOT NULL;
 ALTER TABLE public.votes ALTER COLUMN target_username SET NOT NULL;
 ALTER TABLE public.votes ALTER COLUMN "timestamp" SET NOT NULL;
+
+-- Identity claims: Resolve orphaned usernames by prompting candidates
+CREATE TABLE public.identity_claims (
+  id integer NOT NULL DEFAULT nextval('identity_claims_id_seq'::regclass),
+  orphan_username text NOT NULL,
+  candidate_username text NOT NULL,
+  response text NULL,  -- 'yes', 'no', or null (pending)
+  created_by text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  responded_at timestamp with time zone NULL,
+  CONSTRAINT identity_claims_pkey PRIMARY KEY (id),
+  CONSTRAINT identity_claims_orphan_candidate_key UNIQUE (orphan_username, candidate_username)
+);
+
+CREATE INDEX IF NOT EXISTS idx_identity_claims_orphan ON public.identity_claims USING btree (orphan_username);
+CREATE INDEX IF NOT EXISTS idx_identity_claims_candidate ON public.identity_claims USING btree (candidate_username);
+CREATE INDEX IF NOT EXISTS idx_identity_claims_pending ON public.identity_claims USING btree (candidate_username) WHERE response IS NULL;
+
+-- Teacher notifications: Alerts for claim conflicts and resolutions
+CREATE TABLE public.teacher_notifications (
+  id integer NOT NULL DEFAULT nextval('teacher_notifications_id_seq'::regclass),
+  teacher_username text NOT NULL,
+  notification_type text NOT NULL,  -- 'claim_conflict', 'claim_resolved', 'claim_expired'
+  message text NOT NULL,
+  related_orphan text NULL,
+  read boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT teacher_notifications_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_teacher_notifications_teacher ON public.teacher_notifications USING btree (teacher_username);
+CREATE INDEX IF NOT EXISTS idx_teacher_notifications_unread ON public.teacher_notifications USING btree (teacher_username) WHERE read = false;
