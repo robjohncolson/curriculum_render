@@ -20058,7 +20058,7 @@ const EMBEDDED_CURRICULUM = [
       "answerKey": "A",
       "reasoning": "Both estimators are unbiased. Both sampling distributions are centered at the population parameter, which indicates that the expected value of each estimator equals the population parameter.",
       "attachments": {
-        "image": "assets/pngs/Unit5/u5_pc_mcqa_q15.png",
+        "image": "assets/pngs/unit5/u5_pc_mcqa_q15.png",
         "choices": [
           {
             "key": "A",
