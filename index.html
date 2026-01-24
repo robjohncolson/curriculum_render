@@ -665,15 +665,27 @@
                     if (count > 0) {
                         console.log(`✅ Successfully flushed ${count} answers`);
                         updatePeerDataTimestamp();
+                        // Diagnostic: log sync flush success
+                        if (typeof logSyncFlushResult === 'function') {
+                            logSyncFlushResult(true, count, null, flushStartTime);
+                        }
+                        // Phase 2 UI: Dispatch sync success event only when items actually synced
+                        window.dispatchEvent(new CustomEvent('ui:sync:success', {
+                            detail: { count, timestamp: Date.now() }
+                        }));
+                    } else {
+                        // count === 0 means batch failed silently (batchPushAnswersToSupabase returns 0 on error)
+                        console.log(`⚠️ Sync returned 0 - batch may have failed`);
+                        if (typeof logSyncFlushResult === 'function') {
+                            logSyncFlushResult(false, 0, new Error('Batch returned 0'), flushStartTime);
+                        }
+                        // Phase 2 UI: Treat count=0 as failure
+                        window.dispatchEvent(new CustomEvent('ui:sync:failure', {
+                            detail: { error: 'Sync failed - no items were synced' }
+                        }));
+                        // Re-queue failed items
+                        answerSyncQueue.push(...batch);
                     }
-                    // Diagnostic: log sync flush success
-                    if (typeof logSyncFlushResult === 'function') {
-                        logSyncFlushResult(true, count, null, flushStartTime);
-                    }
-                    // Phase 2 UI: Dispatch sync success event
-                    window.dispatchEvent(new CustomEvent('ui:sync:success', {
-                        detail: { count, timestamp: Date.now() }
-                    }));
                 })
                 .catch(error => {
                     console.error(`❌ Error flushing queue:`, error);
@@ -3856,7 +3868,17 @@ if (continueBtn) {
                     __source: 'cloud_restore'
                 };
 
+                // Phase 2 UI: Show restore progress with total count
+                window.dispatchEvent(new CustomEvent('ui:restore:progress', {
+                    detail: { current: 0, total: answerCount, message: `Restoring ${answerCount} answers...` }
+                }));
+
                 await importDataForUser(username, payload);
+
+                // Phase 2 UI: Mark restore as complete
+                window.dispatchEvent(new CustomEvent('ui:load:complete', {
+                    detail: { username, count: answerCount, source: 'cloud' }
+                }));
 
                 const banner = document.getElementById('restoreStatusBanner');
                 const statusText = `Recovery restored for ${username} at ${new Date().toLocaleString()}`;
