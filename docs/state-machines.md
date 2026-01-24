@@ -1250,3 +1250,270 @@ npm test
 ```
 
 See `tests/progressive-frq.test.js` for comprehensive state transition tests.
+
+---
+
+## 14. Technical Debt & Improvement Observations
+
+*Added: January 2026 - Fresh codebase analysis*
+
+This section documents architectural observations and improvement opportunities identified during a comprehensive code review.
+
+### 14.1 Architecture Overview
+
+**Current Structure:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        index.html (10,355 lines)                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Inline Scripts: UI logic, business logic, initialization│   │
+│  │  - 85+ innerHTML assignments                             │   │
+│  │  - 226+ window.* global references                       │   │
+│  │  - Mixed concerns throughout                             │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    js/ modules (~11,915 lines)                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │  auth.js     │ │data_manager.js│ │railway_client│            │
+│  │  (900 lines) │ │  (200 lines) │ │  (250 lines) │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │ grading-     │ │  charts.js   │ │sprite_manager│            │
+│  │ engine.js    │ │  (400 lines) │ │  (300 lines) │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+│  ┌────────────────────────────────────────────────┐            │
+│  │        storage/ (5-layer abstraction)          │            │
+│  │  adapters.js → index.js → migration.js         │            │
+│  └────────────────────────────────────────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- **Auth flow**: Username generation, normalization, session management
+- **Data management**: Import/export, merging, classData lifecycle
+- **Quiz rendering**: MCQ distribution, FRQ responses, peer consensus
+- **Storage layer**: IndexedDB primary, localStorage fallback, dual-write
+- **Realtime**: WebSocket via Railway server for peer sync
+- **Sprite system**: Canvas-based peer activity visualization
+
+### 14.2 Identified Issues by Severity
+
+#### CRITICAL
+
+| Issue | Location | Description |
+|-------|----------|-------------|
+| Monolithic file | index.html | 10,355 lines mixing UI, business logic, initialization |
+| XSS vulnerabilities | index.html:1933-1945, auth.js:198 | innerHTML with unsanitized user data |
+| Global state pollution | Throughout | 226+ window.* references, hard to trace data flow |
+
+#### HIGH
+
+| Issue | Location | Description |
+|-------|----------|-------------|
+| Code duplication | auth.js:663-747 | 3 versions of getRecentUsernames() |
+| DOM thrashing | index.html (85 places) | Full innerHTML replacement destroys listeners |
+| No ARIA labels | index.html:48, modals | Inaccessible to screen readers |
+| No keyboard nav | All modals | Tab escapes, no Escape to close |
+| Tight coupling | All modules | Circular deps on globals |
+
+#### MEDIUM
+
+| Issue | Location | Description |
+|-------|----------|-------------|
+| Sequential storage | data_manager.js:100-124 | Awaits each write instead of batching |
+| WebSocket reconnect | railway_client.js:48-139 | Fixed 5s delay, no exponential backoff |
+| Magic numbers | Throughout | 150ms, 50px, 80% without constants |
+| No loading states | Async operations | App appears frozen during waits |
+| No mobile CSS | styles.css | Missing responsive breakpoints |
+
+#### LOW
+
+| Issue | Location | Description |
+|-------|----------|-------------|
+| Dead code | auth.js:151, index.html:8008 | ~200 lines unused |
+| Sparse documentation | js/ folder | No README, few inline comments |
+| DEBUG console.logs | Multiple files | Left in production code |
+
+### 14.3 Code Duplication Map
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    USERNAME RETRIEVAL (3 versions)              │
+├─────────────────────────────────────────────────────────────────┤
+│ getRecentUsernames()      │ auth.js:663-712    │ async, IDB    │
+│ getRecentUsernamesSync()  │ auth.js:719-747    │ sync fallback │
+│ localStorage fallback     │ data_manager.js    │ duplicate     │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    WELCOME SCREEN (2+ versions)                 │
+├─────────────────────────────────────────────────────────────────┤
+│ showWelcomeScreen()         │ auth.js:159-241  │ primary       │
+│ showWelcomeScreenFallback() │ auth.js:247-291  │ 60% shared    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    DATA CHECKING (4+ places)                    │
+├─────────────────────────────────────────────────────────────────┤
+│ checkExistingData()  │ auth.js:863-900        │               │
+│ initClassData()      │ data_manager.js:20-75  │               │
+│ importPersonalData() │ index.html:8000+       │               │
+│ rebuildClassDataView │ storage/index.js       │               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 14.4 Security Concern: XSS Pattern
+
+```javascript
+// VULNERABLE PATTERN (found in multiple places)
+list.innerHTML = notifications.map(n => `
+    <p>${n.message}</p>  // ← User data, unescaped
+    <button onclick="handleClick('${n.username}')">  // ← In onclick
+`).join('');
+
+// SAFE PATTERN (recommended)
+const div = document.createElement('div');
+div.textContent = n.message;  // Safe - auto-escaped
+```
+
+**Locations requiring fix:**
+- index.html:1933-1945 (teacher notifications)
+- index.html:1997+ (dynamic HTML)
+- auth.js:198 (username display)
+
+### 14.5 Performance Bottlenecks
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    STORAGE WRITE FLOW (current)                 │
+└─────────────────────────────────────────────────────────────────┘
+
+    saveClassData()
+         │
+         ▼
+    ┌────────────┐
+    │ for each   │ ← Sequential loop
+    │  answer    │
+    └─────┬──────┘
+          │
+          ▼
+    ┌────────────┐     ┌────────────┐
+    │ await IDB  │────▶│ await      │  ← Blocks on each write
+    │   write    │     │ localStorage│
+    └────────────┘     └────────────┘
+          │
+          ▼
+    (repeat 100x for 100 answers = 100 sequential waits)
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    STORAGE WRITE FLOW (recommended)             │
+└─────────────────────────────────────────────────────────────────┘
+
+    saveClassData()
+         │
+         ▼
+    ┌────────────────────────────────────────┐
+    │ Promise.allSettled([                   │
+    │   idb.write(answer1),                  │
+    │   idb.write(answer2),                  │  ← Parallel writes
+    │   ...                                  │
+    │ ])                                     │
+    └────────────────────────────────────────┘
+         │
+         ▼
+    (all 100 answers written in ~1 batch)
+```
+
+### 14.6 Recommended Refactoring Phases
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 1: Critical (2 weeks)                                     │
+├─────────────────────────────────────────────────────────────────┤
+│ □ Extract index.html into modules                               │
+│   - quiz-ui.js (rendering)                                      │
+│   - import-export.js (data handling)                            │
+│   - grading-ui.js (escalation UI)                               │
+│ □ Add ARIA labels and keyboard navigation                       │
+│ □ Fix XSS vulnerabilities (use textContent)                     │
+│ □ Add input validation for imported data                        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 2: High Priority (3 weeks)                                │
+├─────────────────────────────────────────────────────────────────┤
+│ □ Create AppState object for globals                            │
+│ □ Batch DOM updates with DocumentFragment                       │
+│ □ Consolidate duplicate code                                    │
+│ □ Implement exponential backoff for WebSocket                   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 3: Medium Priority (2 weeks)                              │
+├─────────────────────────────────────────────────────────────────┤
+│ □ Lazy load quiz/teacher features                               │
+│ □ Add mobile responsive breakpoints                             │
+│ □ Batch storage writes with Promise.allSettled                  │
+│ □ Add loading indicators for async ops                          │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ PHASE 4: Nice to Have (ongoing)                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ □ Migrate to ES6 module system                                  │
+│ □ Add comprehensive test coverage                               │
+│ □ Improve inline documentation                                  │
+│ □ Implement error tracking/logging                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 14.7 Quick Wins (< 1 hour each)
+
+| Task | Impact | Effort |
+|------|--------|--------|
+| Add ARIA labels to FAB buttons | Accessibility | 15 min |
+| Create js/constants.js for magic numbers | Maintainability | 30 min |
+| Remove DEBUG console.logs | Code cleanliness | 15 min |
+| Add Escape key listener to modals | Accessibility | 20 min |
+| Batch storage writes (Promise.allSettled) | Performance | 30 min |
+| Validate imported data structure | Security | 45 min |
+
+### 14.8 Migration Risk: Storage Layer
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    MIGRATION CONCERN                            │
+└─────────────────────────────────────────────────────────────────┘
+
+Current behavior (storage/index.js:177):
+
+    App Load
+        │
+        ▼
+    ┌────────────────┐
+    │ new Migration()│
+    │ .migrate()     │ ← Runs on EVERY app load
+    └────────────────┘
+        │
+        ▼
+    ┌────────────────┐
+    │ No version     │ ← Could re-run buggy migration
+    │ tracking       │
+    └────────────────┘
+
+RISK: If migration has bug, it runs every time, potentially
+      corrupting data with no rollback mechanism.
+
+RECOMMENDATION:
+    - Add migration version tracking
+    - Only run if version changed
+    - Backup data before migration
+    - Add rollback capability
+```
+
+---
+
+*This section will be updated as improvements are implemented.*

@@ -8,7 +8,7 @@
  */
 class IndexedDBAdapter extends StorageAdapter {
     static DB_NAME = 'ConsensusQuizDB';
-    static DB_VERSION = 2; // Bumped from 1 to add diagnostics store
+    static DB_VERSION = 3; // Bumped from 2 to add outbox status index for Phase 3
 
     // Object store definitions with key paths and indexes
     static STORES = {
@@ -70,7 +70,8 @@ class IndexedDBAdapter extends StorageAdapter {
             autoIncrement: true,
             indexes: [
                 { name: 'createdAt', keyPath: 'createdAt', options: {} },
-                { name: 'opType', keyPath: 'opType', options: {} }
+                { name: 'opType', keyPath: 'opType', options: {} },
+                { name: 'status', keyPath: 'status', options: {} }
             ]
         },
         sprites: {
@@ -488,8 +489,18 @@ class IndexedDBAdapter extends StorageAdapter {
     }
 
     // ========================================
-    // OUTBOX-SPECIFIC METHODS
+    // OUTBOX-SPECIFIC METHODS (Phase 3: Sync Hardening)
     // ========================================
+
+    /**
+     * Backoff configuration
+     */
+    static OUTBOX_CONFIG = {
+        MAX_ATTEMPTS: 10,
+        MAX_BACKOFF_MS: 300000, // 5 minutes
+        BASE_BACKOFF_MS: 5000,  // 5 seconds
+        BACKOFF_MULTIPLIER: 3
+    };
 
     /**
      * Add an operation to the outbox queue
@@ -501,9 +512,11 @@ class IndexedDBAdapter extends StorageAdapter {
         const record = {
             opType,
             payload,
+            status: 'pending',
             createdAt: Date.now(),
-            tries: 0,
-            lastTryAt: null
+            attempts: 0,
+            lastAttemptAt: null,
+            lastError: null
         };
 
         return await this._transaction('outbox', 'readwrite', (tx) => {
@@ -517,23 +530,105 @@ class IndexedDBAdapter extends StorageAdapter {
     }
 
     /**
-     * Get all pending outbox items
+     * Calculate backoff delay for an item based on attempts
+     * @param {number} attempts - Number of previous attempts
+     * @returns {number} Backoff delay in milliseconds
+     */
+    _calculateBackoff(attempts) {
+        if (attempts <= 1) return 0; // First attempt is immediate
+        const { MAX_BACKOFF_MS, BASE_BACKOFF_MS, BACKOFF_MULTIPLIER } = IndexedDBAdapter.OUTBOX_CONFIG;
+        return Math.min(MAX_BACKOFF_MS, Math.pow(BACKOFF_MULTIPLIER, attempts - 1) * BASE_BACKOFF_MS);
+    }
+
+    /**
+     * Check if an item is ready for retry based on backoff
+     * @param {object} item - Outbox item
+     * @returns {boolean}
+     */
+    _isReadyForRetry(item) {
+        if (item.status === 'pending') return true;
+        if (item.status === 'in_flight') return false;
+        if (item.status !== 'failed') return false;
+
+        // Check if max attempts exceeded
+        if (item.attempts >= IndexedDBAdapter.OUTBOX_CONFIG.MAX_ATTEMPTS) {
+            return false; // Permanently failed, needs manual intervention
+        }
+
+        // Check backoff elapsed
+        const backoffMs = this._calculateBackoff(item.attempts);
+        return Date.now() - item.lastAttemptAt >= backoffMs;
+    }
+
+    /**
+     * Get all outbox items ready for processing
+     * Returns items with status='pending' or status='failed' with backoff elapsed
      * @returns {Promise<Array>}
      */
     async getOutboxPending() {
+        const allItems = await this.getAll('outbox');
+        return allItems.filter(item => this._isReadyForRetry(item));
+    }
+
+    /**
+     * Get all outbox items regardless of status (for diagnostics)
+     * @returns {Promise<Array>}
+     */
+    async getOutboxAll() {
         return this.getAll('outbox');
     }
 
     /**
-     * Mark an outbox item as attempted
-     * @param {number} id - Outbox item ID
+     * Get count of items permanently failed (exceeded max attempts)
+     * @returns {Promise<number>}
      */
-    async markOutboxAttempt(id) {
-        const item = await this.get('outbox', id);
-        if (item) {
-            item.tries++;
-            item.lastTryAt = Date.now();
-            await this.set('outbox', id, item);
+    async getOutboxFailedCount() {
+        const allItems = await this.getAll('outbox');
+        return allItems.filter(item =>
+            item.status === 'failed' &&
+            item.attempts >= IndexedDBAdapter.OUTBOX_CONFIG.MAX_ATTEMPTS
+        ).length;
+    }
+
+    /**
+     * Mark outbox items as in-flight before sending
+     * @param {number[]} ids - Array of outbox item IDs
+     */
+    async markOutboxInFlight(ids) {
+        for (const id of ids) {
+            const item = await this.get('outbox', id);
+            if (item) {
+                item.status = 'in_flight';
+                item.attempts++;
+                item.lastAttemptAt = Date.now();
+                await this.set('outbox', id, item);
+            }
+        }
+    }
+
+    /**
+     * Mark outbox items as failed with error
+     * @param {number[]} ids - Array of outbox item IDs
+     * @param {string} error - Error message
+     */
+    async markOutboxFailed(ids, error) {
+        for (const id of ids) {
+            const item = await this.get('outbox', id);
+            if (item) {
+                item.status = 'failed';
+                item.lastError = error;
+                await this.set('outbox', id, item);
+            }
+        }
+    }
+
+    /**
+     * Mark outbox items as synced and remove them
+     * @param {number[]} ids - Array of outbox item IDs
+     */
+    async markOutboxSynced(ids) {
+        for (const id of ids) {
+            await this.remove('outbox', id);
         }
     }
 
@@ -550,6 +645,25 @@ class IndexedDBAdapter extends StorageAdapter {
      */
     async clearOutbox() {
         await this.clear('outbox');
+    }
+
+    /**
+     * Get outbox size
+     * @returns {Promise<number>}
+     */
+    async getOutboxSize() {
+        const items = await this.getAll('outbox');
+        return items.length;
+    }
+
+    // Legacy method for backward compatibility
+    async markOutboxAttempt(id) {
+        const item = await this.get('outbox', id);
+        if (item) {
+            item.attempts = (item.attempts || 0) + 1;
+            item.lastAttemptAt = Date.now();
+            await this.set('outbox', id, item);
+        }
     }
 }
 

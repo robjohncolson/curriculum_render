@@ -6235,6 +6235,20 @@ body.dark-theme .cancel-appeal-btn {
     border-color: var(--accent-danger, #e74c3c);
 }
 
+/* Phase 3: Synced to cloud indicator */
+.save-toast.synced {
+    background: var(--accent-info, #9b59b6);
+    color: white;
+    border-color: var(--accent-info, #9b59b6);
+}
+
+/* Phase 3: Recovering unsaved answers */
+.save-toast.recovering {
+    background: var(--accent-warning, #f39c12);
+    color: white;
+    border-color: var(--accent-warning, #f39c12);
+}
+
 .toast-icon {
     font-size: 16px;
     flex-shrink: 0;
@@ -6434,6 +6448,15 @@ body.dark-theme .save-toast.success {
 
 body.dark-theme .save-toast.error {
     background: var(--accent-danger, #e74c3c);
+}
+
+/* Phase 3: Dark theme for sync/recovery states */
+body.dark-theme .save-toast.synced {
+    background: var(--accent-info, #9b59b6);
+}
+
+body.dark-theme .save-toast.recovering {
+    background: var(--accent-warning, #f39c12);
 }
 
 body.dark-theme .load-progress-content {

@@ -119,7 +119,7 @@ Visual feedback system for save/load/sync operations to reduce student anxiety a
 uiState.save.status    // 'idle' | 'saving' | 'saved_local' | 'saved_cloud' | 'save_failed'
 uiState.save.lastPayload  // Full payload for retry support
 uiState.load.status    // 'idle' | 'loading' | 'restoring' | 'complete' | 'failed'
-uiState.sync.status    // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline'
+uiState.sync.status    // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline' | 'recovering'
 uiState.sync.lastAnswerSyncedAt  // Timestamp of last successful sync
 ```
 
@@ -131,9 +131,9 @@ uiState.sync.lastAnswerSyncedAt  // Timestamp of last successful sync
 | `ui:save:failure` | `saveAnswer()` | `{ questionId, error }` |
 | `ui:load:start` | `initClassData()` | `{ username }` |
 | `ui:load:complete` | `initClassData()` | `{ username, count, source }` |
-| `ui:sync:start` | `flushAnswerQueue()` | `{ count }` |
-| `ui:sync:success` | `flushAnswerQueue()` | `{ count, timestamp }` |
-| `ui:sync:failure` | `flushAnswerQueue()` | `{ error }` |
+| `ui:sync:start` | `processSyncOutbox()` | `{ count }` |
+| `ui:sync:success` | `processSyncOutbox()` | `{ count, timestamp }` |
+| `ui:sync:failure` | `processSyncOutbox()` | `{ error }` |
 
 **Retry Logic:**
 - Retries failed operation twice (1 second delay)
@@ -144,6 +144,81 @@ uiState.sync.lastAnswerSyncedAt  // Timestamp of last successful sync
 - `showSaveToast(status, message, showRetry)` - Display save confirmation
 - `showLoadProgress(message, showProgressBar, current, total)` - Show load overlay
 - `handleSaveRetry()` / `handleLoadRetry()` / `handleSyncRetry()` - Retry handlers
+
+## Sync Hardening (Phase 3)
+
+Persistent outbox-based sync system that survives page refreshes, network failures, and browser restarts.
+
+**Key Changes from Phase 2:**
+- In-memory `answerSyncQueue` replaced with IDB `outbox` store
+- `saveAnswer()` enqueues to persistent outbox (already did this)
+- `processSyncOutbox()` processes items with exponential backoff
+- `recoverPendingSync()` recovers items on page load
+
+**Outbox Record Schema:**
+```javascript
+{
+    id: number,              // Auto-increment
+    opType: 'answer_submit',
+    payload: { username, questionId, value, timestamp },
+    status: 'pending' | 'in_flight' | 'failed',
+    attempts: number,
+    lastAttemptAt: number,
+    lastError: string | null
+}
+```
+
+**Backoff Schedule:**
+| Attempt | Delay |
+|---------|-------|
+| 1 | Immediate |
+| 2 | 5 seconds |
+| 3 | 15 seconds |
+| 4 | 60 seconds |
+| 5+ | 5 minutes (cap) |
+
+**Sync Triggers:**
+- After answer save (debounced)
+- On page load (recovery)
+- On `online` network event
+- On tab visibility change (focus)
+- Timer every 60 seconds
+
+**Configuration:** `SyncConfig` object in index.html
+```javascript
+SyncConfig.BATCH_SIZE         // 10 - max items per flush
+SyncConfig.SYNC_INTERVAL_MS   // 60000 - background sync interval
+SyncConfig.SYNC_ON_FOCUS      // true - sync when tab gains focus
+SyncConfig.OUTBOX_WARN_SIZE   // 50 - warning threshold
+SyncConfig.OUTBOX_MAX_SIZE    // 100 - hard cap
+```
+
+**New Diagnostic Events:**
+| Event | Details |
+|-------|---------|
+| `outbox_enqueue` | `{ questionId, outboxId, queueSize }` |
+| `outbox_flush_start` | `{ itemCount, itemIds }` |
+| `outbox_item_success` | `{ itemId, questionId }` |
+| `outbox_item_failure` | `{ itemId, questionId, error, attempt }` |
+| `outbox_recovery_start` | `{ pendingCount }` |
+| `outbox_recovery_complete` | `{ recoveredCount, failedCount }` |
+| `network_online` / `network_offline` | `{}` |
+
+**New UI Events:**
+- `ui:sync:recovering` - Dispatched during startup recovery
+
+**Key Functions:**
+- `processSyncOutbox()` - Main sync processor with backoff
+- `recoverPendingSync()` - Startup recovery
+- `triggerSyncFromOutbox()` - Debounced sync trigger
+- `checkOutboxAndSync()` - Size check and scheduling
+
+**Storage Methods (IndexedDBAdapter):**
+- `markOutboxInFlight(ids)` - Mark items as in-flight
+- `markOutboxFailed(ids, error)` - Mark items as failed
+- `markOutboxSynced(ids)` - Remove successfully synced items
+- `getOutboxPending()` - Get items ready for retry (respects backoff)
+- `getOutboxFailedCount()` - Count permanently failed items
 
 ## Key Global Variables
 

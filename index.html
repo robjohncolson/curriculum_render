@@ -421,11 +421,18 @@
             }
         });
 
-        // PHASE 2 OPTIMIZATION: Answer batching queue
-        let answerSyncQueue = [];
+        // PHASE 3: Persistent outbox-based sync (replaces in-memory queue)
+        // Configuration
+        const SyncConfig = {
+            BATCH_SIZE: 10,              // Max items per flush
+            SYNC_INTERVAL_MS: 60000,     // Background sync every 60 seconds
+            SYNC_ON_FOCUS: true,         // Sync when tab gains focus
+            OUTBOX_WARN_SIZE: 50,        // Warn when outbox exceeds this
+            OUTBOX_MAX_SIZE: 100         // Hard cap on outbox size
+        };
+
         let syncTimer = null;
-        const BATCH_SIZE = 10;           // Flush after 10 answers
-        const BATCH_INTERVAL = 60000;    // Flush every 60 seconds
+        let syncInProgress = false;      // Prevent concurrent syncs
 
         // Initialize Supabase if credentials are provided
         if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' &&
@@ -609,106 +616,289 @@
             }
         }
 
-        // PHASE 2 OPTIMIZATION: Queue management for batching answers
-        function queueAnswerForSync(username, questionId, answerValue, timestamp) {
-            // Add to queue
-            answerSyncQueue.push({
-                username: username,
-                question_id: questionId,
-                answer_value: answerValue,
-                timestamp: timestamp
-            });
+        // PHASE 3: Outbox-based sync with persistent queue and retry logic
 
-            console.log(`📝 Queued answer for ${questionId} (queue size: ${answerSyncQueue.length})`);
-
-            // Flush immediately if batch size reached
-            if (answerSyncQueue.length >= BATCH_SIZE) {
-                console.log(`🚀 Batch size reached (${BATCH_SIZE}), flushing queue now`);
-                flushAnswerQueue();
-            } else if (!syncTimer) {
-                // Start timer if this is the first item
-                syncTimer = setTimeout(() => {
-                    console.log(`⏰ Batch interval reached (${BATCH_INTERVAL}ms), flushing queue`);
-                    flushAnswerQueue();
-                }, BATCH_INTERVAL);
-            }
-        }
-
-        function flushAnswerQueue() {
-            if (answerSyncQueue.length === 0) return;
-
-            // Take a copy and clear the queue
-            const batch = [...answerSyncQueue];
-            answerSyncQueue = [];
-
-            // Clear the timer
+        /**
+         * Trigger sync from persistent outbox (replaces queueAnswerForSync)
+         * Called after saveAnswer() which already enqueued to IDB outbox
+         */
+        function triggerSyncFromOutbox() {
+            // Debounce: reset timer on each call
             if (syncTimer) {
                 clearTimeout(syncTimer);
-                syncTimer = null;
             }
 
-            // Diagnostic: log sync flush attempt
-            const flushStartTime = performance.now();
-            if (typeof logSyncFlushAttempt === 'function') {
-                logSyncFlushAttempt(batch.length);
-            }
-
-            // Phase 2 UI: Dispatch sync start event
-            window.dispatchEvent(new CustomEvent('ui:sync:start', {
-                detail: { count: batch.length }
-            }));
-
-            // Send batch to Supabase
-            console.log(`🔄 Flushing ${batch.length} answers from queue...`);
-            batchPushAnswersToSupabase(batch)
-                .then(count => {
-                    if (count > 0) {
-                        console.log(`✅ Successfully flushed ${count} answers`);
-                        updatePeerDataTimestamp();
-                        // Diagnostic: log sync flush success
-                        if (typeof logSyncFlushResult === 'function') {
-                            logSyncFlushResult(true, count, null, flushStartTime);
-                        }
-                        // Phase 2 UI: Dispatch sync success event only when items actually synced
-                        window.dispatchEvent(new CustomEvent('ui:sync:success', {
-                            detail: { count, timestamp: Date.now() }
-                        }));
-                    } else {
-                        // count === 0 means batch failed silently (batchPushAnswersToSupabase returns 0 on error)
-                        console.log(`⚠️ Sync returned 0 - batch may have failed`);
-                        if (typeof logSyncFlushResult === 'function') {
-                            logSyncFlushResult(false, 0, new Error('Batch returned 0'), flushStartTime);
-                        }
-                        // Phase 2 UI: Treat count=0 as failure
-                        window.dispatchEvent(new CustomEvent('ui:sync:failure', {
-                            detail: { error: 'Sync failed - no items were synced' }
-                        }));
-                        // Re-queue failed items
-                        answerSyncQueue.push(...batch);
-                    }
-                })
-                .catch(error => {
-                    console.error(`❌ Error flushing queue:`, error);
-                    // Diagnostic: log sync flush failure
-                    if (typeof logSyncFlushResult === 'function') {
-                        logSyncFlushResult(false, 0, error, flushStartTime);
-                    }
-                    // Phase 2 UI: Dispatch sync failure event
-                    window.dispatchEvent(new CustomEvent('ui:sync:failure', {
-                        detail: { error: error.message || String(error) }
-                    }));
-                    // Re-queue failed items
-                    answerSyncQueue.push(...batch);
-                });
+            // Check outbox size and trigger sync
+            checkOutboxAndSync();
         }
 
-        // Final flush on page unload
-        window.addEventListener('beforeunload', (e) => {
-            if (answerSyncQueue.length > 0) {
-                console.log(`🔄 Page unload: flushing ${answerSyncQueue.length} queued answers`);
-                flushAnswerQueue();
-                // Show message to user that we're saving
-                e.returnValue = 'Saving your answers...';
+        /**
+         * Check outbox size and decide whether to sync immediately or schedule
+         */
+        async function checkOutboxAndSync() {
+            try {
+                const storage = await waitForStorage();
+                const size = await storage.getOutboxSize();
+
+                if (size === 0) return;
+
+                console.log(`📝 Outbox has ${size} pending items`);
+
+                // Warn if outbox is getting large
+                if (size >= SyncConfig.OUTBOX_WARN_SIZE) {
+                    console.warn(`⚠️ Outbox size (${size}) exceeds warning threshold`);
+                }
+
+                // Flush immediately if batch size reached
+                if (size >= SyncConfig.BATCH_SIZE) {
+                    console.log(`🚀 Batch size reached (${SyncConfig.BATCH_SIZE}), syncing now`);
+                    processSyncOutbox();
+                } else {
+                    // Schedule sync
+                    syncTimer = setTimeout(() => {
+                        console.log(`⏰ Sync interval reached, processing outbox`);
+                        processSyncOutbox();
+                    }, SyncConfig.SYNC_INTERVAL_MS);
+                }
+            } catch (e) {
+                console.error('Error checking outbox:', e);
+            }
+        }
+
+        /**
+         * Process pending items from the persistent outbox
+         * This is the main sync function for Phase 3
+         */
+        async function processSyncOutbox() {
+            // Prevent concurrent syncs
+            if (syncInProgress) {
+                console.log('⏸️ Sync already in progress, skipping');
+                return;
+            }
+
+            if (!turboModeActive || !supabaseClient) {
+                console.log('🔌 Turbo mode inactive, skipping outbox sync');
+                return;
+            }
+
+            try {
+                syncInProgress = true;
+                const storage = await waitForStorage();
+
+                // Get items ready for processing (respects backoff)
+                const pendingItems = await storage.getOutboxPending();
+
+                if (pendingItems.length === 0) {
+                    console.log('📭 Outbox empty, nothing to sync');
+                    return;
+                }
+
+                // Take only BATCH_SIZE items
+                const batch = pendingItems.slice(0, SyncConfig.BATCH_SIZE);
+                const batchIds = batch.map(item => item.id);
+
+                console.log(`🔄 Processing ${batch.length} items from outbox...`);
+
+                // Diagnostic: log flush start
+                const flushStartTime = performance.now();
+                if (typeof logOutboxFlushStart === 'function') {
+                    logOutboxFlushStart(batch.length, batchIds);
+                }
+
+                // UI: Dispatch sync start event
+                window.dispatchEvent(new CustomEvent('ui:sync:start', {
+                    detail: { count: batch.length }
+                }));
+
+                // Mark items as in-flight
+                await storage.markOutboxInFlight(batchIds);
+
+                // Prepare batch for Supabase
+                const supabaseBatch = batch.map(item => ({
+                    username: item.payload.username,
+                    question_id: item.payload.questionId,
+                    answer_value: item.payload.value,
+                    timestamp: item.payload.timestamp
+                }));
+
+                // Send batch to Supabase
+                const syncedCount = await batchPushAnswersToSupabase(supabaseBatch);
+
+                if (syncedCount > 0) {
+                    // Success: remove synced items from outbox
+                    await storage.markOutboxSynced(batchIds);
+                    console.log(`✅ Successfully synced ${syncedCount} items`);
+                    updatePeerDataTimestamp();
+
+                    // Diagnostic: log success for each item
+                    if (typeof logOutboxItemSuccess === 'function') {
+                        batch.forEach(item => {
+                            logOutboxItemSuccess(item.id, item.payload.questionId);
+                        });
+                    }
+
+                    // Diagnostic: log flush result
+                    if (typeof logSyncFlushResult === 'function') {
+                        logSyncFlushResult(true, syncedCount, null, flushStartTime);
+                    }
+
+                    // UI: Dispatch sync success
+                    window.dispatchEvent(new CustomEvent('ui:sync:success', {
+                        detail: { count: syncedCount, timestamp: Date.now() }
+                    }));
+
+                    // Check if there are more items to sync
+                    const remainingSize = await storage.getOutboxSize();
+                    if (remainingSize > 0) {
+                        console.log(`📬 ${remainingSize} items remaining in outbox, scheduling next sync`);
+                        // Schedule next batch after a short delay
+                        setTimeout(() => processSyncOutbox(), 1000);
+                    }
+                } else {
+                    // Failure: mark items as failed
+                    const errorMsg = 'Batch sync returned 0';
+                    await storage.markOutboxFailed(batchIds, errorMsg);
+                    console.log(`⚠️ Sync failed, items marked for retry`);
+
+                    // Diagnostic: log failure for each item
+                    if (typeof logOutboxItemFailure === 'function') {
+                        batch.forEach(item => {
+                            logOutboxItemFailure(item.id, item.payload.questionId, errorMsg, item.attempts);
+                        });
+                    }
+
+                    // Diagnostic: log flush result
+                    if (typeof logSyncFlushResult === 'function') {
+                        logSyncFlushResult(false, 0, new Error(errorMsg), flushStartTime);
+                    }
+
+                    // UI: Dispatch sync failure
+                    window.dispatchEvent(new CustomEvent('ui:sync:failure', {
+                        detail: { error: errorMsg }
+                    }));
+                }
+
+            } catch (error) {
+                console.error('❌ Error processing outbox:', error);
+
+                // Diagnostic: log flush failure
+                if (typeof logSyncFlushResult === 'function') {
+                    logSyncFlushResult(false, 0, error, performance.now());
+                }
+
+                // UI: Dispatch sync failure
+                window.dispatchEvent(new CustomEvent('ui:sync:failure', {
+                    detail: { error: error.message || String(error) }
+                }));
+
+            } finally {
+                syncInProgress = false;
+            }
+        }
+
+        /**
+         * Recover pending sync items on page load
+         * Called during app initialization
+         */
+        async function recoverPendingSync() {
+            try {
+                const storage = await waitForStorage();
+                const pendingItems = await storage.getOutboxPending();
+
+                if (pendingItems.length === 0) {
+                    console.log('📭 No pending sync items to recover');
+                    return;
+                }
+
+                console.log(`🔄 Recovering ${pendingItems.length} pending sync items`);
+
+                // Diagnostic: log recovery start
+                const recoveryStartTime = performance.now();
+                if (typeof logOutboxRecoveryStart === 'function') {
+                    logOutboxRecoveryStart(pendingItems.length);
+                }
+
+                // UI: Dispatch recovery event
+                window.dispatchEvent(new CustomEvent('ui:sync:recovering', {
+                    detail: { count: pendingItems.length }
+                }));
+
+                // Show toast to user
+                if (typeof showSaveToast === 'function') {
+                    showSaveToast('saving', `Recovering ${pendingItems.length} unsaved answers...`);
+                }
+
+                // Trigger sync (will process with backoff logic)
+                await processSyncOutbox();
+
+                // Check results
+                const remainingCount = await storage.getOutboxSize();
+                const failedCount = await storage.getOutboxFailedCount();
+                const recoveredCount = pendingItems.length - remainingCount;
+
+                // Diagnostic: log recovery complete
+                if (typeof logOutboxRecoveryComplete === 'function') {
+                    logOutboxRecoveryComplete(recoveredCount, failedCount, recoveryStartTime);
+                }
+
+                console.log(`✅ Recovery complete: ${recoveredCount} synced, ${failedCount} permanently failed`);
+
+            } catch (e) {
+                console.error('Error recovering pending sync:', e);
+            }
+        }
+
+        // Legacy compatibility: queueAnswerForSync now just triggers outbox sync
+        function queueAnswerForSync(username, questionId, answerValue, timestamp) {
+            // Note: saveAnswer() already enqueued to IDB outbox
+            // This function now just triggers the sync process
+            console.log(`📝 Answer queued for ${questionId}, triggering sync`);
+            triggerSyncFromOutbox();
+        }
+
+        // Legacy compatibility: flushAnswerQueue now uses outbox
+        function flushAnswerQueue() {
+            processSyncOutbox();
+        }
+
+        // Network state listeners for Phase 3
+        window.addEventListener('online', () => {
+            console.log('🌐 Network online');
+            if (typeof logNetworkOnline === 'function') {
+                logNetworkOnline();
+            }
+            // Trigger sync after coming online (with small delay)
+            setTimeout(() => processSyncOutbox(), 1000);
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('📴 Network offline');
+            if (typeof logNetworkOffline === 'function') {
+                logNetworkOffline();
+            }
+        });
+
+        // Visibility change listener - sync when tab gains focus
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && SyncConfig.SYNC_ON_FOCUS) {
+                console.log('👁️ Tab visible, checking for pending sync');
+                processSyncOutbox();
+            }
+        });
+
+        // Final sync attempt on page unload
+        window.addEventListener('beforeunload', async (e) => {
+            try {
+                const storage = await waitForStorage();
+                const size = await storage.getOutboxSize();
+                if (size > 0) {
+                    console.log(`🔄 Page unload: ${size} items pending in outbox`);
+                    // Items are already persisted in IDB, they will be recovered on next load
+                    // Show message to user
+                    e.returnValue = 'Your answers are saved locally and will sync when you return.';
+                }
+            } catch (e) {
+                // Ignore errors during unload
             }
         });
 
@@ -1184,7 +1374,7 @@
                 retryCount: 0
             },
             sync: {
-                status: 'idle', // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline'
+                status: 'idle', // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline' | 'recovering'
                 lastAnswerSyncedAt: null,
                 pendingCount: 0,
                 retryCount: 0
@@ -1245,7 +1435,8 @@
                 saving: '⏳',
                 success: '✓',
                 error: '⚠️',
-                synced: '☁️✓'
+                synced: '☁️',
+                recovering: '🔄'
             };
             icon.textContent = icons[status] || '•';
             msg.textContent = message;
@@ -1257,12 +1448,16 @@
                 retryBtn.classList.add('hidden');
             }
 
-            // Update toast classes
-            toast.classList.remove('hidden', 'saving', 'success', 'error');
+            // Update toast classes (Phase 3: added synced, recovering)
+            toast.classList.remove('hidden', 'saving', 'success', 'error', 'synced', 'recovering');
             if (status === 'saving') {
                 toast.classList.add('saving');
-            } else if (status === 'success' || status === 'synced') {
+            } else if (status === 'success') {
                 toast.classList.add('success');
+            } else if (status === 'synced') {
+                toast.classList.add('synced');
+            } else if (status === 'recovering') {
+                toast.classList.add('recovering');
             } else if (status === 'error') {
                 toast.classList.add('error');
             }
@@ -1503,6 +1698,14 @@
             updateSyncStatusIndicator();
         }
 
+        // Phase 3: Handle outbox recovery on startup
+        function handleUISyncRecovering(e) {
+            const { count } = e.detail;
+            window.uiState.sync.status = 'recovering';
+            window.uiState.sync.pendingCount = count;
+            showSaveToast('saving', `Recovering ${count} unsaved answers...`);
+        }
+
         function handleUIConnectivityChange(e) {
             const { online } = e.detail;
             window.uiState.sync.status = online ? 'idle' : 'offline';
@@ -1525,6 +1728,7 @@
         window.addEventListener('ui:sync:start', handleUISyncStart);
         window.addEventListener('ui:sync:success', handleUISyncSuccess);
         window.addEventListener('ui:sync:failure', handleUISyncFailure);
+        window.addEventListener('ui:sync:recovering', handleUISyncRecovering); // Phase 3
         window.addEventListener('ui:connectivity:change', handleUIConnectivityChange);
 
         // Also listen for turboModeChanged events
@@ -2717,6 +2921,9 @@ window.submitManualMerge = submitManualMerge;
         async function initializeTurboMode() {
             // Test connection
             if (await testSupabaseConnection()) {
+                // Phase 3: Recover any pending items from persistent outbox
+                await recoverPendingSync();
+
                 // Do a smart sync (only sync what's needed)
                 await smartSyncWithSupabase();
 

@@ -132,6 +132,52 @@ class DualWriteAdapter extends StorageAdapter {
             return await this.primary.removeOutboxItem(id);
         }
     }
+
+    // Phase 3: New outbox methods for sync hardening
+    async getOutboxAll() {
+        if (this.primary.getOutboxAll) {
+            return await this.primary.getOutboxAll();
+        }
+        return [];
+    }
+
+    async getOutboxSize() {
+        if (this.primary.getOutboxSize) {
+            return await this.primary.getOutboxSize();
+        }
+        return 0;
+    }
+
+    async getOutboxFailedCount() {
+        if (this.primary.getOutboxFailedCount) {
+            return await this.primary.getOutboxFailedCount();
+        }
+        return 0;
+    }
+
+    async markOutboxInFlight(ids) {
+        if (this.primary.markOutboxInFlight) {
+            return await this.primary.markOutboxInFlight(ids);
+        }
+    }
+
+    async markOutboxFailed(ids, error) {
+        if (this.primary.markOutboxFailed) {
+            return await this.primary.markOutboxFailed(ids, error);
+        }
+    }
+
+    async markOutboxSynced(ids) {
+        if (this.primary.markOutboxSynced) {
+            return await this.primary.markOutboxSynced(ids);
+        }
+    }
+
+    async clearOutbox() {
+        if (this.primary.clearOutbox) {
+            return await this.primary.clearOutbox();
+        }
+    }
 }
 
 /**

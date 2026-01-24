@@ -457,6 +457,106 @@ function logConnectionTest(attempt, maxAttempts, success, error = null) {
 }
 
 // ========================================
+// PHASE 3: OUTBOX & NETWORK EVENT HELPERS
+// ========================================
+
+/**
+ * Log outbox enqueue
+ */
+function logOutboxEnqueue(questionId, outboxId, queueSize) {
+    logDiagnosticEvent('outbox_enqueue', {
+        question_id: questionId,
+        outbox_id: outboxId,
+        queue_size: queueSize
+    });
+}
+
+/**
+ * Log outbox flush start
+ */
+function logOutboxFlushStart(itemCount, itemIds) {
+    logDiagnosticEvent('outbox_flush_start', {
+        item_count: itemCount,
+        item_ids: itemIds,
+        _startTime: performance.now()
+    });
+}
+
+/**
+ * Log outbox item success
+ */
+function logOutboxItemSuccess(itemId, questionId) {
+    logDiagnosticEvent('outbox_item_success', {
+        item_id: itemId,
+        question_id: questionId
+    });
+}
+
+/**
+ * Log outbox item failure
+ */
+function logOutboxItemFailure(itemId, questionId, error, attempt) {
+    logDiagnosticEvent('outbox_item_failure', {
+        item_id: itemId,
+        question_id: questionId,
+        error: serializeError(error),
+        attempt: attempt
+    });
+}
+
+/**
+ * Log outbox recovery start (on page load)
+ */
+function logOutboxRecoveryStart(pendingCount) {
+    logDiagnosticEvent('outbox_recovery_start', {
+        pending_count: pendingCount,
+        _startTime: performance.now()
+    });
+}
+
+/**
+ * Log outbox recovery complete
+ */
+function logOutboxRecoveryComplete(recoveredCount, failedCount, startTime = null) {
+    const details = {
+        recovered_count: recoveredCount,
+        failed_count: failedCount
+    };
+
+    if (startTime !== null) {
+        details.elapsed_ms = Math.round(performance.now() - startTime);
+    }
+
+    logDiagnosticEvent('outbox_recovery_complete', details);
+}
+
+/**
+ * Log network online event
+ */
+function logNetworkOnline() {
+    logDiagnosticEvent('network_online', {});
+}
+
+/**
+ * Log network offline event
+ */
+function logNetworkOffline() {
+    logDiagnosticEvent('network_offline', {});
+}
+
+/**
+ * Log conflict resolution (server had newer data)
+ */
+function logSyncConflict(questionId, localTimestamp, serverTimestamp) {
+    logDiagnosticEvent('sync_conflict', {
+        question_id: questionId,
+        local_timestamp: localTimestamp,
+        server_timestamp: serverTimestamp,
+        resolution: 'server_wins'
+    });
+}
+
+// ========================================
 // EXPOSE TO WINDOW
 // ========================================
 
@@ -476,6 +576,17 @@ if (typeof window !== 'undefined') {
     window.logSyncFlushAttempt = logSyncFlushAttempt;
     window.logSyncFlushResult = logSyncFlushResult;
     window.logConnectionTest = logConnectionTest;
+
+    // Phase 3: Outbox and network event helpers
+    window.logOutboxEnqueue = logOutboxEnqueue;
+    window.logOutboxFlushStart = logOutboxFlushStart;
+    window.logOutboxItemSuccess = logOutboxItemSuccess;
+    window.logOutboxItemFailure = logOutboxItemFailure;
+    window.logOutboxRecoveryStart = logOutboxRecoveryStart;
+    window.logOutboxRecoveryComplete = logOutboxRecoveryComplete;
+    window.logNetworkOnline = logNetworkOnline;
+    window.logNetworkOffline = logNetworkOffline;
+    window.logSyncConflict = logSyncConflict;
 
     // Session ID for debugging
     window.DIAGNOSTICS_SESSION_ID = DIAGNOSTICS_SESSION_ID;
@@ -497,6 +608,16 @@ if (typeof module !== 'undefined' && module.exports) {
         logSyncFlushAttempt,
         logSyncFlushResult,
         logConnectionTest,
+        // Phase 3
+        logOutboxEnqueue,
+        logOutboxFlushStart,
+        logOutboxItemSuccess,
+        logOutboxItemFailure,
+        logOutboxRecoveryStart,
+        logOutboxRecoveryComplete,
+        logNetworkOnline,
+        logNetworkOffline,
+        logSyncConflict,
         DIAGNOSTICS_SESSION_ID
     };
 }
