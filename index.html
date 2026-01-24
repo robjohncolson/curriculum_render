@@ -4694,6 +4694,9 @@ function renderLessonSelector(unitInfo) {
                 const frqParts = question.solution?.parts || [];
                 const hasMultipleParts = frqParts.length > 0;
 
+                // Track if this is a regular FRQ (textarea in sidebar) vs special types
+                let isRegularFRQ = false;
+
                 if (hasMultipleParts && !question.requiresGraph) {
                     // Use progressive accordion for multi-part text FRQs
                     html += renderProgressiveFRQParts(question.id, frqParts);
@@ -4749,30 +4752,14 @@ function renderLessonSelector(unitInfo) {
                         </div>
                     `;
                 } else {
-                    // Regular FRQ textarea
-                    html += `
-                        <div class="answer-section">
-                            <textarea
-                                id="frq-${question.id}"
-                                class="frq-textarea"
-                                placeholder="Enter your complete response here..."
-                                ${isDisabled ? 'disabled' : ''}
-                                style="width: 100%; min-height: 200px; padding: 10px; border: 2px solid #ddd;"
-                            >${savedAnswer?.value || savedAnswer || ''}</textarea>
-                        </div>
-                        ${chartMetadata ? `
-                            <div class="chart-wizard-controls">
-                                <button
-                                    type="button"
-                                    class="chart-wizard-button"
-                                    data-chart-button="${question.id}"
-                                    onclick="openChartWizard('${question.id}')"
-                                >${chartButtonLabel}</button>
-                                ${chartMetadata.prompt ? `<div class="chart-wizard-prompt">${chartMetadata.prompt}</div>` : ''}
-                            </div>
+                    // Regular FRQ - textarea will be in sidebar
+                    isRegularFRQ = true;
+                    // Only add chart preview placeholder in main area if needed
+                    if (chartMetadata) {
+                        html += `
                             <div id="chart-preview-${question.id}" class="chart-preview-container" data-chart-preview="${question.id}"></div>
-                        ` : ''}
-                    `;
+                        `;
+                    }
                 }
             }
 
@@ -4821,27 +4808,43 @@ function renderLessonSelector(unitInfo) {
                         </div>
                 `;
             } else {
-                // For FRQs, submit button is never disabled (unlimited retries)
-                html += `
-                        <div class="answer-section">
-                            <div>
-                                <button
-                                    id="submit-${question.id}"
-                                    class="submit-button"
-                                    onclick="submitAnswer('${question.id}', '${question.type}')"
-                                >
-                                    ${isAnswered ? 'Update Answer' : 'Submit Answer'}
-                                </button>
+                // For FRQs: check if regular FRQ (submit in sidebar) or special type (submit here)
+                const frqParts = question.solution?.parts || [];
+                const hasMultipleParts = frqParts.length > 0;
+                const isRegularFRQ = question.type === 'free-response' && !hasMultipleParts && question.requiresGraph !== 'histogram';
 
-                                <span id="error-${question.id}" class="error-msg"></span>
-                                <span id="success-${question.id}" class="success-msg"></span>
+                if (!isRegularFRQ) {
+                    // Multi-part or graph FRQs keep submit button in main area
+                    html += `
+                            <div class="answer-section">
+                                <div>
+                                    <button
+                                        id="submit-${question.id}"
+                                        class="submit-button"
+                                        onclick="submitAnswer('${question.id}', '${question.type}')"
+                                    >
+                                        ${isAnswered ? 'Update Answer' : 'Submit Answer'}
+                                    </button>
+
+                                    <span id="error-${question.id}" class="error-msg"></span>
+                                    <span id="success-${question.id}" class="success-msg"></span>
+                                </div>
                             </div>
-                        </div>
+                    `;
+                }
 
+                // FRQ Solution Container (always needed)
+                html += `
                         <!-- FRQ Solution Container -->
                         <div id="frq-solution-${question.id}" class="frq-solution-container" style="display:none"></div>
                 `;
             }
+
+            // Determine if this is a regular FRQ for sidebar rendering
+            const frqPartsCheck = question.solution?.parts || [];
+            const isRegularFRQ = question.type === 'free-response' &&
+                                 frqPartsCheck.length === 0 &&
+                                 question.requiresGraph !== 'histogram';
 
             html += `
                     </div>
@@ -4849,6 +4852,41 @@ function renderLessonSelector(unitInfo) {
                     <!-- RIGHT COLUMN: Peer Reasoning Sidebar -->
                     <div class="peer-sidebar">
                         <div class="peer-sidebar-content">
+                            ${isRegularFRQ ? `
+                            <!-- Regular FRQ Answer Section (moved to sidebar) -->
+                            <div class="sidebar-answer-section">
+                                <div class="sidebar-answer-header">
+                                    <h4>✏️ Your Response</h4>
+                                </div>
+                                <textarea
+                                    id="frq-${question.id}"
+                                    class="frq-textarea sidebar-frq-textarea"
+                                    placeholder="Enter your complete response here..."
+                                >${classData.users[currentUsername]?.answers?.[question.id]?.value || classData.users[currentUsername]?.answers?.[question.id] || ''}</textarea>
+                                ${window.CHART_QUESTIONS?.[question.id] ? `
+                                <div class="chart-wizard-controls" style="margin-top: 12px;">
+                                    <button
+                                        type="button"
+                                        class="chart-wizard-button"
+                                        data-chart-button="${question.id}"
+                                        onclick="openChartWizard('${question.id}')"
+                                    >${classData?.users?.[currentUsername]?.charts?.[question.id] ? 'Edit Chart' : 'Create Chart'}</button>
+                                </div>
+                                ` : ''}
+                                <div class="sidebar-submit-wrapper">
+                                    <button
+                                        id="submit-${question.id}"
+                                        class="submit-button"
+                                        onclick="submitAnswer('${question.id}', '${question.type}')"
+                                    >
+                                        ${isAnswered ? 'Update Answer' : 'Submit Answer'}
+                                    </button>
+                                    <span id="error-${question.id}" class="error-msg"></span>
+                                    <span id="success-${question.id}" class="success-msg"></span>
+                                </div>
+                            </div>
+                            ` : ''}
+
                             <!-- AI Interaction Section (above peer responses) -->
                             <div class="ai-interaction-section" id="ai-section-${question.id}">
                                 <div class="ai-section-header">
