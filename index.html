@@ -4694,12 +4694,15 @@ function renderLessonSelector(unitInfo) {
                 const frqParts = question.solution?.parts || [];
                 const hasMultipleParts = frqParts.length > 0;
 
-                // Track if this is a regular FRQ (textarea in sidebar) vs special types
+                // Track FRQ type for sidebar rendering
+                // Progressive multi-part and regular FRQs go in sidebar
+                // Only histogram/graph FRQs stay in main area
                 let isRegularFRQ = false;
+                let isProgressiveFRQ = false;
 
                 if (hasMultipleParts && !question.requiresGraph) {
-                    // Use progressive accordion for multi-part text FRQs
-                    html += renderProgressiveFRQParts(question.id, frqParts);
+                    // Progressive accordion will be rendered in sidebar
+                    isProgressiveFRQ = true;
                 } else if (question.requiresGraph === 'histogram') {
                     // Graph-based FRQ: Show histogram input UI
                     let graphData = [];
@@ -4840,11 +4843,15 @@ function renderLessonSelector(unitInfo) {
                 `;
             }
 
-            // Determine if this is a regular FRQ for sidebar rendering
+            // Determine FRQ type for sidebar rendering
             const frqPartsCheck = question.solution?.parts || [];
-            const isRegularFRQ = question.type === 'free-response' &&
-                                 frqPartsCheck.length === 0 &&
-                                 question.requiresGraph !== 'histogram';
+            const frqHasMultipleParts = frqPartsCheck.length > 0;
+            const isRegularFRQForSidebar = question.type === 'free-response' &&
+                                           !frqHasMultipleParts &&
+                                           question.requiresGraph !== 'histogram';
+            const isProgressiveFRQForSidebar = question.type === 'free-response' &&
+                                                frqHasMultipleParts &&
+                                                question.requiresGraph !== 'histogram';
 
             html += `
                     </div>
@@ -4852,7 +4859,16 @@ function renderLessonSelector(unitInfo) {
                     <!-- RIGHT COLUMN: Peer Reasoning Sidebar -->
                     <div class="peer-sidebar">
                         <div class="peer-sidebar-content">
-                            ${isRegularFRQ ? `
+                            ${isProgressiveFRQForSidebar ? `
+                            <!-- Progressive Multi-Part FRQ (moved to sidebar) -->
+                            <div class="sidebar-answer-section sidebar-progressive-frq">
+                                <div class="sidebar-answer-header">
+                                    <h4>✏️ Your Response</h4>
+                                </div>
+                                ${renderProgressiveFRQParts(question.id, frqPartsCheck)}
+                            </div>
+                            ` : ''}
+                            ${isRegularFRQForSidebar ? `
                             <!-- Regular FRQ Answer Section (moved to sidebar) -->
                             <div class="sidebar-answer-section">
                                 <div class="sidebar-answer-header">

@@ -6014,6 +6014,20 @@ body.dark-theme .sidebar-answer-section .frq-textarea {
     border-color: var(--border-secondary, #404040);
 }
 
+/* Progressive FRQ in sidebar */
+.sidebar-progressive-frq .frq-parts-progressive {
+    margin: 0;
+}
+
+.sidebar-progressive-frq .frq-part-accordion {
+    margin-bottom: 10px;
+}
+
+.sidebar-progressive-frq .frq-part-textarea {
+    min-height: 80px;
+    font-size: 13px;
+}
+
 /* AI Interaction Section in Peer Sidebar */
 .ai-interaction-section {
     margin-bottom: 20px;
