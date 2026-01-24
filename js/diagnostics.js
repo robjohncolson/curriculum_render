@@ -88,14 +88,36 @@ function buildDiagnosticEvent(eventType, details = {}) {
 }
 
 /**
- * Get current storage backend type
+ * Get current storage backend type based on actual detection
+ * Uses cached idbAdapter/idbAvailable from checkIDBAvailable() when available
  */
 function getStorageBackendType() {
+    // Use cached detection results if available (set by checkIDBAvailable)
+    if (idbAvailable !== null) {
+        if (idbAvailable && idbAdapter) {
+            // Check if we're using DualWriteAdapter by looking at the global storage
+            if (typeof getStorage === 'function') {
+                try {
+                    const s = getStorage();
+                    if (s && s.primary) {
+                        return 'dual-write';
+                    }
+                } catch (e) {
+                    // Storage not ready yet
+                }
+            }
+            return 'indexeddb';
+        }
+        return 'localstorage';
+    }
+
+    // Fallback: detection not yet run, use config-based guess
+    // (will be corrected on subsequent events after checkIDBAvailable runs)
     if (typeof isStorageReady === 'function' && isStorageReady()) {
         if (typeof StorageConfig !== 'undefined' && StorageConfig.DUAL_WRITE_ENABLED) {
-            return 'dual-write';
+            return 'dual-write-pending'; // Indicates detection not yet confirmed
         }
-        return 'indexeddb';
+        return 'indexeddb-pending';
     }
     return 'localstorage';
 }
