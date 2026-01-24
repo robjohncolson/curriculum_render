@@ -31,6 +31,31 @@
 
 </head>
 <body>
+    <!-- Phase 2: Offline Banner -->
+    <div id="offline-banner" class="offline-banner hidden" role="alert">
+        <span>📡 Working offline - your answers are saved locally and will sync when connected</span>
+        <button class="banner-dismiss" onclick="dismissOfflineBanner()" aria-label="Dismiss">×</button>
+    </div>
+
+    <!-- Phase 2: Save Toast -->
+    <div id="save-toast" class="save-toast hidden" role="status" aria-live="polite">
+        <span class="toast-icon"></span>
+        <span class="toast-message"></span>
+        <button class="toast-retry hidden" onclick="handleSaveRetry()">Retry</button>
+    </div>
+
+    <!-- Phase 2: Load Progress Overlay -->
+    <div id="load-progress-overlay" class="load-progress-overlay hidden">
+        <div class="load-progress-content">
+            <div class="load-spinner" aria-label="Loading"></div>
+            <div class="load-progress-bar hidden" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div class="load-progress-fill"></div>
+            </div>
+            <span class="load-message">Loading...</span>
+            <button class="load-retry hidden" onclick="handleLoadRetry()">Retry</button>
+        </div>
+    </div>
+
     <canvas id="spriteCanvas"></canvas>
     <div class="container">
         <h1>🧮 AP Statistics Consensus Quiz</h1>
@@ -628,6 +653,11 @@
                 logSyncFlushAttempt(batch.length);
             }
 
+            // Phase 2 UI: Dispatch sync start event
+            window.dispatchEvent(new CustomEvent('ui:sync:start', {
+                detail: { count: batch.length }
+            }));
+
             // Send batch to Supabase
             console.log(`🔄 Flushing ${batch.length} answers from queue...`);
             batchPushAnswersToSupabase(batch)
@@ -640,6 +670,10 @@
                     if (typeof logSyncFlushResult === 'function') {
                         logSyncFlushResult(true, count, null, flushStartTime);
                     }
+                    // Phase 2 UI: Dispatch sync success event
+                    window.dispatchEvent(new CustomEvent('ui:sync:success', {
+                        detail: { count, timestamp: Date.now() }
+                    }));
                 })
                 .catch(error => {
                     console.error(`❌ Error flushing queue:`, error);
@@ -647,6 +681,10 @@
                     if (typeof logSyncFlushResult === 'function') {
                         logSyncFlushResult(false, 0, error, flushStartTime);
                     }
+                    // Phase 2 UI: Dispatch sync failure event
+                    window.dispatchEvent(new CustomEvent('ui:sync:failure', {
+                        detail: { error: error.message || String(error) }
+                    }));
                     // Re-queue failed items
                     answerSyncQueue.push(...batch);
                 });
@@ -1114,6 +1152,373 @@
             // Legacy fallback - just update indicator
             updateSyncStatusIndicator();
         }
+
+        // ========================================
+        // PHASE 2: VERIFICATION UI
+        // ========================================
+
+        // UI State for save/load/sync feedback
+        window.uiState = {
+            save: {
+                status: 'idle', // 'idle' | 'saving' | 'saved_local' | 'saved_cloud' | 'save_failed'
+                lastPayload: null, // { username, questionId, value, timestamp }
+                lastSavedAt: null,
+                retryCount: 0
+            },
+            load: {
+                status: 'idle', // 'idle' | 'loading' | 'restoring' | 'complete' | 'failed'
+                showProgress: false,
+                progress: { current: 0, total: 0 },
+                retryCount: 0
+            },
+            sync: {
+                status: 'idle', // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline'
+                lastAnswerSyncedAt: null,
+                pendingCount: 0,
+                retryCount: 0
+            }
+        };
+
+        // Toast debouncing - only debounce visual display, not events
+        let toastDebounceTimer = null;
+        let toastHideTimer = null;
+        let lastSaveEvent = { questionId: null, timestamp: 0 };
+
+        // Check if we should emit a save event (debounce rapid saves)
+        function shouldEmitSaveEvent(questionId) {
+            const now = Date.now();
+            if (lastSaveEvent.questionId === questionId &&
+                now - lastSaveEvent.timestamp < 500) {
+                return false;
+            }
+            lastSaveEvent = { questionId, timestamp: now };
+            return true;
+        }
+
+        // Show save toast with debouncing for rapid saves
+        function showSaveToast(status, message, showRetry = false) {
+            clearTimeout(toastDebounceTimer);
+            clearTimeout(toastHideTimer);
+
+            // Errors show immediately (not debounced)
+            if (status === 'error') {
+                renderSaveToast(status, message, showRetry);
+                return;
+            }
+
+            // Success toasts are debounced
+            toastDebounceTimer = setTimeout(() => {
+                renderSaveToast(status, message, showRetry);
+
+                // Auto-hide after 2 seconds for non-error states
+                if (status !== 'error') {
+                    toastHideTimer = setTimeout(() => {
+                        hideSaveToast();
+                    }, 2000);
+                }
+            }, 100);
+        }
+
+        // Render the save toast
+        function renderSaveToast(status, message, showRetry = false) {
+            const toast = document.getElementById('save-toast');
+            if (!toast) return;
+
+            const icon = toast.querySelector('.toast-icon');
+            const msg = toast.querySelector('.toast-message');
+            const retryBtn = toast.querySelector('.toast-retry');
+
+            // Set icon based on status
+            const icons = {
+                saving: '⏳',
+                success: '✓',
+                error: '⚠️',
+                synced: '☁️✓'
+            };
+            icon.textContent = icons[status] || '•';
+            msg.textContent = message;
+
+            // Show/hide retry button
+            if (showRetry) {
+                retryBtn.classList.remove('hidden');
+            } else {
+                retryBtn.classList.add('hidden');
+            }
+
+            // Update toast classes
+            toast.classList.remove('hidden', 'saving', 'success', 'error');
+            if (status === 'saving') {
+                toast.classList.add('saving');
+            } else if (status === 'success' || status === 'synced') {
+                toast.classList.add('success');
+            } else if (status === 'error') {
+                toast.classList.add('error');
+            }
+        }
+
+        // Hide save toast
+        function hideSaveToast() {
+            const toast = document.getElementById('save-toast');
+            if (toast) {
+                toast.classList.add('hidden');
+            }
+        }
+
+        // Show/hide offline banner
+        function showOfflineBanner() {
+            const banner = document.getElementById('offline-banner');
+            if (banner) banner.classList.remove('hidden');
+        }
+
+        function hideOfflineBanner() {
+            const banner = document.getElementById('offline-banner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        function dismissOfflineBanner() {
+            hideOfflineBanner();
+            // Store dismissal so it doesn't reappear this session
+            window._offlineBannerDismissed = true;
+        }
+
+        // Show load progress overlay
+        function showLoadProgress(message = 'Loading...', showProgressBar = false, current = 0, total = 0) {
+            const overlay = document.getElementById('load-progress-overlay');
+            if (!overlay) return;
+
+            const spinner = overlay.querySelector('.load-spinner');
+            const progressBar = overlay.querySelector('.load-progress-bar');
+            const progressFill = overlay.querySelector('.load-progress-fill');
+            const msgEl = overlay.querySelector('.load-message');
+            const retryBtn = overlay.querySelector('.load-retry');
+
+            msgEl.textContent = message;
+            retryBtn.classList.add('hidden');
+
+            if (showProgressBar && total > 0) {
+                spinner.style.display = 'none';
+                progressBar.classList.remove('hidden');
+                const percent = Math.round((current / total) * 100);
+                progressFill.style.width = `${percent}%`;
+                progressBar.setAttribute('aria-valuenow', percent);
+            } else {
+                spinner.style.display = 'block';
+                progressBar.classList.add('hidden');
+            }
+
+            overlay.classList.remove('hidden');
+        }
+
+        // Hide load progress overlay
+        function hideLoadProgress() {
+            const overlay = document.getElementById('load-progress-overlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        // Show load error with retry
+        function showLoadError(message = 'Failed to load data') {
+            const overlay = document.getElementById('load-progress-overlay');
+            if (!overlay) return;
+
+            const spinner = overlay.querySelector('.load-spinner');
+            const progressBar = overlay.querySelector('.load-progress-bar');
+            const msgEl = overlay.querySelector('.load-message');
+            const retryBtn = overlay.querySelector('.load-retry');
+
+            spinner.style.display = 'none';
+            progressBar.classList.add('hidden');
+            msgEl.textContent = message;
+            retryBtn.classList.remove('hidden');
+
+            overlay.classList.remove('hidden');
+        }
+
+        // Handle save retry
+        async function handleSaveRetry() {
+            const payload = window.uiState.save.lastPayload;
+            if (!payload) {
+                hideSaveToast();
+                return;
+            }
+
+            window.uiState.save.retryCount++;
+            showSaveToast('saving', 'Retrying save...');
+
+            try {
+                if (window.uiState.save.retryCount <= 2) {
+                    // Retry the save
+                    await saveAnswer(
+                        payload.username,
+                        payload.questionId,
+                        payload.value,
+                        payload.timestamp
+                    );
+                } else {
+                    // After 3 failures, trigger full sync
+                    console.log('Multiple save failures, triggering full sync...');
+                    await initClassData();
+                    await saveAnswer(
+                        payload.username,
+                        payload.questionId,
+                        payload.value,
+                        payload.timestamp
+                    );
+                }
+                window.uiState.save.retryCount = 0;
+                showSaveToast('success', 'Saved locally');
+            } catch (e) {
+                console.error('Save retry failed:', e);
+                showSaveToast('error', 'Save failed - Tap to retry', true);
+            }
+        }
+
+        // Handle load retry
+        async function handleLoadRetry() {
+            window.uiState.load.retryCount++;
+            showLoadProgress('Retrying...');
+
+            try {
+                if (window.uiState.load.retryCount <= 2) {
+                    await initClassData();
+                } else {
+                    // After 3 failures, try cloud restore if available
+                    console.log('Multiple load failures, attempting cloud restore...');
+                    if (turboModeActive && typeof checkAndOfferCloudRestore === 'function') {
+                        await checkAndOfferCloudRestore(currentUsername);
+                    } else {
+                        await initClassData();
+                    }
+                }
+                window.uiState.load.retryCount = 0;
+                hideLoadProgress();
+            } catch (e) {
+                console.error('Load retry failed:', e);
+                showLoadError('Failed to load data - Please refresh the page');
+            }
+        }
+
+        // Handle sync retry
+        async function handleSyncRetry() {
+            window.uiState.sync.retryCount++;
+
+            try {
+                if (window.uiState.sync.retryCount <= 2) {
+                    flushAnswerQueue();
+                } else {
+                    // After 3 failures, test connection and retry
+                    console.log('Multiple sync failures, testing connection...');
+                    await testSupabaseConnection();
+                    if (turboModeActive) {
+                        flushAnswerQueue();
+                    }
+                }
+            } catch (e) {
+                console.error('Sync retry failed:', e);
+            }
+        }
+
+        // Event Handlers for UI updates
+        function handleUISaveStart(e) {
+            const { questionId, payload } = e.detail;
+            window.uiState.save.status = 'saving';
+            window.uiState.save.lastPayload = payload;
+
+            if (shouldEmitSaveEvent(questionId)) {
+                showSaveToast('saving', 'Saving...');
+            }
+        }
+
+        function handleUISaveSuccess(e) {
+            const { questionId } = e.detail;
+            window.uiState.save.status = 'saved_local';
+            window.uiState.save.lastSavedAt = Date.now();
+            window.uiState.save.retryCount = 0;
+
+            showSaveToast('success', 'Saved locally');
+        }
+
+        function handleUISaveFailure(e) {
+            const { questionId, error } = e.detail;
+            window.uiState.save.status = 'save_failed';
+
+            // Always show errors immediately
+            showSaveToast('error', 'Save failed - Tap to retry', true);
+        }
+
+        function handleUILoadStart(e) {
+            window.uiState.load.status = 'loading';
+            showLoadProgress('Loading your data...');
+        }
+
+        function handleUILoadComplete(e) {
+            const { count } = e.detail;
+            window.uiState.load.status = 'complete';
+            window.uiState.load.retryCount = 0;
+            hideLoadProgress();
+        }
+
+        function handleUILoadFailure(e) {
+            window.uiState.load.status = 'failed';
+            showLoadError('Failed to load data');
+        }
+
+        function handleUIRestoreProgress(e) {
+            const { current, total } = e.detail;
+            window.uiState.load.status = 'restoring';
+            window.uiState.load.showProgress = true;
+            window.uiState.load.progress = { current, total };
+            showLoadProgress(`Restoring ${current} of ${total} answers...`, true, current, total);
+        }
+
+        function handleUISyncStart(e) {
+            const { count } = e.detail;
+            window.uiState.sync.status = 'syncing';
+            window.uiState.sync.pendingCount = count;
+        }
+
+        function handleUISyncSuccess(e) {
+            const { count, timestamp } = e.detail;
+            window.uiState.sync.status = 'synced';
+            window.uiState.sync.lastAnswerSyncedAt = timestamp || Date.now();
+            window.uiState.sync.retryCount = 0;
+
+            showSaveToast('synced', 'Synced to cloud');
+        }
+
+        function handleUISyncFailure(e) {
+            window.uiState.sync.status = 'sync_failed';
+            // Don't show toast for sync failures (too noisy), just update status indicator
+            updateSyncStatusIndicator();
+        }
+
+        function handleUIConnectivityChange(e) {
+            const { online } = e.detail;
+            window.uiState.sync.status = online ? 'idle' : 'offline';
+
+            if (!online && !window._offlineBannerDismissed) {
+                showOfflineBanner();
+            } else if (online) {
+                hideOfflineBanner();
+            }
+        }
+
+        // Register event listeners for UI updates
+        window.addEventListener('ui:save:start', handleUISaveStart);
+        window.addEventListener('ui:save:success', handleUISaveSuccess);
+        window.addEventListener('ui:save:failure', handleUISaveFailure);
+        window.addEventListener('ui:load:start', handleUILoadStart);
+        window.addEventListener('ui:load:complete', handleUILoadComplete);
+        window.addEventListener('ui:load:failure', handleUILoadFailure);
+        window.addEventListener('ui:restore:progress', handleUIRestoreProgress);
+        window.addEventListener('ui:sync:start', handleUISyncStart);
+        window.addEventListener('ui:sync:success', handleUISyncSuccess);
+        window.addEventListener('ui:sync:failure', handleUISyncFailure);
+        window.addEventListener('ui:connectivity:change', handleUIConnectivityChange);
+
+        // Also listen for turboModeChanged events
+        window.addEventListener('turboModeChanged', (e) => {
+            handleUIConnectivityChange({ detail: { online: e.detail.enabled } });
+        });
 
         // ========================================
         // SYNC PROGRESS SCREEN (Blocking with Skip)

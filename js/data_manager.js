@@ -45,6 +45,14 @@ async function initClassData() {
         logAnswerLoadAttempt(currentUsername, attemptSource);
     }
 
+    // Phase 2 UI: Dispatch load start event
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('ui:load:start', {
+            detail: { username: currentUsername }
+        }));
+    }
+
+    let loadFailed = false;
     try {
         // Try to rebuild classData from IDB
         if (typeof rebuildClassDataView === 'function') {
@@ -66,6 +74,7 @@ async function initClassData() {
             console.warn('localStorage also unavailable:', lsError);
             classData = {users: {}};
             loadSource = 'memory-empty';
+            loadFailed = true;
         }
     }
 
@@ -75,6 +84,19 @@ async function initClassData() {
         : 0;
     if (typeof logAnswerLoadResult === 'function') {
         logAnswerLoadResult(currentUsername, loadSource, answerCount, loadStartTime);
+    }
+
+    // Phase 2 UI: Dispatch load complete or failure event
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+        if (loadFailed) {
+            window.dispatchEvent(new CustomEvent('ui:load:failure', {
+                detail: { username: currentUsername, source: loadSource }
+            }));
+        } else {
+            window.dispatchEvent(new CustomEvent('ui:load:complete', {
+                detail: { username: currentUsername, count: answerCount, source: loadSource }
+            }));
+        }
     }
 
     if (!classData.users) {

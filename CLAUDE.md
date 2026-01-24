@@ -102,6 +102,49 @@ const data = await exportDiagnostics();
 console.log(JSON.stringify(data, null, 2));
 ```
 
+## Verification UI (Phase 2)
+
+Visual feedback system for save/load/sync operations to reduce student anxiety about "disappeared work."
+
+**Components:**
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| Save Toast | Confirms saves (2s auto-hide) | Fixed bottom-right |
+| Offline Banner | Alerts when working offline | Fixed top |
+| Load Progress | Spinner/progress bar during load | Modal overlay |
+
+**UI State Object:** `window.uiState`
+```javascript
+uiState.save.status    // 'idle' | 'saving' | 'saved_local' | 'saved_cloud' | 'save_failed'
+uiState.save.lastPayload  // Full payload for retry support
+uiState.load.status    // 'idle' | 'loading' | 'restoring' | 'complete' | 'failed'
+uiState.sync.status    // 'idle' | 'syncing' | 'synced' | 'sync_failed' | 'offline'
+uiState.sync.lastAnswerSyncedAt  // Timestamp of last successful sync
+```
+
+**UI Events (CustomEvent):**
+| Event | Dispatched From | Payload |
+|-------|-----------------|---------|
+| `ui:save:start` | `saveAnswer()` | `{ questionId, payload }` |
+| `ui:save:success` | `saveAnswer()` | `{ questionId }` |
+| `ui:save:failure` | `saveAnswer()` | `{ questionId, error }` |
+| `ui:load:start` | `initClassData()` | `{ username }` |
+| `ui:load:complete` | `initClassData()` | `{ username, count, source }` |
+| `ui:sync:start` | `flushAnswerQueue()` | `{ count }` |
+| `ui:sync:success` | `flushAnswerQueue()` | `{ count, timestamp }` |
+| `ui:sync:failure` | `flushAnswerQueue()` | `{ error }` |
+
+**Retry Logic:**
+- Retries failed operation twice (1 second delay)
+- After 3 failures, triggers full sync (initClassData + cloud restore if available)
+- Manual retry via toast button for persistent failures
+
+**Key Functions:**
+- `showSaveToast(status, message, showRetry)` - Display save confirmation
+- `showLoadProgress(message, showProgressBar, current, total)` - Show load overlay
+- `handleSaveRetry()` / `handleLoadRetry()` / `handleSyncRetry()` - Retry handlers
+
 ## Key Global Variables
 
 - `currentUsername`: Active user's Fruit_Animal identifier

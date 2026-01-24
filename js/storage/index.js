@@ -328,6 +328,14 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
     // Diagnostic: log save attempt (target determined after storage resolves)
     const saveStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
+    // Phase 2 UI: Dispatch save start event with full payload for retry support
+    const payload = { username, questionId, value, timestamp };
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('ui:save:start', {
+            detail: { questionId, payload }
+        }));
+    }
+
     try {
         const s = await waitForStorage();
 
@@ -361,6 +369,13 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
             logAnswerSaveSuccess(questionId, storageTarget, saveStartTime);
         }
 
+        // Phase 2 UI: Dispatch save success event
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('ui:save:success', {
+                detail: { questionId }
+            }));
+        }
+
         // Also enqueue for sync if outbox is available
         if (s.enqueueOutbox) {
             await s.enqueueOutbox('answer_submit', {
@@ -377,6 +392,14 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
         if (typeof logAnswerSaveFailure === 'function') {
             logAnswerSaveFailure(questionId, 'unknown', error);
         }
+
+        // Phase 2 UI: Dispatch save failure event
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('ui:save:failure', {
+                detail: { questionId, error: error.message || String(error) }
+            }));
+        }
+
         throw error;
     }
 }
