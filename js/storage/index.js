@@ -325,14 +325,25 @@ function _groupBy(arr, field) {
  * This is a convenience function that handles the common answer save pattern
  */
 async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
-    // Diagnostic: log save attempt
+    // Diagnostic: log save attempt (target determined after storage resolves)
     const saveStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (typeof logAnswerSaveAttempt === 'function') {
-        logAnswerSaveAttempt(questionId, 'idb');
-    }
 
     try {
         const s = await waitForStorage();
+
+        // Determine actual storage target for diagnostic logging
+        // Check for IDB-specific method to distinguish from localStorage
+        let storageTarget = 'localstorage';
+        if (s.primary && typeof s.primary.enqueueOutbox === 'function') {
+            storageTarget = 'dual-write'; // DualWriteAdapter with IDB primary
+        } else if (typeof s.enqueueOutbox === 'function') {
+            storageTarget = 'idb'; // Direct IndexedDBAdapter
+        }
+
+        // Diagnostic: log save attempt with actual target
+        if (typeof logAnswerSaveAttempt === 'function') {
+            logAnswerSaveAttempt(questionId, storageTarget);
+        }
 
         const record = {
             username,
@@ -347,7 +358,7 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
 
         // Diagnostic: log save success
         if (typeof logAnswerSaveSuccess === 'function') {
-            logAnswerSaveSuccess(questionId, 'idb', saveStartTime);
+            logAnswerSaveSuccess(questionId, storageTarget, saveStartTime);
         }
 
         // Also enqueue for sync if outbox is available
@@ -364,7 +375,7 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
     } catch (error) {
         // Diagnostic: log save failure
         if (typeof logAnswerSaveFailure === 'function') {
-            logAnswerSaveFailure(questionId, 'idb', error);
+            logAnswerSaveFailure(questionId, 'unknown', error);
         }
         throw error;
     }

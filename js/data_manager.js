@@ -18,18 +18,38 @@
  * Creates user entry if it doesn't exist for current username
  */
 async function initClassData() {
-    // Diagnostic: log load attempt
-    const loadStartTime = performance.now();
+    // Diagnostic: log load attempt (source determined during load)
+    const loadStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
     let loadSource = 'unknown';
+
+    // Determine actual storage backend for accurate logging
+    let attemptSource = 'unknown';
+    if (typeof waitForStorage === 'function') {
+        try {
+            const s = await waitForStorage();
+            if (s && s.primary && typeof s.primary.enqueueOutbox === 'function') {
+                attemptSource = 'dual-write';
+            } else if (s && typeof s.enqueueOutbox === 'function') {
+                attemptSource = 'idb';
+            } else {
+                attemptSource = 'localstorage';
+            }
+        } catch (e) {
+            attemptSource = 'localstorage';
+        }
+    } else {
+        attemptSource = 'localstorage';
+    }
+
     if (typeof logAnswerLoadAttempt === 'function') {
-        logAnswerLoadAttempt(currentUsername, 'idb');
+        logAnswerLoadAttempt(currentUsername, attemptSource);
     }
 
     try {
         // Try to rebuild classData from IDB
         if (typeof rebuildClassDataView === 'function') {
             classData = await rebuildClassDataView(currentUsername);
-            loadSource = 'idb';
+            loadSource = attemptSource; // Use the determined source
         } else {
             // Fallback to localStorage if storage module not loaded
             let classDataStr = localStorage.getItem('classData');

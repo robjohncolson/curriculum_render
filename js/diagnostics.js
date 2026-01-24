@@ -40,6 +40,7 @@ const DIAGNOSTICS_SESSION_ID = crypto.randomUUID ? crypto.randomUUID() :
 let memoryBuffer = [];
 let insertCount = 0;
 let idbAvailable = null;
+let idbAdapter = null; // Direct reference to IDB adapter (bypasses DualWriteAdapter)
 
 /**
  * Safe error serialization - handles strings, Error objects, and other types
@@ -100,7 +101,8 @@ function getStorageBackendType() {
 }
 
 /**
- * Check if IDB diagnostics store is available
+ * Check if IDB diagnostics store is available and cache direct IDB adapter reference
+ * This bypasses the DualWriteAdapter to prevent localStorage pollution
  */
 async function checkIDBAvailable() {
     if (idbAvailable !== null) return idbAvailable;
@@ -112,8 +114,26 @@ async function checkIDBAvailable() {
         }
 
         const storage = await waitForStorage();
-        // Check if storage has IDB-specific methods
-        idbAvailable = storage && typeof storage.get === 'function';
+
+        // Detect actual IDB availability by checking for IDB-specific methods
+        // that don't exist on LocalStorageAdapter:
+        // - enqueueOutbox: only on IndexedDBAdapter
+        // - requestPersistence: only on IndexedDBAdapter
+        // - primary: indicates DualWriteAdapter wrapping IDB
+
+        if (storage && storage.primary && typeof storage.primary.enqueueOutbox === 'function') {
+            // DualWriteAdapter wrapping IDB - use the primary (IDB) adapter directly
+            idbAdapter = storage.primary;
+            idbAvailable = true;
+        } else if (storage && typeof storage.enqueueOutbox === 'function') {
+            // Direct IndexedDBAdapter
+            idbAdapter = storage;
+            idbAvailable = true;
+        } else {
+            // localStorage fallback or unknown - use memory buffer
+            idbAvailable = false;
+        }
+
         return idbAvailable;
     } catch (e) {
         idbAvailable = false;
@@ -163,15 +183,19 @@ async function logDiagnosticEvent(eventType, details = {}) {
 }
 
 /**
- * Write diagnostic event to IDB
+ * Write diagnostic event to IDB directly (bypasses DualWriteAdapter)
  */
 async function writeDiagnosticToIDB(event) {
     try {
-        const storage = await waitForStorage();
+        if (!idbAdapter) {
+            writeToMemoryBuffer(event);
+            return;
+        }
 
-        // Use the diagnostics store
-        // Key is auto-increment, so we just need to set the value
-        await storage.set('diagnostics', null, event);
+        // Write directly to IDB adapter, bypassing DualWriteAdapter
+        // This prevents diagnostics from polluting localStorage
+        // Key is auto-increment, so we pass null
+        await idbAdapter.set('diagnostics', null, event);
 
     } catch (e) {
         // Fall back to memory if IDB write fails
@@ -197,10 +221,10 @@ function writeToMemoryBuffer(event) {
 async function pruneDiagnosticsIfNeeded() {
     try {
         const idbOk = await checkIDBAvailable();
-        if (!idbOk) return;
+        if (!idbOk || !idbAdapter) return;
 
-        const storage = await waitForStorage();
-        const allEvents = await storage.getAll('diagnostics');
+        // Use idbAdapter directly to avoid dual-write issues
+        const allEvents = await idbAdapter.getAll('diagnostics');
 
         if (allEvents.length > DiagnosticsConfig.MAX_EVENTS) {
             // Sort by timestamp (oldest first)
@@ -211,7 +235,7 @@ async function pruneDiagnosticsIfNeeded() {
 
             for (const event of toDelete) {
                 if (event.id) {
-                    await storage.remove('diagnostics', event.id);
+                    await idbAdapter.remove('diagnostics', event.id);
                 }
             }
 
@@ -237,9 +261,9 @@ async function getDiagnosticEvents(options = {}) {
     try {
         const idbOk = await checkIDBAvailable();
 
-        if (idbOk) {
-            const storage = await waitForStorage();
-            events = await storage.getAll('diagnostics');
+        if (idbOk && idbAdapter) {
+            // Use idbAdapter directly
+            events = await idbAdapter.getAll('diagnostics');
         }
     } catch (e) {
         // Fallback to memory buffer
@@ -272,9 +296,9 @@ async function clearDiagnostics() {
 
     try {
         const idbOk = await checkIDBAvailable();
-        if (idbOk) {
-            const storage = await waitForStorage();
-            await storage.clear('diagnostics');
+        if (idbOk && idbAdapter) {
+            // Use idbAdapter directly
+            await idbAdapter.clear('diagnostics');
         }
     } catch (e) {
         // Ignore clear errors
