@@ -7260,13 +7260,18 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // For correct answers, show positive feedback but also offer AI understanding check
             if (isCorrect) {
-                // Store result (correct = E)
+                // Check if reasoning was provided
+                const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+                const hasReasoning = reason && reason.trim().length > 0;
+
+                // Store result (correct = E for auto-grade, but reasoning not verified)
                 window.gradingResults[questionId] = {
                     score: 'E',
                     feedback: 'Correct answer selected.',
                     answer: answer,
                     questionType: 'multiple-choice',
-                    _autoGraded: true
+                    _autoGraded: true,
+                    _reasoningVerified: false
                 };
 
                 const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
@@ -7274,12 +7279,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     feedbackContainer.innerHTML = `
                         <div class="grading-feedback excellent">
                             <div class="grading-header">
-                                <span class="grading-score">✅ Correct!</span>
+                                <span class="grading-score">✅ MC Correct</span>
                                 <span class="ai-badge">📋 Auto-graded</span>
                             </div>
                             <div class="grading-feedback-text">
-                                Great job! You selected the correct answer.
-                                <br><small style="color: #666;">Want to verify your understanding? Request an AI review of your reasoning.</small>
+                                ${hasReasoning
+                                    ? `Your multiple choice answer is correct, but <strong>your written reasoning has not been verified</strong>. Request AI review to confirm you understand the concept.`
+                                    : `Your multiple choice answer is correct. Add reasoning and request AI review to verify your understanding.`
+                                }
                             </div>
                         </div>
                     `;

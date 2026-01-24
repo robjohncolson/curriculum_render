@@ -2730,24 +2730,18 @@ details.sync-section summary:hover {
     border: 2px solid #95a5a6;
     position: sticky;
     top: 20px;
-    /* Remove height constraints - let content drive height */
-    height: auto;
-    min-height: 300px;
-    max-height: calc(100vh - 40px); /* Only for scroll threshold */
-    overflow: visible; /* Let content expand naturally */
+    max-height: calc(100vh - 40px);
+    overflow: hidden; /* Contain content within sidebar */
 }
 
 .peer-sidebar-content {
     padding: 20px;
-    /* Let content determine its own height */
-    height: auto;
-    min-height: fit-content;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    /* Only scroll when content exceeds viewport */
+    /* Enable scrolling when content exceeds viewport */
     overflow-y: auto;
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 80px);
 }
 
 /* Sidebar sections */
