@@ -556,7 +556,8 @@
         // Expose for use in auth.js
         window.fetchStudentList = fetchStudentList;
 
-        // Push answer to Supabase
+        // Push answer to Supabase (single-answer path)
+        // Added timestamp conflict detection to match batch sync behavior
         window.pushAnswerToSupabase = async function(username, questionId, answerValue, timestamp) {
             if (!turboModeActive || !supabaseClient) return false;
 
@@ -565,6 +566,23 @@
                 const normalizedTimestamp = typeof timestamp === 'string'
                     ? new Date(timestamp).getTime()
                     : timestamp;
+
+                // Check server timestamp before upserting to prevent overwriting newer data
+                const { data: serverData, error: fetchError } = await supabaseClient
+                    .from('answers')
+                    .select('timestamp')
+                    .eq('username', username)
+                    .eq('question_id', questionId)
+                    .single();
+
+                if (!fetchError && serverData && serverData.timestamp > normalizedTimestamp) {
+                    // Server has newer data - don't overwrite
+                    console.log(`⚠️ Server has newer data for ${questionId}, skipping sync`);
+                    if (typeof logSyncConflict === 'function') {
+                        logSyncConflict(questionId, normalizedTimestamp, serverData.timestamp);
+                    }
+                    return true; // Return true so item is considered "synced" (server wins)
+                }
 
                 const payload = {
                     username,
