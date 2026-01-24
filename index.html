@@ -4461,6 +4461,11 @@ function renderLessonSelector(unitInfo) {
 
             // Call renderLessonSelector with the unitInfo
             renderLessonSelector(unitInfo);
+
+            // Update URL (removes lesson param, keeps unit)
+            if (typeof updateURLForCurrentView === 'function') {
+                updateURLForCurrentView();
+            }
         }
 
         // Render quiz
@@ -8333,6 +8338,100 @@ Respond with JSON:
 
             // promptUsername is now async
             await promptUsername();
+
+            // After login, check URL parameters for direct navigation
+            handleURLNavigation();
+        }
+
+        // URL Deep Linking Support
+        // Supports: ?unit=4&lesson=2 or ?u=4&l=2 or ?q=U4-L2-Q01
+        function handleURLNavigation() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // Check for question ID first (most specific)
+            const questionId = urlParams.get('q') || urlParams.get('question');
+            if (questionId) {
+                // Parse question ID format: U4-L2-Q01
+                const match = questionId.match(/U(\d+)-L(\d+)-Q\d+/i);
+                if (match) {
+                    const unitNum = parseInt(match[1]);
+                    const lessonNum = parseInt(match[2]);
+                    console.log(`🔗 URL navigation: question ${questionId} → Unit ${unitNum}, Lesson ${lessonNum}`);
+                    navigateToLesson(unitNum, lessonNum, questionId);
+                    return;
+                }
+            }
+
+            // Check for unit and lesson parameters
+            const unitParam = urlParams.get('unit') || urlParams.get('u');
+            const lessonParam = urlParams.get('lesson') || urlParams.get('l');
+
+            if (unitParam) {
+                const unitNum = parseInt(unitParam);
+                if (unitNum >= 1 && unitNum <= 9) {
+                    if (lessonParam) {
+                        const lessonNum = lessonParam === 'PC' ? 'PC' : parseInt(lessonParam);
+                        console.log(`🔗 URL navigation: Unit ${unitNum}, Lesson ${lessonNum}`);
+                        navigateToLesson(unitNum, lessonNum);
+                    } else {
+                        console.log(`🔗 URL navigation: Unit ${unitNum}`);
+                        selectUnit(unitNum);
+                    }
+                } else {
+                    console.warn(`🔗 Invalid unit number in URL: ${unitParam}`);
+                }
+            }
+        }
+
+        // Navigate directly to a specific unit and lesson
+        async function navigateToLesson(unitNum, lessonNum, scrollToQuestionId = null) {
+            // First select the unit
+            if (typeof selectUnit === 'function' && allCurriculumData[unitNum]) {
+                selectUnit(unitNum);
+
+                // Small delay to let unit selection complete
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Then load the lesson
+                if (typeof loadLessonWithResources === 'function') {
+                    await loadLessonWithResources(lessonNum);
+
+                    // If a specific question was requested, scroll to it
+                    if (scrollToQuestionId) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        const questionElement = document.getElementById(`question-${scrollToQuestionId}`);
+                        if (questionElement) {
+                            questionElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            // Highlight the question briefly
+                            questionElement.style.transition = 'box-shadow 0.3s';
+                            questionElement.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.6)';
+                            setTimeout(() => {
+                                questionElement.style.boxShadow = '';
+                            }, 2000);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update URL without reloading (for sharing)
+        window.updateURLForCurrentView = function() {
+            if (currentUnit && currentLesson) {
+                const url = new URL(window.location);
+                url.searchParams.set('u', currentUnit);
+                url.searchParams.set('l', currentLesson);
+                window.history.replaceState({}, '', url);
+            } else if (currentUnit) {
+                const url = new URL(window.location);
+                url.searchParams.set('u', currentUnit);
+                url.searchParams.delete('l');
+                window.history.replaceState({}, '', url);
+            } else {
+                const url = new URL(window.location);
+                url.searchParams.delete('u');
+                url.searchParams.delete('l');
+                window.history.replaceState({}, '', url);
+            }
         }
 
         // Lazy loading charts removed - using immediate two-phase rendering instead
@@ -8576,11 +8675,17 @@ Respond with JSON:
         // Function to select a unit
         window.selectUnit = function(unitNumber) {
             currentUnit = unitNumber;
+            currentLesson = null;
             const unitData = allCurriculumData[unitNumber];
             allUnitQuestions = unitData.questions;
 
             // Render lesson selector for this unit
             renderLessonSelector(unitData.unitInfo);
+
+            // Update URL for sharing/bookmarking
+            if (typeof updateURLForCurrentView === 'function') {
+                updateURLForCurrentView();
+            }
         }
 
         // Modify backToUnits function to go back to unit menu instead
@@ -8598,6 +8703,11 @@ Respond with JSON:
 
             // Show unit menu instead of file upload
             renderUnitMenu();
+
+            // Clear URL parameters
+            if (typeof updateURLForCurrentView === 'function') {
+                updateURLForCurrentView();
+            }
         }
 
 
@@ -8875,6 +8985,11 @@ Respond with JSON:
                     MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
                 }
             }, 100);
+
+            // Update URL for sharing/bookmarking
+            if (typeof updateURLForCurrentView === 'function') {
+                updateURLForCurrentView();
+            }
         }
 
         // Add styles for the resources section
