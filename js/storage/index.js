@@ -178,6 +178,13 @@ class DualWriteAdapter extends StorageAdapter {
             return await this.primary.clearOutbox();
         }
     }
+
+    async resetStaleInFlightItems(staleThresholdMs) {
+        if (this.primary.resetStaleInFlightItems) {
+            return await this.primary.resetStaleInFlightItems(staleThresholdMs);
+        }
+        return 0;
+    }
 }
 
 /**
@@ -424,12 +431,18 @@ async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
 
         // Also enqueue for sync if outbox is available
         if (s.enqueueOutbox) {
-            await s.enqueueOutbox('answer_submit', {
+            const outboxId = await s.enqueueOutbox('answer_submit', {
                 username,
                 questionId,
                 value,
                 timestamp
             });
+
+            // Fix 4: Log outbox enqueue diagnostic event
+            if (typeof logOutboxEnqueue === 'function') {
+                const queueSize = await s.getOutboxSize();
+                logOutboxEnqueue(questionId, outboxId, queueSize);
+            }
         }
 
         return record;

@@ -531,12 +531,17 @@ class IndexedDBAdapter extends StorageAdapter {
 
     /**
      * Calculate backoff delay for an item based on attempts
-     * @param {number} attempts - Number of previous attempts
+     * Note: attempts is incremented when marking in_flight, so after first failure attempts=1
+     * @param {number} attempts - Number of previous attempts (1 = first failure)
      * @returns {number} Backoff delay in milliseconds
      */
     _calculateBackoff(attempts) {
-        if (attempts <= 1) return 0; // First attempt is immediate
+        // attempts=0 means item never tried yet (status='pending', skips backoff check)
+        // attempts=1 means first failure, should wait 5s before retry
+        // attempts=2 means second failure, wait 15s, etc.
+        if (attempts < 1) return 0;
         const { MAX_BACKOFF_MS, BASE_BACKOFF_MS, BACKOFF_MULTIPLIER } = IndexedDBAdapter.OUTBOX_CONFIG;
+        // Formula: 5s * 3^(attempts-1) → 5s, 15s, 45s, 135s... capped at 5min
         return Math.min(MAX_BACKOFF_MS, Math.pow(BACKOFF_MULTIPLIER, attempts - 1) * BASE_BACKOFF_MS);
     }
 
@@ -654,6 +659,38 @@ class IndexedDBAdapter extends StorageAdapter {
     async getOutboxSize() {
         const items = await this.getAll('outbox');
         return items.length;
+    }
+
+    /**
+     * Reset stale in_flight items to failed status
+     * Called on startup to recover items that were mid-sync when tab crashed
+     * @param {number} staleThresholdMs - Items older than this are considered stale (default 5 min)
+     * @returns {Promise<number>} Number of items reset
+     */
+    async resetStaleInFlightItems(staleThresholdMs = 5 * 60 * 1000) {
+        const allItems = await this.getAll('outbox');
+        const now = Date.now();
+        let resetCount = 0;
+
+        for (const item of allItems) {
+            if (item.status === 'in_flight') {
+                // Check if item is stale (lastAttemptAt is old or missing)
+                const lastAttempt = item.lastAttemptAt || item.createdAt || 0;
+                if (now - lastAttempt > staleThresholdMs) {
+                    // Reset to failed so it will be retried with backoff
+                    item.status = 'failed';
+                    item.lastError = 'Reset from stale in_flight state on startup';
+                    await this.set('outbox', item.id, item);
+                    resetCount++;
+                }
+            }
+        }
+
+        if (resetCount > 0) {
+            console.log(`🔄 Reset ${resetCount} stale in_flight items to failed`);
+        }
+
+        return resetCount;
     }
 
     // Legacy method for backward compatibility

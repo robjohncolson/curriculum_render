@@ -588,6 +588,7 @@
         };
 
         // Batch push answers to Supabase (more efficient for bulk sync)
+        // Fix 3: Added timestamp conflict detection - only sync if local is newer
         async function batchPushAnswersToSupabase(answerBatch) {
             if (!turboModeActive || !supabaseClient || answerBatch.length === 0) return 0;
 
@@ -602,14 +603,70 @@
                         : answer.timestamp
                 }));
 
-                // Supabase can handle batch upserts efficiently
+                // Query server for existing timestamps to detect conflicts
+                const questionIds = processedBatch.map(a => a.question_id);
+                const usernames = [...new Set(processedBatch.map(a => a.username))];
+
+                const { data: serverData, error: fetchError } = await supabaseClient
+                    .from('answers')
+                    .select('username, question_id, timestamp')
+                    .in('question_id', questionIds)
+                    .in('username', usernames);
+
+                if (fetchError) {
+                    console.warn('Could not check server timestamps, proceeding with upsert:', fetchError.message);
+                }
+
+                // Build map of server timestamps
+                const serverTimestamps = new Map();
+                if (serverData) {
+                    serverData.forEach(row => {
+                        serverTimestamps.set(`${row.username}:${row.question_id}`, row.timestamp);
+                    });
+                }
+
+                // Filter batch: only include items where local timestamp >= server timestamp
+                const toSync = [];
+                const conflicts = [];
+
+                for (const item of processedBatch) {
+                    const key = `${item.username}:${item.question_id}`;
+                    const serverTs = serverTimestamps.get(key);
+
+                    if (serverTs && serverTs > item.timestamp) {
+                        // Server has newer data - don't overwrite
+                        conflicts.push({ ...item, serverTimestamp: serverTs });
+                    } else {
+                        // Local is newer or equal, or no server data exists
+                        toSync.push(item);
+                    }
+                }
+
+                // Log conflicts (server wins, we don't overwrite)
+                if (conflicts.length > 0) {
+                    console.log(`⚠️ ${conflicts.length} items skipped due to newer server data`);
+                    conflicts.forEach(c => {
+                        if (typeof logSyncConflict === 'function') {
+                            logSyncConflict(c.question_id, c.timestamp, c.serverTimestamp);
+                        }
+                    });
+                }
+
+                if (toSync.length === 0) {
+                    console.log('📭 All items skipped (server has newer data)');
+                    // Return original batch size so items are removed from outbox
+                    // (server already has newer data, no need to retry)
+                    return processedBatch.length;
+                }
+
+                // Supabase upsert only items we're sure are newer
                 const { data, error } = await supabaseClient
                     .from('answers')
-                    .upsert(processedBatch, { onConflict: 'username,question_id' });
+                    .upsert(toSync, { onConflict: 'username,question_id' });
 
                 if (error) throw error;
-                console.log(`✅ Batch synced ${processedBatch.length} answers to cloud`);
-                return processedBatch.length;
+                console.log(`✅ Batch synced ${toSync.length} answers to cloud (${conflicts.length} conflicts resolved)`);
+                return processedBatch.length; // Return full count so all items removed from outbox
             } catch (error) {
                 console.log(`⚠️ Failed to batch sync: ${error.message}`);
                 return 0;
@@ -803,6 +860,14 @@
         async function recoverPendingSync() {
             try {
                 const storage = await waitForStorage();
+
+                // Fix 1: Reset stale in_flight items that were mid-sync when tab crashed
+                // Items older than 5 minutes are considered stale
+                const resetCount = await storage.resetStaleInFlightItems(5 * 60 * 1000);
+                if (resetCount > 0) {
+                    console.log(`🔄 Reset ${resetCount} stale in_flight items`);
+                }
+
                 const pendingItems = await storage.getOutboxPending();
 
                 if (pendingItems.length === 0) {
