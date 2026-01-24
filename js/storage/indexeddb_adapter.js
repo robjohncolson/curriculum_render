@@ -8,7 +8,7 @@
  */
 class IndexedDBAdapter extends StorageAdapter {
     static DB_NAME = 'ConsensusQuizDB';
-    static DB_VERSION = 1;
+    static DB_VERSION = 2; // Bumped from 1 to add diagnostics store
 
     // Object store definitions with key paths and indexes
     static STORES = {
@@ -76,6 +76,16 @@ class IndexedDBAdapter extends StorageAdapter {
         sprites: {
             keyPath: 'username',
             indexes: []
+        },
+        // Phase 1 Diagnostics: circular buffer for debugging "disappeared work"
+        diagnostics: {
+            keyPath: 'id',
+            autoIncrement: true,
+            indexes: [
+                { name: 'timestamp', keyPath: 'timestamp', options: {} },
+                { name: 'event_type', keyPath: 'event_type', options: {} },
+                { name: 'session_id', keyPath: 'session_id', options: {} }
+            ]
         }
     };
 

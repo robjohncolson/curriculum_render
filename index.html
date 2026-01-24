@@ -230,6 +230,9 @@
     <script src="js/storage/migration.js"></script>
     <script src="js/storage/index.js"></script>
 
+    <!-- Diagnostics: Phase 1 logging for debugging "disappeared work" issues -->
+    <script src="js/diagnostics.js"></script>
+
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
     <script src="js/chart_registry.js"></script>
@@ -453,9 +456,19 @@
                     turboModeActive = true;
                     window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: turboModeActive } }));
                     console.log(`✅ Turbo mode active - Supabase connected (attempt ${attempt}/${maxRetries})`);
+
+                    // Diagnostic: log successful connection
+                    if (typeof logConnectionTest === 'function') {
+                        logConnectionTest(attempt, maxRetries, true);
+                    }
                     return true;
                 } catch (error) {
                     console.log(`🔄 Connection attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
+                    // Diagnostic: log failed connection attempt
+                    if (typeof logConnectionTest === 'function') {
+                        logConnectionTest(attempt, maxRetries, false, error);
+                    }
 
                     if (attempt < maxRetries) {
                         // Wait before retrying (gives content filters time to clear)
@@ -609,6 +622,12 @@
                 syncTimer = null;
             }
 
+            // Diagnostic: log sync flush attempt
+            const flushStartTime = performance.now();
+            if (typeof logSyncFlushAttempt === 'function') {
+                logSyncFlushAttempt(batch.length);
+            }
+
             // Send batch to Supabase
             console.log(`🔄 Flushing ${batch.length} answers from queue...`);
             batchPushAnswersToSupabase(batch)
@@ -617,9 +636,17 @@
                         console.log(`✅ Successfully flushed ${count} answers`);
                         updatePeerDataTimestamp();
                     }
+                    // Diagnostic: log sync flush success
+                    if (typeof logSyncFlushResult === 'function') {
+                        logSyncFlushResult(true, count, null, flushStartTime);
+                    }
                 })
                 .catch(error => {
                     console.error(`❌ Error flushing queue:`, error);
+                    // Diagnostic: log sync flush failure
+                    if (typeof logSyncFlushResult === 'function') {
+                        logSyncFlushResult(false, 0, error, flushStartTime);
+                    }
                     // Re-queue failed items
                     answerSyncQueue.push(...batch);
                 });

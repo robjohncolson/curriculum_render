@@ -53,10 +53,54 @@ Load order matters (see `index.html` script tags):
 1. CDN libs (Chart.js, MathJax, Supabase client, QRCode)
 2. Config files (`supabase_config.js`, `railway_config.js`)
 3. Storage layer (`js/storage/*.js` → `index.js` initializes adapters)
-4. Core modules (`js/charts.js`, `railway_client.js`)
-5. Sprite system (`js/sprite_sheet.js` → `canvas_engine.js` → entities → `sprite_manager.js`)
-6. Data files (`data/curriculum.js`, `data/units.js`, `data/chart_questions.js`)
-7. Inline script in `index.html` (app initialization)
+4. **Diagnostics** (`js/diagnostics.js` - Phase 1 logging)
+5. Core modules (`js/charts.js`, `railway_client.js`)
+6. Sprite system (`js/sprite_sheet.js` → `canvas_engine.js` → entities → `sprite_manager.js`)
+7. Data files (`data/curriculum.js`, `data/units.js`, `data/chart_questions.js`)
+8. Inline script in `index.html` (app initialization)
+
+## Diagnostics System (Phase 1)
+
+Local-first diagnostic logging for debugging "disappeared work" issues.
+
+**Purpose:** Capture structured events around save/load/sync operations to diagnose why students report lost work.
+
+**Storage:** IDB `diagnostics` store with circular buffer (max 1000 events).
+
+**Key Functions:**
+- `logDiagnosticEvent(eventType, details)` - Main logging entry point
+- `getDiagnostics({ limit, since })` - Retrieve events for debugging
+- `exportDiagnostics()` - Export all events as JSON
+- `clearDiagnostics()` - Clear all events (testing)
+
+**Instrumented Events:**
+| Event | Where | What it captures |
+|-------|-------|------------------|
+| `answer_save_attempt` | `saveAnswer()` | questionId, target backend |
+| `answer_save_success` | `saveAnswer()` | questionId, elapsed_ms |
+| `answer_save_failure` | `saveAnswer()` | questionId, error details |
+| `answer_load_attempt` | `initClassData()` | username, source |
+| `answer_load_result` | `initClassData()` | count, source, empty_load |
+| `sync_flush_attempt` | `flushAnswerQueue()` | pending_count |
+| `sync_flush_result` | `flushAnswerQueue()` | success, synced_count |
+| `supabase_connection_test` | `testSupabaseConnection()` | attempt, success |
+
+**Configuration:** `DiagnosticsConfig` in `js/diagnostics.js`:
+```javascript
+DiagnosticsConfig.ENABLED = true;       // Enable/disable logging
+DiagnosticsConfig.DEBUG_CONSOLE = false; // Log to console
+DiagnosticsConfig.MAX_EVENTS = 1000;     // Circular buffer size
+```
+
+**Debug Console Access:**
+```javascript
+// View recent diagnostics
+await getDiagnostics({ limit: 50 });
+
+// Export all diagnostics
+const data = await exportDiagnostics();
+console.log(JSON.stringify(data, null, 2));
+```
 
 ## Key Global Variables
 

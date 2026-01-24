@@ -325,30 +325,49 @@ function _groupBy(arr, field) {
  * This is a convenience function that handles the common answer save pattern
  */
 async function saveAnswer(username, questionId, value, timestamp = Date.now()) {
-    const s = await waitForStorage();
+    // Diagnostic: log save attempt
+    const saveStartTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (typeof logAnswerSaveAttempt === 'function') {
+        logAnswerSaveAttempt(questionId, 'idb');
+    }
 
-    const record = {
-        username,
-        questionId,
-        value,
-        timestamp,
-        updatedAt: Date.now(),
-        sourceClientId: await s.getMeta('clientId')
-    };
+    try {
+        const s = await waitForStorage();
 
-    await s.set('answers', [username, questionId], record);
-
-    // Also enqueue for sync if outbox is available
-    if (s.enqueueOutbox) {
-        await s.enqueueOutbox('answer_submit', {
+        const record = {
             username,
             questionId,
             value,
-            timestamp
-        });
-    }
+            timestamp,
+            updatedAt: Date.now(),
+            sourceClientId: await s.getMeta('clientId')
+        };
 
-    return record;
+        await s.set('answers', [username, questionId], record);
+
+        // Diagnostic: log save success
+        if (typeof logAnswerSaveSuccess === 'function') {
+            logAnswerSaveSuccess(questionId, 'idb', saveStartTime);
+        }
+
+        // Also enqueue for sync if outbox is available
+        if (s.enqueueOutbox) {
+            await s.enqueueOutbox('answer_submit', {
+                username,
+                questionId,
+                value,
+                timestamp
+            });
+        }
+
+        return record;
+    } catch (error) {
+        // Diagnostic: log save failure
+        if (typeof logAnswerSaveFailure === 'function') {
+            logAnswerSaveFailure(questionId, 'idb', error);
+        }
+        throw error;
+    }
 }
 
 /**

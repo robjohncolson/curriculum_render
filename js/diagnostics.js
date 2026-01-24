@@ -1,0 +1,456 @@
+// diagnostics.js - Diagnostic logging system for debugging "disappeared work" issues
+// Part of AP Statistics Consensus Quiz
+// Phase 1: Local-first logging with optional Supabase upload
+
+/**
+ * Configuration for diagnostics system
+ */
+const DiagnosticsConfig = {
+    // Enable/disable diagnostic logging
+    ENABLED: true,
+
+    // Log to console when debug mode is on
+    DEBUG_CONSOLE: false,
+
+    // Maximum events to store locally (circular buffer)
+    MAX_EVENTS: 1000,
+
+    // Prune check interval (every N inserts)
+    PRUNE_INTERVAL: 50,
+
+    // Enable Supabase upload (Phase 1: disabled by default)
+    UPLOAD_ENABLED: false,
+
+    // Memory fallback buffer size (when IDB unavailable)
+    MEMORY_BUFFER_SIZE: 100
+};
+
+/**
+ * Session ID - unique per page load for correlating events
+ */
+const DIAGNOSTICS_SESSION_ID = crypto.randomUUID ? crypto.randomUUID() :
+    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+
+/**
+ * In-memory fallback buffer when IDB is unavailable
+ */
+let memoryBuffer = [];
+let insertCount = 0;
+let idbAvailable = null;
+
+/**
+ * Safe error serialization - handles strings, Error objects, and other types
+ */
+function serializeError(err) {
+    if (!err) return null;
+    if (typeof err === 'string') return { message: err, stack: null };
+    if (err instanceof Error) {
+        return {
+            message: err.message || String(err),
+            stack: err.stack || null,
+            name: err.name || 'Error'
+        };
+    }
+    // Handle non-standard error objects
+    try {
+        return {
+            message: String(err.message || err),
+            stack: err.stack || null
+        };
+    } catch (e) {
+        return { message: String(err), stack: null };
+    }
+}
+
+/**
+ * Build a diagnostic event with consistent schema
+ * @param {string} eventType - Event type (e.g., 'answer_save_attempt')
+ * @param {object} details - Event-specific details
+ * @returns {object} Complete event object
+ */
+function buildDiagnosticEvent(eventType, details = {}) {
+    const now = Date.now();
+
+    return {
+        event_type: eventType,
+        timestamp: now,
+        session_id: DIAGNOSTICS_SESSION_ID,
+        username: typeof currentUsername !== 'undefined' ? currentUsername : null,
+        storage_backend: getStorageBackendType(),
+        turbo_mode_active: typeof turboModeActive !== 'undefined' ? turboModeActive : null,
+        network_online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+        ...details
+    };
+}
+
+/**
+ * Get current storage backend type
+ */
+function getStorageBackendType() {
+    if (typeof isStorageReady === 'function' && isStorageReady()) {
+        if (typeof StorageConfig !== 'undefined' && StorageConfig.DUAL_WRITE_ENABLED) {
+            return 'dual-write';
+        }
+        return 'indexeddb';
+    }
+    return 'localstorage';
+}
+
+/**
+ * Check if IDB diagnostics store is available
+ */
+async function checkIDBAvailable() {
+    if (idbAvailable !== null) return idbAvailable;
+
+    try {
+        if (typeof waitForStorage !== 'function') {
+            idbAvailable = false;
+            return false;
+        }
+
+        const storage = await waitForStorage();
+        // Check if storage has IDB-specific methods
+        idbAvailable = storage && typeof storage.get === 'function';
+        return idbAvailable;
+    } catch (e) {
+        idbAvailable = false;
+        return false;
+    }
+}
+
+/**
+ * Log a diagnostic event - main entry point
+ * Non-blocking, never throws
+ * @param {string} eventType - Event type
+ * @param {object} details - Event-specific details
+ */
+async function logDiagnosticEvent(eventType, details = {}) {
+    if (!DiagnosticsConfig.ENABLED) return;
+
+    try {
+        const event = buildDiagnosticEvent(eventType, details);
+
+        // Debug console logging
+        if (DiagnosticsConfig.DEBUG_CONSOLE) {
+            console.log(`[DIAG] ${eventType}`, event);
+        }
+
+        // Try IDB first
+        const idbOk = await checkIDBAvailable();
+
+        if (idbOk) {
+            await writeDiagnosticToIDB(event);
+        } else {
+            // Fallback to memory buffer
+            writeToMemoryBuffer(event);
+        }
+
+        // Periodic prune check
+        insertCount++;
+        if (insertCount % DiagnosticsConfig.PRUNE_INTERVAL === 0) {
+            pruneDiagnosticsIfNeeded();
+        }
+
+    } catch (e) {
+        // Logging must never fail the app - silently continue
+        if (DiagnosticsConfig.DEBUG_CONSOLE) {
+            console.warn('[DIAG] Failed to log event:', e);
+        }
+    }
+}
+
+/**
+ * Write diagnostic event to IDB
+ */
+async function writeDiagnosticToIDB(event) {
+    try {
+        const storage = await waitForStorage();
+
+        // Use the diagnostics store
+        // Key is auto-increment, so we just need to set the value
+        await storage.set('diagnostics', null, event);
+
+    } catch (e) {
+        // Fall back to memory if IDB write fails
+        writeToMemoryBuffer(event);
+    }
+}
+
+/**
+ * Write to memory buffer as fallback
+ */
+function writeToMemoryBuffer(event) {
+    memoryBuffer.push(event);
+
+    // Enforce memory buffer size limit
+    if (memoryBuffer.length > DiagnosticsConfig.MEMORY_BUFFER_SIZE) {
+        memoryBuffer = memoryBuffer.slice(-DiagnosticsConfig.MEMORY_BUFFER_SIZE);
+    }
+}
+
+/**
+ * Prune old diagnostic events to maintain circular buffer
+ */
+async function pruneDiagnosticsIfNeeded() {
+    try {
+        const idbOk = await checkIDBAvailable();
+        if (!idbOk) return;
+
+        const storage = await waitForStorage();
+        const allEvents = await storage.getAll('diagnostics');
+
+        if (allEvents.length > DiagnosticsConfig.MAX_EVENTS) {
+            // Sort by timestamp (oldest first)
+            allEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+            // Delete oldest events beyond the limit
+            const toDelete = allEvents.slice(0, allEvents.length - DiagnosticsConfig.MAX_EVENTS);
+
+            for (const event of toDelete) {
+                if (event.id) {
+                    await storage.remove('diagnostics', event.id);
+                }
+            }
+
+            if (DiagnosticsConfig.DEBUG_CONSOLE) {
+                console.log(`[DIAG] Pruned ${toDelete.length} old events`);
+            }
+        }
+    } catch (e) {
+        // Pruning failure is not critical
+    }
+}
+
+/**
+ * Get all diagnostic events (for debugging/export)
+ * @param {object} options - { limit, since }
+ * @returns {Promise<Array>} Array of diagnostic events
+ */
+async function getDiagnosticEvents(options = {}) {
+    const { limit = 100, since = 0 } = options;
+
+    let events = [];
+
+    try {
+        const idbOk = await checkIDBAvailable();
+
+        if (idbOk) {
+            const storage = await waitForStorage();
+            events = await storage.getAll('diagnostics');
+        }
+    } catch (e) {
+        // Fallback to memory buffer
+    }
+
+    // Merge with memory buffer
+    events = [...events, ...memoryBuffer];
+
+    // Filter by timestamp if specified
+    if (since > 0) {
+        events = events.filter(e => e.timestamp >= since);
+    }
+
+    // Sort by timestamp (newest first)
+    events.sort((a, b) => b.timestamp - a.timestamp);
+
+    // Apply limit
+    if (limit > 0) {
+        events = events.slice(0, limit);
+    }
+
+    return events;
+}
+
+/**
+ * Clear all diagnostic events (for testing)
+ */
+async function clearDiagnostics() {
+    memoryBuffer = [];
+
+    try {
+        const idbOk = await checkIDBAvailable();
+        if (idbOk) {
+            const storage = await waitForStorage();
+            await storage.clear('diagnostics');
+        }
+    } catch (e) {
+        // Ignore clear errors
+    }
+}
+
+/**
+ * Export diagnostics as JSON (for teacher/debugging)
+ */
+async function exportDiagnostics() {
+    const events = await getDiagnosticEvents({ limit: 0 }); // Get all
+
+    return {
+        exportedAt: new Date().toISOString(),
+        sessionId: DIAGNOSTICS_SESSION_ID,
+        eventCount: events.length,
+        events: events
+    };
+}
+
+// ========================================
+// INSTRUMENTATION HELPERS
+// ========================================
+
+/**
+ * Log answer save attempt
+ */
+function logAnswerSaveAttempt(questionId, target = 'unknown') {
+    logDiagnosticEvent('answer_save_attempt', {
+        question_id: questionId,
+        target: target,
+        _startTime: performance.now()
+    });
+}
+
+/**
+ * Log answer save success
+ */
+function logAnswerSaveSuccess(questionId, target, startTime = null) {
+    const details = {
+        question_id: questionId,
+        target: target,
+        status: 'success'
+    };
+
+    if (startTime !== null) {
+        details.elapsed_ms = Math.round(performance.now() - startTime);
+    }
+
+    logDiagnosticEvent('answer_save_success', details);
+}
+
+/**
+ * Log answer save failure
+ */
+function logAnswerSaveFailure(questionId, target, error) {
+    logDiagnosticEvent('answer_save_failure', {
+        question_id: questionId,
+        target: target,
+        status: 'failure',
+        error: serializeError(error)
+    });
+}
+
+/**
+ * Log answer load attempt
+ */
+function logAnswerLoadAttempt(username, source = 'unknown') {
+    logDiagnosticEvent('answer_load_attempt', {
+        load_username: username,
+        source: source,
+        _startTime: performance.now()
+    });
+}
+
+/**
+ * Log answer load result
+ */
+function logAnswerLoadResult(username, source, count, startTime = null) {
+    const details = {
+        load_username: username,
+        source: source,
+        answer_count: count,
+        empty_load: count === 0
+    };
+
+    if (startTime !== null) {
+        details.elapsed_ms = Math.round(performance.now() - startTime);
+    }
+
+    logDiagnosticEvent('answer_load_result', details);
+}
+
+/**
+ * Log sync flush attempt
+ */
+function logSyncFlushAttempt(pendingCount) {
+    logDiagnosticEvent('sync_flush_attempt', {
+        pending_count: pendingCount,
+        _startTime: performance.now()
+    });
+}
+
+/**
+ * Log sync flush result
+ */
+function logSyncFlushResult(success, syncedCount, error = null, startTime = null) {
+    const details = {
+        status: success ? 'success' : 'failure',
+        synced_count: syncedCount
+    };
+
+    if (error) {
+        details.error = serializeError(error);
+    }
+
+    if (startTime !== null) {
+        details.elapsed_ms = Math.round(performance.now() - startTime);
+    }
+
+    logDiagnosticEvent('sync_flush_result', details);
+}
+
+/**
+ * Log Supabase connection test
+ */
+function logConnectionTest(attempt, maxAttempts, success, error = null) {
+    logDiagnosticEvent('supabase_connection_test', {
+        attempt: attempt,
+        max_attempts: maxAttempts,
+        status: success ? 'success' : 'failure',
+        error: error ? serializeError(error) : null
+    });
+}
+
+// ========================================
+// EXPOSE TO WINDOW
+// ========================================
+
+if (typeof window !== 'undefined') {
+    window.DiagnosticsConfig = DiagnosticsConfig;
+    window.logDiagnosticEvent = logDiagnosticEvent;
+    window.getDiagnostics = getDiagnosticEvents;
+    window.exportDiagnostics = exportDiagnostics;
+    window.clearDiagnostics = clearDiagnostics;
+
+    // Instrumentation helpers
+    window.logAnswerSaveAttempt = logAnswerSaveAttempt;
+    window.logAnswerSaveSuccess = logAnswerSaveSuccess;
+    window.logAnswerSaveFailure = logAnswerSaveFailure;
+    window.logAnswerLoadAttempt = logAnswerLoadAttempt;
+    window.logAnswerLoadResult = logAnswerLoadResult;
+    window.logSyncFlushAttempt = logSyncFlushAttempt;
+    window.logSyncFlushResult = logSyncFlushResult;
+    window.logConnectionTest = logConnectionTest;
+
+    // Session ID for debugging
+    window.DIAGNOSTICS_SESSION_ID = DIAGNOSTICS_SESSION_ID;
+}
+
+// Export for module use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        DiagnosticsConfig,
+        logDiagnosticEvent,
+        getDiagnosticEvents,
+        exportDiagnostics,
+        clearDiagnostics,
+        logAnswerSaveAttempt,
+        logAnswerSaveSuccess,
+        logAnswerSaveFailure,
+        logAnswerLoadAttempt,
+        logAnswerLoadResult,
+        logSyncFlushAttempt,
+        logSyncFlushResult,
+        logConnectionTest,
+        DIAGNOSTICS_SESSION_ID
+    };
+}

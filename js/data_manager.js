@@ -18,24 +18,43 @@
  * Creates user entry if it doesn't exist for current username
  */
 async function initClassData() {
+    // Diagnostic: log load attempt
+    const loadStartTime = performance.now();
+    let loadSource = 'unknown';
+    if (typeof logAnswerLoadAttempt === 'function') {
+        logAnswerLoadAttempt(currentUsername, 'idb');
+    }
+
     try {
         // Try to rebuild classData from IDB
         if (typeof rebuildClassDataView === 'function') {
             classData = await rebuildClassDataView(currentUsername);
+            loadSource = 'idb';
         } else {
             // Fallback to localStorage if storage module not loaded
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
+            loadSource = 'localstorage';
         }
     } catch (e) {
         console.warn('Error rebuilding classData from IDB, falling back to localStorage:', e);
+        loadSource = 'localstorage-fallback';
         try {
             let classDataStr = localStorage.getItem('classData');
             classData = classDataStr ? JSON.parse(classDataStr) : {users: {}};
         } catch (lsError) {
             console.warn('localStorage also unavailable:', lsError);
             classData = {users: {}};
+            loadSource = 'memory-empty';
         }
+    }
+
+    // Diagnostic: log load result
+    const answerCount = classData?.users?.[currentUsername]?.answers
+        ? Object.keys(classData.users[currentUsername].answers).length
+        : 0;
+    if (typeof logAnswerLoadResult === 'function') {
+        logAnswerLoadResult(currentUsername, loadSource, answerCount, loadStartTime);
     }
 
     if (!classData.users) {
