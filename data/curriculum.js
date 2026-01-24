@@ -14505,6 +14505,8 @@ const EMBEDDED_CURRICULUM = [
       },
       "reasoning": "This problem tests understanding of probability calculations, expected value computation and interpretation, and decision-making using expected values. It involves discrete probability distributions, weighted averages, and solving inequalities in a statistical context. The golf scenario provides a real-world application where students must compare strategies using expected value analysis.",
       "attachments": {
+        "image": "assets/pngs/unit4/u4_pc_frq_q2_b.png",
+        "imageAlt": "Golf course diagram showing two approaches from tee to hole: a short hit that lands before a lake, and a long hit that travels over the lake",
         "table": [
           [
             "Score",
@@ -14522,13 +14524,6 @@ const EMBEDDED_CURRICULUM = [
             "0.15",
             "0.05"
           ]
-        ],
-        "images": [
-          {
-            "image": "assets/pngs/unit4/u4_pc_frq_q2_b.png",
-            "imageAlt": "Golf course diagram showing two approaches from tee to hole: a short hit that lands before a lake, and a long hit that travels over the lake",
-            "imageCaption": "Diagram showing Miguel's two approaches to the Water Hole: short hit (lands before lake) and long hit (travels over lake)"
-          }
         ]
       }
     },
