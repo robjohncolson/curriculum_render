@@ -448,6 +448,162 @@
                           new URLSearchParams(window.location.search).has('debug');
         if (isDevMode) {
             window.FeatureFlags = FeatureFlags;
+
+            /**
+             * Phase 3D-3: Validation utilities for comparing renderers
+             * Usage from browser console:
+             *   validateRenderers()     - Compare legacy vs incremental output
+             *   benchmarkRenderers(50)  - Performance comparison (50 iterations)
+             */
+            window.validateRenderers = function() {
+                if (!currentQuestions || currentQuestions.length === 0) {
+                    console.error('❌ No questions loaded. Navigate to a quiz first.');
+                    return false;
+                }
+
+                const questionsContainer = document.getElementById('questionsContainer');
+                if (!questionsContainer) {
+                    console.error('❌ questionsContainer not found');
+                    return false;
+                }
+
+                console.log('🔍 Validating renderers with', currentQuestions.length, 'questions...');
+
+                // Render with legacy
+                FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = false;
+                renderQuiz();
+
+                // Wait for async render to complete
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const legacyQuestionsList = document.getElementById('questions-list');
+                        const legacyCards = legacyQuestionsList ? legacyQuestionsList.querySelectorAll('[data-question-id]') : [];
+                        const legacyData = extractQuestionData(legacyCards);
+
+                        // Clear and render with incremental
+                        FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = true;
+                        renderQuiz();
+
+                        setTimeout(() => {
+                            const incrQuestionsList = document.getElementById('questions-list');
+                            const incrWrappers = incrQuestionsList ? incrQuestionsList.querySelectorAll('.question-wrapper') : [];
+                            const incrCards = [];
+                            incrWrappers.forEach(w => {
+                                const card = w.querySelector('[data-question-id]');
+                                if (card) incrCards.push(card);
+                            });
+                            const incrData = extractQuestionData(incrCards);
+
+                            // Compare
+                            const results = compareQuestionData(legacyData, incrData);
+
+                            // Report
+                            if (results.passed) {
+                                console.log('✅ VALIDATION PASSED: Both renderers produce equivalent output');
+                                console.log(`   Questions compared: ${results.compared}`);
+                            } else {
+                                console.error('❌ VALIDATION FAILED: Renderers produce different output');
+                                console.log('Differences:', results.differences);
+                            }
+
+                            // Reset to legacy (safe default)
+                            FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = false;
+                            resolve(results);
+                        }, 200);
+                    }, 200);
+                });
+            };
+
+            // Helper: Extract comparable data from question cards
+            function extractQuestionData(cards) {
+                return Array.from(cards).map(card => ({
+                    id: card.dataset.questionId,
+                    number: card.dataset.questionNumber,
+                    hasPrompt: !!card.querySelector('.question-prompt'),
+                    promptText: card.querySelector('.question-prompt')?.textContent?.trim().substring(0, 50),
+                    choiceCount: card.querySelectorAll('.choice, .answer-option').length,
+                    hasTextarea: !!card.querySelector('textarea'),
+                    hasSubmitBtn: !!card.querySelector('.submit-btn, .submit-answer-btn'),
+                    hasPeerSection: !!card.querySelector('.peer-reasoning-section, [id^="peer-section-"]'),
+                    hasGradingContainer: !!card.querySelector('.grading-feedback-container, [id^="grading-feedback-"]')
+                }));
+            }
+
+            // Helper: Compare extracted data
+            function compareQuestionData(legacy, incremental) {
+                const differences = [];
+                let compared = 0;
+
+                if (legacy.length !== incremental.length) {
+                    differences.push({
+                        type: 'count',
+                        legacy: legacy.length,
+                        incremental: incremental.length
+                    });
+                }
+
+                const minLen = Math.min(legacy.length, incremental.length);
+                for (let i = 0; i < minLen; i++) {
+                    compared++;
+                    const l = legacy[i];
+                    const inc = incremental[i];
+
+                    if (l.id !== inc.id) {
+                        differences.push({ index: i, field: 'id', legacy: l.id, incremental: inc.id });
+                    }
+                    if (l.choiceCount !== inc.choiceCount) {
+                        differences.push({ index: i, field: 'choiceCount', legacy: l.choiceCount, incremental: inc.choiceCount });
+                    }
+                    if (l.hasTextarea !== inc.hasTextarea) {
+                        differences.push({ index: i, field: 'hasTextarea', legacy: l.hasTextarea, incremental: inc.hasTextarea });
+                    }
+                    if (l.hasSubmitBtn !== inc.hasSubmitBtn) {
+                        differences.push({ index: i, field: 'hasSubmitBtn', legacy: l.hasSubmitBtn, incremental: inc.hasSubmitBtn });
+                    }
+                }
+
+                return {
+                    passed: differences.length === 0,
+                    compared,
+                    differences
+                };
+            }
+
+            window.benchmarkRenderers = function(iterations = 50) {
+                if (!currentQuestions || currentQuestions.length === 0) {
+                    console.error('❌ No questions loaded. Navigate to a quiz first.');
+                    return;
+                }
+
+                console.log(`⏱️ Benchmarking renderers (${iterations} iterations each)...`);
+
+                // Benchmark legacy
+                FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = false;
+                const legacyStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    renderQuizLegacy();
+                }
+                const legacyTime = performance.now() - legacyStart;
+
+                // Benchmark incremental
+                FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = true;
+                const incrStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    renderQuizIncremental();
+                }
+                const incrTime = performance.now() - incrStart;
+
+                // Reset
+                FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER = false;
+
+                const speedup = (legacyTime / incrTime).toFixed(2);
+                console.log(`📊 Results (${iterations} iterations):`);
+                console.log(`   Legacy:      ${legacyTime.toFixed(1)}ms total, ${(legacyTime/iterations).toFixed(2)}ms avg`);
+                console.log(`   Incremental: ${incrTime.toFixed(1)}ms total, ${(incrTime/iterations).toFixed(2)}ms avg`);
+                console.log(`   Speedup:     ${speedup}x ${incrTime < legacyTime ? '(incremental faster)' : '(legacy faster)'}`);
+
+                return { legacyTime, incrTime, speedup: parseFloat(speedup), iterations };
+            };
         }
 
         let syncTimer = null;
