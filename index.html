@@ -8086,8 +8086,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             // Phase 3B: Ensure stable skeleton exists (create once, update incrementally)
             let wrapper = feedbackContainer.querySelector('.grading-feedback');
-            if (!wrapper) {
-                // First render: create stable skeleton
+            // Check if wrapper exists AND has the expected structure (not a loading state)
+            if (!wrapper || !wrapper.querySelector('.grading-score')) {
+                // First render or replacing loading state: create stable skeleton
                 feedbackContainer.innerHTML = `
                     <div class="grading-feedback">
                         <div class="grading-header">
