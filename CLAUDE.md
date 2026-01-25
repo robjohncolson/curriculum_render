@@ -327,14 +327,20 @@ Three-tier escalation system for fair, AI-augmented grading with student appeals
 
 **Tiers:**
 1. **Tier 1 (Auto-Grade)** - MCQ exact match, FRQ regex/rubric pattern matching (instant)
-2. **Tier 2 (AI Review)** - Groq llama-3.3-70b-versatile via Railway server
+   - Correct MCQ: Shows yellow "partial" styling with "Reasoning pending" badge (not green "excellent")
+   - Prompts student to click "Verify My Understanding" for AI evaluation of reasoning
+2. **Tier 2 (AI Review)** - Groq llama-3.3-70b-versatile via Railway server (30s timeout)
+   - `requestAIReview()` uses direct fetch to `/api/ai/grade` (bypasses GradingEngine for simplicity)
+   - If reasoning already exists, skips reasoning form and sends directly to AI
 3. **Tier 3 (Appeal)** - Student explains reasoning, AI re-evaluates
 
 **Scoring:** E (Essentially Correct), P (Partially Correct), I (Incorrect)
 
 **Critical Rule:** AI can only UPGRADE scores, never downgrade. This protects students from AI hallucinations.
 
-**AI Review for Correct Answers:** Students can request AI review even when their answer is correct (button shows "Verify My Understanding"). This helps students who may have guessed correctly or used test-taking strategies verify they actually understand the concept.
+**Plain Language Responses:** AI prompts explicitly instruct the model to avoid framework codes (like "UNC-2.A"), learning objective IDs, and curriculum jargon. Feedback uses student-friendly language focusing on statistical concepts.
+
+**AI Review for Correct Answers:** Students can request AI review even when their answer is correct (button shows "Verify My Understanding"). This helps students who may have guessed correctly or used test-taking strategies verify they actually understand the concept. If reasoning was submitted with the answer, clicking the button sends it directly to AI without prompting for additional input.
 
 **Conditional Solution Display:** When AI grading succeeds, the rubric/answer key is hidden to encourage students to rely on AI feedback. Solutions only appear as a fallback when AI fails. Check `result._aiGraded` and `result._error` to determine visibility.
 
@@ -342,10 +348,11 @@ Three-tier escalation system for fair, AI-augmented grading with student appeals
 - `gradeMCQAnswer(questionId, answer, isCorrect)` - MCQ grading with escalation UI
 - `gradeFRQAnswer(questionId, answer)` - Single-part FRQ grading
 - `gradeMultiPartFRQ(questionId, partsAnswers)` - Progressive FRQ grading
-- `requestAIReview(questionId, questionType)` - Request AI to review MCQ
+- `showReasoningForm(questionId, questionType)` - Shows reasoning form OR calls requestAIReview directly if reasoning exists
+- `requestAIReview(questionId, questionType)` - Direct fetch to `/api/ai/grade` for MCQ AI review
 - `showAppealForm(questionId)` / `hideAppealForm(questionId)` - Toggle appeal form
 - `submitAppeal(questionId, questionType)` - Submit appeal to Railway
-- `displayGradingFeedback(questionId, result)` - Render E/P/I feedback
+- `displayGradingFeedback(questionId, result)` - Render E/P/I feedback (handles loading→result transition)
 
 **Data Storage:**
 ```javascript

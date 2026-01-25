@@ -507,6 +507,111 @@ With framework context, AI appeal responses:
 - Identify which essential knowledge the student demonstrates or misses
 - Use lesson-appropriate terminology naturally
 
+**Plain Language Requirement:** AI prompts explicitly instruct the model to avoid framework codes (like "UNC-2.A"), learning objective IDs, and curriculum jargon. Responses use student-friendly language.
+
+### MCQ AI Review Flow ("Verify My Understanding")
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              MCQ "VERIFY MY UNDERSTANDING" FLOW                  │
+└─────────────────────────────────────────────────────────────────┘
+
+     ┌─────────────────┐
+     │ User submits    │
+     │ correct MCQ     │
+     │ with reasoning  │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ Tier 1 Auto-    │
+     │ Grade shows:    │
+     │ • Yellow box    │
+     │   (partial)     │
+     │ • "MC Answer    │
+     │   Correct"      │
+     │ • "Reasoning    │
+     │   pending"      │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ User clicks     │
+     │ "Verify My      │
+     │ Understanding"  │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ showReasoning   │
+     │ Form()          │
+     │                 │
+     │ Check: Does     │
+     │ reasoning exist?│
+     └────────┬────────┘
+              │
+      ┌───────┴───────┐
+      │               │
+      ▼               ▼
+┌──────────┐    ┌──────────────┐
+│ NO       │    │ YES          │
+│ reasoning│    │ reasoning    │
+│ exists   │    │ exists       │
+│          │    │              │
+│ Show     │    │ Skip form,   │
+│ reasoning│    │ call request │
+│ form     │    │ AIReview()   │
+└────┬─────┘    └──────┬───────┘
+     │                 │
+     ▼                 │
+┌──────────┐           │
+│ User     │           │
+│ enters   │           │
+│ reasoning│           │
+└────┬─────┘           │
+     │                 │
+     ▼                 │
+┌──────────┐           │
+│ submit   │           │
+│ ForAI    │           │
+│ Review() │           │
+└────┬─────┘           │
+     │                 │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ requestAI       │
+     │ Review()        │
+     │                 │
+     │ • Show loading: │
+     │   "AI is        │
+     │   reviewing..." │
+     │ • Direct fetch  │
+     │   to /api/ai/   │
+     │   grade         │
+     │ • 30s timeout   │
+     └────────┬────────┘
+              │
+      ┌───────┴───────┐
+      │               │
+      ▼               ▼
+┌──────────┐    ┌──────────────┐
+│ SUCCESS  │    │ FAILURE/     │
+│          │    │ TIMEOUT      │
+│ display  │    │              │
+│ Grading  │    │ Show error   │
+│ Feedback │    │ with Retry   │
+│ ()       │    │ button       │
+└──────────┘    └──────────────┘
+```
+
+**Key Implementation Details:**
+- `requestAIReview()` uses direct `fetch()` to Railway server (not GradingEngine)
+- `displayGradingFeedback()` checks for `.grading-score` element to detect loading state vs result skeleton
+- Server-side 30-second timeout via AbortController in `callGroq()`
+- Debug logging with `🤖` prefix for troubleshooting
+
 ---
 
 ## 5. User Authentication State Machine
