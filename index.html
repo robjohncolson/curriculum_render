@@ -1238,10 +1238,37 @@
                     `;
                     statusDisplay.onclick = toggleSyncTooltip;
                     messageArea.appendChild(statusDisplay);
+
+                    // Phase 3A: Create stable child elements once (prevents DOM thrashing)
+                    const iconSpan = document.createElement('span');
+                    iconSpan.id = 'syncStatusIcon';
+                    const textStrong = document.createElement('strong');
+                    textStrong.id = 'syncStatusText';
+                    const turboSpan = document.createElement('span');
+                    turboSpan.id = 'syncStatusTurbo';
+                    turboSpan.style.color = '#27ae60';
+                    turboSpan.textContent = ' 🚀';
+                    turboSpan.style.display = 'none';
+
+                    statusDisplay.appendChild(iconSpan);
+                    statusDisplay.appendChild(document.createTextNode(' '));
+                    statusDisplay.appendChild(textStrong);
+                    statusDisplay.appendChild(turboSpan);
                 }
             }
 
             if (!statusDisplay) return;
+
+            // Phase 3A: Get stable child elements
+            const iconSpan = document.getElementById('syncStatusIcon');
+            const textStrong = document.getElementById('syncStatusText');
+            const turboSpan = document.getElementById('syncStatusTurbo');
+
+            if (!iconSpan || !textStrong || !turboSpan) {
+                // Fallback: element exists but lacks children (shouldn't happen)
+                console.warn('Sync indicator missing child elements');
+                return;
+            }
 
             const state = window.syncState;
             let icon, text, color;
@@ -1293,13 +1320,19 @@
                     }
             }
 
-            // Add turbo indicator
-            const turboIcon = turboModeActive ? ' <span style="color: #27ae60;">🚀</span>' : '';
-
-            statusDisplay.innerHTML = `
-                <span style="color: ${color};">${icon}</span>
-                <strong>${text}</strong>${turboIcon}
-            `;
+            // Phase 3A: Incremental updates using DOMUtils (no-op if unchanged)
+            if (typeof DOMUtils !== 'undefined') {
+                DOMUtils.updateText(iconSpan, icon);
+                DOMUtils.updateStyle(iconSpan, 'color', color);
+                DOMUtils.updateText(textStrong, text);
+                DOMUtils.updateStyle(turboSpan, 'display', turboModeActive ? 'inline' : 'none');
+            } else {
+                // Fallback without DOMUtils
+                iconSpan.textContent = icon;
+                iconSpan.style.color = color;
+                textStrong.textContent = text;
+                turboSpan.style.display = turboModeActive ? 'inline' : 'none';
+            }
 
             // Store color for tooltip
             statusDisplay.dataset.statusColor = color;
@@ -7597,6 +7630,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Display grading feedback in UI
+        // Phase 3B: Uses incremental DOM updates to prevent listener loss and focus thrashing
         function displayGradingFeedback(questionId, result) {
             const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
             if (!feedbackContainer) return;
@@ -7610,42 +7644,82 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             const scoreInfo = scoreClasses[result.score] || scoreClasses['I'];
 
-            // Build matched/missing lists
-            let detailsHtml = '';
-            if (result.matched?.length > 0) {
-                detailsHtml += `
-                    <div class="grading-matched">
-                        <strong>✓ You included:</strong>
-                        <ul>${result.matched.map(m => `<li>${m}</li>`).join('')}</ul>
+            // Phase 3B: Ensure stable skeleton exists (create once, update incrementally)
+            let wrapper = feedbackContainer.querySelector('.grading-feedback');
+            if (!wrapper) {
+                // First render: create stable skeleton
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback">
+                        <div class="grading-header">
+                            <span class="grading-score"></span>
+                            <span class="ai-badge"></span>
+                        </div>
+                        <div class="grading-feedback-text"></div>
+                        <div class="grading-matched" style="display: none;">
+                            <strong>✓ You included:</strong>
+                            <ul></ul>
+                        </div>
+                        <div class="grading-missing" style="display: none;">
+                            <strong>△ Consider adding:</strong>
+                            <ul></ul>
+                        </div>
                     </div>
                 `;
-            }
-            if (result.missing?.length > 0) {
-                detailsHtml += `
-                    <div class="grading-missing">
-                        <strong>△ Consider adding:</strong>
-                        <ul>${result.missing.map(m => `<li>${m}</li>`).join('')}</ul>
-                    </div>
-                `;
+                wrapper = feedbackContainer.querySelector('.grading-feedback');
             }
 
-            // AI provider badge
-            const providerBadge = result._aiGraded
-                ? `<span class="ai-badge" title="Graded by ${result._model || 'AI'}">⚡ ${result._provider || 'AI'}</span>`
-                : `<span class="ai-badge" title="Rubric-based grading">📋 Rubric</span>`;
+            // Phase 3B: Get stable child elements
+            const scoreSpan = wrapper.querySelector('.grading-score');
+            const badgeSpan = wrapper.querySelector('.ai-badge');
+            const feedbackText = wrapper.querySelector('.grading-feedback-text');
+            const matchedDiv = wrapper.querySelector('.grading-matched');
+            const missingDiv = wrapper.querySelector('.grading-missing');
+            const matchedUl = matchedDiv?.querySelector('ul');
+            const missingUl = missingDiv?.querySelector('ul');
 
-            feedbackContainer.innerHTML = `
-                <div class="grading-feedback ${scoreInfo.class}">
-                    <div class="grading-header">
-                        <span class="grading-score">${scoreInfo.icon} ${scoreInfo.label}</span>
-                        ${providerBadge}
-                    </div>
-                    <div class="grading-feedback-text">
-                        ${result.feedback || 'Review the official solution for detailed grading criteria.'}
-                    </div>
-                    ${detailsHtml}
-                </div>
-            `;
+            // Phase 3B: Update score class on wrapper (remove old, add new)
+            wrapper.classList.remove('excellent', 'partial', 'incorrect');
+            wrapper.classList.add(scoreInfo.class);
+
+            // Phase 3B: Incremental updates using DOMUtils (no-op if unchanged)
+            const updateText = typeof DOMUtils !== 'undefined'
+                ? DOMUtils.updateText.bind(DOMUtils)
+                : (el, text) => { if (el) el.textContent = text; };
+            const updateAttr = typeof DOMUtils !== 'undefined'
+                ? DOMUtils.updateAttr.bind(DOMUtils)
+                : (el, attr, val) => { if (el) el.setAttribute(attr, val); };
+
+            // Update score
+            updateText(scoreSpan, `${scoreInfo.icon} ${scoreInfo.label}`);
+
+            // Update provider badge
+            const badgeText = result._aiGraded
+                ? `⚡ ${result._provider || 'AI'}`
+                : '📋 Rubric';
+            const badgeTitle = result._aiGraded
+                ? `Graded by ${result._model || 'AI'}`
+                : 'Rubric-based grading';
+            updateText(badgeSpan, badgeText);
+            updateAttr(badgeSpan, 'title', badgeTitle);
+
+            // Update feedback text
+            updateText(feedbackText, result.feedback || 'Review the official solution for detailed grading criteria.');
+
+            // Phase 3B: Update matched list using keyed diffing
+            if (result.matched?.length > 0 && matchedUl) {
+                matchedDiv.style.display = 'block';
+                _updateListItems(matchedUl, result.matched);
+            } else if (matchedDiv) {
+                matchedDiv.style.display = 'none';
+            }
+
+            // Update missing list using keyed diffing
+            if (result.missing?.length > 0 && missingUl) {
+                missingDiv.style.display = 'block';
+                _updateListItems(missingUl, result.missing);
+            } else if (missingDiv) {
+                missingDiv.style.display = 'none';
+            }
 
             // Show appeal button for non-E scores (P or I)
             if (result.score !== 'E') {
@@ -7662,6 +7736,40 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const userReason = classData.users[currentUsername]?.reasons?.[questionId];
                 if (shareBtn && userReason && userReason.trim().length > 0) {
                     shareBtn.style.display = 'inline-block';
+                }
+            }
+        }
+
+        // Phase 3B: Helper to update list items incrementally
+        function _updateListItems(ul, items) {
+            if (!ul || !Array.isArray(items)) return;
+
+            // Use DOMUtils.updateList if available, otherwise simple rebuild
+            if (typeof DOMUtils !== 'undefined' && DOMUtils.updateList) {
+                DOMUtils.updateList(
+                    ul,
+                    items,
+                    (item, idx) => `item-${idx}`, // key function
+                    (el, item) => { el.textContent = item; }, // render function
+                    () => document.createElement('li') // create function
+                );
+            } else {
+                // Fallback: simple diff by index
+                const existing = ul.querySelectorAll('li');
+                items.forEach((item, idx) => {
+                    if (existing[idx]) {
+                        if (existing[idx].textContent !== item) {
+                            existing[idx].textContent = item;
+                        }
+                    } else {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        ul.appendChild(li);
+                    }
+                });
+                // Remove extra items
+                for (let i = items.length; i < existing.length; i++) {
+                    existing[i].remove();
                 }
             }
         }
