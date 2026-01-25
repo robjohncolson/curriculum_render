@@ -2614,9 +2614,11 @@ function showIdentityClaimModal(claim) {
             await respondToIdentityClaim(claim.id, 'yes');
             if (typeof ModalUtils !== 'undefined') {
                 ModalUtils.close(modal);
+                // onClose callback handles modal.remove() and resolve()
+            } else {
+                modal.remove();
+                resolve();
             }
-            modal.remove();
-            resolve();
         };
 
         noBtn.onclick = async () => {
@@ -2626,9 +2628,11 @@ function showIdentityClaimModal(claim) {
             await respondToIdentityClaim(claim.id, 'no');
             if (typeof ModalUtils !== 'undefined') {
                 ModalUtils.close(modal);
+                // onClose callback handles modal.remove() and resolve()
+            } else {
+                modal.remove();
+                resolve();
             }
-            modal.remove();
-            resolve();
         };
     });
 }
@@ -2715,18 +2719,23 @@ async function loadTeacherNotifications() {
         if (section && list) {
             if (notifications.length > 0) {
                 section.style.display = 'block';
-                list.innerHTML = notifications.map(n => `
+
+                // Escape helpers for XSS prevention
+                const esc = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeHtml.bind(DOMUtils) : (s => s);
+                const escAttr = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeAttr.bind(DOMUtils) : (s => s);
+
+                list.innerHTML = notifications.map((n, idx) => `
                     <div style="padding: 10px; margin-bottom: 8px; background: ${n.read ? '#f8f9fa' : 'white'}; border-radius: 6px; border: 1px solid #ddd;">
                         <div style="display: flex; justify-content: space-between; align-items: start;">
                             <div>
                                 <strong style="color: ${n.notification_type === 'claim_conflict' ? '#e74c3c' : '#27ae60'};">
                                     ${n.notification_type === 'claim_conflict' ? '⚠️ Conflict' : '✅ Resolved'}
                                 </strong>
-                                <p style="margin: 5px 0 0 0; font-size: 0.9em;">${n.message}</p>
+                                <p style="margin: 5px 0 0 0; font-size: 0.9em;">${esc(n.message)}</p>
                                 <small style="color: #888;">${new Date(n.created_at).toLocaleString()}</small>
                             </div>
                             ${n.notification_type === 'claim_conflict' && n.related_orphan ? `
-                                <button onclick="showConflictResolutionModal('${n.related_orphan}')" style="
+                                <button data-resolve-orphan="${escAttr(n.related_orphan)}" class="resolve-conflict-btn" style="
                                     background: #3498db;
                                     color: white;
                                     border: none;
@@ -2739,6 +2748,14 @@ async function loadTeacherNotifications() {
                         </div>
                     </div>
                 `).join('');
+
+                // Set up event handlers for resolve buttons (avoid inline onclick)
+                list.querySelectorAll('.resolve-conflict-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const orphan = btn.dataset.resolveOrphan;
+                        if (orphan) showConflictResolutionModal(orphan);
+                    };
+                });
             } else {
                 section.style.display = 'none';
             }
@@ -2779,26 +2796,31 @@ async function loadOrphanedUsernames() {
             const studentsResponse = await fetch(`${window.RAILWAY_SERVER_URL}/api/peer-data`);
             const studentsData = await studentsResponse.json();
 
+            // Escape helpers for XSS prevention
+            const esc = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeHtml.bind(DOMUtils) : (s => s);
+            const escAttr = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeAttr.bind(DOMUtils) : (s => s);
+
             list.innerHTML = `
                 <p style="margin-bottom: 10px;"><strong>${total}</strong> orphaned username${total > 1 ? 's' : ''} found:</p>
                 ${orphans.map(o => {
                     const hasCurriculum = o.curriculumCount > 0;
                     const borderColor = hasCurriculum ? '#3498db' : '#ddd';
                     const bgColor = hasCurriculum ? '#f0f7ff' : 'white';
+                    const unitsDisplay = o.units && o.units.length > 0 ? o.units.map(u => esc(u)).join(', ') : '';
                     return `
                     <div style="padding: 12px; margin-bottom: 10px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
-                                <strong style="color: #2c3e50;">${o.username}</strong>
+                                <strong style="color: #2c3e50;">${esc(o.username)}</strong>
                                 ${hasCurriculum ? '<span style="background: #3498db; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; margin-left: 8px;">HAS CURRICULUM</span>' : ''}
                                 <div style="font-size: 0.85em; color: #666; margin-top: 4px;">
                                     📚 <strong>${o.curriculumCount}</strong> curriculum
-                                    ${o.units && o.units.length > 0 ? `<span style="color: #3498db;">(${o.units.join(', ')})</span>` : ''}
+                                    ${unitsDisplay ? `<span style="color: #3498db;">(${unitsDisplay})</span>` : ''}
                                     &nbsp;|&nbsp;
                                     📝 <strong>${o.worksheetCount}</strong> worksheet
                                 </div>
                             </div>
-                            <button onclick="showCreateClaimModal('${o.username}', ${o.answerCount})" style="
+                            <button data-orphan="${escAttr(o.username)}" data-count="${o.answerCount}" class="create-claim-btn" style="
                                 background: ${hasCurriculum ? '#3498db' : '#9b59b6'};
                                 color: white;
                                 border: none;
@@ -2811,6 +2833,15 @@ async function loadOrphanedUsernames() {
                     </div>
                 `}).join('')}
             `;
+
+            // Set up event handlers for create claim buttons (avoid inline onclick)
+            list.querySelectorAll('.create-claim-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const orphan = btn.dataset.orphan;
+                    const count = parseInt(btn.dataset.count, 10) || 0;
+                    if (orphan) showCreateClaimModal(orphan, count);
+                };
+            });
         }
     } catch (error) {
         console.error('Error loading orphans:', error);
@@ -2895,7 +2926,9 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
 
     // Use ModalUtils for keyboard navigation
     if (typeof ModalUtils !== 'undefined') {
-        ModalUtils.open(modal);
+        ModalUtils.open(modal, {
+            onClose: () => modal.remove() // Clean up DOM when Escape is pressed
+        });
     } else {
         modal.style.display = 'block'; // Fallback
     }
@@ -2974,14 +3007,18 @@ async function showConflictResolutionModal(orphanUsername) {
     const modal = document.createElement('div');
     modal.id = 'resolveConflictModal';
     modal.className = 'modal';
-    modal.style.cssText = 'display: block; position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+    // Note: display is set by ModalUtils.open()
+    modal.style.cssText = 'position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+    // Escape user data for XSS prevention
+    const esc = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeHtml.bind(DOMUtils) : (s => s);
 
     modal.innerHTML = `
         <div style="background: white; margin: 10% auto; padding: 25px; border-radius: 12px; max-width: 450px;">
             <h3 style="margin-top: 0; color: #e74c3c;">
                 <i class="fas fa-exclamation-triangle"></i> Resolve Conflict
             </h3>
-            <p>Multiple students claimed <strong>${orphanUsername}</strong>.</p>
+            <p>Multiple students claimed <strong>${esc(orphanUsername)}</strong>.</p>
             <p>Enter the username of the correct student to merge the data into:</p>
 
             <input type="text" id="mergeTargetUsername" placeholder="e.g., Mango_Panda" style="
@@ -2995,7 +3032,7 @@ async function showConflictResolutionModal(orphanUsername) {
             ">
 
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button onclick="document.getElementById('resolveConflictModal').remove()" style="
+                <button id="cancelConflictBtn" style="
                     padding: 10px 20px;
                     background: #95a5a6;
                     color: white;
@@ -3003,7 +3040,7 @@ async function showConflictResolutionModal(orphanUsername) {
                     border-radius: 6px;
                     cursor: pointer;
                 ">Cancel</button>
-                <button onclick="submitManualMerge('${orphanUsername}')" style="
+                <button id="mergeConflictBtn" style="
                     padding: 10px 20px;
                     background: #27ae60;
                     color: white;
@@ -3016,6 +3053,26 @@ async function showConflictResolutionModal(orphanUsername) {
     `;
 
     document.body.appendChild(modal);
+
+    // Use ModalUtils for keyboard navigation
+    if (typeof ModalUtils !== 'undefined') {
+        ModalUtils.open(modal, {
+            focusFirst: '#mergeTargetUsername',
+            onClose: () => modal.remove()
+        });
+    } else {
+        modal.style.display = 'block'; // Fallback
+    }
+
+    // Set up button handlers (avoid inline onclick for XSS safety)
+    document.getElementById('cancelConflictBtn').onclick = () => {
+        if (typeof ModalUtils !== 'undefined') ModalUtils.close(modal);
+        modal.remove();
+    };
+
+    document.getElementById('mergeConflictBtn').onclick = () => {
+        submitManualMerge(orphanUsername);
+    };
 }
 
 /**
@@ -3051,7 +3108,11 @@ async function submitManualMerge(orphanUsername) {
         showMessage(`Successfully merged ${orphanUsername} into ${targetUsername}`, 'success');
 
         // Close modal and refresh
-        document.getElementById('resolveConflictModal')?.remove();
+        const modal = document.getElementById('resolveConflictModal');
+        if (modal) {
+            if (typeof ModalUtils !== 'undefined') ModalUtils.close(modal);
+            modal.remove();
+        }
         loadTeacherNotifications();
         loadOrphanedUsernames();
 
