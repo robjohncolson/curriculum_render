@@ -6899,6 +6899,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         }
 
         // Function to populate the sidebar peer reasoning section
+        // Phase 3C: Uses keyed list diffing to preserve unchanged peer cards
         function populatePeerReasoning(questionId, contributors) {
             const peerReasoningContent = document.getElementById(`peer-reasoning-content-${questionId}`);
             const peerCount = document.getElementById(`peer-count-${questionId}`);
@@ -6935,17 +6936,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const question = EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             const isFRQ = question && question.type === 'free-response';
 
-            // Generate peer response cards
-            let html = '';
-            peerResponses.forEach(peer => {
+            // Phase 3C: Helper to build card HTML for a peer
+            function buildPeerCardHtml(peer) {
                 const badges = calculateBadges(peer.username);
                 const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
                 const hasReason = peer.reason && peer.reason.trim().length > 0;
-
-                // Determine if answer is correct (basic heuristic - could be enhanced)
                 const isCorrect = badgeText.includes('🏆') || badgeText.includes('⭐');
 
-                // Get vote statistics for this peer - calculate inline for accuracy
+                // Get vote statistics
                 let totalScore = 0;
                 let voteCount = 0;
                 for (const voterUsername in classData.users) {
@@ -6960,92 +6958,213 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const currentUserVote = classData.users[currentUsername]?.votes?.[questionId]?.[peer.username]?.score;
 
                 if (isFRQ) {
-                    // Enhanced FRQ display
                     let answerHtml = '';
-
-                    // Try to parse response as chart JSON
                     try {
                         const parsed = JSON.parse(peer.response);
                         if (parsed.chartType) {
-                            // It's a chart - use two-phase rendering
                             const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
                             if (typeof window.charts?.getChartHtml === 'function') {
-                                // NEW: Two-phase rendering
                                 answerHtml = `<div class="peer-chart-container">${window.charts.getChartHtml(parsed, canvasId)}</div>`;
-                                // Schedule Phase 2 (drawing) after DOM injection
-                                requestAnimationFrame(() => {
-                                    window.charts.renderChartNow(parsed, canvasId);
-                                });
                             } else {
-                                // FALLBACK: Old approach
                                 answerHtml = `<div id="chart-container-${canvasId}" class="peer-chart-container"></div>`;
-                                setTimeout(() => {
-                                    const container = document.querySelector(`#chart-container-${canvasId}`);
-                                    if (container && typeof renderChart === 'function') {
-                                        container.innerHTML = renderChart(parsed, canvasId);
-                                    }
-                                }, 100);
                             }
                         } else {
-                            // JSON but not a chart
                             answerHtml = peer.response;
                         }
                     } catch(e) {
-                        // Not JSON - regular text response
                         answerHtml = peer.response;
                     }
 
-                    html += `
-                        <div class="peer-response-card frq">
-                            <div class="peer-name">${peer.username}${badgeText}</div>
-                            <div class="peer-frq-answer">${answerHtml}</div>
-                            ${peer.username !== currentUsername ? `
-                                <div class="frq-vote-widget">
-                                    ${[1,2,3,4,5].map(score => `
-                                        <span class="star ${currentUserVote >= score ? 'active' : ''}"
-                                              data-question-id="${questionId}"
-                                              data-username="${peer.username}"
-                                              data-score="${score}"
-                                              title="${score} star${score > 1 ? 's' : ''}">
-                                            <i class="fas fa-star"></i>
-                                        </span>
-                                    `).join('')}
-                                    <span class="frq-vote-stats">
-                                        Average: ${avgVote > 0 ? avgVote.toFixed(1) : 'N/A'}
-                                        (${voteCount} vote${voteCount !== 1 ? 's' : ''})
+                    return `
+                        <div class="peer-name">${peer.username}${badgeText}</div>
+                        <div class="peer-frq-answer">${answerHtml}</div>
+                        ${peer.username !== currentUsername ? `
+                            <div class="frq-vote-widget">
+                                ${[1,2,3,4,5].map(score => `
+                                    <span class="star ${currentUserVote >= score ? 'active' : ''}"
+                                          data-question-id="${questionId}"
+                                          data-username="${peer.username}"
+                                          data-score="${score}"
+                                          title="${score} star${score > 1 ? 's' : ''}">
+                                        <i class="fas fa-star"></i>
                                     </span>
-                                </div>
-                            ` : ''}
-                        </div>
+                                `).join('')}
+                                <span class="frq-vote-stats">
+                                    Average: ${avgVote > 0 ? avgVote.toFixed(1) : 'N/A'}
+                                    (${voteCount} vote${voteCount !== 1 ? 's' : ''})
+                                </span>
+                            </div>
+                        ` : ''}
                     `;
                 } else {
-                    // Regular MCQ display (unchanged)
-                    html += `
-                        <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'}">
-                            <div class="peer-name">${peer.username}${badgeText}</div>
-                            <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
-                            ${hasReason ?
-                                `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
-                                '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
-                            }
-                        </div>
+                    return `
+                        <div class="peer-name">${peer.username}${badgeText}</div>
+                        <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
+                        ${hasReason ?
+                            `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+                            '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
+                        }
                     `;
                 }
-            });
+            }
 
-            peerReasoningContent.innerHTML = html;
+            // Phase 3C: Use keyed list diffing if DOMUtils available
+            if (typeof DOMUtils !== 'undefined' && DOMUtils.updateList) {
+                // Clear hint message if present
+                const hint = peerReasoningContent.querySelector('.peer-hint');
+                if (hint) hint.remove();
 
-            // Attach click handlers to star voting elements (using event delegation for robustness)
-            peerReasoningContent.querySelectorAll('.star').forEach(star => {
-                star.onclick = function() {
-                    const qId = this.dataset.questionId;
-                    const uname = this.dataset.username;
-                    const score = parseInt(this.dataset.score);
-                    if (qId && uname && score) {
-                        window.voteOnFRQ(qId, uname, score);
+                DOMUtils.updateList(
+                    peerReasoningContent,
+                    peerResponses,
+                    // Key function: use username
+                    peer => peer.username,
+                    // Render function: update existing card
+                    (el, peer) => {
+                        const badges = calculateBadges(peer.username);
+                        const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
+                        const isCorrect = badgeText.includes('🏆') || badgeText.includes('⭐');
+
+                        // Update classes
+                        el.className = `peer-response-card ${isFRQ ? 'frq' : (isCorrect ? 'correct' : 'incorrect')}`;
+
+                        // Update content
+                        el.innerHTML = buildPeerCardHtml(peer);
+
+                        // Reattach star handlers for this card
+                        el.querySelectorAll('.star').forEach(star => {
+                            star.onclick = function() {
+                                const qId = this.dataset.questionId;
+                                const uname = this.dataset.username;
+                                const score = parseInt(this.dataset.score);
+                                if (qId && uname && score) {
+                                    window.voteOnFRQ(qId, uname, score);
+                                }
+                            };
+                        });
+
+                        // Schedule chart rendering if needed
+                        if (isFRQ) {
+                            try {
+                                const parsed = JSON.parse(peer.response);
+                                if (parsed.chartType) {
+                                    const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
+                                    if (typeof window.charts?.renderChartNow === 'function') {
+                                        requestAnimationFrame(() => {
+                                            window.charts.renderChartNow(parsed, canvasId);
+                                        });
+                                    } else if (typeof renderChart === 'function') {
+                                        setTimeout(() => {
+                                            const container = document.querySelector(`#chart-container-${canvasId}`);
+                                            if (container) container.innerHTML = renderChart(parsed, canvasId);
+                                        }, 100);
+                                    }
+                                }
+                            } catch(e) { /* Not a chart */ }
+                        }
+                    },
+                    // Create function: create new card element
+                    () => {
+                        const div = document.createElement('div');
+                        return div;
                     }
-                };
-            });
+                );
+            } else {
+                // Fallback: full innerHTML rebuild
+                let html = '';
+                peerResponses.forEach(peer => {
+                    const badges = calculateBadges(peer.username);
+                    const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
+                    const isCorrect = badgeText.includes('🏆') || badgeText.includes('⭐');
+
+                    if (isFRQ) {
+                        let answerHtml = '';
+                        try {
+                            const parsed = JSON.parse(peer.response);
+                            if (parsed.chartType) {
+                                const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
+                                if (typeof window.charts?.getChartHtml === 'function') {
+                                    answerHtml = `<div class="peer-chart-container">${window.charts.getChartHtml(parsed, canvasId)}</div>`;
+                                    requestAnimationFrame(() => {
+                                        window.charts.renderChartNow(parsed, canvasId);
+                                    });
+                                } else {
+                                    answerHtml = `<div id="chart-container-${canvasId}" class="peer-chart-container"></div>`;
+                                    setTimeout(() => {
+                                        const container = document.querySelector(`#chart-container-${canvasId}`);
+                                        if (container && typeof renderChart === 'function') {
+                                            container.innerHTML = renderChart(parsed, canvasId);
+                                        }
+                                    }, 100);
+                                }
+                            } else {
+                                answerHtml = peer.response;
+                            }
+                        } catch(e) {
+                            answerHtml = peer.response;
+                        }
+
+                        html += `
+                            <div class="peer-response-card frq" data-key="${peer.username}">
+                                <div class="peer-name">${peer.username}${badgeText}</div>
+                                <div class="peer-frq-answer">${answerHtml}</div>
+                                ${peer.username !== currentUsername ? `
+                                    <div class="frq-vote-widget">
+                                        ${[1,2,3,4,5].map(score => {
+                                            let totalScore = 0, voteCount = 0;
+                                            for (const v in classData.users) {
+                                                const vote = classData.users[v]?.votes?.[questionId]?.[peer.username];
+                                                if (vote && typeof vote.score === 'number') { totalScore += vote.score; voteCount++; }
+                                            }
+                                            const avgVote = voteCount > 0 ? totalScore / voteCount : 0;
+                                            const currentUserVote = classData.users[currentUsername]?.votes?.[questionId]?.[peer.username]?.score;
+                                            return `
+                                                <span class="star ${currentUserVote >= score ? 'active' : ''}"
+                                                      data-question-id="${questionId}"
+                                                      data-username="${peer.username}"
+                                                      data-score="${score}"
+                                                      title="${score} star${score > 1 ? 's' : ''}">
+                                                    <i class="fas fa-star"></i>
+                                                </span>
+                                            `;
+                                        }).join('')}
+                                        <span class="frq-vote-stats">
+                                            Average: ${(() => { let ts=0, vc=0; for(const v in classData.users){ const vote=classData.users[v]?.votes?.[questionId]?.[peer.username]; if(vote && typeof vote.score==='number'){ts+=vote.score;vc++;}} return vc>0?ts/vc:0; })() > 0 ? (() => { let ts=0, vc=0; for(const v in classData.users){ const vote=classData.users[v]?.votes?.[questionId]?.[peer.username]; if(vote && typeof vote.score==='number'){ts+=vote.score;vc++;}} return (ts/vc).toFixed(1); })() : 'N/A'}
+                                            (${(() => { let vc=0; for(const v in classData.users){ const vote=classData.users[v]?.votes?.[questionId]?.[peer.username]; if(vote && typeof vote.score==='number') vc++;} return vc; })()} vote${(() => { let vc=0; for(const v in classData.users){ const vote=classData.users[v]?.votes?.[questionId]?.[peer.username]; if(vote && typeof vote.score==='number') vc++;} return vc; })() !== 1 ? 's' : ''})
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    } else {
+                        const hasReason = peer.reason && peer.reason.trim().length > 0;
+                        html += `
+                            <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'}" data-key="${peer.username}">
+                                <div class="peer-name">${peer.username}${badgeText}</div>
+                                <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
+                                ${hasReason ?
+                                    `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+                                    '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
+                                }
+                            </div>
+                        `;
+                    }
+                });
+
+                peerReasoningContent.innerHTML = html;
+
+                // Attach click handlers to star voting elements
+                peerReasoningContent.querySelectorAll('.star').forEach(star => {
+                    star.onclick = function() {
+                        const qId = this.dataset.questionId;
+                        const uname = this.dataset.username;
+                        const score = parseInt(this.dataset.score);
+                        if (qId && uname && score) {
+                            window.voteOnFRQ(qId, uname, score);
+                        }
+                    };
+                });
+            }
         }
 
         // Render FRQ responses

@@ -574,6 +574,7 @@
         return { recommended, more };
     }
 
+    // Phase 3E: Create stable modal skeleton once (prevents DOM thrashing on step changes)
     function ensureModal() {
         if (document.getElementById(OVERLAY_ID)) return;
         const overlay = document.createElement('div');
@@ -588,13 +589,30 @@
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('tabindex', '-1');
 
-        const content = document.createElement('div');
-        content.id = CONTENT_ID;
-        content.className = 'chart-wizard-body';
+        // Phase 3E: Create stable header/body/footer skeleton
+        const header = document.createElement('div');
+        header.className = 'chart-wizard-header';
+        header.innerHTML = `
+            <div class="chart-wizard-title" id="chart-wizard-title">Chart Wizard</div>
+            <button class="chart-wizard-close" aria-label="Close chart wizard">&times;</button>
+        `;
 
-        modal.appendChild(content);
+        const body = document.createElement('div');
+        body.id = CONTENT_ID;
+        body.className = 'chart-wizard-body';
+
+        const footer = document.createElement('div');
+        footer.className = 'chart-wizard-footer';
+        footer.id = 'chart-wizard-footer';
+
+        modal.appendChild(header);
+        modal.appendChild(body);
+        modal.appendChild(footer);
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
+
+        // Phase 3E: Attach close handler once to stable header button
+        header.querySelector('.chart-wizard-close').addEventListener('click', closeWizard);
 
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay) {
@@ -1317,36 +1335,49 @@
         lastFocusedElement = null;
     }
 
+    // Phase 3E: Use stable skeleton, only update content (prevents focus/listener loss)
     function renderWizard() {
         const overlay = document.getElementById(OVERLAY_ID);
         if (!overlay || !wizardState) return;
 
         const modal = overlay.querySelector(`#${MODAL_ID}`);
-        const header = document.createElement('div');
-        header.className = 'chart-wizard-header';
-        header.innerHTML = `
-            <div class="chart-wizard-title" id="chart-wizard-title">Chart Wizard · ${wizardState.questionId}</div>
-            <button class="chart-wizard-close" aria-label="Close chart wizard">&times;</button>
-        `;
-        if (modal) {
-            modal.setAttribute('aria-labelledby', 'chart-wizard-title');
+        if (!modal) return;
+
+        // Phase 3E: Find stable skeleton elements (created in ensureModal)
+        const title = modal.querySelector('.chart-wizard-title');
+        const body = modal.querySelector(`#${CONTENT_ID}`);
+        const footer = modal.querySelector('#chart-wizard-footer');
+
+        if (!title || !body || !footer) {
+            console.warn('Chart wizard skeleton missing, falling back to full rebuild');
+            // Fallback: recreate skeleton (shouldn't happen)
+            modal.innerHTML = `
+                <div class="chart-wizard-header">
+                    <div class="chart-wizard-title" id="chart-wizard-title">Chart Wizard · ${wizardState.questionId}</div>
+                    <button class="chart-wizard-close" aria-label="Close chart wizard">&times;</button>
+                </div>
+                <div class="chart-wizard-body" id="${CONTENT_ID}"></div>
+                <div class="chart-wizard-footer" id="chart-wizard-footer"></div>
+            `;
+            modal.querySelector('.chart-wizard-close').addEventListener('click', closeWizard);
+            renderWizard(); // Recurse with skeleton in place
+            return;
         }
 
-        const body = document.createElement('div');
-        body.className = 'chart-wizard-body';
-        body.id = CONTENT_ID;
-        body.innerHTML = getStepContent();
+        modal.setAttribute('aria-labelledby', 'chart-wizard-title');
 
-        const footer = document.createElement('div');
-        footer.className = 'chart-wizard-footer';
+        // Phase 3E: Update only the content, not the structure
+        // Title update (incremental)
+        const newTitle = `Chart Wizard · ${wizardState.questionId}`;
+        if (title.textContent !== newTitle) {
+            title.textContent = newTitle;
+        }
+
+        // Body and footer content update
+        body.innerHTML = getStepContent();
         footer.innerHTML = getFooterContent();
 
-        modal.innerHTML = '';
-        modal.appendChild(header);
-        modal.appendChild(body);
-        modal.appendChild(footer);
-
-        header.querySelector('button').addEventListener('click', closeWizard);
+        // Attach handlers to the new body/footer content (close button handler is stable)
         attachEventHandlers(body, footer);
 
         if (wizardState.shouldFocusChartType && wizardState.step === 0) {
