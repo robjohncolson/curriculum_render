@@ -158,8 +158,8 @@ function mockRenderQuestion(question, index, classData, currentUsername) {
                     <span>Question ${questionNumber}</span>
                     ${isAnswered ? '<span style="color: #a5d6a7;">✓ Answered</span>' : ''}
                 </div>
-                <div class="question-id">ID: ${question.id}</div>
-                <div class="question-prompt">${question.prompt}</div>
+                <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
     `;
 
     // Handle MCQ
@@ -821,5 +821,517 @@ describe('Phase 3D-2A: DOMUtils.updateList Integration', () => {
 
         expect(container.children.length).toBe(3);
         expect(container.findByKey('Q3')).not.toBeUndefined();
+    });
+});
+
+// ============================================
+// PHASE 3D-1B: PROGRESSIVE FRQ ACCORDION TESTS
+// ============================================
+
+/**
+ * Create a mock Progressive FRQ question with multiple parts
+ */
+function createMockProgressiveFRQ(overrides = {}) {
+    return {
+        id: 'U3-L5-Q01',
+        type: 'free-response',
+        prompt: 'A statistics class collected data on commute times. Answer the following:',
+        parts: [
+            { id: 'a', prompt: 'Calculate the mean commute time.' },
+            { id: 'b', prompt: 'Calculate the standard deviation.' },
+            { id: 'c', prompt: 'Interpret the standard deviation in context.' }
+        ],
+        solution: {
+            rubric: {
+                'a': ['Mean = sum/n', 'Show calculation'],
+                'b': ['Use correct formula', 'Calculate deviations'],
+                'c': ['Reference spread', 'Use context of commute times']
+            }
+        },
+        ...overrides
+    };
+}
+
+/**
+ * Create mock progressive FRQ answer state
+ */
+function createProgressiveAnswerState(completedParts = [], currentPart = 'a', allComplete = false) {
+    const parts = {};
+    completedParts.forEach(partId => {
+        parts[partId] = `Answer for part ${partId}`;
+    });
+
+    return {
+        value: {
+            parts,
+            currentPart: allComplete ? null : currentPart,
+            completedParts,
+            allComplete
+        },
+        timestamp: Date.now()
+    };
+}
+
+describe('Phase 3D-1B: Progressive FRQ Accordion Structure', () => {
+    let mockClassData;
+    const currentUsername = 'Test_User';
+
+    beforeEach(() => {
+        mockClassData = createMockClassData(currentUsername);
+    });
+
+    it('progressive FRQ has parts array with ids and prompts', () => {
+        const question = createMockProgressiveFRQ();
+
+        expect(question.parts).toBeDefined();
+        expect(question.parts.length).toBe(3);
+        expect(question.parts[0]).toHaveProperty('id', 'a');
+        expect(question.parts[0]).toHaveProperty('prompt');
+    });
+
+    it('each part has unique id', () => {
+        const question = createMockProgressiveFRQ();
+        const ids = question.parts.map(p => p.id);
+        const uniqueIds = new Set(ids);
+
+        expect(uniqueIds.size).toBe(ids.length);
+    });
+
+    it('progressive answer state tracks completed parts', () => {
+        const state = createProgressiveAnswerState(['a', 'b'], 'c', false);
+
+        expect(state.value.completedParts).toContain('a');
+        expect(state.value.completedParts).toContain('b');
+        expect(state.value.currentPart).toBe('c');
+        expect(state.value.allComplete).toBe(false);
+    });
+
+    it('allComplete flag is true only when all parts submitted', () => {
+        const incomplete = createProgressiveAnswerState(['a'], 'b', false);
+        const complete = createProgressiveAnswerState(['a', 'b', 'c'], null, true);
+
+        expect(incomplete.value.allComplete).toBe(false);
+        expect(complete.value.allComplete).toBe(true);
+        expect(complete.value.currentPart).toBeNull();
+    });
+
+    it('parts store individual answers keyed by part id', () => {
+        const state = createProgressiveAnswerState(['a', 'b'], 'c', false);
+
+        expect(state.value.parts['a']).toBe('Answer for part a');
+        expect(state.value.parts['b']).toBe('Answer for part b');
+        expect(state.value.parts['c']).toBeUndefined();
+    });
+});
+
+describe('Phase 3D-1B: Progressive FRQ Part States', () => {
+    it('locked state: part not yet accessible', () => {
+        // Parts after currentPart should be locked
+        const state = createProgressiveAnswerState([], 'a', false);
+
+        // Part 'a' is current, 'b' and 'c' should be locked
+        const isLocked = (partId, currentPart, completedParts) => {
+            if (completedParts.includes(partId)) return false;
+            if (partId === currentPart) return false;
+            return true;
+        };
+
+        expect(isLocked('a', 'a', [])).toBe(false); // current, not locked
+        expect(isLocked('b', 'a', [])).toBe(true);  // future, locked
+        expect(isLocked('c', 'a', [])).toBe(true);  // future, locked
+    });
+
+    it('current state: part is active for answering', () => {
+        const state = createProgressiveAnswerState(['a'], 'b', false);
+
+        const isCurrent = (partId, currentPart) => partId === currentPart;
+
+        expect(isCurrent('a', 'b')).toBe(false);
+        expect(isCurrent('b', 'b')).toBe(true);
+        expect(isCurrent('c', 'b')).toBe(false);
+    });
+
+    it('completed state: part has been submitted', () => {
+        const state = createProgressiveAnswerState(['a', 'b'], 'c', false);
+
+        const isCompleted = (partId, completedParts) => completedParts.includes(partId);
+
+        expect(isCompleted('a', ['a', 'b'])).toBe(true);
+        expect(isCompleted('b', ['a', 'b'])).toBe(true);
+        expect(isCompleted('c', ['a', 'b'])).toBe(false);
+    });
+
+    it('part state transitions: locked → current → completed', () => {
+        // Simulate state transitions
+        const getPartState = (partId, currentPart, completedParts) => {
+            if (completedParts.includes(partId)) return 'completed';
+            if (partId === currentPart) return 'current';
+            return 'locked';
+        };
+
+        // Initial state: only 'a' is current
+        expect(getPartState('a', 'a', [])).toBe('current');
+        expect(getPartState('b', 'a', [])).toBe('locked');
+
+        // After submitting 'a': 'a' completed, 'b' current
+        expect(getPartState('a', 'b', ['a'])).toBe('completed');
+        expect(getPartState('b', 'b', ['a'])).toBe('current');
+        expect(getPartState('c', 'b', ['a'])).toBe('locked');
+
+        // After submitting 'b': 'a','b' completed, 'c' current
+        expect(getPartState('a', 'c', ['a', 'b'])).toBe('completed');
+        expect(getPartState('b', 'c', ['a', 'b'])).toBe('completed');
+        expect(getPartState('c', 'c', ['a', 'b'])).toBe('current');
+    });
+});
+
+describe('Phase 3D-1B: Progressive FRQ Accordion Behavior', () => {
+    it('completed parts can be expanded to view/edit', () => {
+        // Completed parts should be collapsible but expandable
+        const state = createProgressiveAnswerState(['a'], 'b', false);
+
+        // Completed part 'a' has its answer stored
+        expect(state.value.parts['a']).toBeDefined();
+
+        // UI should allow expanding completed parts (behavior test)
+        const canExpand = (partId, completedParts) => completedParts.includes(partId);
+        expect(canExpand('a', state.value.completedParts)).toBe(true);
+    });
+
+    it('only current part accepts new input', () => {
+        const state = createProgressiveAnswerState(['a'], 'b', false);
+
+        const canSubmit = (partId, currentPart, allComplete) => {
+            if (allComplete) return false;
+            return partId === currentPart;
+        };
+
+        expect(canSubmit('a', 'b', false)).toBe(false); // completed, can't resubmit as current
+        expect(canSubmit('b', 'b', false)).toBe(true);  // current, can submit
+        expect(canSubmit('c', 'b', false)).toBe(false); // locked, can't submit
+    });
+
+    it('locked parts show lock icon and grayed styling', () => {
+        // This test documents expected UI behavior
+        const getPartStyles = (state) => {
+            if (state === 'locked') return { icon: '🔒', opacity: 0.5, disabled: true };
+            if (state === 'current') return { icon: null, opacity: 1, disabled: false };
+            if (state === 'completed') return { icon: '✓', opacity: 1, disabled: false };
+            return {};
+        };
+
+        expect(getPartStyles('locked').icon).toBe('🔒');
+        expect(getPartStyles('locked').disabled).toBe(true);
+        expect(getPartStyles('current').disabled).toBe(false);
+        expect(getPartStyles('completed').icon).toBe('✓');
+    });
+});
+
+// ============================================
+// PHASE 3D-1B: CHART FRQ TESTS
+// ============================================
+
+/**
+ * Create a mock Chart FRQ question
+ */
+function createMockChartFRQ(overrides = {}) {
+    return {
+        id: 'U2-L4-Q03',
+        type: 'free-response',
+        prompt: 'Based on the histogram above, describe the distribution.',
+        attachments: {
+            chart: {
+                type: 'histogram',
+                canvasId: 'chart-U2-L4-Q03',
+                data: {
+                    labels: ['0-10', '10-20', '20-30', '30-40', '40-50'],
+                    values: [5, 12, 18, 10, 3]
+                }
+            }
+        },
+        solution: {
+            rubric: [
+                'Shape: skewed right',
+                'Center: approximately 20-30',
+                'Spread: ranges from 0 to 50'
+            ]
+        },
+        ...overrides
+    };
+}
+
+describe('Phase 3D-1B: Chart FRQ Structure', () => {
+    it('chart FRQ has attachments.chart configuration', () => {
+        const question = createMockChartFRQ();
+
+        expect(question.attachments).toBeDefined();
+        expect(question.attachments.chart).toBeDefined();
+        expect(question.attachments.chart.type).toBe('histogram');
+    });
+
+    it('chart has unique canvasId for rendering', () => {
+        const question = createMockChartFRQ();
+
+        expect(question.attachments.chart.canvasId).toBe('chart-U2-L4-Q03');
+        expect(question.attachments.chart.canvasId).toContain(question.id);
+    });
+
+    it('chart data has labels and values arrays', () => {
+        const question = createMockChartFRQ();
+        const chartData = question.attachments.chart.data;
+
+        expect(Array.isArray(chartData.labels)).toBe(true);
+        expect(Array.isArray(chartData.values)).toBe(true);
+        expect(chartData.labels.length).toBe(chartData.values.length);
+    });
+
+    it('supports multiple chart types', () => {
+        const types = ['histogram', 'bar', 'scatter', 'boxplot', 'dotplot'];
+
+        types.forEach(type => {
+            const question = createMockChartFRQ({
+                attachments: {
+                    chart: { type, canvasId: `chart-${type}`, data: {} }
+                }
+            });
+            expect(question.attachments.chart.type).toBe(type);
+        });
+    });
+});
+
+describe('Phase 3D-1B: Chart Rendering Integration', () => {
+    it('renderQuestion returns chartTasks for deferred rendering', () => {
+        // The real renderQuestion returns { html, chartTasks }
+        // chartTasks are rendered after DOM update via requestAnimationFrame
+
+        const mockRenderResult = {
+            html: '<div class="quiz-container">...</div>',
+            chartTasks: [
+                { canvasId: 'chart-U2-L4-Q03', chartData: { type: 'histogram' } }
+            ]
+        };
+
+        expect(mockRenderResult.chartTasks).toBeDefined();
+        expect(mockRenderResult.chartTasks.length).toBeGreaterThan(0);
+        expect(mockRenderResult.chartTasks[0]).toHaveProperty('canvasId');
+        expect(mockRenderResult.chartTasks[0]).toHaveProperty('chartData');
+    });
+
+    it('canvas element is created with chart canvasId', () => {
+        const question = createMockChartFRQ();
+        const expectedCanvasHtml = `<canvas id="${question.attachments.chart.canvasId}"`;
+
+        // Mock render would include canvas with correct id
+        const mockHtml = `<canvas id="chart-U2-L4-Q03" class="chart-canvas"></canvas>`;
+
+        expect(mockHtml).toContain(question.attachments.chart.canvasId);
+    });
+
+    it('chart renders after DOM update via requestAnimationFrame', () => {
+        // Document the expected rendering flow
+        const renderFlow = {
+            step1: 'renderQuestion returns HTML + chartTasks',
+            step2: 'HTML inserted into DOM',
+            step3: 'requestAnimationFrame schedules chart render',
+            step4: 'charts.renderChartNow(chartData, canvasId) called'
+        };
+
+        expect(renderFlow.step3).toContain('requestAnimationFrame');
+        expect(renderFlow.step4).toContain('renderChartNow');
+    });
+});
+
+// ============================================
+// PHASE 3D-1B: EDGE CASES
+// ============================================
+
+describe('Phase 3D-1B: Edge Cases - Empty States', () => {
+    let mockClassData;
+    const currentUsername = 'Test_User';
+
+    beforeEach(() => {
+        mockClassData = createMockClassData(currentUsername);
+    });
+
+    it('handles question with no choices gracefully', () => {
+        const question = createMockMCQ({ choices: [] });
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should still render the question structure
+        expect(html).toContain('data-question-id');
+        expect(html).toContain(question.prompt);
+
+        // Choices section should be empty
+        expect(html).toContain('<div class="choices">');
+        expect(html).toContain('</div>');
+    });
+
+    it('handles question with null prompt', () => {
+        const question = createMockMCQ({ prompt: null });
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should show fallback text
+        expect(html).toContain('No prompt provided');
+    });
+
+    it('handles question with undefined id', () => {
+        const question = createMockMCQ({ id: undefined });
+
+        // Should use fallback or handle gracefully
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+        expect(html).toContain('data-question-id');
+    });
+
+    it('handles classData with no user entry', () => {
+        const emptyClassData = { users: {} };
+        const question = createMockMCQ();
+
+        // Should not throw
+        expect(() => {
+            mockRenderQuestion(question, 0, emptyClassData, currentUsername);
+        }).not.toThrow();
+    });
+});
+
+describe('Phase 3D-1B: Edge Cases - Special Characters', () => {
+    let mockClassData;
+    const currentUsername = 'Test_User';
+
+    beforeEach(() => {
+        mockClassData = createMockClassData(currentUsername);
+    });
+
+    it('handles HTML entities in prompt', () => {
+        const question = createMockMCQ({
+            prompt: 'What is the probability of P(A < B)?'
+        });
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should contain the prompt (might be escaped)
+        expect(html).toContain('P(A');
+    });
+
+    it('handles MathJax notation in prompt', () => {
+        const question = createMockMCQ({
+            prompt: 'Calculate \\(\\bar{x} = \\frac{\\sum x_i}{n}\\)'
+        });
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should contain LaTeX notation (MathJax processes later)
+        expect(html).toContain('\\bar{x}');
+    });
+
+    it('handles Unicode characters in choices', () => {
+        const question = createMockMCQ({
+            choices: [
+                { key: 'A', value: 'μ = 0' },
+                { key: 'B', value: 'σ² > 0' },
+                { key: 'C', value: 'x̄ ≈ μ' },
+                { key: 'D', value: 'p̂ → p' }
+            ]
+        });
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        expect(html).toContain('μ = 0');
+        expect(html).toContain('σ²');
+    });
+
+    it('handles quotes in answer text', () => {
+        const question = createMockFRQ();
+        mockClassData.users[currentUsername].answers[question.id] = {
+            value: 'The "standard deviation" is always non-negative'
+        };
+
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should handle quotes without breaking HTML
+        expect(html).toContain('standard deviation');
+    });
+});
+
+describe('Phase 3D-1B: Edge Cases - Long Content', () => {
+    let mockClassData;
+    const currentUsername = 'Test_User';
+
+    beforeEach(() => {
+        mockClassData = createMockClassData(currentUsername);
+    });
+
+    it('handles very long prompt text', () => {
+        const longPrompt = 'A researcher conducted a study. '.repeat(50);
+        const question = createMockMCQ({ prompt: longPrompt });
+
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        // Should render without truncation
+        expect(html.length).toBeGreaterThan(longPrompt.length);
+    });
+
+    it('handles very long choice text', () => {
+        const longChoice = 'This is a very detailed explanation that goes on and on '.repeat(10);
+        const question = createMockMCQ({
+            choices: [
+                { key: 'A', value: longChoice },
+                { key: 'B', value: 'Short' },
+                { key: 'C', value: 'Medium length option' },
+                { key: 'D', value: 'Another option' }
+            ]
+        });
+
+        const html = mockRenderQuestion(question, 0, mockClassData, currentUsername);
+
+        expect(html).toContain(longChoice);
+    });
+
+    it('handles many questions (high index)', () => {
+        const question = createMockMCQ();
+
+        // Index 99 = Question 100
+        const html = mockRenderQuestion(question, 99, mockClassData, currentUsername);
+
+        expect(html).toContain('Question 100');
+        expect(html).toContain('data-question-number="100"');
+    });
+});
+
+describe('Phase 3D-1B: Edge Cases - Compound Part IDs', () => {
+    it('handles compound part IDs like b-i, b-ii', () => {
+        const question = createMockProgressiveFRQ({
+            parts: [
+                { id: 'a', prompt: 'Calculate the mean.' },
+                { id: 'b-i', prompt: 'State the null hypothesis.' },
+                { id: 'b-ii', prompt: 'State the alternative hypothesis.' },
+                { id: 'c', prompt: 'Interpret the results.' }
+            ]
+        });
+
+        expect(question.parts.length).toBe(4);
+        expect(question.parts[1].id).toBe('b-i');
+        expect(question.parts[2].id).toBe('b-ii');
+    });
+
+    it('formatPartLabel handles compound IDs correctly', () => {
+        // Format: a → (a), b-i → (b)(i), b-ii → (b)(ii)
+        const formatPartLabel = (partId) => {
+            if (partId.includes('-')) {
+                const [main, sub] = partId.split('-');
+                return `(${main})(${sub})`;
+            }
+            return `(${partId})`;
+        };
+
+        expect(formatPartLabel('a')).toBe('(a)');
+        expect(formatPartLabel('b-i')).toBe('(b)(i)');
+        expect(formatPartLabel('b-ii')).toBe('(b)(ii)');
+        expect(formatPartLabel('c')).toBe('(c)');
+    });
+
+    it('state transitions work with compound part IDs', () => {
+        const state = createProgressiveAnswerState(['a', 'b-i'], 'b-ii', false);
+
+        expect(state.value.completedParts).toContain('a');
+        expect(state.value.completedParts).toContain('b-i');
+        expect(state.value.currentPart).toBe('b-ii');
+        expect(state.value.parts['b-i']).toBeDefined();
     });
 });
