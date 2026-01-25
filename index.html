@@ -8835,15 +8835,21 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Request AI review for MCQ - Direct fetch like appeals (bypasses grading engine)
         window.requestAIReview = async function(questionId, questionType) {
+            console.log('🤖 AI Review started for:', questionId);
             const serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
+            console.log('🤖 Server URL:', serverUrl);
 
             const question = currentQuestions.find(q => q.id === questionId) ||
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
-            if (!question) return;
+            if (!question) {
+                console.error('🤖 Question not found:', questionId);
+                return;
+            }
 
             const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
             const answer = userAnswer?.value || userAnswer;
             const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+            console.log('🤖 Answer:', answer, 'Reason:', reason?.substring(0, 50) + '...');
 
             // Show loading state
             const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
@@ -8863,6 +8869,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             try {
                 // Direct fetch to Railway server (same pattern as working appeals)
                 const prompt = buildMCQGradingPrompt(question, answer, reason);
+                console.log('🤖 Prompt length:', prompt.length, 'chars');
+                console.log('🤖 Sending fetch to:', `${serverUrl}/api/ai/grade`);
 
                 const response = await fetch(`${serverUrl}/api/ai/grade`, {
                     method: 'POST',
@@ -8882,7 +8890,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     })
                 });
 
+                console.log('🤖 Fetch completed, status:', response.status);
                 const result = await response.json();
+                console.log('🤖 Result received:', result);
 
                 if (!response.ok) {
                     throw new Error(result.error || 'AI grading failed');
