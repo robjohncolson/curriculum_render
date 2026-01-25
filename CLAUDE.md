@@ -480,10 +480,11 @@ npm run test:watch          # Watch mode for development
 npm run test:coverage       # Generate coverage report
 ```
 
-**Test Suites (480+ tests covering all STATE_MACHINES.md features):**
+**Test Suites (620+ tests covering all STATE_MACHINES.md features):**
 
 | Test File | Coverage |
 |-----------|----------|
+| `question-rendering.test.js` | **Phase 3D-1A** MCQ/FRQ structure, interactions, card integrity |
 | `grading-engine.test.js` | GradingEngine class, E/P/I scoring, appeals |
 | `escalation.test.js` | Escalation UI, MCQ/FRQ grading, solution display |
 | `progressive-frq.test.ts` | Multi-part FRQ state machine |
@@ -503,6 +504,7 @@ npm run test:coverage       # Generate coverage report
 | `identity-claim.test.js` | Orphan detection, claim creation, response handling, merge logic |
 
 **Test Coverage Areas:**
+- Question rendering: MCQ/FRQ structure, choice rendering, data attributes, interaction observables
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
 - User authentication: Fruit_Animal usernames, session states, duplicate detection
 - Data management: classData initialization, answer/reason persistence, attempt counting

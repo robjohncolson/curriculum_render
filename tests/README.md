@@ -21,6 +21,7 @@ Automated tests for the AP Statistics Consensus Quiz application.
 | `progressive-frq.browser.js` | Browser-based tests for multi-part FRQ accordion system |
 | `progressive-frq.test.ts` | Vitest/TypeScript tests (run via `npm test`) |
 | `grading-engine.test.js` | Vitest tests for AI grading escalation system |
+| `question-rendering.test.js` | **Phase 3D-1A MVP** - Question rendering behavioral tests |
 | `test-runner.html` | Browser-based test runner with UI |
 
 ## Test Coverage

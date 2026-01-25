@@ -435,6 +435,21 @@
             OUTBOX_MAX_SIZE: 100         // Hard cap on outbox size
         };
 
+        // Phase 3D: Feature flags for incremental rendering rollout
+        const FeatureFlags = {
+            // Set to true to use incremental question rendering, false for legacy
+            USE_INCREMENTAL_QUESTION_RENDER: false,
+            // Debug mode: log rendering decisions to console
+            DEBUG_RENDER: false
+        };
+
+        // Expose for runtime toggling (dev or staging with ?debug=1)
+        const isDevMode = window.location.hostname === 'localhost' ||
+                          new URLSearchParams(window.location.search).has('debug');
+        if (isDevMode) {
+            window.FeatureFlags = FeatureFlags;
+        }
+
         let syncTimer = null;
         let syncInProgress = false;      // Prevent concurrent syncs
 
@@ -5394,10 +5409,25 @@ function renderLessonSelector(unitInfo) {
             }
         }
 
-        // Render quiz
+        // Render quiz - wrapper that checks feature flag
         function renderQuiz() {
+            if (FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER) {
+                if (FeatureFlags.DEBUG_RENDER) {
+                    console.log('[Render] Using incremental renderer');
+                }
+                renderQuizIncremental();
+            } else {
+                if (FeatureFlags.DEBUG_RENDER) {
+                    console.log('[Render] Using legacy renderer');
+                }
+                renderQuizLegacy();
+            }
+        }
+
+        // Phase 3D: Legacy renderer (original implementation)
+        function renderQuizLegacy() {
             const questionsContainer = document.getElementById('questionsContainer');
-            
+
             questionsContainer.innerHTML = `
                 <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
@@ -5409,12 +5439,12 @@ function renderLessonSelector(unitInfo) {
                 <div id="questions-list"></div>
                 <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
             `;
-            
+
             const questionsList = document.getElementById('questions-list');
-            
+
             // Show loading message
             document.getElementById('loading-msg').style.display = 'block';
-            
+
             // Render all questions for the lesson with a small delay for animation
             setTimeout(() => {
                 // Collect all chart tasks for batch rendering
@@ -5451,6 +5481,136 @@ function renderLessonSelector(unitInfo) {
 
                 // Charts will be rendered by individual renderQuestion calls
                 // (removed legacy renderVisibleCharts call)
+
+                // TASK 3.3: Set up activity tracking for question interactions
+                setTimeout(setupQuestionActivityTracking, 150);
+            }, 100);
+        }
+
+        /**
+         * Phase 3D-2A: Incremental quiz renderer using DOMUtils.updateList
+         * Uses keyed diffing to preserve question cards, only updating content when changed.
+         * This prevents focus loss, scroll reset, and listener loss during re-renders.
+         */
+        function renderQuizIncremental() {
+            const questionsContainer = document.getElementById('questionsContainer');
+            if (!questionsContainer) return;
+
+            // Ensure header structure exists (create once, update as needed)
+            let questionsList = document.getElementById('questions-list');
+            let loadingMsg = document.getElementById('loading-msg');
+
+            if (!questionsList) {
+                // First render - create the header structure
+                questionsContainer.innerHTML = `
+                    <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                    <div class="app-controls">
+                        <div style="flex: 1;">
+                            <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+                        </div>
+                    </div>
+                    <div id="questions-list"></div>
+                    <div class="loading-msg" id="loading-msg" style="display:none;">Loading questions...</div>
+                `;
+                questionsList = document.getElementById('questions-list');
+                loadingMsg = document.getElementById('loading-msg');
+            } else {
+                // Update header text if unit/lesson changed
+                const appControls = questionsContainer.querySelector('.app-controls div');
+                if (appControls) {
+                    const newText = `Unit ${currentUnit}, Lesson ${currentLesson}`;
+                    if (!appControls.innerHTML.includes(newText)) {
+                        appControls.innerHTML = `<strong>${newText}</strong> - ${currentQuestions.length} questions`;
+                    }
+                }
+            }
+
+            // Show loading message
+            if (loadingMsg) loadingMsg.style.display = 'block';
+
+            // Use setTimeout to match legacy behavior (allows animation)
+            setTimeout(() => {
+                // Collect all chart tasks for batch rendering
+                const allChartTasks = [];
+
+                // Phase 3D-2A: Use DOMUtils.updateList for keyed diffing
+                if (typeof DOMUtils !== 'undefined' && DOMUtils.updateList) {
+                    DOMUtils.updateList(
+                        questionsList,
+                        currentQuestions,
+                        // Key function: use question ID for stable identity
+                        q => q.id,
+                        // Update function: called for existing wrappers
+                        (wrapper, question) => {
+                            const index = currentQuestions.indexOf(question);
+                            const { html: newHtml, chartTasks } = renderQuestion(question, index);
+
+                            // Only update if content changed (prevents unnecessary DOM thrashing)
+                            if (wrapper.innerHTML !== newHtml) {
+                                // Store active element info for focus preservation
+                                const activeEl = document.activeElement;
+                                const hadFocus = wrapper.contains(activeEl);
+                                const activeId = hadFocus ? activeEl.id : null;
+                                const selectionStart = hadFocus && activeEl.selectionStart !== undefined ? activeEl.selectionStart : null;
+                                const selectionEnd = hadFocus && activeEl.selectionEnd !== undefined ? activeEl.selectionEnd : null;
+
+                                wrapper.innerHTML = newHtml;
+
+                                // Restore focus if it was inside this wrapper
+                                if (hadFocus && activeId) {
+                                    const newActiveEl = document.getElementById(activeId);
+                                    if (newActiveEl) {
+                                        newActiveEl.focus();
+                                        if (selectionStart !== null && newActiveEl.setSelectionRange) {
+                                            newActiveEl.setSelectionRange(selectionStart, selectionEnd);
+                                        }
+                                    }
+                                }
+
+                                if (FeatureFlags.DEBUG_RENDER) {
+                                    console.log(`[Render] Updated question ${question.id}`);
+                                }
+                            }
+
+                            allChartTasks.push(...(chartTasks || []));
+                        },
+                        // Create function: called for new questions
+                        (question) => {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'question-wrapper';
+                            wrapper.dataset.key = question.id;
+                            return wrapper;
+                        }
+                    );
+                } else {
+                    // Fallback if DOMUtils not available - use legacy insertion
+                    console.warn('[Render] DOMUtils not available, falling back to legacy insertion');
+                    questionsList.innerHTML = '';
+                    currentQuestions.forEach((question, index) => {
+                        const { html: questionHtml, chartTasks } = renderQuestion(question, index);
+                        questionsList.insertAdjacentHTML('beforeend', questionHtml);
+                        allChartTasks.push(...(chartTasks || []));
+                    });
+                }
+
+                // Phase 2: Render all charts after DOM is updated
+                if (allChartTasks.length > 0 && typeof window.charts?.renderChartNow === 'function') {
+                    requestAnimationFrame(() => {
+                        allChartTasks.forEach(({ canvasId, chartData }) => {
+                            window.charts.renderChartNow(chartData, canvasId);
+                        });
+                    });
+                }
+
+                if (loadingMsg) loadingMsg.style.display = 'none';
+
+                // Load saved progress
+                loadProgress();
+
+                // Render MathJax
+                if (window.MathJax) {
+                    MathJax.typesetPromise().catch(e => console.log('MathJax error:', e));
+                }
 
                 // TASK 3.3: Set up activity tracking for question interactions
                 setTimeout(setupQuestionActivityTracking, 150);
