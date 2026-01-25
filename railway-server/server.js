@@ -307,6 +307,7 @@ app.post('/api/batch-submit', async (req, res) => {
 // Groq API Key
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_TIMEOUT_MS = 30000;
 
 // Groq rate limits: 30 RPM for free tier, be conservative
 const GROQ_RATE_LIMIT = {
@@ -451,59 +452,74 @@ app.post('/api/ai/grade', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('AI grading error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 });
 
 // Call Groq API with llama-3.3-70b-versatile
 async function callGroq(prompt) {
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.1,  // Low for consistent grading
-      max_tokens: 1500,
-      response_format: { type: 'json_object' }
-    })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Groq API error ${response.status}: ${errorText}`);
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1,  // Low for consistent grading
+        max_tokens: 1500,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq API error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error('Empty response from Groq');
+    }
+
+    // Parse and validate the response
+    const parsed = extractAndParseJSON(content);
+    if (!parsed) {
+      throw new Error('Failed to parse Groq response as JSON');
+    }
+
+    if (!isValidGradingResponse(parsed)) {
+      console.warn('Invalid grading response format, attempting normalization');
+    }
+
+    return normalizeGradingResponse(parsed);
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      const timeoutError = new Error('Groq API request timed out');
+      timeoutError.statusCode = 504;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('Empty response from Groq');
-  }
-
-  // Parse and validate the response
-  const parsed = extractAndParseJSON(content);
-  if (!parsed) {
-    throw new Error('Failed to parse Groq response as JSON');
-  }
-
-  if (!isValidGradingResponse(parsed)) {
-    console.warn('Invalid grading response format, attempting normalization');
-  }
-
-  return normalizeGradingResponse(parsed);
 }
 
 // Robust JSON extraction with multiple fallback strategies
@@ -692,7 +708,7 @@ app.post('/api/ai/appeal', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('AI appeal error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 });
 
