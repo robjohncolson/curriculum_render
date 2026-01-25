@@ -258,6 +258,10 @@
     <!-- Diagnostics: Phase 1 logging for debugging "disappeared work" issues -->
     <script src="js/diagnostics.js"></script>
 
+    <!-- UI Utilities: Modal keyboard navigation and DOM helpers -->
+    <script src="js/modal-utils.js"></script>
+    <script src="js/dom-utils.js"></script>
+
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
     <script src="js/chart_registry.js"></script>
@@ -2525,12 +2529,21 @@ function showIdentityClaimModal(claim) {
     return new Promise((resolve) => {
         // Remove any existing modal
         const existingModal = document.getElementById('identityClaimModal');
-        if (existingModal) existingModal.remove();
+        if (existingModal) {
+            if (typeof ModalUtils !== 'undefined') ModalUtils.close(existingModal);
+            existingModal.remove();
+        }
 
         const modal = document.createElement('div');
         modal.id = 'identityClaimModal';
         modal.className = 'modal';
-        modal.style.cssText = 'display: block; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+        // Note: display is set by ModalUtils.open(), not inline
+        modal.style.cssText = 'position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+        // Use DOMUtils.escapeHtml for user data (orphan_username comes from server)
+        const escapedUsername = typeof DOMUtils !== 'undefined'
+            ? DOMUtils.escapeHtml(claim.orphan_username)
+            : claim.orphan_username;
 
         modal.innerHTML = `
             <div style="background: white; margin: 10% auto; padding: 30px; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
@@ -2542,7 +2555,7 @@ function showIdentityClaimModal(claim) {
                     We found answers submitted under the username:
                 </p>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; border-left: 4px solid #3498db;">
-                    <strong style="font-size: 1.3em; color: #2c3e50;">${claim.orphan_username}</strong>
+                    <strong style="font-size: 1.3em; color: #2c3e50;">${escapedUsername}</strong>
                 </div>
                 <p style="color: #555; line-height: 1.6;">
                     This username has answers but isn't linked to a registered student.
@@ -2578,6 +2591,19 @@ function showIdentityClaimModal(claim) {
 
         document.body.appendChild(modal);
 
+        // Use ModalUtils for keyboard navigation (Escape to close, focus trapping)
+        if (typeof ModalUtils !== 'undefined') {
+            ModalUtils.open(modal, {
+                focusFirst: '#claimYesBtn',
+                onClose: () => {
+                    modal.remove();
+                    resolve();
+                }
+            });
+        } else {
+            modal.style.display = 'block'; // Fallback
+        }
+
         const yesBtn = document.getElementById('claimYesBtn');
         const noBtn = document.getElementById('claimNoBtn');
 
@@ -2586,6 +2612,9 @@ function showIdentityClaimModal(claim) {
             noBtn.disabled = true;
             yesBtn.textContent = 'Processing...';
             await respondToIdentityClaim(claim.id, 'yes');
+            if (typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            }
             modal.remove();
             resolve();
         };
@@ -2595,6 +2624,9 @@ function showIdentityClaimModal(claim) {
             noBtn.disabled = true;
             noBtn.textContent = 'Processing...';
             await respondToIdentityClaim(claim.id, 'no');
+            if (typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            }
             modal.remove();
             resolve();
         };
@@ -2807,14 +2839,19 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
     const modal = document.createElement('div');
     modal.id = 'createClaimModal';
     modal.className = 'modal';
-    modal.style.cssText = 'display: block; position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+    // Note: display is set by ModalUtils.open()
+    modal.style.cssText = 'position: fixed; z-index: 10002; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);';
+
+    // Escape user data for XSS prevention
+    const esc = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeHtml.bind(DOMUtils) : (s => s);
+    const escAttr = typeof DOMUtils !== 'undefined' ? DOMUtils.escapeAttr.bind(DOMUtils) : (s => s);
 
     modal.innerHTML = `
         <div style="background: white; margin: 5% auto; padding: 25px; border-radius: 12px; max-width: 500px; max-height: 80vh; overflow-y: auto;">
             <h3 style="margin-top: 0; color: #2c3e50;">
                 <i class="fas fa-user-plus"></i> Create Identity Claim
             </h3>
-            <p>Ask students if <strong>${orphanUsername}</strong> (${answerCount} answers) belongs to them.</p>
+            <p>Ask students if <strong>${esc(orphanUsername)}</strong> (${answerCount} answers) belongs to them.</p>
 
             <div style="margin: 15px 0;">
                 <label style="font-weight: bold; display: block; margin-bottom: 8px;">Select candidates to ask:</label>
@@ -2823,8 +2860,8 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
                         <label style="display: block; padding: 6px; cursor: pointer; border-radius: 4px;"
                                onmouseover="this.style.background='#f0f0f0'"
                                onmouseout="this.style.background='transparent'">
-                            <input type="checkbox" name="candidate" value="${s.username}" style="margin-right: 8px;">
-                            <strong>${s.real_name}</strong> <span style="color: #888; font-size: 0.9em;">(${s.username})</span>
+                            <input type="checkbox" name="candidate" value="${escAttr(s.username)}" style="margin-right: 8px;">
+                            <strong>${esc(s.real_name)}</strong> <span style="color: #888; font-size: 0.9em;">(${esc(s.username)})</span>
                         </label>
                     `).join('') : '<p style="color: #888;">No registered students found</p>'}
                 </div>
@@ -2834,7 +2871,7 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button onclick="document.getElementById('createClaimModal').remove()" style="
+                <button id="cancelClaimBtn" style="
                     padding: 10px 20px;
                     background: #95a5a6;
                     color: white;
@@ -2842,7 +2879,7 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
                     border-radius: 6px;
                     cursor: pointer;
                 ">Cancel</button>
-                <button onclick="submitCreateClaim('${orphanUsername}')" style="
+                <button id="submitClaimBtn" style="
                     padding: 10px 20px;
                     background: #9b59b6;
                     color: white;
@@ -2855,6 +2892,23 @@ async function showCreateClaimModal(orphanUsername, answerCount) {
     `;
 
     document.body.appendChild(modal);
+
+    // Use ModalUtils for keyboard navigation
+    if (typeof ModalUtils !== 'undefined') {
+        ModalUtils.open(modal);
+    } else {
+        modal.style.display = 'block'; // Fallback
+    }
+
+    // Set up button handlers (avoid inline onclick for XSS safety)
+    document.getElementById('cancelClaimBtn').onclick = () => {
+        if (typeof ModalUtils !== 'undefined') ModalUtils.close(modal);
+        modal.remove();
+    };
+
+    document.getElementById('submitClaimBtn').onclick = () => {
+        submitCreateClaim(orphanUsername);
+    };
 }
 
 /**
@@ -2891,7 +2945,11 @@ async function submitCreateClaim(orphanUsername) {
         showMessage(`Created ${result.claims.length} identity claim(s) for ${orphanUsername}`, 'success');
 
         // Close modal and refresh orphans list
-        document.getElementById('createClaimModal')?.remove();
+        const modal = document.getElementById('createClaimModal');
+        if (modal) {
+            if (typeof ModalUtils !== 'undefined') ModalUtils.close(modal);
+            modal.remove();
+        }
         loadOrphanedUsernames();
 
     } catch (error) {
@@ -3148,10 +3206,14 @@ window.submitManualMerge = submitManualMerge;
 
 
 
-        // Share Modal Functions
+        // Share Modal Functions (using ModalUtils for keyboard navigation)
         function showShareModal() {
             const modal = document.getElementById('shareModal');
-            modal.style.display = 'block';
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.open(modal);
+            } else if (modal) {
+                modal.style.display = 'block'; // Fallback
+            }
 
             // Check if running locally and show local file path
             detectLocalFile();
@@ -3256,7 +3318,11 @@ window.submitManualMerge = submitManualMerge;
 
         function closeShareModal() {
             const modal = document.getElementById('shareModal');
-            modal.style.display = 'none';
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            } else if (modal) {
+                modal.style.display = 'none'; // Fallback
+            }
         }
 
         function generateQRCodes() {
@@ -9970,18 +10036,22 @@ Respond with JSON:
         window.renderLessonSelector = renderLessonSelectorWithResources;
         window.loadLesson = loadLessonWithResources;
 
-        // Sync modal handlers
+        // Sync modal handlers (using ModalUtils for keyboard navigation)
         window.openSyncModal = function() {
             const modal = document.getElementById('syncModal');
-            if (modal) {
-                modal.style.display = 'block';
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.open(modal);
+            } else if (modal) {
+                modal.style.display = 'block'; // Fallback
             }
         }
 
         window.closeSyncModal = function() {
             const modal = document.getElementById('syncModal');
-            if (modal) {
-                modal.style.display = 'none';
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            } else if (modal) {
+                modal.style.display = 'none'; // Fallback
             }
         }
 
@@ -10912,15 +10982,9 @@ Respond with JSON:
             const shareModal = document.getElementById('shareModal');
             if (shareModal) {
                 // Close modal when clicking outside
+                // Note: ModalUtils handles Escape key, so no keydown listener needed
                 window.addEventListener('click', function(event) {
                     if (event.target === shareModal) {
-                        closeShareModal();
-                    }
-                });
-
-                // Close modal with ESC key
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape' && shareModal.style.display === 'block') {
                         closeShareModal();
                     }
                 });
@@ -11033,12 +11097,16 @@ Respond with JSON:
             }
         });
 
-        // Sprite configuration modal functions
+        // Sprite configuration modal functions (using ModalUtils for keyboard navigation)
         function showSpriteConfigModal() {
             const modal = document.getElementById('spriteConfigModal');
             if (!modal) return;
 
-            modal.style.display = 'block';
+            if (typeof ModalUtils !== 'undefined') {
+                ModalUtils.open(modal);
+            } else {
+                modal.style.display = 'block'; // Fallback
+            }
 
             // Load current settings
             const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
@@ -11052,7 +11120,13 @@ Respond with JSON:
 
         function closeSpriteConfigModal() {
             const modal = document.getElementById('spriteConfigModal');
-            if (modal) modal.style.display = 'none';
+            if (!modal) return;
+
+            if (typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            } else {
+                modal.style.display = 'none'; // Fallback
+            }
         }
 
         function updateSpriteConfigPreview() {
