@@ -820,6 +820,11 @@
                     // Success: remove synced items from outbox
                     await storage.markOutboxSynced(batchIds);
                     console.log(`✅ Successfully synced ${syncedCount} items`);
+
+                    // Update lastSync timestamp so indicator shows current time
+                    if (window.syncState) {
+                        window.syncState.lastSync = Date.now();
+                    }
                     updatePeerDataTimestamp();
 
                     // Diagnostic: log success for each item
@@ -1259,7 +1264,7 @@
                     text = 'Offline';
                     color = '#95a5a6';
                     break;
-                default: // idle - show last sync time
+                default: // idle - show last sync time with explicit "backed up" messaging
                     icon = '☁️✓';
                     color = '#27ae60';
 
@@ -1268,15 +1273,15 @@
                     if (lastSync) {
                         const diff = Date.now() - lastSync;
                         if (diff < 60000) {
-                            text = 'All synced';
+                            text = 'Backed up to cloud';
                         } else if (diff < 3600000) {
                             const mins = Math.floor(diff / 60000);
-                            text = `Synced ${mins}m ago`;
+                            text = `Backed up ${mins}m ago`;
                         } else if (diff < 86400000) {
                             const hrs = Math.floor(diff / 3600000);
-                            text = `Synced ${hrs}h ago`;
+                            text = `Backed up ${hrs}h ago`;
                         } else {
-                            text = 'Synced ' + new Date(lastSync).toLocaleDateString();
+                            text = 'Backed up ' + new Date(lastSync).toLocaleDateString();
                         }
                     } else {
                         text = turboModeActive ? 'Connected' : 'Local only';
