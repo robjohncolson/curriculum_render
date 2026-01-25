@@ -575,13 +575,26 @@
                     .eq('question_id', questionId)
                     .single();
 
-                if (!fetchError && serverData && serverData.timestamp > normalizedTimestamp) {
-                    // Server has newer data - don't overwrite
-                    console.log(`⚠️ Server has newer data for ${questionId}, skipping sync`);
-                    if (typeof logSyncConflict === 'function') {
-                        logSyncConflict(questionId, normalizedTimestamp, serverData.timestamp);
+                // Ignore "no rows" error (PGRST116) - that just means no existing answer
+                const isNoRowsError = fetchError && fetchError.code === 'PGRST116';
+
+                if (!fetchError && serverData) {
+                    // Coerce server timestamp to number for comparison (may be string from DB)
+                    const serverTs = typeof serverData.timestamp === 'string'
+                        ? parseInt(serverData.timestamp, 10)
+                        : serverData.timestamp;
+
+                    if (serverTs > normalizedTimestamp) {
+                        // Server has newer data - don't overwrite
+                        console.log(`⚠️ Server has newer data for ${questionId}, skipping sync`);
+                        if (typeof logSyncConflict === 'function') {
+                            logSyncConflict(questionId, normalizedTimestamp, serverTs);
+                        }
+                        return true; // Return true so item is considered "synced" (server wins)
                     }
-                    return true; // Return true so item is considered "synced" (server wins)
+                } else if (fetchError && !isNoRowsError) {
+                    // Log unexpected fetch errors but proceed with upsert
+                    console.warn(`Could not check server timestamp for ${questionId}:`, fetchError.message);
                 }
 
                 const payload = {
@@ -635,11 +648,15 @@
                     console.warn('Could not check server timestamps, proceeding with upsert:', fetchError.message);
                 }
 
-                // Build map of server timestamps
+                // Build map of server timestamps (coerced to numbers)
                 const serverTimestamps = new Map();
                 if (serverData) {
                     serverData.forEach(row => {
-                        serverTimestamps.set(`${row.username}:${row.question_id}`, row.timestamp);
+                        // Coerce server timestamp to number (may be string from DB)
+                        const ts = typeof row.timestamp === 'string'
+                            ? parseInt(row.timestamp, 10)
+                            : row.timestamp;
+                        serverTimestamps.set(`${row.username}:${row.question_id}`, ts);
                     });
                 }
 
