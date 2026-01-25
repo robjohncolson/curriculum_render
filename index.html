@@ -7969,7 +7969,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
         function getGradingEngine() {
             if (!gradingEngine && window.GradingEngine) {
                 gradingEngine = new GradingEngine({
-                    serverUrl: window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app',
+                    serverUrl: window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app',
                     aiEnabled: true
                 });
             }
@@ -8835,7 +8835,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Request AI review for MCQ - Direct fetch like appeals (bypasses grading engine)
         window.requestAIReview = async function(questionId, questionType) {
-            const serverUrl = window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app';
+            const serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
 
             const question = currentQuestions.find(q => q.id === questionId) ||
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);

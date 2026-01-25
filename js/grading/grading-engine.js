@@ -10,7 +10,7 @@
 
 class GradingEngine {
   constructor(config = {}) {
-    this.serverUrl = config.serverUrl || window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app';
+    this.serverUrl = config.serverUrl || window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
     this.defaultTolerance = config.defaultTolerance || 0.01;
     this.aiEnabled = config.aiEnabled !== false;
   }
