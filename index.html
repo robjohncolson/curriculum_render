@@ -5691,6 +5691,11 @@ function renderLessonSelector(unitInfo) {
 
                 // Phase 3D-2A: Use DOMUtils.updateList for keyed diffing
                 if (typeof DOMUtils !== 'undefined' && DOMUtils.updateList) {
+                    // Clean up any legacy elements (without data-key) before keyed diffing
+                    // This handles transition from legacy renderer to incremental
+                    const legacyElements = questionsList.querySelectorAll(':scope > :not([data-key])');
+                    legacyElements.forEach(el => el.remove());
+
                     DOMUtils.updateList(
                         questionsList,
                         currentQuestions,
