@@ -8833,13 +8833,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Request AI review for MCQ
+        // Request AI review for MCQ - Direct fetch like appeals (bypasses grading engine)
         window.requestAIReview = async function(questionId, questionType) {
-            const engine = getGradingEngine();
-            if (!engine) {
-                alert('AI grading is not available.');
-                return;
-            }
+            const serverUrl = window.RAILWAY_SERVER_URL || 'https://apstats-turbo-server.up.railway.app';
 
             const question = currentQuestions.find(q => q.id === questionId) ||
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
@@ -8865,57 +8861,54 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (aiReviewBtn) aiReviewBtn.style.display = 'none';
 
             try {
-                // Build context for AI grading
-                const context = {
-                    questionId,
-                    topic: question.prompt?.substring(0, 200) || 'AP Statistics',
-                    prompt: question.prompt,
-                    questionType: questionType,
-                    correctAnswer: getCorrectAnswer(questionId),
-                    choices: question.attachments?.choices,
-                    studentReasoning: reason
-                };
+                // Direct fetch to Railway server (same pattern as working appeals)
+                const prompt = buildMCQGradingPrompt(question, answer, reason);
 
-                // Use AI grading with 30-second timeout at this level as backup
-                const rule = { type: 'ai', promptTemplate: buildMCQGradingPrompt(question, answer, reason) };
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('AI review timed out after 30 seconds')), 30000)
-                );
-                const result = await Promise.race([
-                    engine.gradeAnswer(answer, rule, context),
-                    timeoutPromise
-                ]);
+                const response = await fetch(`${serverUrl}/api/ai/grade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scenario: {
+                            questionId,
+                            topic: question.prompt?.substring(0, 200) || 'AP Statistics',
+                            prompt: question.prompt,
+                            questionType: questionType,
+                            correctAnswer: getCorrectAnswer(questionId),
+                            choices: question.attachments?.choices
+                        },
+                        answers: { answer: answer },
+                        prompt: prompt,
+                        aiPromptTemplate: prompt
+                    })
+                });
 
-                // Check if AI grading actually succeeded (gradeWithAI returns error in result, not throw)
-                if (!result._aiGraded || result._error) {
-                    // AI failed - show error with retry button
-                    feedbackContainer.innerHTML = `
-                        <div class="grading-feedback error">
-                            <span class="grading-icon">⚠️</span>
-                            <span class="grading-text">${result.feedback || 'AI review unavailable.'}</span>
-                            <button onclick="requestAIReview('${questionId}', '${questionType}')"
-                                    class="btn-retry" style="margin-left: 10px;">
-                                🔄 Retry
-                            </button>
-                        </div>
-                    `;
-                    // Keep AI review button hidden since retry button is shown
-                    if (aiReviewBtn) aiReviewBtn.style.display = 'none';
-                    return;
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'AI grading failed');
                 }
 
-                // Store result for potential appeal
-                window.gradingResults[questionId] = {
-                    ...result,
+                // Build standardized result
+                const gradingResult = {
+                    score: result.score || 'I',
+                    feedback: result.feedback || '',
+                    matched: result.matched || [],
+                    missing: result.missing || [],
+                    _aiGraded: true,
+                    _provider: result._provider || 'groq',
+                    _model: result._model || 'llama-3.3-70b-versatile',
                     answer: answer,
                     questionType: questionType
                 };
 
+                // Store result for potential appeal
+                window.gradingResults[questionId] = gradingResult;
+
                 // Display result
-                displayGradingFeedback(questionId, result);
+                displayGradingFeedback(questionId, gradingResult);
 
                 // Show appeal button if not perfect score
-                if (result.score !== 'E') {
+                if (gradingResult.score !== 'E') {
                     const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                     if (appealBtn) appealBtn.style.display = 'inline-block';
                 }
@@ -8925,7 +8918,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 feedbackContainer.innerHTML = `
                     <div class="grading-feedback error">
                         <span class="grading-icon">⚠️</span>
-                        <span class="grading-text">AI review unavailable. Please try again later.</span>
+                        <span class="grading-text">${error.message || 'AI review unavailable. Please try again.'}</span>
                         <button onclick="requestAIReview('${questionId}', '${questionType}')"
                                 class="btn-retry" style="margin-left: 10px;">
                             🔄 Retry
