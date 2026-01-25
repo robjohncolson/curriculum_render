@@ -8876,9 +8876,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     studentReasoning: reason
                 };
 
-                // Use AI grading
+                // Use AI grading with 30-second timeout at this level as backup
                 const rule = { type: 'ai', promptTemplate: buildMCQGradingPrompt(question, answer, reason) };
-                const result = await engine.gradeAnswer(answer, rule, context);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('AI review timed out after 30 seconds')), 30000)
+                );
+                const result = await Promise.race([
+                    engine.gradeAnswer(answer, rule, context),
+                    timeoutPromise
+                ]);
 
                 // Check if AI grading actually succeeded (gradeWithAI returns error in result, not throw)
                 if (!result._aiGraded || result._error) {
