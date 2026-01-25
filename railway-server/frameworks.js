@@ -496,12 +496,16 @@ function buildFrameworkContext(framework) {
   });
   context += '\n';
 
-  // Learning objectives and essential knowledge
-  context += `### Learning Objectives & Essential Knowledge\n`;
+  // Learning objectives and essential knowledge (stripped of IDs for student-facing responses)
+  context += `### What Students Should Understand\n`;
   framework.learningObjectives.forEach(lo => {
-    context += `**${lo.id}: ${lo.text}**\n`;
+    // Strip the ID prefix (e.g., "UNC-2.A: ") from the text for cleaner AI output
+    const cleanText = lo.text.replace(/^[A-Z]+-\d+\.[A-Z]+:\s*/i, '');
+    context += `**${cleanText || lo.text}**\n`;
     lo.essentialKnowledge.forEach(ek => {
-      context += `  - ${ek}\n`;
+      // Strip ID prefixes (e.g., "UNC-2.A.5: ") from essential knowledge
+      const cleanEk = ek.replace(/^[A-Z]+-\d+\.[A-Z]+\.\d+:\s*/i, '- ');
+      context += `  ${cleanEk.startsWith('-') ? cleanEk : '- ' + cleanEk}\n`;
     });
   });
   context += '\n';

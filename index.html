@@ -8777,15 +8777,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
                 if (feedbackContainer) {
                     feedbackContainer.innerHTML = `
-                        <div class="grading-feedback excellent">
+                        <div class="grading-feedback partial">
                             <div class="grading-header">
-                                <span class="grading-score">✅ MC Correct</span>
-                                <span class="ai-badge">📋 Auto-graded</span>
+                                <span class="grading-score">✅ MC Answer Correct</span>
+                                <span class="ai-badge">⏳ Reasoning pending</span>
                             </div>
                             <div class="grading-feedback-text">
                                 ${hasReasoning
-                                    ? `Your multiple choice answer is correct, but <strong>your written reasoning has not been verified</strong>. Request AI review to confirm you understand the concept.`
-                                    : `Your multiple choice answer is correct. Add reasoning and request AI review to verify your understanding.`
+                                    ? `Your multiple choice selection is correct. However, <strong>your written reasoning has not been evaluated</strong>. Click "Verify My Understanding" for AI review.`
+                                    : `Your multiple choice selection is correct. However, your written reasoning has not been evaluated. Add reasoning and click "Verify My Understanding" for AI review.`
                                 }
                             </div>
                         </div>
@@ -8880,6 +8880,24 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 const rule = { type: 'ai', promptTemplate: buildMCQGradingPrompt(question, answer, reason) };
                 const result = await engine.gradeAnswer(answer, rule, context);
 
+                // Check if AI grading actually succeeded (gradeWithAI returns error in result, not throw)
+                if (!result._aiGraded || result._error) {
+                    // AI failed - show error with retry button
+                    feedbackContainer.innerHTML = `
+                        <div class="grading-feedback error">
+                            <span class="grading-icon">⚠️</span>
+                            <span class="grading-text">${result.feedback || 'AI review unavailable.'}</span>
+                            <button onclick="requestAIReview('${questionId}', '${questionType}')"
+                                    class="btn-retry" style="margin-left: 10px;">
+                                🔄 Retry
+                            </button>
+                        </div>
+                    `;
+                    // Keep AI review button hidden since retry button is shown
+                    if (aiReviewBtn) aiReviewBtn.style.display = 'none';
+                    return;
+                }
+
                 // Store result for potential appeal
                 window.gradingResults[questionId] = {
                     ...result,
@@ -8902,10 +8920,14 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     <div class="grading-feedback error">
                         <span class="grading-icon">⚠️</span>
                         <span class="grading-text">AI review unavailable. Please try again later.</span>
+                        <button onclick="requestAIReview('${questionId}', '${questionType}')"
+                                class="btn-retry" style="margin-left: 10px;">
+                            🔄 Retry
+                        </button>
                     </div>
                 `;
-                // Re-show AI review button
-                if (aiReviewBtn) aiReviewBtn.style.display = 'inline-block';
+                // Keep AI review button hidden since retry button is shown
+                if (aiReviewBtn) aiReviewBtn.style.display = 'none';
             }
         };
 
@@ -8951,12 +8973,17 @@ IMPORTANT: If the reasoning does not match the statistical concepts needed to an
 - I (Incorrect): No evidence of understanding the concept
 `}
 
+IMPORTANT: In your response to the student:
+- Do NOT use curriculum codes, learning objective IDs, or framework references
+- Explain concepts in plain, student-friendly language
+- Focus on the statistical concepts themselves, not curriculum structure
+
 Respond with JSON:
 {
   "score": "E" or "P" or "I",
-  "feedback": "Explanation focusing on the quality of reasoning, not just answer correctness",
-  "matched": ["statistical concepts the student demonstrated understanding of"],
-  "missing": ["concepts that were missed, misunderstood, or not demonstrated in reasoning"]
+  "feedback": "Explanation in plain student-friendly language, focusing on reasoning quality",
+  "matched": ["concepts demonstrated (use plain language, not codes)"],
+  "missing": ["concepts not shown (use plain language, not codes)"]
 }`;
         }
 

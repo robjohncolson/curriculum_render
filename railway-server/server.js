@@ -733,27 +733,32 @@ The student disagrees with the grading and explains:
 "${appealText}"
 
 ## Your Task
-Carefully reconsider the student's answer in light of their explanation AND the AP framework above. The student may have:
+Carefully reconsider the student's answer in light of their explanation AND the lesson context above. The student may have:
 1. Valid reasoning that wasn't initially recognized
 2. Used correct but different terminology or approach
-3. Demonstrated understanding of essential knowledge even if their answer was technically incorrect
-4. Made a valid point that connects to the learning objectives
+3. Demonstrated understanding even if their answer was technically incorrect
+4. Made a valid point that connects to the concepts
 
 BE FAIR but also ACCURATE. When evaluating:
 - Connect your feedback to the specific concepts from this lesson (e.g., simulation, relative frequency, law of large numbers)
-- Reference relevant essential knowledge when the student demonstrates or misses understanding
 - For MCQ: Did the student show understanding of the underlying concept?
-- For FRQ: Does the student's reasoning align with the learning objectives?
-- Is the student's explanation logically sound given the framework?
+- For FRQ: Does the student's reasoning align with what the lesson covers?
+- Is the student's explanation logically sound?
 
 You may UPGRADE the score if the appeal shows genuine understanding. You should NOT downgrade.
+
+IMPORTANT: In your response to the student:
+- Do NOT use framework codes, learning objective IDs (like "UNC-2.A"), or numbered references
+- Do NOT mention "essential knowledge" or "learning objectives"
+- Explain concepts in plain, student-friendly language
+- Focus on the statistical concepts themselves, not the curriculum structure
 
 Respond with ONLY valid JSON:
 {
   "score": "E" or "P" or "I",
   "feedback": "Explanation connecting their answer to the lesson's key concepts",
   "appealGranted": true or false,
-  "appealResponse": "Direct message to student that naturally references the relevant statistical concepts and explains how their reasoning does or doesn't demonstrate understanding of the essential knowledge"
+  "appealResponse": "Direct message to student in plain language explaining how their reasoning does or doesn't demonstrate understanding"
 }`;
 }
 

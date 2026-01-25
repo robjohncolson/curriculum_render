@@ -280,12 +280,17 @@ class GradingEngine {
       };
     }
 
+    // Set up 30-second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     try {
       const prompt = this.buildAIPrompt(rule.promptTemplate, answer, context);
 
       const response = await fetch(`${this.serverUrl}/api/ai/grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           scenario: {
             topic: context.topic || 'AP Statistics FRQ',
@@ -300,6 +305,7 @@ class GradingEngine {
         })
       });
 
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (!response.ok) {
@@ -320,7 +326,20 @@ class GradingEngine {
         _model: result._model || 'llama-3.3-70b-versatile'
       };
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('AI grading error:', err);
+
+      // Handle timeout specifically
+      if (err.name === 'AbortError') {
+        return {
+          score: null,
+          feedback: 'AI grading timed out after 30 seconds. Please try again.',
+          correct: null,
+          _error: 'timeout',
+          _aiGraded: false
+        };
+      }
+
       return {
         score: null,
         feedback: 'AI grading unavailable. Using rubric-based grading.',
