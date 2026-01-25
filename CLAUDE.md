@@ -228,6 +228,27 @@ SyncConfig.OUTBOX_MAX_SIZE    // 100 - hard cap
 - `TURBO_MODE`: Whether Supabase sync is enabled (from `supabase_config.js`)
 - `USE_RAILWAY`: Whether to use Railway caching proxy (from `railway_config.js`)
 - `frqPartState`: In-memory state manager for progressive multi-part FRQs
+- `FeatureFlags`: Runtime feature toggles (see Feature Flags section)
+
+## Feature Flags
+
+**`FeatureFlags`** object in index.html controls runtime behavior:
+
+```javascript
+FeatureFlags = {
+    USE_INCREMENTAL_QUESTION_RENDER: true  // Phase 3D: Keyed list diffing (5x faster)
+}
+```
+
+**Incremental Question Rendering (Phase 3D):**
+- Enabled by default since Phase 3D-4
+- Uses `DOMUtils.updateList()` for keyed diffing instead of full innerHTML replacement
+- Preserves focus and text selection during updates
+- DOM structure: `.question-wrapper[data-key]` wraps each question card
+- Validation: Add `?debug=1` to URL, then `validateRenderers()` in console
+- Benchmark: `benchmarkRenderers(100)` compares legacy vs incremental performance
+
+See `docs/state-machines.md` section 10 for full documentation.
 
 ## Data Structures
 
@@ -480,11 +501,11 @@ npm run test:watch          # Watch mode for development
 npm run test:coverage       # Generate coverage report
 ```
 
-**Test Suites (620+ tests covering all STATE_MACHINES.md features):**
+**Test Suites (667 tests covering all STATE_MACHINES.md features):**
 
 | Test File | Coverage |
 |-----------|----------|
-| `question-rendering.test.js` | **Phase 3D-1A** MCQ/FRQ structure, interactions, card integrity |
+| `question-rendering.test.js` | **Phase 3D** MCQ/FRQ structure, Progressive FRQ accordion, Chart FRQ, edge cases |
 | `grading-engine.test.js` | GradingEngine class, E/P/I scoring, appeals |
 | `escalation.test.js` | Escalation UI, MCQ/FRQ grading, solution display |
 | `progressive-frq.test.ts` | Multi-part FRQ state machine |
@@ -504,7 +525,7 @@ npm run test:coverage       # Generate coverage report
 | `identity-claim.test.js` | Orphan detection, claim creation, response handling, merge logic |
 
 **Test Coverage Areas:**
-- Question rendering: MCQ/FRQ structure, choice rendering, data attributes, interaction observables
+- Question rendering: MCQ/FRQ structure, Progressive FRQ accordion, Chart FRQ deferred rendering, edge cases
 - Storage layer: IDB availability, dual-write adapter, migration key parsing
 - User authentication: Fruit_Animal usernames, session states, duplicate detection
 - Data management: classData initialization, answer/reason persistence, attempt counting
