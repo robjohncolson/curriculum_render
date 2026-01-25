@@ -8986,8 +8986,18 @@ Respond with JSON:
 }`;
         }
 
-        // Show reasoning form (for AI review)
+        // Show reasoning form (for AI review) - or go directly if reasoning exists
         window.showReasoningForm = function(questionId, questionType) {
+            // Check if reasoning already exists
+            const existingReasoning = classData.users[currentUsername]?.reasons?.[questionId];
+
+            if (existingReasoning && existingReasoning.trim()) {
+                // Reasoning exists - go directly to AI review
+                requestAIReview(questionId, questionType);
+                return;
+            }
+
+            // No reasoning yet - show form to collect it
             const reasoningForm = document.getElementById(`reasoning-form-${questionId}`);
             const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
             if (reasoningForm) reasoningForm.style.display = 'block';
