@@ -258,6 +258,9 @@
     <!-- Diagnostics: Phase 1 logging for debugging "disappeared work" issues -->
     <script src="js/diagnostics.js"></script>
 
+    <script src="js/dom-utils.js"></script>
+    <script src="js/modal-utils.js"></script>
+
     <script src="js/auth.js"></script>
     <script src="js/data_manager.js"></script>
     <script src="js/chart_registry.js"></script>
@@ -2527,6 +2530,8 @@ function showIdentityClaimModal(claim) {
         const existingModal = document.getElementById('identityClaimModal');
         if (existingModal) existingModal.remove();
 
+        const orphanUsername = DOMUtils.escapeHtml(claim.orphan_username);
+
         const modal = document.createElement('div');
         modal.id = 'identityClaimModal';
         modal.className = 'modal';
@@ -2542,7 +2547,7 @@ function showIdentityClaimModal(claim) {
                     We found answers submitted under the username:
                 </p>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; margin: 15px 0; border-left: 4px solid #3498db;">
-                    <strong style="font-size: 1.3em; color: #2c3e50;">${claim.orphan_username}</strong>
+                    <strong style="font-size: 1.3em; color: #2c3e50;">${orphanUsername}</strong>
                 </div>
                 <p style="color: #555; line-height: 1.6;">
                     This username has answers but isn't linked to a registered student.
@@ -2577,6 +2582,7 @@ function showIdentityClaimModal(claim) {
         `;
 
         document.body.appendChild(modal);
+        ModalUtils.open(modal);
 
         const yesBtn = document.getElementById('claimYesBtn');
         const noBtn = document.getElementById('claimNoBtn');
@@ -2586,6 +2592,7 @@ function showIdentityClaimModal(claim) {
             noBtn.disabled = true;
             yesBtn.textContent = 'Processing...';
             await respondToIdentityClaim(claim.id, 'yes');
+            ModalUtils.close(modal);
             modal.remove();
             resolve();
         };
@@ -2595,6 +2602,7 @@ function showIdentityClaimModal(claim) {
             noBtn.disabled = true;
             noBtn.textContent = 'Processing...';
             await respondToIdentityClaim(claim.id, 'no');
+            ModalUtils.close(modal);
             modal.remove();
             resolve();
         };
@@ -3151,7 +3159,7 @@ window.submitManualMerge = submitManualMerge;
         // Share Modal Functions
         function showShareModal() {
             const modal = document.getElementById('shareModal');
-            modal.style.display = 'block';
+            ModalUtils.open(modal);
 
             // Check if running locally and show local file path
             detectLocalFile();
@@ -3175,7 +3183,7 @@ window.submitManualMerge = submitManualMerge;
                 // RUNNING LOCALLY
                 locationSection.classList.add('local-mode');
                 locationSection.classList.remove('web-mode');
-                locationTitle.innerHTML = '📁 Local File Location';
+                locationTitle.textContent = '📁 Local File Location';
 
                 // Get the local file path
                 let localPath = window.location.href;
@@ -3194,7 +3202,7 @@ window.submitManualMerge = submitManualMerge;
                                     localPath.substring(0, localPath.lastIndexOf('\\'));
 
                 locationInput.value = directoryPath || localPath;
-                locationDescription.innerHTML = '🖥️ Running from your local computer';
+                locationDescription.textContent = '🖥️ Running from your local computer';
 
                 // Show local sharing instructions
                 locationInfo.innerHTML = `
@@ -3220,7 +3228,7 @@ window.submitManualMerge = submitManualMerge;
                 // RUNNING FROM WEB
                 locationSection.classList.add('web-mode');
                 locationSection.classList.remove('local-mode');
-                locationTitle.innerHTML = '🌐 Current Web Location';
+                locationTitle.textContent = '🌐 Current Web Location';
 
                 // Get the current URL
                 const currentUrl = window.location.href;
@@ -3230,7 +3238,7 @@ window.submitManualMerge = submitManualMerge;
 
                 // Check if it's the official GitHub Pages site
                 if (hostname === 'robjohncolson.github.io') {
-                    locationDescription.innerHTML = '✅ Running from the official website';
+                    locationDescription.textContent = '✅ Running from the official website';
                     locationInfo.innerHTML = `
                         <p><strong>You're using the live version!</strong></p>
                         <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
@@ -3240,8 +3248,8 @@ window.submitManualMerge = submitManualMerge;
                         </ul>
                     `;
                 } else {
-                    locationDescription.innerHTML = `🌍 Running from: ${hostname}`;
-                    locationInfo.innerHTML = `
+                    locationDescription.textContent = `🌍 Running from: ${hostname}`;
+                    locationInfo.innerHTML = DOMUtils.safeHtml`
                         <p><strong>Custom deployment detected</strong></p>
                         <ul style="text-align: left; margin: 10px auto; max-width: 400px;">
                             <li>This appears to be a custom deployment</li>
@@ -3256,7 +3264,7 @@ window.submitManualMerge = submitManualMerge;
 
         function closeShareModal() {
             const modal = document.getElementById('shareModal');
-            modal.style.display = 'none';
+            ModalUtils.close(modal);
         }
 
         function generateQRCodes() {
@@ -4908,6 +4916,12 @@ if (continueBtn) {
         // Global ESC Key Handler for All Modals
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
+                if (window.ModalUtils && ModalUtils.getActiveModal()) {
+                    ModalUtils.close(ModalUtils.getActiveModal());
+                    event.preventDefault();
+                    return;
+                }
+
                 // Find any open modal and close it
                 const modals = [
                     'syncModal',
@@ -9974,14 +9988,14 @@ Respond with JSON:
         window.openSyncModal = function() {
             const modal = document.getElementById('syncModal');
             if (modal) {
-                modal.style.display = 'block';
+                ModalUtils.open(modal);
             }
         }
 
         window.closeSyncModal = function() {
             const modal = document.getElementById('syncModal');
             if (modal) {
-                modal.style.display = 'none';
+                ModalUtils.close(modal);
             }
         }
 
@@ -10807,7 +10821,7 @@ Respond with JSON:
 
             const modal = document.getElementById('syncModal');
             if (modal) {
-                modal.style.display = 'block';
+                ModalUtils.open(modal);
 
                 // Debug: Check if Master Import button exists and add if missing
                 setTimeout(() => {
@@ -10914,13 +10928,6 @@ Respond with JSON:
                 // Close modal when clicking outside
                 window.addEventListener('click', function(event) {
                     if (event.target === shareModal) {
-                        closeShareModal();
-                    }
-                });
-
-                // Close modal with ESC key
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape' && shareModal.style.display === 'block') {
                         closeShareModal();
                     }
                 });
@@ -11038,7 +11045,7 @@ Respond with JSON:
             const modal = document.getElementById('spriteConfigModal');
             if (!modal) return;
 
-            modal.style.display = 'block';
+            ModalUtils.open(modal);
 
             // Load current settings
             const spritesEnabled = localStorage.getItem('spritesEnabled') !== 'false';
@@ -11052,7 +11059,7 @@ Respond with JSON:
 
         function closeSpriteConfigModal() {
             const modal = document.getElementById('spriteConfigModal');
-            if (modal) modal.style.display = 'none';
+            if (modal) ModalUtils.close(modal);
         }
 
         function updateSpriteConfigPreview() {

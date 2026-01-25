@@ -195,7 +195,6 @@ async function showWelcomeScreen() {
                     <label for="studentSelect" class="select-label">I am:</label>
                     <select id="studentSelect" class="student-dropdown">
                         <option value="">-- Select your name --</option>
-                        ${students.map(s => `<option value="${s.username}">${s.real_name}</option>`).join('')}
                     </select>
                     <button id="confirmStudentBtn" class="action-button primary large" disabled>
                         ✅ Let's Go!
@@ -211,8 +210,15 @@ async function showWelcomeScreen() {
             </div>
         `;
 
-        // Enable button when selection is made
         const select = document.getElementById('studentSelect');
+        students.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.username;
+            option.textContent = student.real_name;
+            select.appendChild(option);
+        });
+
+        // Enable button when selection is made
         const btn = document.getElementById('confirmStudentBtn');
 
         select.addEventListener('change', () => {
@@ -624,11 +630,7 @@ async function loadRecentUsernamesOnWelcome() {
 
         if (container && list) {
             container.style.display = 'block';
-            list.innerHTML = recentUsers.slice(0, 3).map(u => `
-                <button onclick="checkExistingData('${u}')" class="recent-username-chip">
-                    ${u}
-                </button>
-            `).join('');
+            renderRecentUsernames(list, recentUsers.slice(0, 3), 'recent-username-chip');
         }
     }
 }
@@ -646,11 +648,7 @@ async function loadRecentUsernamesForReturning() {
 
         if (container && list) {
             container.style.display = 'block';
-            list.innerHTML = recentUsers.map(u => `
-                <button onclick="checkExistingData('${u}')" class="recent-username-btn-large">
-                    ${u}
-                </button>
-            `).join('');
+            renderRecentUsernames(list, recentUsers, 'recent-username-btn-large');
         }
     }
 }
@@ -917,6 +915,19 @@ function updateCurrentUsernameDisplay() {
     }
 }
 
+function renderRecentUsernames(list, recentUsers, className) {
+    if (!list) return;
+    list.replaceChildren();
+    recentUsers.forEach(username => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        button.textContent = username;
+        button.addEventListener('click', () => checkExistingData(username));
+        list.appendChild(button);
+    });
+}
+
 /**
  * Loads and displays recently used usernames from storage
  * Now async and uses IDB with localStorage fallback
@@ -931,11 +942,7 @@ async function loadRecentUsernames() {
 
         if (container && list) {
             container.style.display = 'block';
-            list.innerHTML = recentUsers.map(u => `
-                <button onclick="checkExistingData('${u}')" class="recent-username-btn">
-                    ${u}
-                </button>
-            `).join('');
+            renderRecentUsernames(list, recentUsers, 'recent-username-btn');
         }
     }
 }
