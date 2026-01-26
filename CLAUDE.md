@@ -351,6 +351,7 @@ Three-tier escalation system for fair, AI-augmented grading with student appeals
 - `gradeMultiPartFRQ(questionId, partsAnswers)` - Progressive FRQ grading
 - `showReasoningForm(questionId, questionType)` - Shows reasoning form OR calls requestAIReview directly if reasoning exists
 - `requestAIReview(questionId, questionType)` - Direct fetch to `/api/ai/grade` for MCQ AI review
+- `requestGroqReeval(questionId)` - Re-evaluate LAN grading with Groq; auto-upgrades to turbo mode on success
 - `showAppealForm(questionId)` / `hideAppealForm(questionId)` - Toggle appeal form
 - `submitAppeal(questionId, questionType)` - Submit appeal to Railway
 - `displayGradingFeedback(questionId, result)` - Render E/P/I feedback (handles loading→result transition)
@@ -602,8 +603,8 @@ TIER 3: OFFLINE MODE (No network)
 
 **UI Components:**
 - **LAN Setup Modal:** FAB menu → "LAN" button, or auto-prompted when internet fails
-- **Tutor Chat Panel:** Fixed sidebar (collapsed by default), visible only in LAN mode
 - **Sync Status Indicator:** Shows 🏠📡 LAN Tutor (orange) when in LAN mode
+- **Queue Position Display:** Shows "In grading queue (position N)..." during LAN grading
 
 **Event:** `networkTierChanged` dispatched on tier transitions with `{newTier, oldTier}` detail.
 
@@ -613,9 +614,9 @@ TIER 3: OFFLINE MODE (No network)
 
 **See:** `docs/network-tiers-plan.md` for full implementation details.
 
-## AP Statistics Tutor Integration
+## AP Statistics Tutor Integration (LAN Grading)
 
-Local fine-tuned Qwen models for conversational tutoring support.
+Local fine-tuned Qwen models for **grading fallback** when internet is unavailable. Uses queue system to handle 20+ concurrent students and RAG for lesson-specific context.
 
 **Tutor Server:** `C:\Users\rober\Downloads\Projects\not-school\apstats-rag\server.py` (port 8765)
 
@@ -627,26 +628,65 @@ Local fine-tuned Qwen models for conversational tutoring support.
 | `qwen2.5-1.5b` | ~130s | Alternative, stable performance |
 | `qwen2.5-0.5b` | ~25s | Fastest, basic responses |
 
-**LAN Access:** Server now binds to `0.0.0.0` and displays LAN IP on startup. Students can connect via the network IP when internet is unavailable.
+**Queue System:** Handles concurrent grading requests from 20+ students:
+- Students submit grading requests, receive queue position
+- Background worker processes one request at a time
+- UI shows "In queue (position 5, ~1m 30s remaining)..." while waiting
+- Time estimates based on rolling average of last 10 completions
+- Results cached for 5 minutes after completion
 
-**Integration Plan:** See `docs/tutor-integration-plan.md`
+**Focused Grading Prompt:** Server builds comparison-focused prompts that clearly show:
+- Correct answer prominently at top (can't be missed by model)
+- Student's answer directly below for easy comparison
+- Clear status: ✓ CORRECT or ✗ WRONG with score constraints
+- MCQ enforcement in prompt: wrong answers explicitly capped at P
+- Student reasoning (if provided)
+- RAG context truncated to 1000 chars to keep prompt focused
 
-**Planned Endpoints:**
+**MCQ Enforcement:** Multi-layer protection for wrong MCQ answers:
+1. **Prompt layer:** Instructions explicitly state max P for wrong answers
+2. **Server enforcement:** Regex detects E scores, replaces with P
+3. **Client validation:** `is_correct` flag sent with request
 
-*Via Railway (Turbo Mode):*
-- `POST /api/tutor/chat` - Proxied to local tutor
-- `GET /api/tutor/status` - Check availability
+**RAG Context Integration:** Each grading request is augmented with lesson-specific context:
+- Framework data (learning objectives, essential knowledge)
+- Lesson content (transcripts, slides)
+- Similar question examples
+- Improves grading accuracy by aligning with how concepts were taught
 
-*Direct LAN (LAN Mode):*
-- `GET http://<teacher-ip>:8765/ask?q=...` - Direct query
-- `GET http://<teacher-ip>:8765/status` - Model status
-- `GET http://<teacher-ip>:8765/health` - Connection test
+**LAN Endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/quiz` | GET | Serves the curriculum_render app |
+| `/grade` | POST | Submit grading request to queue |
+| `/grade/status/{id}` | GET | Check grading status/result |
+| `/health` | GET | Connection test |
+| `/status` | GET | Model status |
+| `/ask` | GET | Direct query (for debugging) |
+
+**Grading Request Flow:**
+```
+Client                          Server
+  |                                |
+  |-- POST /grade ---------------->|  Submit to queue
+  |<-- 202 {request_id, position} -|
+  |                                |
+  |-- GET /grade/status/{id} ---->|  Poll for status
+  |<-- {status: 'queued', pos: 3} -|
+  |                                |
+  |-- GET /grade/status/{id} ---->|  Poll again
+  |<-- {status: 'processing'} -----|
+  |                                |
+  |-- GET /grade/status/{id} ---->|  Poll again
+  |<-- {status: 'completed',       |  Result ready
+  |     result: {response, ...}} --|
+```
 
 **Key Difference from Groq:**
-- Groq (llama-3.3-70b): Used for grading and appeals - evaluates student work
-- Local Qwen: Used for tutoring - teaches concepts conversationally
+- Groq (llama-3.3-70b): Used in Turbo mode for grading and appeals
+- Local Qwen: Used in LAN mode as grading fallback when internet is down
 
-**Running the LAN Tutor (Classroom Workflow):**
+**Running the LAN Server (Classroom Workflow):**
 ```bash
 # On teacher's computer
 cd C:\Users\rober\Downloads\Projects\not-school\apstats-rag
@@ -660,12 +700,16 @@ python server.py
 #   Go to: http://192.168.1.42:8765/quiz
 ```
 
-**Note:** The tutor server now serves the quiz app at `/quiz`. This is the recommended way to use LAN mode because:
+**Note:** The tutor server serves the quiz app at `/quiz`. This is the recommended way to use LAN mode because:
 - App loads over HTTP (no HTTPS mixed content issues)
 - LAN mode auto-configures (no manual IP entry needed)
 - Storage APIs (IndexedDB, localStorage) work properly
 
 **HTTPS Limitation:** LAN mode cannot work from GitHub Pages (HTTPS) due to browser mixed content blocking. Always use the tutor server's `/quiz` endpoint for offline classroom use.
+
+**MCQ Grading Rule:** Wrong MCQ answers are capped at P (Partially Correct), never E. This is enforced in:
+1. Grading prompt (tells AI the rule)
+2. Server-side check (caps E→P for wrong MCQs)
 
 ## Key Documentation
 

@@ -612,6 +612,104 @@ With framework context, AI appeal responses:
 - Server-side 30-second timeout via AbortController in `callGroq()`
 - Debug logging with `🤖` prefix for troubleshooting
 
+### Groq Re-evaluation (LAN → Turbo Upgrade)
+
+When students receive LAN-mode grading (local Qwen), they can request Groq re-evaluation once internet returns. A successful re-evaluation automatically upgrades the app to turbo mode.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              GROQ RE-EVALUATION FLOW (LAN → TURBO)               │
+└─────────────────────────────────────────────────────────────────┘
+
+     ┌─────────────────┐
+     │ LAN Mode Grading│
+     │ shows disclaimer│
+     │ + Re-eval button│
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ User clicks     │
+     │ "Re-evaluate    │
+     │ with Groq"      │
+     └────────┬────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ requestGroq     │
+     │ Reeval()        │
+     │                 │
+     │ 1. detectTier() │
+     │ 2. Check turbo  │
+     └────────┬────────┘
+              │
+       ┌──────┴──────┐
+       │             │
+       ▼             ▼
+┌────────────┐  ┌────────────┐
+│ NOT TURBO  │  │   TURBO    │
+│            │  │ available  │
+│ Show alert:│  │            │
+│ "Internet  │  │ Proceed    │
+│ required"  │  │ with fetch │
+└────────────┘  └─────┬──────┘
+                      │
+                      ▼
+              ┌─────────────────┐
+              │ fetch() to      │
+              │ /api/ai/grade   │
+              │                 │
+              │ Show loading:   │
+              │ "Re-evaluating  │
+              │ with Groq..."   │
+              └────────┬────────┘
+                       │
+              ┌────────┴────────┐
+              │                 │
+              ▼                 ▼
+       ┌────────────┐    ┌────────────┐
+       │  SUCCESS   │    │  FAILURE   │
+       └─────┬──────┘    └─────┬──────┘
+             │                 │
+             ▼                 ▼
+       ┌────────────┐    ┌────────────┐
+       │ Display    │    │ Show error │
+       │ feedback   │    │ with retry │
+       │ (no LAN    │    │ option     │
+       │ disclaimer)│    └────────────┘
+       └─────┬──────┘
+             │
+             ▼
+       ┌─────────────────────────────────┐
+       │ SUCCESS TRIGGERS TURBO UPGRADE: │
+       │                                 │
+       │ 1. NetworkManager.setTier(      │
+       │    'turbo')                     │
+       │ 2. turboModeActive = true       │
+       │ 3. Dispatch 'turboModeChanged'  │
+       │ 4. updateSyncStatusIndicator()  │
+       │ 5. initializeRailwayConnection()│
+       │ 6. processSyncOutbox()          │
+       └─────────────────────────────────┘
+```
+
+**Key Function:** `requestGroqReeval(questionId)` in index.html
+
+**Question Lookup:** Uses `currentQuestions.find(q => q.id === questionId)` to retrieve question data.
+
+**Turbo Upgrade Sequence:**
+1. `NetworkManager.setTier('turbo')` - Updates network tier state
+2. `turboModeActive = true` - Sets WebSocket readiness flag immediately
+3. Dispatches `turboModeChanged` event with `enabled: true`
+4. Calls `updateSyncStatusIndicator()` to update UI (shows ☁️✓ 🚀)
+5. Initializes Railway WebSocket connection
+6. Triggers `processSyncOutbox()` to sync any pending answers
+
+**UI Changes on Success:**
+- Sync indicator changes from "Local only" (gray) to "Connected" (green) with 🚀 turbo icon
+- LAN disclaimer hidden (since this was a Groq response)
+- Full cloud sync resumes
+
 ---
 
 ## 5. User Authentication State Machine

@@ -19,6 +19,12 @@
           return false;
       }
 
+      // Skip if in LAN or offline mode - no point trying Railway
+      if (typeof NetworkManager !== 'undefined' && NetworkManager.currentTier !== 'turbo') {
+          console.log('🚂 Skipping Railway init - network tier is', NetworkManager.currentTier);
+          return false;
+      }
+
       console.log('🚂 Initializing Railway server connection...');
 
       // Capture original functions if not already captured

@@ -6,12 +6,67 @@
     <title>AP Stats Consensus Quiz</title>
 
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Local-first libraries (no network delay) -->
+    <script src="lib/chart.min.js"></script>
+    <script src="lib/chartjs-plugin-datalabels.min.js"></script>
+    <script src="lib/qrcode.min.js"></script>
+
+    <!-- Fast-timeout CDN loader for non-critical resources -->
+    <script>
+    (function() {
+        var CDN_TIMEOUT = 2000; // 2 second timeout for CDN resources
+
+        // Load CSS with timeout
+        function loadCSSWithTimeout(url, name, timeout) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            var timer = setTimeout(function() {
+                link.remove();
+                console.log(name + ' timeout - using fallback icons');
+            }, timeout);
+            link.onload = function() { clearTimeout(timer); };
+            link.onerror = function() { clearTimeout(timer); console.log(name + ' unavailable'); };
+            document.head.appendChild(link);
+        }
+
+        // Load script with timeout
+        function loadScriptWithTimeout(url, name, timeout, callback) {
+            var script = document.createElement('script');
+            script.src = url;
+            script.async = true;
+            var timer = setTimeout(function() {
+                script.remove();
+                console.log(name + ' timeout - feature disabled');
+                if (callback) callback(false);
+            }, timeout);
+            script.onload = function() { clearTimeout(timer); if (callback) callback(true); };
+            script.onerror = function() { clearTimeout(timer); console.log(name + ' unavailable'); if (callback) callback(false); };
+            document.head.appendChild(script);
+        }
+
+        // Font Awesome - cosmetic only, 2s timeout
+        loadCSSWithTimeout(
+            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+            'Font Awesome', CDN_TIMEOUT
+        );
+
+        // MathJax - important but not blocking, 3s timeout
+        loadScriptWithTimeout(
+            'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+            'MathJax', 3000,
+            function(loaded) { if (!loaded) console.log('Math will show as raw LaTeX'); }
+        );
+
+        // Supabase - only for cloud sync, 2s timeout
+        loadScriptWithTimeout(
+            'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+            'Supabase', CDN_TIMEOUT,
+            function(loaded) { if (!loaded) console.log('Cloud sync disabled'); }
+        );
+    })();
+    </script>
     <script src="supabase_config.js"></script>
     <script src="railway_config.js"></script>
     <script src="js/charts.js"></script>
@@ -61,7 +116,13 @@
         <h1>🧮 AP Statistics Consensus Quiz</h1>
         <div id="messageArea"></div>
         <div id="restoreStatusBanner" class="message success" style="display: none;"></div>
-        <div id="questionsContainer"></div>
+        <div id="questionsContainer">
+            <div style="text-align: center; padding: 40px 20px; color: #7f8c8d;">
+                <div style="font-size: 32px; margin-bottom: 15px;">⏳</div>
+                <div style="font-size: 16px;">Loading quiz...</div>
+                <div style="font-size: 12px; margin-top: 8px; color: #95a5a6;">Initializing storage and network</div>
+            </div>
+        </div>
     </div>
 
     <!-- Unified Floating Action Button -->
@@ -8314,6 +8375,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <span class="grading-score"></span>
                             <span class="ai-badge"></span>
                         </div>
+                        <div class="grading-lan-disclaimer" style="display: none;"></div>
                         <div class="grading-feedback-text"></div>
                         <div class="grading-matched" style="display: none;">
                             <strong>✓ You included:</strong>
@@ -8361,6 +8423,29 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 : 'Rubric-based grading';
             updateText(badgeSpan, badgeText);
             updateAttr(badgeSpan, 'title', badgeTitle);
+
+            // LAN mode disclaimer - show when graded by local Qwen model
+            const lanDisclaimer = wrapper.querySelector('.grading-lan-disclaimer');
+            if (lanDisclaimer) {
+                const isLanGrading = result._provider === 'qwen' ||
+                    (typeof NetworkManager !== 'undefined' && NetworkManager.currentTier === 'lan');
+                if (isLanGrading && result._aiGraded) {
+                    lanDisclaimer.style.display = 'block';
+                    // Store that this was LAN-graded for potential re-evaluation
+                    lanDisclaimer.dataset.lanGraded = 'true';
+                    lanDisclaimer.dataset.questionId = questionId;
+                    lanDisclaimer.innerHTML = `
+                        <small style="color: #7f8c8d; font-style: italic; display: block; margin: 4px 0 8px 0; padding: 6px 10px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid #f39c12;">
+                            🏠 <strong>LAN Mode:</strong> Graded by local AI (limited precision).
+                            <button onclick="requestGroqReeval('${questionId}')" class="reeval-btn" style="margin-left: 8px; padding: 2px 8px; font-size: 11px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                🌐 Re-evaluate with Groq
+                            </button>
+                        </small>
+                    `;
+                } else {
+                    lanDisclaimer.style.display = 'none';
+                }
+            }
 
             // Update feedback text
             updateText(feedbackText, result.feedback || 'Review the official solution for detailed grading criteria.');
@@ -9053,21 +9138,156 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
+        // Re-evaluate with Groq (Railway) - used when LAN grading was imprecise
+        window.requestGroqReeval = async function(questionId) {
+            console.log('🌐 Groq re-evaluation requested for:', questionId);
+
+            // Check if internet/Turbo is available
+            if (typeof NetworkManager !== 'undefined') {
+                await NetworkManager.detectTier();
+                if (NetworkManager.currentTier !== 'turbo') {
+                    alert('Internet connection required for Groq re-evaluation. Please check your connection and try again.');
+                    return;
+                }
+            }
+
+            // Get question data
+            const question = currentQuestions.find(q => q.id === questionId);
+            if (!question) {
+                console.error('Question not found:', questionId);
+                return;
+            }
+
+            const questionType = question.type || 'multiple-choice';
+            const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
+            const answer = userAnswer?.value || userAnswer;
+            const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+
+            // Show loading state
+            const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+            if (feedbackContainer) {
+                feedbackContainer.innerHTML = `
+                    <div class="grading-feedback loading">
+                        <span class="grading-icon">🌐</span>
+                        <span class="grading-text">Re-evaluating with Groq (more precise)...</span>
+                    </div>
+                `;
+            }
+
+            try {
+                // Build grading prompt
+                const prompt = buildMCQGradingPrompt(question, answer, reason);
+                const serverUrl = typeof RAILWAY_SERVER_URL !== 'undefined' ? RAILWAY_SERVER_URL : 'https://curriculumrender-production.up.railway.app';
+
+                const response = await fetch(`${serverUrl}/api/ai/grade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scenario: {
+                            questionId,
+                            topic: question.prompt?.substring(0, 200) || 'AP Statistics',
+                            prompt: question.prompt,
+                            questionType: questionType,
+                            correctAnswer: getCorrectAnswer(questionId),
+                            choices: question.attachments?.choices
+                        },
+                        answers: { answer: answer },
+                        prompt: prompt,
+                        aiPromptTemplate: prompt
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Groq grading failed');
+                }
+
+                const result = await response.json();
+                result._aiGraded = true;
+                result._provider = 'groq';
+                result._model = 'llama-3.3-70b (Groq)';
+
+                // Store and display result
+                window.gradingResults = window.gradingResults || {};
+                window.gradingResults[questionId] = result;
+                displayGradingFeedback(questionId, result);
+
+                console.log('🌐 Groq re-evaluation complete:', result);
+
+                // Success proves internet is back - upgrade to turbo mode
+                if (typeof NetworkManager !== 'undefined' && NetworkManager.currentTier !== 'turbo') {
+                    console.log('🚀 Internet confirmed working - upgrading to turbo mode');
+                    NetworkManager.setTier('turbo');
+
+                    // Mark turbo mode active immediately (don't wait for WebSocket)
+                    turboModeActive = true;
+                    window.dispatchEvent(new CustomEvent('turboModeChanged', { detail: { enabled: true } }));
+
+                    // Update sync status indicator right away
+                    if (typeof updateSyncStatusIndicator === 'function') {
+                        updateSyncStatusIndicator();
+                    }
+
+                    // Initialize Railway connection for cloud sync
+                    if (typeof initializeRailwayConnection === 'function') {
+                        initializeRailwayConnection();
+                    } else if (typeof window.railwayClient?.initialize === 'function') {
+                        window.railwayClient.initialize();
+                    }
+
+                    // Trigger sync of any pending answers
+                    if (typeof processSyncOutbox === 'function') {
+                        setTimeout(() => processSyncOutbox(), 1000);
+                    }
+                }
+
+            } catch (error) {
+                console.error('🌐 Groq re-evaluation failed:', error);
+                if (feedbackContainer) {
+                    feedbackContainer.innerHTML = `
+                        <div class="grading-feedback incorrect">
+                            <span class="grading-icon">❌</span>
+                            <span class="grading-text">Re-evaluation failed: ${error.message}. Try again later.</span>
+                        </div>
+                    `;
+                }
+            }
+        };
+
         // Request AI review for MCQ - Uses NetworkManager for adaptive grading (Groq/Qwen/offline)
         window.requestAIReview = async function(questionId, questionType) {
             console.log('🤖 AI Review started for:', questionId);
 
+            // Fresh network check before AI request
+            if (typeof NetworkManager !== 'undefined') {
+                console.log('🤖 Checking network connectivity...');
+                await NetworkManager.detectTier();
+                console.log('🤖 Current network tier:', NetworkManager.currentTier);
+            }
+
             // Get AI endpoint from NetworkManager (supports turbo/lan/offline)
             const aiEndpoint = typeof NetworkManager !== 'undefined' ? NetworkManager.getAIEndpoint() : null;
 
+            // Check if we have any AI available
+            if (!aiEndpoint) {
+                console.log('🤖 No AI endpoint available (offline mode)');
+                const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
+                if (feedbackContainer) {
+                    feedbackContainer.innerHTML = `
+                        <div class="grading-feedback error">
+                            <span class="grading-icon">📡</span>
+                            <span class="grading-text">No AI available. Connect to internet or LAN tutor for AI grading.</span>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
             // Determine server URL based on network tier
             let serverUrl;
-            if (aiEndpoint) {
-                if (aiEndpoint.type === 'groq') {
-                    serverUrl = aiEndpoint.url.replace('/api/ai/grade', '');  // Base URL for Railway
-                } else if (aiEndpoint.type === 'qwen') {
-                    serverUrl = aiEndpoint.url;  // LAN server URL
-                }
+            if (aiEndpoint.type === 'groq') {
+                serverUrl = aiEndpoint.url.replace('/api/ai/grade', '');  // Base URL for Railway
+            } else if (aiEndpoint.type === 'qwen') {
+                serverUrl = aiEndpoint.url;  // LAN server URL
             } else {
                 // Fallback for backward compatibility
                 serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
@@ -9110,22 +9330,133 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 // Handle different AI endpoints based on network tier
                 if (aiEndpoint?.type === 'qwen') {
-                    // LAN mode: Use local Qwen server with simple GET request
-                    console.log('🤖 Using LAN Qwen at:', serverUrl);
-                    const response = await fetch(`${serverUrl}/ask?q=${encodeURIComponent(prompt)}`, {
-                        method: 'GET',
-                        signal: AbortSignal.timeout(60000)  // 60s timeout for slower local models
-                    });
+                    // LAN mode: Use queue-based grading API
+                    console.log('🤖 Using LAN Qwen queue at:', serverUrl);
 
-                    if (!response.ok) {
-                        throw new Error('LAN tutor request failed');
+                    // Determine if answer is correct (for MCQ enforcement)
+                    const correctAnswer = getCorrectAnswer(questionId);
+                    const isCorrect = questionType === 'multiple-choice' ? (answer === correctAnswer) : null;
+                    console.log('🤖 MCQ check: answer=', answer, 'correct=', correctAnswer, 'isCorrect=', isCorrect);
+
+                    // Submit grading request to queue
+                    // Pass structured data so server can build a focused comparison prompt
+                    const choices = question.attachments?.choices || [];
+
+                    // Get framework context for this lesson (more reliable than RAG)
+                    let frameworkContext = '';
+                    if (typeof getFrameworkForQuestion === 'function' && typeof buildFrameworkContext === 'function') {
+                        const framework = getFrameworkForQuestion(questionId);
+                        if (framework) {
+                            frameworkContext = buildFrameworkContext(framework);
+                            console.log('🤖 Framework context included:', frameworkContext.substring(0, 100) + '...');
+                        }
                     }
 
-                    const data = await response.json();
-                    const responseText = data.response || data.answer || '';
+                    const submitResponse = await fetch(`${serverUrl}/grade`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prompt: prompt,  // Legacy fallback
+                            question_id: questionId,
+                            username: currentUsername,
+                            question_text: question.prompt || '',  // For RAG context lookup
+                            question_type: questionType,
+                            is_correct: isCorrect,  // For MCQ enforcement (cap E→P for wrong answers)
+                            // Structured data for focused grading
+                            correct_answer: correctAnswer,
+                            student_answer: answer,
+                            student_reasoning: reason || '',
+                            choices: choices.map(c => `${c.key}: ${c.text}`).join('\n'),
+                            // Framework context (more reliable than RAG for lesson-specific grading)
+                            framework_context: frameworkContext
+                        })
+                    });
 
-                    // Parse Qwen response (expects JSON in the response)
+                    if (!submitResponse.ok) {
+                        throw new Error('Failed to submit grading request');
+                    }
+
+                    const submitData = await submitResponse.json();
+                    const requestId = submitData.request_id;
+                    let position = submitData.position;
+                    console.log(`🤖 Grading queued: ${requestId}, position ${position}`);
+
+                    // Update loading message with queue position
+                    if (feedbackContainer) {
+                        const posText = position === 1 ? "You're first in line!" : `Position ${position} in queue`;
+                        feedbackContainer.innerHTML = `
+                            <div class="grading-feedback loading">
+                                <span class="grading-icon">🤖</span>
+                                <span class="grading-text">${posText} Checking wait time...</span>
+                            </div>
+                        `;
+                    }
+
+                    // Poll for completion (max 3 minutes)
+                    const maxWait = 180000;  // 3 minutes
+                    const pollInterval = 2000;  // 2 seconds
+                    const startTime = Date.now();
+                    let statusData;
+
+                    while (Date.now() - startTime < maxWait) {
+                        await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+                        const statusResponse = await fetch(`${serverUrl}/grade/status/${requestId}`);
+                        if (!statusResponse.ok) {
+                            throw new Error('Failed to check grading status');
+                        }
+
+                        statusData = await statusResponse.json();
+                        console.log(`🤖 Status: ${statusData.status}, position: ${statusData.position}`);
+
+                        if (statusData.status === 'completed') {
+                            break;
+                        } else if (statusData.status === 'error') {
+                            throw new Error(statusData.error || 'Grading failed');
+                        }
+
+                        // Update queue position display with time estimate
+                        const formatTime = (seconds) => {
+                            if (seconds < 60) return `~${seconds}s`;
+                            const mins = Math.floor(seconds / 60);
+                            const secs = seconds % 60;
+                            return secs > 0 ? `~${mins}m ${secs}s` : `~${mins}m`;
+                        };
+
+                        if (feedbackContainer) {
+                            const estTime = statusData.estimated_seconds || 0;
+                            const timeStr = estTime > 0 ? ` (${formatTime(estTime)} remaining)` : '';
+
+                            if (statusData.status === 'processing') {
+                                feedbackContainer.innerHTML = `
+                                    <div class="grading-feedback loading">
+                                        <span class="grading-icon">🤖</span>
+                                        <span class="grading-text">AI is grading your answer...${timeStr}</span>
+                                    </div>
+                                `;
+                            } else if (statusData.position > 0) {
+                                const posText = statusData.position === 1 ? "You're next!" : `Position ${statusData.position} in queue`;
+                                feedbackContainer.innerHTML = `
+                                    <div class="grading-feedback loading">
+                                        <span class="grading-icon">🤖</span>
+                                        <span class="grading-text">${posText}${timeStr}</span>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+
+                    if (!statusData || statusData.status !== 'completed') {
+                        throw new Error('Grading timeout - please try again');
+                    }
+
+                    // Parse the result
+                    const responseText = statusData.result?.response || '';
                     result = parseQwenGradingResponse(responseText, answer, questionType);
+                    result._rag_context_used = statusData.result?.rag_context_used || false;
+                    result._aiGraded = true;
+                    result._provider = 'qwen';
+                    result._model = 'qwen3-1.7b (LAN)';
                 } else {
                     // Turbo mode (or fallback): Use Railway server with POST request
                     console.log('🤖 Sending fetch to:', `${serverUrl}/api/ai/grade`);
