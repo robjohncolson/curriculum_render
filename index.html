@@ -91,6 +91,10 @@
                 <span class="fab-item-icon">🌙</span>
                 <span class="fab-item-label">Theme</span>
             </button>
+            <button class="fab-item lan-setup-button" onclick="showLANSetupModal()" title="LAN Tutor Setup">
+                <span class="fab-item-icon">🏠</span>
+                <span class="fab-item-label">LAN</span>
+            </button>
         </div>
     </div>
 
@@ -243,6 +247,46 @@
         </div>
     </div>
 
+    <!-- LAN Setup Modal -->
+    <div id="lanSetupModal" class="modal" style="display: none;">
+        <div class="modal-content lan-modal-content">
+            <span class="close-modal" onclick="closeLANModal()">&times;</span>
+            <h2>🏠 Connect to Classroom Tutor</h2>
+            <p>Enter the code shown on your teacher's screen:</p>
+            <input type="text" id="lanCodeInput" placeholder="1-42"
+                   pattern="\d{1,3}-\d{1,3}" maxlength="7"
+                   onkeypress="if(event.key==='Enter')testLANCode()">
+            <div id="lanStatus" class="lan-status"></div>
+            <div class="lan-modal-buttons">
+                <button onclick="testLANCode()" class="lan-connect-btn">Connect</button>
+                <button onclick="clearLANConnection()" class="lan-disconnect-btn">Disconnect</button>
+            </div>
+            <div class="lan-info">
+                <p><strong>What is this?</strong></p>
+                <p>When the internet is unavailable, your teacher can run a local tutor server on their computer. Enter the code they display to connect to it.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutor Chat Panel (LAN Mode Only) -->
+    <div id="tutorPanel" class="tutor-panel collapsed" style="display: none;">
+        <div class="tutor-header" onclick="toggleTutorPanel()">
+            <span>🎓 AP Stats Tutor</span>
+            <span class="tutor-toggle">◀</span>
+        </div>
+        <div class="tutor-body">
+            <div id="tutorMessages" class="tutor-messages">
+                <div class="tutor-message assistant">
+                    Hi! I'm your AP Statistics tutor. Ask me anything about the course!
+                </div>
+            </div>
+            <div class="tutor-input-area">
+                <input type="text" id="tutorInput" placeholder="Ask about statistics..."
+                       onkeypress="if(event.key==='Enter')sendTutorMessage()">
+                <button onclick="sendTutorMessage()">Send</button>
+            </div>
+        </div>
+    </div>
 
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
@@ -257,6 +301,9 @@
 
     <!-- Diagnostics: Phase 1 logging for debugging "disappeared work" issues -->
     <script src="js/diagnostics.js"></script>
+
+    <!-- Network tier management (turbo/lan/offline) -->
+    <script src="js/network_manager.js"></script>
 
     <!-- UI Utilities: Modal keyboard navigation and DOM helpers -->
     <script src="js/modal-utils.js"></script>
@@ -1444,6 +1491,9 @@
             const state = window.syncState;
             let icon, text, color;
 
+            // Check network tier first
+            const networkTier = typeof NetworkManager !== 'undefined' ? NetworkManager.currentTier : null;
+
             switch (state.status) {
                 case 'downloading':
                     icon = '☁️⬇️';
@@ -1462,11 +1512,25 @@
                     color = '#e74c3c';
                     break;
                 case 'offline':
-                    icon = '☁️✗';
-                    text = 'Offline';
-                    color = '#95a5a6';
+                    // Check if we're in LAN mode
+                    if (networkTier === 'lan') {
+                        icon = '🏠📡';
+                        text = 'LAN Tutor';
+                        color = '#f39c12';  // Orange for LAN
+                    } else {
+                        icon = '☁️✗';
+                        text = 'Offline';
+                        color = '#95a5a6';
+                    }
                     break;
                 default: // idle - show last sync time with explicit "backed up" messaging
+                    // Check if we're in LAN mode (even when turbo sync is idle)
+                    if (networkTier === 'lan') {
+                        icon = '🏠📡';
+                        text = 'LAN Tutor';
+                        color = '#f39c12';  // Orange for LAN
+                        break;
+                    }
                     icon = '☁️✓';
                     color = '#27ae60';
 
@@ -3589,6 +3653,201 @@ window.submitManualMerge = submitManualMerge;
                 modal.style.display = 'none'; // Fallback
             }
         }
+
+        // ========================================
+        // LAN SETUP MODAL FUNCTIONS
+        // ========================================
+
+        function showLANSetupModal() {
+            const modal = document.getElementById('lanSetupModal');
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.open(modal);
+            } else if (modal) {
+                modal.style.display = 'block';
+            }
+
+            // Show current connection status
+            updateLANStatus();
+        }
+
+        function closeLANModal() {
+            const modal = document.getElementById('lanSetupModal');
+            if (modal && typeof ModalUtils !== 'undefined') {
+                ModalUtils.close(modal);
+            } else if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function updateLANStatus() {
+            const statusDiv = document.getElementById('lanStatus');
+            if (!statusDiv || typeof NetworkManager === 'undefined') return;
+
+            if (NetworkManager.currentTier === 'lan' && NetworkManager.lanIP) {
+                statusDiv.className = 'lan-status success';
+                statusDiv.innerHTML = `✓ Connected to tutor at ${NetworkManager.lanIP}`;
+            } else if (NetworkManager.lanCode) {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = `⚠ Code saved but tutor unavailable (${NetworkManager.lanCode})`;
+            } else {
+                statusDiv.className = 'lan-status';
+                statusDiv.innerHTML = '';
+            }
+        }
+
+        async function testLANCode() {
+            const input = document.getElementById('lanCodeInput');
+            const statusDiv = document.getElementById('lanStatus');
+            const code = input.value.trim();
+
+            if (!code) {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = 'Please enter a code (e.g., 1-42)';
+                return;
+            }
+
+            if (typeof NetworkManager === 'undefined') {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = 'Network manager not available';
+                return;
+            }
+
+            // Validate format
+            if (!NetworkManager.parseLANCode(code)) {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = 'Invalid format. Use: 1-42 (two numbers separated by dash)';
+                return;
+            }
+
+            statusDiv.className = 'lan-status';
+            statusDiv.innerHTML = '🔍 Searching for tutor...';
+
+            const result = await NetworkManager.testLANConnection(code);
+
+            if (result.success) {
+                statusDiv.className = 'lan-status success';
+                statusDiv.innerHTML = `✓ Connected to tutor at ${result.ip}`;
+                input.value = '';
+
+                // Close modal after short delay
+                setTimeout(() => {
+                    closeLANModal();
+                    showMessage('Connected to classroom tutor!', 'success');
+                }, 1000);
+            } else {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = '✗ Could not find tutor with this code. Check with your teacher.';
+            }
+        }
+
+        function clearLANConnection() {
+            if (typeof NetworkManager === 'undefined') return;
+
+            NetworkManager.disconnectLAN();
+            document.getElementById('lanCodeInput').value = '';
+            updateLANStatus();
+            showMessage('Disconnected from classroom tutor', 'info');
+        }
+
+        // ========================================
+        // TUTOR PANEL FUNCTIONS
+        // ========================================
+
+        function toggleTutorPanel() {
+            const panel = document.getElementById('tutorPanel');
+            if (!panel) return;
+
+            panel.classList.toggle('collapsed');
+
+            const toggle = panel.querySelector('.tutor-toggle');
+            if (toggle) {
+                toggle.textContent = panel.classList.contains('collapsed') ? '◀' : '▶';
+            }
+        }
+
+        async function sendTutorMessage() {
+            const input = document.getElementById('tutorInput');
+            const messagesDiv = document.getElementById('tutorMessages');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            if (typeof NetworkManager === 'undefined' || NetworkManager.currentTier !== 'lan') {
+                showMessage('Tutor only available in LAN mode', 'error');
+                return;
+            }
+
+            // Add user message to chat
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'tutor-message user';
+            userMsgDiv.textContent = message;
+            messagesDiv.appendChild(userMsgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            input.value = '';
+            input.disabled = true;
+
+            // Add loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'tutor-message assistant loading';
+            loadingDiv.textContent = 'Thinking...';
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                const endpoint = NetworkManager.getTutorEndpoint();
+                if (!endpoint) throw new Error('Tutor not available');
+
+                const response = await fetch(`${endpoint}/ask?q=${encodeURIComponent(message)}`, {
+                    signal: AbortSignal.timeout(60000) // 60s timeout for slower models
+                });
+
+                if (!response.ok) throw new Error('Tutor request failed');
+
+                const data = await response.json();
+
+                // Remove loading indicator
+                loadingDiv.remove();
+
+                // Add assistant response
+                const assistantMsgDiv = document.createElement('div');
+                assistantMsgDiv.className = 'tutor-message assistant';
+                assistantMsgDiv.textContent = data.response || data.answer || 'I apologize, I could not generate a response.';
+                messagesDiv.appendChild(assistantMsgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            } catch (error) {
+                console.error('Tutor error:', error);
+                loadingDiv.remove();
+
+                const errorMsgDiv = document.createElement('div');
+                errorMsgDiv.className = 'tutor-message assistant error';
+                errorMsgDiv.textContent = 'Sorry, I could not process your question. Please try again.';
+                messagesDiv.appendChild(errorMsgDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+            input.disabled = false;
+            input.focus();
+        }
+
+        // Listen for network tier changes
+        window.addEventListener('networkTierChanged', (e) => {
+            const { newTier, oldTier } = e.detail;
+            console.log(`Network tier changed: ${oldTier} -> ${newTier}`);
+
+            // Update LAN status in modal if open
+            updateLANStatus();
+
+            // Show notification on tier change
+            if (newTier === 'turbo' && oldTier !== 'turbo') {
+                showMessage('Internet restored - full features available', 'success');
+            } else if (newTier === 'lan') {
+                showMessage('Connected to classroom tutor (LAN mode)', 'info');
+            } else if (newTier === 'offline' && oldTier !== 'offline') {
+                showMessage('Working offline - answers saved locally', 'warning');
+            }
+        });
 
         function generateQRCodes() {
             // Clear any existing QR codes
@@ -8834,11 +9093,26 @@ if (chartInstances[`dotplot-${questionId}`]) {
             }
         }
 
-        // Request AI review for MCQ - Direct fetch like appeals (bypasses grading engine)
+        // Request AI review for MCQ - Uses NetworkManager for adaptive grading (Groq/Qwen/offline)
         window.requestAIReview = async function(questionId, questionType) {
             console.log('🤖 AI Review started for:', questionId);
-            const serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
-            console.log('🤖 Server URL:', serverUrl);
+
+            // Get AI endpoint from NetworkManager (supports turbo/lan/offline)
+            const aiEndpoint = typeof NetworkManager !== 'undefined' ? NetworkManager.getAIEndpoint() : null;
+
+            // Determine server URL based on network tier
+            let serverUrl;
+            if (aiEndpoint) {
+                if (aiEndpoint.type === 'groq') {
+                    serverUrl = aiEndpoint.url.replace('/api/ai/grade', '');  // Base URL for Railway
+                } else if (aiEndpoint.type === 'qwen') {
+                    serverUrl = aiEndpoint.url;  // LAN server URL
+                }
+            } else {
+                // Fallback for backward compatibility
+                serverUrl = window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
+            }
+            console.log('🤖 Server URL:', serverUrl, '| Tier:', aiEndpoint?.type || 'fallback');
 
             const question = currentQuestions.find(q => q.id === questionId) ||
                              EMBEDDED_CURRICULUM.find(q => q.id === questionId);
@@ -8868,35 +9142,59 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (aiReviewBtn) aiReviewBtn.style.display = 'none';
 
             try {
-                // Direct fetch to Railway server (same pattern as working appeals)
+                // Build grading prompt
                 const prompt = buildMCQGradingPrompt(question, answer, reason);
                 console.log('🤖 Prompt length:', prompt.length, 'chars');
-                console.log('🤖 Sending fetch to:', `${serverUrl}/api/ai/grade`);
 
-                const response = await fetch(`${serverUrl}/api/ai/grade`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        scenario: {
-                            questionId,
-                            topic: question.prompt?.substring(0, 200) || 'AP Statistics',
-                            prompt: question.prompt,
-                            questionType: questionType,
-                            correctAnswer: getCorrectAnswer(questionId),
-                            choices: question.attachments?.choices
-                        },
-                        answers: { answer: answer },
-                        prompt: prompt,
-                        aiPromptTemplate: prompt
-                    })
-                });
+                let result;
 
-                console.log('🤖 Fetch completed, status:', response.status);
-                const result = await response.json();
-                console.log('🤖 Result received:', result);
+                // Handle different AI endpoints based on network tier
+                if (aiEndpoint?.type === 'qwen') {
+                    // LAN mode: Use local Qwen server with simple GET request
+                    console.log('🤖 Using LAN Qwen at:', serverUrl);
+                    const response = await fetch(`${serverUrl}/ask?q=${encodeURIComponent(prompt)}`, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(60000)  // 60s timeout for slower local models
+                    });
 
-                if (!response.ok) {
-                    throw new Error(result.error || 'AI grading failed');
+                    if (!response.ok) {
+                        throw new Error('LAN tutor request failed');
+                    }
+
+                    const data = await response.json();
+                    const responseText = data.response || data.answer || '';
+
+                    // Parse Qwen response (expects JSON in the response)
+                    result = parseQwenGradingResponse(responseText, answer, questionType);
+                } else {
+                    // Turbo mode (or fallback): Use Railway server with POST request
+                    console.log('🤖 Sending fetch to:', `${serverUrl}/api/ai/grade`);
+
+                    const response = await fetch(`${serverUrl}/api/ai/grade`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            scenario: {
+                                questionId,
+                                topic: question.prompt?.substring(0, 200) || 'AP Statistics',
+                                prompt: question.prompt,
+                                questionType: questionType,
+                                correctAnswer: getCorrectAnswer(questionId),
+                                choices: question.attachments?.choices
+                            },
+                            answers: { answer: answer },
+                            prompt: prompt,
+                            aiPromptTemplate: prompt
+                        })
+                    });
+
+                    console.log('🤖 Fetch completed, status:', response.status);
+                    result = await response.json();
+                    console.log('🤖 Result received:', result);
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'AI grading failed');
+                    }
                 }
 
                 // Build standardized result
@@ -8906,8 +9204,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     matched: result.matched || [],
                     missing: result.missing || [],
                     _aiGraded: true,
-                    _provider: result._provider || 'groq',
-                    _model: result._model || 'llama-3.3-70b-versatile',
+                    _provider: aiEndpoint?.type === 'qwen' ? 'qwen' : (result._provider || 'groq'),
+                    _model: aiEndpoint?.type === 'qwen' ? 'qwen-local' : (result._model || 'llama-3.3-70b-versatile'),
                     answer: answer,
                     questionType: questionType
                 };
@@ -8940,6 +9238,47 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 if (aiReviewBtn) aiReviewBtn.style.display = 'none';
             }
         };
+
+        // Parse Qwen response for grading (LAN mode)
+        // Attempts to extract JSON from the response or falls back to text analysis
+        function parseQwenGradingResponse(responseText, answer, questionType) {
+            console.log('🤖 Parsing Qwen response:', responseText.substring(0, 200) + '...');
+
+            try {
+                // Try to find JSON in the response
+                const jsonMatch = responseText.match(/\{[\s\S]*"score"[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    return {
+                        score: parsed.score || 'I',
+                        feedback: parsed.feedback || responseText,
+                        matched: parsed.matched || [],
+                        missing: parsed.missing || []
+                    };
+                }
+            } catch (e) {
+                console.log('🤖 JSON parsing failed, using text analysis');
+            }
+
+            // Fallback: Analyze text for score indicators
+            const lowerText = responseText.toLowerCase();
+            let score = 'I';  // Default to incorrect
+
+            if (lowerText.includes('essentially correct') || lowerText.includes('score: e') ||
+                lowerText.includes('"e"') || lowerText.includes("score of e")) {
+                score = 'E';
+            } else if (lowerText.includes('partially correct') || lowerText.includes('score: p') ||
+                       lowerText.includes('"p"') || lowerText.includes("score of p")) {
+                score = 'P';
+            }
+
+            return {
+                score: score,
+                feedback: responseText.trim(),
+                matched: [],
+                missing: []
+            };
+        }
 
         // Build MCQ grading prompt
         function buildMCQGradingPrompt(question, answer, reason) {
@@ -9870,6 +10209,12 @@ Respond with JSON:
                 if (!isStorageReady || !isStorageReady()) {
                     showMessage('Warning: Storage is not available. Data will not be saved.', 'error');
                 }
+            }
+
+            // Initialize network tier management (turbo/lan/offline)
+            if (typeof NetworkManager !== 'undefined') {
+                await NetworkManager.initialize();
+                console.log('🌐 NetworkManager initialized, tier:', NetworkManager.currentTier);
             }
 
             // Initialize Railway WebSocket connection for real-time presence

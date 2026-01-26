@@ -54,10 +54,11 @@ Load order matters (see `index.html` script tags):
 2. Config files (`supabase_config.js`, `railway_config.js`)
 3. Storage layer (`js/storage/*.js` → `index.js` initializes adapters)
 4. **Diagnostics** (`js/diagnostics.js` - Phase 1 logging)
-5. Core modules (`js/charts.js`, `railway_client.js`)
-6. Sprite system (`js/sprite_sheet.js` → `canvas_engine.js` → entities → `sprite_manager.js`)
-7. Data files (`data/curriculum.js`, `data/units.js`, `data/chart_questions.js`)
-8. Inline script in `index.html` (app initialization)
+5. **Network Manager** (`js/network_manager.js` - tier detection, LAN discovery)
+6. Core modules (`js/charts.js`, `railway_client.js`)
+7. Sprite system (`js/sprite_sheet.js` → `canvas_engine.js` → entities → `sprite_manager.js`)
+8. Data files (`data/curriculum.js`, `data/units.js`, `data/chart_questions.js`)
+9. Inline script in `index.html` (app initialization)
 
 ## Diagnostics System (Phase 1)
 
@@ -562,11 +563,107 @@ npm run test:coverage       # Generate coverage report
 - `tests/`: Vitest test suites and browser-based test runner
 - `railway-server/`: Express.js caching proxy for Supabase
 
+## Multi-Tier Network Architecture
+
+The app supports three network tiers with automatic fallback:
+
+```
+TIER 1: TURBO MODE (Internet available)
+  → Railway server → Groq API + Supabase
+  → Full AI grading, cloud sync, real-time peers
+
+TIER 2: LAN MODE (Internet down, LAN up)
+  → Teacher's computer running local Qwen tutor
+  → Students enter short code (e.g., "1-42")
+  → Local AI tutoring/grading, no cloud dependency
+
+TIER 3: OFFLINE MODE (No network)
+  → IndexedDB only, pattern-based auto-grading
+  → Sync when back online
+```
+
+**NetworkManager Module:** `js/network_manager.js`
+
+| Property/Method | Description |
+|-----------------|-------------|
+| `currentTier` | Current tier: 'turbo', 'lan', or 'offline' |
+| `lanIP` | Resolved LAN server IP (e.g., "192.168.1.42") |
+| `lanCode` | Short code entered by student (e.g., "1-42") |
+| `initialize()` | Load saved config, detect tier, start periodic check |
+| `detectTier()` | Check Turbo → LAN → Offline in order |
+| `getAIEndpoint()` | Returns `{url, type: 'groq'|'qwen'}` or null |
+| `getTutorEndpoint()` | Returns LAN tutor URL or null |
+| `testLANConnection(code)` | Test and save LAN code |
+| `disconnectLAN()` | Clear LAN config and redetect tier |
+
+**Short Code System:** The last two octets of teacher's IP are encoded as a short code:
+- Teacher's IP: `192.168.1.42` → Code: `1-42`
+- Student enters `1-42`, app tries `192.168.1.42`, `10.0.1.42`, `172.16.1.42`
+
+**UI Components:**
+- **LAN Setup Modal:** FAB menu → "LAN" button, or auto-prompted when internet fails
+- **Tutor Chat Panel:** Fixed sidebar (collapsed by default), visible only in LAN mode
+- **Sync Status Indicator:** Shows 🏠📡 LAN Tutor (orange) when in LAN mode
+
+**Event:** `networkTierChanged` dispatched on tier transitions with `{newTier, oldTier}` detail.
+
+**localStorage Keys:**
+- `LAN_TUTOR_CODE` - Saved short code
+- `LAN_TUTOR_IP` - Resolved IP (cached)
+
+**See:** `docs/network-tiers-plan.md` for full implementation details.
+
+## AP Statistics Tutor Integration
+
+Local fine-tuned Qwen models for conversational tutoring support.
+
+**Tutor Server:** `C:\Users\rober\Downloads\Projects\not-school\apstats-rag\server.py` (port 8765)
+
+**Available Models:**
+| Model | Speed | Use Case |
+|-------|-------|----------|
+| `qwen3-0.6b` | ~30s | Fast responses, good for most questions |
+| `qwen3-1.7b` | ~140s | Higher quality for complex topics |
+| `qwen2.5-1.5b` | ~130s | Alternative, stable performance |
+| `qwen2.5-0.5b` | ~25s | Fastest, basic responses |
+
+**LAN Access:** Server now binds to `0.0.0.0` and displays LAN IP on startup. Students can connect via the network IP when internet is unavailable.
+
+**Integration Plan:** See `docs/tutor-integration-plan.md`
+
+**Planned Endpoints:**
+
+*Via Railway (Turbo Mode):*
+- `POST /api/tutor/chat` - Proxied to local tutor
+- `GET /api/tutor/status` - Check availability
+
+*Direct LAN (LAN Mode):*
+- `GET http://<teacher-ip>:8765/ask?q=...` - Direct query
+- `GET http://<teacher-ip>:8765/status` - Model status
+- `GET http://<teacher-ip>:8765/health` - Connection test
+
+**Key Difference from Groq:**
+- Groq (llama-3.3-70b): Used for grading and appeals - evaluates student work
+- Local Qwen: Used for tutoring - teaches concepts conversationally
+
+**Running the LAN Tutor:**
+```bash
+# On teacher's computer
+cd C:\Users\rober\Downloads\Projects\not-school\apstats-rag
+python server.py
+
+# Output shows:
+#   Network:  http://192.168.1.42:8765
+#   Tell students to enter: 192.168.1.42
+```
+
 ## Key Documentation
 
 | Document | Purpose |
 |----------|---------|
 | `docs/state-machines.md` | All state machine diagrams and transitions |
+| `docs/network-tiers-plan.md` | Multi-tier network fallback (Turbo/LAN/Offline) |
+| `docs/tutor-integration-plan.md` | Fine-tuned Qwen tutor integration |
 | `docs/sync_ux_plan.md` | Cloud sync UX improvement plan |
 | `docs/chart-wizard-usage.md` | Chart creation wizard documentation |
 | `tests/README.md` | Test suite documentation |

@@ -6466,3 +6466,337 @@ body.dark-theme .load-progress-content {
 body.dark-theme .load-message {
     color: var(--text-secondary, #aaa);
 }
+
+/* =============================================
+   MULTI-TIER NETWORK: LAN SETUP MODAL
+   ============================================= */
+
+.lan-modal-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+.lan-modal-content h2 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.lan-modal-content p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.lan-modal-content input[type="text"] {
+    font-size: 28px;
+    text-align: center;
+    padding: 12px 20px;
+    margin: 15px 0;
+    width: 140px;
+    letter-spacing: 4px;
+    border: 2px solid var(--border-secondary, #ddd);
+    border-radius: 8px;
+    background: var(--bg-tertiary, #f8f9fa);
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.lan-modal-content input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3498db);
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+}
+
+.lan-status {
+    min-height: 30px;
+    margin: 10px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.lan-status.success {
+    color: #27ae60;
+    background: rgba(39, 174, 96, 0.1);
+}
+
+.lan-status.error {
+    color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.lan-modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.lan-connect-btn {
+    background: var(--accent-primary, #3498db);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.lan-connect-btn:hover {
+    background: var(--accent-primary-hover, #2980b9);
+}
+
+.lan-disconnect-btn {
+    background: transparent;
+    color: var(--text-secondary, #666);
+    border: 1px solid var(--border-secondary, #ddd);
+    padding: 10px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.lan-disconnect-btn:hover {
+    background: var(--accent-danger, #e74c3c);
+    color: white;
+    border-color: var(--accent-danger, #e74c3c);
+}
+
+.lan-info {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--bg-tertiary, #f8f9fa);
+    border-radius: 8px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.lan-info p {
+    margin: 5px 0;
+}
+
+/* Dark mode for LAN modal */
+body.dark-theme .lan-modal-content input[type="text"] {
+    background: var(--bg-tertiary, #2d2d2d);
+    border-color: var(--border-secondary, #444);
+}
+
+body.dark-theme .lan-info {
+    background: var(--bg-tertiary, #2d2d2d);
+}
+
+/* =============================================
+   MULTI-TIER NETWORK: TUTOR CHAT PANEL
+   ============================================= */
+
+.tutor-panel {
+    position: fixed;
+    right: 0;
+    top: 80px;
+    width: 350px;
+    height: calc(100vh - 100px);
+    background: var(--bg-secondary, white);
+    border-left: 2px solid var(--accent-primary, #3498db);
+    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+    z-index: 999;
+}
+
+.tutor-panel.collapsed {
+    transform: translateX(310px);
+}
+
+.tutor-header {
+    background: var(--accent-primary, #3498db);
+    color: white;
+    padding: 12px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.tutor-header:hover {
+    background: var(--accent-primary-hover, #2980b9);
+}
+
+.tutor-toggle {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+.tutor-panel:not(.collapsed) .tutor-toggle {
+    transform: rotate(180deg);
+}
+
+.tutor-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.tutor-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tutor-message {
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 90%;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.tutor-message.user {
+    background: var(--accent-primary, #3498db);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+
+.tutor-message.assistant {
+    background: var(--bg-tertiary, #ecf0f1);
+    color: var(--text-primary, #2c3e50);
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+}
+
+.tutor-message.assistant.loading {
+    color: var(--text-secondary, #666);
+    font-style: italic;
+}
+
+.tutor-message.assistant.error {
+    background: rgba(231, 76, 60, 0.1);
+    color: var(--accent-danger, #e74c3c);
+}
+
+.tutor-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--border-secondary, #ddd);
+    background: var(--bg-secondary, white);
+    flex-shrink: 0;
+}
+
+.tutor-input-area input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-secondary, #ddd);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-tertiary, #f8f9fa);
+    color: var(--text-primary);
+}
+
+.tutor-input-area input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #3498db);
+}
+
+.tutor-input-area input:disabled {
+    background: var(--bg-tertiary, #eee);
+    cursor: wait;
+}
+
+.tutor-input-area button {
+    padding: 10px 16px;
+    background: var(--accent-primary, #3498db);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.tutor-input-area button:hover {
+    background: var(--accent-primary-hover, #2980b9);
+}
+
+/* Responsive tutor panel */
+@media (max-width: 768px) {
+    .tutor-panel {
+        width: 100%;
+        height: 50vh;
+        top: auto;
+        bottom: 0;
+        border-left: none;
+        border-top: 2px solid var(--accent-primary, #3498db);
+    }
+
+    .tutor-panel.collapsed {
+        transform: translateY(calc(50vh - 44px));
+    }
+
+    .tutor-toggle {
+        transform: rotate(90deg);
+    }
+
+    .tutor-panel:not(.collapsed) .tutor-toggle {
+        transform: rotate(-90deg);
+    }
+}
+
+/* Dark mode for tutor panel */
+body.dark-theme .tutor-panel {
+    background: var(--bg-secondary, #1a1a1a);
+    border-left-color: var(--accent-primary, #5bc0de);
+}
+
+body.dark-theme .tutor-header {
+    background: var(--accent-primary, #5bc0de);
+}
+
+body.dark-theme .tutor-message.assistant {
+    background: var(--bg-tertiary, #2d2d2d);
+}
+
+body.dark-theme .tutor-input-area {
+    background: var(--bg-secondary, #1a1a1a);
+    border-top-color: var(--border-secondary, #444);
+}
+
+body.dark-theme .tutor-input-area input {
+    background: var(--bg-tertiary, #2d2d2d);
+    border-color: var(--border-secondary, #444);
+}
+
+/* =============================================
+   MULTI-TIER NETWORK: STATUS INDICATORS
+   ============================================= */
+
+/* Network tier body classes for styling */
+body.network-tier-turbo {}  /* Default styling */
+
+body.network-tier-lan #peerDataTimestamp .status-dot {
+    background: #f39c12 !important;  /* Orange for LAN mode */
+}
+
+body.network-tier-offline #peerDataTimestamp .status-dot {
+    background: #95a5a6 !important;  /* Gray for offline */
+}
+
+/* LAN button in FAB menu - highlight when in LAN mode */
+body.network-tier-lan .lan-setup-button {
+    background: #f39c12;
+}
+
+body.network-tier-lan .lan-setup-button:hover {
+    background: #e67e22;
+}

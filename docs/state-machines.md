@@ -1556,6 +1556,186 @@ Extended tests in `tests/question-rendering.test.js`:
 
 ---
 
+## 11. Network Tier State Machine
+
+*Added: January 2026*
+
+The app supports three network tiers with automatic detection and fallback. This enables graceful degradation when internet is unavailable.
+
+### 11.1 State Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     NETWORK TIER STATE MACHINE                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  App Load                                                            │
+│      │                                                               │
+│      ▼                                                               │
+│  ┌──────────────────┐                                               │
+│  │ NetworkManager   │                                               │
+│  │  initialize()    │                                               │
+│  └────────┬─────────┘                                               │
+│           │                                                          │
+│           ▼                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                      detectTier()                               │ │
+│  │  ┌─────────────┐  no  ┌─────────────┐  no  ┌─────────────┐    │ │
+│  │  │ checkTurbo()?├────►│ checkLAN()? ├─────►│   OFFLINE   │    │ │
+│  │  └──────┬──────┘      └──────┬──────┘      └──────┬──────┘    │ │
+│  │         │ yes                │ yes                │            │ │
+│  │         ▼                    ▼                    ▼            │ │
+│  │  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐    │ │
+│  │  │    TURBO    │      │     LAN     │      │   OFFLINE   │    │ │
+│  │  │ (Internet)  │      │ (Local AI)  │      │ (IDB only)  │    │ │
+│  │  └─────────────┘      └─────────────┘      └─────────────┘    │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│                                                                      │
+│  Auto-transitions (every 30s or on network events):                 │
+│                                                                      │
+│  ┌──────────┐  internet   ┌──────────┐  LAN lost   ┌──────────┐   │
+│  │  TURBO   │◄───────────│   LAN    │────────────►│ OFFLINE  │   │
+│  └────┬─────┘  restored   └────┬─────┘             └────┬─────┘   │
+│       │                        │                        │          │
+│       │   internet lost        │   LAN available        │          │
+│       └──────────────────►     │◄───────────────────────┘          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 Tier Definitions
+
+| Tier | Condition | AI Provider | Sync | UI Indicator |
+|------|-----------|-------------|------|--------------|
+| **TURBO** | Railway server reachable | Groq (llama-3.3-70b) | Supabase real-time | ☁️✓ (green) 🚀 |
+| **LAN** | Qwen tutor at saved IP | Qwen (local) | None | 🏠📡 (orange) |
+| **OFFLINE** | No network | Pattern matching | IDB outbox | ☁️✗ (gray) |
+
+### 11.3 LAN Short Code System
+
+Teachers run a local Qwen server that displays its IP. Students enter a short code derived from the last two IP octets:
+
+```
+Teacher's IP: 192.168.1.42
+Short Code:   1-42
+
+Resolution Process:
+┌─────────────────────────────────────────────────────────────┐
+│ Student enters "1-42"                                        │
+│     │                                                        │
+│     ▼                                                        │
+│ parseLANCode("1-42") → { third: "1", fourth: "42" }         │
+│     │                                                        │
+│     ▼                                                        │
+│ Try prefixes in parallel:                                    │
+│   ├─► http://192.168.1.42:8765/health                       │
+│   ├─► http://10.0.1.42:8765/health                          │
+│   └─► http://172.16.1.42:8765/health                        │
+│     │                                                        │
+│     ▼                                                        │
+│ First success → Save IP, setTier('lan')                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 11.4 State Transitions
+
+| From | To | Trigger | Action |
+|------|-----|---------|--------|
+| any | TURBO | Railway /health OK | Hide tutor panel, use Groq grading |
+| TURBO | LAN | Railway fails, saved LAN code works | Show tutor panel, use Qwen grading |
+| TURBO | OFFLINE | Railway fails, no LAN | Prompt for LAN code, pattern grading |
+| LAN | TURBO | Railway recovers (periodic check) | Hide tutor panel, upgrade to Groq |
+| LAN | OFFLINE | LAN server unreachable | Pattern grading only |
+| OFFLINE | LAN | User enters valid LAN code | Show tutor panel |
+| OFFLINE | TURBO | Network online event + Railway OK | Full features restored |
+
+### 11.5 NetworkManager API
+
+```javascript
+// Module: js/network_manager.js
+
+NetworkManager = {
+    // State
+    currentTier: 'offline',     // 'turbo' | 'lan' | 'offline'
+    lanIP: null,                // e.g., "192.168.1.42"
+    lanCode: null,              // e.g., "1-42"
+
+    // Lifecycle
+    initialize(),               // Load config, detect tier, start checks
+    detectTier(),               // Check turbo → lan → offline
+
+    // LAN Management
+    parseLANCode(code),         // "1-42" → {third, fourth}
+    resolveLANCode(code),       // Try subnets, return IP or null
+    testLANConnection(code),    // Test and save if successful
+    disconnectLAN(),            // Clear config, redetect
+
+    // Endpoints
+    getAIEndpoint(),            // {url, type:'groq'|'qwen'} or null
+    getTutorEndpoint(),         // LAN tutor URL or null
+
+    // Events
+    dispatchTierChange(new, old) // Fires 'networkTierChanged'
+}
+```
+
+### 11.6 UI Components
+
+| Component | Location | Visibility |
+|-----------|----------|------------|
+| LAN Setup Modal | `#lanSetupModal` | Manual (FAB menu) or auto (internet lost) |
+| Tutor Chat Panel | `#tutorPanel` | LAN mode only |
+| Sync Status Indicator | `#peerDataTimestamp` | Always (icon/color varies by tier) |
+| FAB LAN Button | `.lan-setup-button` | Always (highlighted in LAN mode) |
+
+### 11.7 AI Grading Routing
+
+```javascript
+// In requestAIReview():
+
+const aiEndpoint = NetworkManager.getAIEndpoint();
+
+if (aiEndpoint?.type === 'qwen') {
+    // LAN mode: GET request to local Qwen
+    fetch(`${serverUrl}/ask?q=${encodeURIComponent(prompt)}`);
+    // Parse response with parseQwenGradingResponse()
+} else {
+    // Turbo mode: POST to Railway → Groq
+    fetch(`${serverUrl}/api/ai/grade`, { method: 'POST', ... });
+}
+```
+
+### 11.8 localStorage Keys
+
+| Key | Value | Purpose |
+|-----|-------|---------|
+| `LAN_TUTOR_CODE` | `"1-42"` | Saved short code |
+| `LAN_TUTOR_IP` | `"192.168.1.42"` | Resolved IP (cached) |
+
+### 11.9 Events
+
+```javascript
+// Listen for tier changes
+window.addEventListener('networkTierChanged', (e) => {
+    const { newTier, oldTier } = e.detail;
+    // Update UI, show notification, etc.
+});
+```
+
+### 11.10 Test Scenarios
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 1 | App load with internet | Tier = turbo, tutor panel hidden |
+| 2 | App load offline with saved LAN code | Tier = lan, tutor panel visible |
+| 3 | Enter valid LAN code "1-42" | Resolves IP, tier → lan |
+| 4 | Enter invalid code "999-999" | Error message, stays offline |
+| 5 | Internet restored while in LAN | Auto-upgrade to turbo (30s check) |
+| 6 | Disconnect LAN button | Clear config, tier → offline |
+| 7 | AI grading in LAN mode | Uses Qwen, shows "qwen-local" provider |
+
+---
+
 ## Testing
 
 Run state machine tests:
