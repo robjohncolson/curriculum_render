@@ -251,20 +251,27 @@
     <div id="lanSetupModal" class="modal" style="display: none;">
         <div class="modal-content lan-modal-content">
             <span class="close-modal" onclick="closeLANModal()">&times;</span>
-            <h2>🏠 Connect to Classroom Tutor</h2>
-            <p>Enter the IP address shown on your teacher's screen:</p>
-            <input type="text" id="lanCodeInput" placeholder="10.0.0.24"
-                   maxlength="15"
-                   onkeypress="if(event.key==='Enter')testLANCode()">
+            <h2>🏠 Classroom Mode</h2>
             <div id="lanStatus" class="lan-status"></div>
-            <div class="lan-modal-buttons">
-                <button onclick="testLANCode()" class="lan-connect-btn">Connect</button>
-                <button onclick="clearLANConnection()" class="lan-disconnect-btn">Disconnect</button>
+            <div class="lan-info" style="margin-top: 15px;">
+                <p><strong>Recommended: Use Teacher's URL</strong></p>
+                <p>Ask your teacher for the classroom URL, like:<br>
+                <code>http://192.168.1.42:8765/quiz</code></p>
+                <p>Open that URL directly in your browser - no setup needed!</p>
             </div>
-            <div class="lan-info">
-                <p><strong>What is this?</strong></p>
-                <p>When the internet is unavailable, your teacher can run a local tutor server. Look for the "Network:" IP address on their screen (e.g., <code>10.0.0.24</code>) and enter it here.</p>
-            </div>
+            <details style="margin-top: 15px;">
+                <summary style="cursor: pointer; color: #7f8c8d;">Advanced: Manual IP Entry</summary>
+                <div style="margin-top: 10px;">
+                    <p style="font-size: 12px;">Only use this if serving the app separately:</p>
+                    <input type="text" id="lanCodeInput" placeholder="10.0.0.24"
+                           maxlength="15"
+                           onkeypress="if(event.key==='Enter')testLANCode()">
+                    <div class="lan-modal-buttons">
+                        <button onclick="testLANCode()" class="lan-connect-btn">Connect</button>
+                        <button onclick="clearLANConnection()" class="lan-disconnect-btn">Disconnect</button>
+                    </div>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -3697,9 +3704,17 @@ window.submitManualMerge = submitManualMerge;
                 statusDiv.innerHTML = `
                     <strong>⚠ LAN mode unavailable over HTTPS</strong><br>
                     <small>Browsers block HTTP requests from HTTPS pages.<br>
-                    To use LAN mode, open app from local file or use:<br>
-                    <code>python -m http.server 8000</code></small>
+                    Ask your teacher for the classroom URL:<br>
+                    <code>http://[teacher-ip]:8765/quiz</code></small>
                 `;
+                return;
+            }
+
+            // Check if served from tutor server (auto-configured)
+            if (typeof NetworkManager.isServedFromTutorServer === 'function' &&
+                NetworkManager.isServedFromTutorServer()) {
+                statusDiv.className = 'lan-status success';
+                statusDiv.innerHTML = `✓ Connected via classroom server (auto-configured)`;
                 return;
             }
 
@@ -3711,7 +3726,10 @@ window.submitManualMerge = submitManualMerge;
                 statusDiv.innerHTML = `⚠ Code saved but tutor unavailable (${NetworkManager.lanCode})`;
             } else {
                 statusDiv.className = 'lan-status';
-                statusDiv.innerHTML = '';
+                statusDiv.innerHTML = `
+                    <small>For classroom use, ask your teacher for the URL.<br>
+                    Manual IP entry is for advanced use only.</small>
+                `;
             }
         }
 
