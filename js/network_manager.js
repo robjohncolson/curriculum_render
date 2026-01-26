@@ -320,15 +320,6 @@ const NetworkManager = {
         document.body.classList.remove('network-tier-turbo', 'network-tier-lan', 'network-tier-offline');
         document.body.classList.add(`network-tier-${tier}`);
 
-        // Show/hide tutor panel
-        // Always show when served from tutor server (same origin, always reachable)
-        // Otherwise only show in LAN mode
-        const tutorPanel = document.getElementById('tutorPanel');
-        if (tutorPanel) {
-            const showTutor = tier === 'lan' || this.isServedFromTutorServer();
-            tutorPanel.style.display = showTutor ? 'flex' : 'none';
-        }
-
         // Update sync status indicator if function exists
         if (typeof updateSyncStatusIndicator === 'function') {
             updateSyncStatusIndicator();

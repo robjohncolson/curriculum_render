@@ -275,25 +275,7 @@
         </div>
     </div>
 
-    <!-- Tutor Chat Panel (LAN Mode Only) -->
-    <div id="tutorPanel" class="tutor-panel collapsed" style="display: none;">
-        <div class="tutor-header" onclick="toggleTutorPanel()">
-            <span>🎓 AP Stats Tutor</span>
-            <span class="tutor-toggle">◀</span>
-        </div>
-        <div class="tutor-body">
-            <div id="tutorMessages" class="tutor-messages">
-                <div class="tutor-message assistant">
-                    Hi! I'm your AP Statistics tutor. I won't give you direct answers, but I'll help you understand concepts and guide you to figure things out yourself. What would you like to learn about?
-                </div>
-            </div>
-            <div class="tutor-input-area">
-                <input type="text" id="tutorInput" placeholder="Ask about statistics..."
-                       onkeypress="if(event.key==='Enter')sendTutorMessage()">
-                <button onclick="sendTutorMessage()">Send</button>
-            </div>
-        </div>
-    </div>
+    <!-- Tutor panel removed - local Qwen is now used as grading fallback only -->
 
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
@@ -3813,86 +3795,8 @@ window.submitManualMerge = submitManualMerge;
         }
 
         // ========================================
-        // TUTOR PANEL FUNCTIONS
-        // ========================================
-
-        function toggleTutorPanel() {
-            const panel = document.getElementById('tutorPanel');
-            if (!panel) return;
-
-            panel.classList.toggle('collapsed');
-
-            const toggle = panel.querySelector('.tutor-toggle');
-            if (toggle) {
-                toggle.textContent = panel.classList.contains('collapsed') ? '◀' : '▶';
-            }
-        }
-
-        async function sendTutorMessage() {
-            const input = document.getElementById('tutorInput');
-            const messagesDiv = document.getElementById('tutorMessages');
-            const message = input.value.trim();
-
-            if (!message) return;
-
-            if (typeof NetworkManager === 'undefined' || NetworkManager.currentTier !== 'lan') {
-                showMessage('Tutor only available in LAN mode', 'error');
-                return;
-            }
-
-            // Add user message to chat
-            const userMsgDiv = document.createElement('div');
-            userMsgDiv.className = 'tutor-message user';
-            userMsgDiv.textContent = message;
-            messagesDiv.appendChild(userMsgDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            input.value = '';
-            input.disabled = true;
-
-            // Add loading indicator
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'tutor-message assistant loading';
-            loadingDiv.textContent = 'Thinking...';
-            messagesDiv.appendChild(loadingDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            try {
-                const endpoint = NetworkManager.getTutorEndpoint();
-                if (!endpoint) throw new Error('Tutor not available');
-
-                const response = await fetch(`${endpoint}/ask?q=${encodeURIComponent(message)}`, {
-                    signal: AbortSignal.timeout(60000) // 60s timeout for slower models
-                });
-
-                if (!response.ok) throw new Error('Tutor request failed');
-
-                const data = await response.json();
-
-                // Remove loading indicator
-                loadingDiv.remove();
-
-                // Add assistant response
-                const assistantMsgDiv = document.createElement('div');
-                assistantMsgDiv.className = 'tutor-message assistant';
-                assistantMsgDiv.textContent = data.response || data.answer || 'I apologize, I could not generate a response.';
-                messagesDiv.appendChild(assistantMsgDiv);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            } catch (error) {
-                console.error('Tutor error:', error);
-                loadingDiv.remove();
-
-                const errorMsgDiv = document.createElement('div');
-                errorMsgDiv.className = 'tutor-message assistant error';
-                errorMsgDiv.textContent = 'Sorry, I could not process your question. Please try again.';
-                messagesDiv.appendChild(errorMsgDiv);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-
-            input.disabled = false;
-            input.focus();
-        }
+        // TUTOR PANEL REMOVED
+        // Local Qwen is now used as grading fallback only (no chat interface)
 
         // Listen for network tier changes
         window.addEventListener('networkTierChanged', (e) => {
