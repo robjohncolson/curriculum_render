@@ -1734,6 +1734,34 @@ window.addEventListener('networkTierChanged', (e) => {
 | 6 | Disconnect LAN button | Clear config, tier → offline |
 | 7 | AI grading in LAN mode | Uses Qwen, shows "qwen-local" provider |
 
+### 11.11 HTTPS Limitation
+
+**LAN mode is blocked when the app is served over HTTPS** (e.g., GitHub Pages).
+
+Browsers enforce "mixed content" security: HTTPS pages cannot make HTTP requests to local network addresses. This is a fundamental browser security feature that cannot be bypassed.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  HTTPS Page (github.io)                                        │
+│      │                                                         │
+│      ├─► fetch("https://railway.app/...")  ✓ Works            │
+│      │                                                         │
+│      └─► fetch("http://192.168.1.42/...")  ✗ BLOCKED          │
+│              │                                                 │
+│              └─► "Mixed Content: blocked loading..."          │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Workarounds for LAN mode:**
+1. Serve app locally: `python -m http.server 8000` (HTTP, no restriction)
+2. Open `index.html` directly as file (`file:///...`)
+3. Use a local development server
+
+**UI Behavior:**
+- `NetworkManager.canUseLAN()` returns `false` on HTTPS
+- LAN Setup Modal shows warning and disables input/buttons
+- `tryLANIP()` skips requests entirely on HTTPS
+
 ---
 
 ## Testing

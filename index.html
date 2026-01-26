@@ -3666,6 +3666,14 @@ window.submitManualMerge = submitManualMerge;
                 modal.style.display = 'block';
             }
 
+            // Disable form if on HTTPS (mixed content blocked)
+            const input = document.getElementById('lanCodeInput');
+            const connectBtn = modal?.querySelector('button[onclick="testLANCode()"]');
+            const isHTTPS = window.location.protocol === 'https:';
+
+            if (input) input.disabled = isHTTPS;
+            if (connectBtn) connectBtn.disabled = isHTTPS;
+
             // Show current connection status
             updateLANStatus();
         }
@@ -3682,6 +3690,18 @@ window.submitManualMerge = submitManualMerge;
         function updateLANStatus() {
             const statusDiv = document.getElementById('lanStatus');
             if (!statusDiv || typeof NetworkManager === 'undefined') return;
+
+            // Check for HTTPS mixed content issue first
+            if (window.location.protocol === 'https:') {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = `
+                    <strong>⚠ LAN mode unavailable over HTTPS</strong><br>
+                    <small>Browsers block HTTP requests from HTTPS pages.<br>
+                    To use LAN mode, open app from local file or use:<br>
+                    <code>python -m http.server 8000</code></small>
+                `;
+                return;
+            }
 
             if (NetworkManager.currentTier === 'lan' && NetworkManager.lanIP) {
                 statusDiv.className = 'lan-status success';
@@ -3703,6 +3723,18 @@ window.submitManualMerge = submitManualMerge;
             if (!inputValue) {
                 statusDiv.className = 'lan-status error';
                 statusDiv.innerHTML = 'Please enter the IP address shown on teacher\'s screen';
+                return;
+            }
+
+            // Check for HTTPS mixed content issue
+            if (window.location.protocol === 'https:') {
+                statusDiv.className = 'lan-status error';
+                statusDiv.innerHTML = `
+                    <strong>Cannot use LAN mode from HTTPS</strong><br>
+                    <small>Browsers block HTTP requests from HTTPS pages.<br>
+                    Open the local file version instead, or use:<br>
+                    <code>python -m http.server 8000</code></small>
+                `;
                 return;
             }
 

@@ -126,9 +126,22 @@ const NetworkManager = {
     },
 
     /**
+     * Check if LAN mode is possible (not on HTTPS)
+     */
+    canUseLAN() {
+        // Browsers block HTTP requests from HTTPS pages (mixed content)
+        return window.location.protocol !== 'https:';
+    },
+
+    /**
      * Try to connect to a specific LAN IP
      */
     async tryLANIP(ip) {
+        // Skip if on HTTPS (would be blocked anyway)
+        if (!this.canUseLAN()) {
+            return null;
+        }
+
         const url = `http://${ip}:${this.LAN_PORT}/health`;
         try {
             const controller = new AbortController();
