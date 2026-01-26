@@ -441,13 +441,28 @@ app.post('/api/ai/grade', async (req, res) => {
     // Queue the request
     const result = await gradingQueue.add(() => callGroq(gradingPrompt));
 
+    // CRITICAL: Server-side enforcement of MCQ grading rules
+    // Wrong MCQ answers CANNOT receive E, regardless of what AI says
+    const isMCQ = scenario.questionType === 'multiple-choice';
+    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
+    const isCorrect = scenario.correctAnswer
+      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
+      : null;
+
+    if (isMCQ && isCorrect === false && result.score === 'E') {
+      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
+      result.score = 'P';
+      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
+      result._scoreCapped = true;
+    }
+
     // Add metadata
     result._provider = 'groq';
     result._model = GROQ_MODEL;
     result._gradingMode = 'ai';
     result._serverGraded = true;
 
-    console.log(`✅ AI grading complete: score=${result.score || 'unknown'}`);
+    console.log(`✅ AI grading complete: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
 
     res.json(result);
   } catch (err) {
@@ -696,6 +711,21 @@ app.post('/api/ai/appeal', async (req, res) => {
     // Queue the request
     const result = await gradingQueue.add(() => callGroq(appealPrompt));
 
+    // CRITICAL: Server-side enforcement of MCQ grading rules
+    // Wrong MCQ answers CANNOT receive E, regardless of what AI says
+    const isMCQ = scenario.questionType === 'multiple-choice';
+    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
+    const isCorrect = scenario.correctAnswer
+      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
+      : null;
+
+    if (isMCQ && isCorrect === false && result.score === 'E') {
+      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
+      result.score = 'P';
+      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
+      result._scoreCapped = true;
+    }
+
     // Add metadata
     result._provider = 'groq';
     result._model = GROQ_MODEL;
@@ -703,7 +733,7 @@ app.post('/api/ai/appeal', async (req, res) => {
     result._serverGraded = true;
     result._appealProcessed = true;
 
-    console.log(`✅ AI appeal complete: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}`);
+    console.log(`✅ AI appeal complete: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
 
     res.json(result);
   } catch (err) {
@@ -726,6 +756,14 @@ function buildAppealPrompt(scenario, answers, appealText, previousResults) {
     .map(([field, value]) => `- ${field}: "${value}"`)
     .join('\n');
 
+  // Check if student's answer is correct (for MCQ enforcement)
+  const studentAnswer = answers.answer || Object.values(answers)[0] || '';
+  const isCorrect = scenario.correctAnswer
+    ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
+    : null;
+  const isMCQ = scenario.questionType === 'multiple-choice';
+  const answerStatus = isCorrect === null ? '' : (isCorrect ? '(CORRECT)' : '(INCORRECT)');
+
   // Get framework context for this question's unit/lesson
   const framework = getFrameworkForQuestion(scenario.questionId);
   const frameworkContext = framework ? buildFrameworkContext(framework) : '';
@@ -739,7 +777,8 @@ ${scenario.correctAnswer ? `Correct Answer: ${scenario.correctAnswer}` : ''}
 ${scenario.choices ? `Answer Choices:\n${scenario.choices.map(c => `  ${c.key}: ${c.text}`).join('\n')}` : ''}
 
 ## Student's Answer
-${studentAnswers}
+${studentAnswers} ${answerStatus}
+${isMCQ && !isCorrect ? '\n⚠️ NOTE: Student selected the WRONG answer. Maximum possible score is P.' : ''}
 
 ## Previous Grading
 ${previousFeedback}
@@ -752,16 +791,16 @@ The student disagrees with the grading and explains:
 Carefully reconsider the student's answer in light of their explanation AND the lesson context above. The student may have:
 1. Valid reasoning that wasn't initially recognized
 2. Used correct but different terminology or approach
-3. Demonstrated understanding even if their answer was technically incorrect
-4. Made a valid point that connects to the concepts
+3. Made a valid point that connects to the concepts
 
 BE FAIR but also ACCURATE. When evaluating:
 - Connect your feedback to the specific concepts from this lesson (e.g., simulation, relative frequency, law of large numbers)
-- For MCQ: Did the student show understanding of the underlying concept?
-- For FRQ: Does the student's reasoning align with what the lesson covers?
+- For FRQ: Does the student's reasoning align with what the lesson covers? Partial credit is appropriate.
 - Is the student's explanation logically sound?
 
-You may UPGRADE the score if the appeal shows genuine understanding. You should NOT downgrade.
+CRITICAL RULE FOR MULTIPLE CHOICE: If the student selected the WRONG answer, the maximum possible score is P (Partially correct). A wrong MCQ answer CANNOT receive E (Essentially correct), regardless of how sophisticated the reasoning sounds. MCQs have definitive correct answers - choosing wrong means the student did NOT demonstrate mastery.
+
+You may UPGRADE the score if the appeal shows genuine understanding, but you CANNOT upgrade a wrong MCQ answer to E. You should NOT downgrade.
 
 IMPORTANT: In your response to the student:
 - Do NOT use framework codes, learning objective IDs (like "UNC-2.A"), or numbered references
