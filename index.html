@@ -10641,6 +10641,11 @@ Respond with JSON:
                     console.info(`RECOVERY: Turbo mode state updated via event listener → ${enabled ? 'enabled' : 'disabled'}`);
                 }
 
+                // Update sync status indicator to reflect new turbo state
+                if (typeof updateSyncStatusIndicator === 'function') {
+                    updateSyncStatusIndicator();
+                }
+
                 if (!enabled && window.spriteManager) {
                     window.spriteManager.clearAllPeerSprites();
                 }
