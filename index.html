@@ -252,9 +252,9 @@
         <div class="modal-content lan-modal-content">
             <span class="close-modal" onclick="closeLANModal()">&times;</span>
             <h2>🏠 Connect to Classroom Tutor</h2>
-            <p>Enter the code shown on your teacher's screen:</p>
-            <input type="text" id="lanCodeInput" placeholder="1-42"
-                   pattern="\d{1,3}-\d{1,3}" maxlength="7"
+            <p>Enter the IP address shown on your teacher's screen:</p>
+            <input type="text" id="lanCodeInput" placeholder="10.0.0.24"
+                   maxlength="15"
                    onkeypress="if(event.key==='Enter')testLANCode()">
             <div id="lanStatus" class="lan-status"></div>
             <div class="lan-modal-buttons">
@@ -263,7 +263,7 @@
             </div>
             <div class="lan-info">
                 <p><strong>What is this?</strong></p>
-                <p>When the internet is unavailable, your teacher can run a local tutor server on their computer. Enter the code they display to connect to it.</p>
+                <p>When the internet is unavailable, your teacher can run a local tutor server. Look for the "Network:" IP address on their screen (e.g., <code>10.0.0.24</code>) and enter it here.</p>
             </div>
         </div>
     </div>
@@ -3698,11 +3698,11 @@ window.submitManualMerge = submitManualMerge;
         async function testLANCode() {
             const input = document.getElementById('lanCodeInput');
             const statusDiv = document.getElementById('lanStatus');
-            const code = input.value.trim();
+            let inputValue = input.value.trim();
 
-            if (!code) {
+            if (!inputValue) {
                 statusDiv.className = 'lan-status error';
-                statusDiv.innerHTML = 'Please enter a code (e.g., 1-42)';
+                statusDiv.innerHTML = 'Please enter the IP address shown on teacher\'s screen';
                 return;
             }
 
@@ -3712,10 +3712,24 @@ window.submitManualMerge = submitManualMerge;
                 return;
             }
 
+            // Check if user entered a full IP address (e.g., 10.0.0.24 or 192.168.1.42)
+            const ipMatch = inputValue.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+            let code;
+            if (ipMatch) {
+                // Extract last two octets as short code
+                const third = ipMatch[3];
+                const fourth = ipMatch[4];
+                code = `${third}-${fourth}`;
+                console.log(`Converted IP ${inputValue} to short code ${code}`);
+            } else {
+                // Assume it's already a short code
+                code = inputValue;
+            }
+
             // Validate format
             if (!NetworkManager.parseLANCode(code)) {
                 statusDiv.className = 'lan-status error';
-                statusDiv.innerHTML = 'Invalid format. Use: 1-42 (two numbers separated by dash)';
+                statusDiv.innerHTML = 'Invalid format. Enter the IP address (e.g., 10.0.0.24) or short code (e.g., 0-24)';
                 return;
             }
 
@@ -3732,11 +3746,10 @@ window.submitManualMerge = submitManualMerge;
                 // Close modal after short delay
                 setTimeout(() => {
                     closeLANModal();
-                    showMessage('Connected to classroom tutor!', 'success');
                 }, 1000);
             } else {
                 statusDiv.className = 'lan-status error';
-                statusDiv.innerHTML = '✗ Could not find tutor with this code. Check with your teacher.';
+                statusDiv.innerHTML = '✗ Could not find tutor at this address. Make sure the server is running.';
             }
         }
 
@@ -3839,14 +3852,7 @@ window.submitManualMerge = submitManualMerge;
             // Update LAN status in modal if open
             updateLANStatus();
 
-            // Show notification on tier change
-            if (newTier === 'turbo' && oldTier !== 'turbo') {
-                showMessage('Internet restored - full features available', 'success');
-            } else if (newTier === 'lan') {
-                showMessage('Connected to classroom tutor (LAN mode)', 'info');
-            } else if (newTier === 'offline' && oldTier !== 'offline') {
-                showMessage('Working offline - answers saved locally', 'warning');
-            }
+            // Note: Sync status indicator already shows tier visually (no need for toast)
         });
 
         function generateQRCodes() {
