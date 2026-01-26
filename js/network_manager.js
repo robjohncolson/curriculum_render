@@ -41,8 +41,15 @@ const NetworkManager = {
 
         console.log('NetworkManager: Initializing...');
 
-        // Load saved LAN code from localStorage
-        this.loadSavedLANConfig();
+        // Check if served from tutor server (/quiz endpoint)
+        if (this.isServedFromTutorServer()) {
+            console.log('NetworkManager: Detected tutor server hosting, auto-configuring LAN mode');
+            this.lanIP = window.location.host;  // Same origin as tutor
+            this.lanCode = 'tutor-server';      // Special marker
+        } else {
+            // Load saved LAN code from localStorage
+            this.loadSavedLANConfig();
+        }
 
         // Detect initial tier
         await this.detectTier();
@@ -55,6 +62,14 @@ const NetworkManager = {
 
         this._initialized = true;
         console.log(`NetworkManager: Initialized, tier=${this.currentTier}`);
+    },
+
+    /**
+     * Check if app is served from the tutor server (/quiz endpoint)
+     */
+    isServedFromTutorServer() {
+        // When served from tutor server, path starts with /quiz
+        return window.location.pathname.startsWith('/quiz');
     },
 
     /**
@@ -222,6 +237,24 @@ const NetworkManager = {
     async checkLAN() {
         if (!this.lanIP) return false;
 
+        // If served from tutor server, check same origin health endpoint
+        if (this.isServedFromTutorServer()) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.LAN_TIMEOUT);
+
+                const response = await fetch(`${window.location.origin}/health`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+                return response.ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
         const ip = await this.tryLANIP(this.lanIP);
         return ip !== null;
     },
@@ -313,8 +346,12 @@ const NetworkManager = {
         }
 
         if (this.currentTier === 'lan' && this.lanIP) {
+            // If served from tutor server, use same origin (no port needed)
+            const baseUrl = this.isServedFromTutorServer()
+                ? window.location.origin
+                : `http://${this.lanIP}:${this.LAN_PORT}`;
             return {
-                url: `http://${this.lanIP}:${this.LAN_PORT}`,
+                url: baseUrl,
                 type: 'qwen'
             };
         }
@@ -328,7 +365,10 @@ const NetworkManager = {
      */
     getTutorEndpoint() {
         if (this.currentTier === 'lan' && this.lanIP) {
-            return `http://${this.lanIP}:${this.LAN_PORT}`;
+            // If served from tutor server, use same origin
+            return this.isServedFromTutorServer()
+                ? window.location.origin
+                : `http://${this.lanIP}:${this.LAN_PORT}`;
         }
         return null;
     },
