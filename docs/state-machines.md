@@ -1752,15 +1752,33 @@ Browsers enforce "mixed content" security: HTTPS pages cannot make HTTP requests
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Workarounds for LAN mode:**
-1. Serve app locally: `python -m http.server 8000` (HTTP, no restriction)
-2. Open `index.html` directly as file (`file:///...`)
-3. Use a local development server
+**Solution: Tutor Server Hosting (Recommended)**
+
+The tutor server now serves the quiz app at `/quiz`:
+
+```
+Teacher starts server:
+  python server.py
+
+Students open:
+  http://teacher-ip:8765/quiz
+
+Result:
+  ✓ App loads over HTTP (no mixed content)
+  ✓ LAN mode auto-configured (same origin)
+  ✓ No manual IP entry needed
+  ✓ Storage works (IndexedDB, localStorage)
+```
+
+**Alternative:** Run a separate HTTP server: `python -m http.server 8000`
+
+**NOT recommended:** Opening `file:///...` directly - browsers block storage APIs on file:// URLs.
 
 **UI Behavior:**
 - `NetworkManager.canUseLAN()` returns `false` on HTTPS
 - LAN Setup Modal shows warning and disables input/buttons
 - `tryLANIP()` skips requests entirely on HTTPS
+- `isServedFromTutorServer()` returns true when path starts with `/quiz`
 
 ---
 

@@ -646,16 +646,26 @@ Local fine-tuned Qwen models for conversational tutoring support.
 - Groq (llama-3.3-70b): Used for grading and appeals - evaluates student work
 - Local Qwen: Used for tutoring - teaches concepts conversationally
 
-**Running the LAN Tutor:**
+**Running the LAN Tutor (Classroom Workflow):**
 ```bash
 # On teacher's computer
 cd C:\Users\rober\Downloads\Projects\not-school\apstats-rag
 python server.py
 
 # Output shows:
-#   Network:  http://192.168.1.42:8765
-#   Tell students to enter: 192.168.1.42
+#   Tutor UI:   http://192.168.1.42:8765
+#   Quiz App:   http://192.168.1.42:8765/quiz
+#
+#   STUDENT INSTRUCTIONS:
+#   Go to: http://192.168.1.42:8765/quiz
 ```
+
+**Note:** The tutor server now serves the quiz app at `/quiz`. This is the recommended way to use LAN mode because:
+- App loads over HTTP (no HTTPS mixed content issues)
+- LAN mode auto-configures (no manual IP entry needed)
+- Storage APIs (IndexedDB, localStorage) work properly
+
+**HTTPS Limitation:** LAN mode cannot work from GitHub Pages (HTTPS) due to browser mixed content blocking. Always use the tutor server's `/quiz` endpoint for offline classroom use.
 
 ## Key Documentation
 
