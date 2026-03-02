@@ -20843,7 +20843,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q01",
+      "id": "U6-L2-Q01",
       "type": "multiple-choice",
       "prompt": "A local arts council has 200 members. The council president wanted to estimate the percent of its members who have had experience in writing grants. The president randomly selected 30 members and surveyed the selected members on their grant-writing experience. Of the 30 selected members, 12 indicated that they did have the experience. Have the conditions for inference with a one-sample \\(z\\)-interval been met?",
       "answerKey": "D",
@@ -20874,7 +20874,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q02",
+      "id": "U6-L2-Q02",
       "type": "multiple-choice",
       "prompt": "A city planner wants to estimate the proportion of city residents who commute to work by subway each day. A random sample of 30 city residents was selected, and 28 of those selected indicated that they rode the subway to work. Is it appropriate to assume that the sampling distribution of the sample proportion is approximately normal?",
       "answerKey": "B",
@@ -20905,7 +20905,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q03",
+      "id": "U6-L2-Q03",
       "type": "multiple-choice",
       "prompt": "The manager of a magazine wants to estimate the percent of magazine subscribers who approve of a new cover format. To gather data, the manager will select a random sample of subscribers. Which of the following is the most appropriate interval for the manager to use for such an estimate?",
       "answerKey": "D",
@@ -20936,7 +20936,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q04",
+      "id": "U6-L2-Q04",
       "type": "multiple-choice",
       "prompt": "The superintendent of a large school district wants to estimate the percent of district residents who support the building of a new middle school. To gather data, the superintendent will select a random sample of district residents. Which of the following is the most appropriate method for creating such an estimate?",
       "answerKey": "E",
@@ -20967,7 +20967,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q05",
+      "id": "U6-L2-Q05",
       "type": "multiple-choice",
       "prompt": "A random sample of 80 people was selected, and 22 of the selected people indicated that it would be a good idea to eliminate the penny from circulation. What is the 99 percent confidence interval constructed from the sample proportion \\(\\hat{p}\\)?",
       "answerKey": "C",
@@ -20998,7 +20998,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q06",
+      "id": "U6-L2-Q06",
       "type": "multiple-choice",
       "prompt": "Paul will select a random sample of students to create a 95 percent confidence interval to estimate the proportion of students at his college who have a tattoo. Of the following, which is the smallest sample size that will result in a margin of error of no more than 5 percentage points?",
       "answerKey": "D",
@@ -21029,7 +21029,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q07",
+      "id": "U6-L2-Q07",
       "type": "multiple-choice",
       "prompt": "A school librarian wanted to estimate the proportion of students in the school who had read a certain book. The librarian sampled 50 students from the senior English classes, and 35 of the students in the sample had read the book. Have the conditions for creating a confidence interval for the population proportion been met?",
       "answerKey": "E",
@@ -21060,7 +21060,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q08",
+      "id": "U6-L2-Q08",
       "type": "multiple-choice",
       "prompt": "Researchers investigating a new drug selected a random sample of 200 people who are taking the drug. Of those selected, 76 indicated they were experiencing side effects from the drug. If 5,000 people took the drug, which of the following is closest to the interval estimate of the number of people who would indicate they were experiencing side effects from the drug at a 90 percent level of confidence?",
       "answerKey": "E",
@@ -21091,7 +21091,7 @@ const EMBEDDED_CURRICULUM = [
       }
     },
     {
-      "id": "U6-Q09",
+      "id": "U6-L2-Q09",
       "type": "multiple-choice",
       "prompt": "Environmentalists want to estimate the percent of trees in a large forest that are infested with a certain beetle. The environmentalists will select a random sample of trees to inspect. Which of the following is the most appropriate method for creating such an estimate?",
       "answerKey": "C",
