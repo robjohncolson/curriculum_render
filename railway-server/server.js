@@ -38,6 +38,9 @@ const wsClients = new Set();
 // Presence tracking (in-memory)
 const presence = new Map(); // username -> { lastSeen: number, connections: Set<WebSocket> }
 const wsToUser = new Map(); // ws -> username
+const gameRooms = new Map(); // roomId -> { p1: ws, p2: ws, p1Name: string, p2Name: string, state: 'playing'|'done' }
+const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws, timestamp }
+const wsToRoom = new Map(); // ws -> roomId
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
 
 // Helper to check cache validity
@@ -1518,6 +1521,195 @@ wss.on('connection', (ws) => {
           }));
           break;
 
+        case 'game_challenge': {
+          const challengerUsername = wsToUser.get(ws);
+          const targetUsername = (data.target || '').trim();
+
+          if (!challengerUsername || !targetUsername) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Invalid challenge request' }));
+            break;
+          }
+
+          const targetInfo = presence.get(targetUsername);
+          if (!targetInfo || !targetInfo.connections || targetInfo.connections.size === 0) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'User not found' }));
+            break;
+          }
+
+          const timestamp = Date.now();
+          challenges.set(targetUsername, {
+            from: challengerUsername,
+            fromWs: ws,
+            timestamp
+          });
+
+          targetInfo.connections.forEach((targetWs) => {
+            if (targetWs.readyState === 1) {
+              targetWs.send(JSON.stringify({
+                type: 'challenge_received',
+                from: challengerUsername,
+                timestamp
+              }));
+            }
+          });
+
+          console.log(`♟️ Challenge sent from ${challengerUsername} to ${targetUsername}`);
+          break;
+        }
+
+        case 'challenge_accept': {
+          const accepterUsername = wsToUser.get(ws);
+          const fromUsername = (data.from || '').trim();
+
+          if (!accepterUsername || !fromUsername) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Invalid challenge accept request' }));
+            break;
+          }
+
+          const challenge = challenges.get(accepterUsername);
+          if (!challenge || challenge.from !== fromUsername) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Challenge not found' }));
+            break;
+          }
+
+          challenges.delete(accepterUsername);
+
+          if (!challenge.fromWs || challenge.fromWs.readyState !== 1) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Challenger unavailable' }));
+            break;
+          }
+
+          const roomId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+            ? globalThis.crypto.randomUUID()
+            : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+
+          gameRooms.set(roomId, {
+            p1: challenge.fromWs,
+            p2: ws,
+            p1Name: fromUsername,
+            p2Name: accepterUsername,
+            state: 'playing'
+          });
+
+          wsToRoom.set(challenge.fromWs, roomId);
+          wsToRoom.set(ws, roomId);
+
+          challenge.fromWs.send(JSON.stringify({
+            type: 'match_start',
+            roomId,
+            opponent: accepterUsername,
+            side: 'left'
+          }));
+          ws.send(JSON.stringify({
+            type: 'match_start',
+            roomId,
+            opponent: fromUsername,
+            side: 'right'
+          }));
+
+          console.log(`♟️ Match started in room ${roomId}: ${fromUsername} vs ${accepterUsername}`);
+          break;
+        }
+
+        case 'challenge_decline': {
+          const declinerUsername = wsToUser.get(ws);
+          const fromUsername = (data.from || '').trim();
+          if (!declinerUsername || !fromUsername) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Invalid challenge decline request' }));
+            break;
+          }
+
+          const challenge = challenges.get(declinerUsername);
+          if (!challenge || challenge.from !== fromUsername) {
+            ws.send(JSON.stringify({ type: 'challenge_error', error: 'Challenge not found' }));
+            break;
+          }
+
+          challenges.delete(declinerUsername);
+          if (challenge.fromWs && challenge.fromWs.readyState === 1) {
+            challenge.fromWs.send(JSON.stringify({
+              type: 'challenge_declined',
+              by: declinerUsername
+            }));
+          }
+
+          console.log(`♟️ Challenge declined by ${declinerUsername} from ${fromUsername}`);
+          break;
+        }
+
+        case 'game_state': {
+          const roomId = wsToRoom.get(ws);
+          if (!roomId) break;
+          const room = gameRooms.get(roomId);
+          if (!room) break;
+
+          const opponent = room.p1 === ws ? room.p2 : room.p1;
+          if (!opponent || opponent.readyState !== 1) break;
+
+          const { type, ...gameState } = data;
+          opponent.send(JSON.stringify({
+            type: 'opponent_state',
+            ...gameState
+          }));
+          break;
+        }
+
+        case 'game_garbage': {
+          const roomId = wsToRoom.get(ws);
+          if (!roomId) break;
+          const room = gameRooms.get(roomId);
+          if (!room) break;
+
+          const opponent = room.p1 === ws ? room.p2 : room.p1;
+          if (!opponent || opponent.readyState !== 1) break;
+
+          opponent.send(JSON.stringify({
+            type: 'garbage_incoming',
+            lines: data.lines
+          }));
+          break;
+        }
+
+        case 'game_over': {
+          const roomId = wsToRoom.get(ws);
+          if (!roomId) break;
+          const room = gameRooms.get(roomId);
+          if (!room) break;
+
+          room.state = 'done';
+          const opponent = room.p1 === ws ? room.p2 : room.p1;
+          if (opponent && opponent.readyState === 1) {
+            opponent.send(JSON.stringify({
+              type: 'opponent_ko',
+              finalScore: data.score
+            }));
+          }
+
+          console.log(`♟️ Game over in room ${roomId}`);
+          break;
+        }
+
+        case 'game_leave': {
+          const roomId = wsToRoom.get(ws);
+          if (!roomId) break;
+          const room = gameRooms.get(roomId);
+          if (!room) {
+            wsToRoom.delete(ws);
+            break;
+          }
+
+          const opponent = room.p1 === ws ? room.p2 : room.p1;
+          if (opponent && opponent.readyState === 1) {
+            opponent.send(JSON.stringify({ type: 'opponent_left' }));
+          }
+
+          wsToRoom.delete(room.p1);
+          wsToRoom.delete(room.p2);
+          gameRooms.delete(roomId);
+          console.log(`♟️ Player left room ${roomId}`);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }
@@ -1542,6 +1734,37 @@ wss.on('connection', (ws) => {
         }
       }
       wsToUser.delete(ws);
+    }
+
+    // Game room cleanup on disconnect
+    const roomId = wsToRoom.get(ws);
+    if (roomId) {
+      const room = gameRooms.get(roomId);
+      if (room) {
+        const opponent = room.p1 === ws ? room.p2 : room.p1;
+        if (opponent && opponent.readyState === 1) {
+          opponent.send(JSON.stringify({ type: 'opponent_left' }));
+        }
+        wsToRoom.delete(room.p1);
+        wsToRoom.delete(room.p2);
+        gameRooms.delete(roomId);
+        console.log(`♟️ Room ${roomId} closed due to disconnect`);
+      }
+      wsToRoom.delete(ws);
+    }
+
+    // Challenge cleanup on disconnect
+    const dcUsername = username || wsToUser.get(ws);
+    if (dcUsername) {
+      // Remove any challenge sent BY this user
+      challenges.forEach((challenge, targetUser) => {
+        if (challenge.from === dcUsername) {
+          challenges.delete(targetUser);
+        }
+      });
+      // Remove any challenge sent TO this user
+      challenges.delete(dcUsername);
+      console.log(`♟️ Cleared pending challenges for disconnected user ${dcUsername}`);
     }
   });
 
@@ -1627,6 +1850,20 @@ setInterval(() => {
     broadcastToClients({ type: 'user_offline', username, timestamp: Date.now() });
   });
 }, Math.max(5000, Math.floor(PRESENCE_TTL_MS / 3)));
+
+// Challenge expiry - auto-decline after 30 seconds
+setInterval(() => {
+  const now = Date.now();
+  challenges.forEach((challenge, targetUser) => {
+    if (now - challenge.timestamp > 30000) {
+      if (challenge.fromWs && challenge.fromWs.readyState === 1) {
+        challenge.fromWs.send(JSON.stringify({ type: 'challenge_declined', by: targetUser, reason: 'timeout' }));
+      }
+      challenges.delete(targetUser);
+      console.log(`♟️ Challenge from ${challenge.from} to ${targetUser} expired`);
+    }
+  });
+}, 5000);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
