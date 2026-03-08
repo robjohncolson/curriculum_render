@@ -40,6 +40,7 @@ const wsToUser = new Map(); // ws -> username
 const gameRooms = new Map(); // roomId -> { p1: ws, p2: ws, p1Name: string, p2Name: string, state: 'playing'|'done' }
 const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws, timestamp }
 const wsToRoom = new Map(); // ws -> roomId
+const leaderboard = [];  // Top 3 scores: [{ name, score, mode, date }]
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
 
 // Helper to check cache validity
@@ -1303,13 +1304,51 @@ wss.on('connection', (ws) => {
 
           const opponent = room.p1 === ws ? room.p2 : room.p1;
           if (opponent && opponent.readyState === 1) {
-            opponent.send(JSON.stringify({ type: 'opponent_left' }));
+            opponent.send(JSON.stringify({ type: 'opponent_left', reason: 'quit' }));
           }
 
           wsToRoom.delete(room.p1);
           wsToRoom.delete(room.p2);
           gameRooms.delete(roomId);
           console.log(`♟️ Player left room ${roomId}`);
+          break;
+        }
+
+        case 'leaderboard_submit': {
+          const entry = {
+            name: data.name || wsToUser.get(ws) || 'Unknown',
+            score: data.score || 0,
+            mode: data.mode || 'solo',
+            date: new Date().toISOString()
+          };
+          leaderboard.push(entry);
+          leaderboard.sort((a, b) => b.score - a.score);
+          if (leaderboard.length > 3) leaderboard.length = 3;
+          console.log(`🏆 Leaderboard updated: ${entry.name} scored ${entry.score} in ${entry.mode}`);
+          // Broadcast updated leaderboard to all connected clients
+          const lbData = JSON.stringify({ type: 'leaderboard_data', entries: leaderboard });
+          wsClients.forEach(client => {
+            if (client.readyState === 1) client.send(lbData);
+          });
+          break;
+        }
+
+        case 'leaderboard_get': {
+          ws.send(JSON.stringify({ type: 'leaderboard_data', entries: leaderboard }));
+          break;
+        }
+
+        case 'rtc_offer':
+        case 'rtc_answer':
+        case 'rtc_ice': {
+          const roomId = wsToRoom.get(ws);
+          if (!roomId) break;
+          const room = gameRooms.get(roomId);
+          if (!room) break;
+          const opponent = room.p1 === ws ? room.p2 : room.p1;
+          if (opponent && opponent.readyState === 1) {
+            opponent.send(JSON.stringify(data));
+          }
           break;
         }
 
@@ -1346,7 +1385,7 @@ wss.on('connection', (ws) => {
       if (room) {
         const opponent = room.p1 === ws ? room.p2 : room.p1;
         if (opponent && opponent.readyState === 1) {
-          opponent.send(JSON.stringify({ type: 'opponent_left' }));
+          opponent.send(JSON.stringify({ type: 'opponent_left', reason: 'disconnect' }));
         }
         wsToRoom.delete(room.p1);
         wsToRoom.delete(room.p2);
