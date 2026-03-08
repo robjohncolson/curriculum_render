@@ -6,7 +6,6 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 
 // Load environment variables
 dotenv.config();
@@ -304,387 +303,82 @@ app.post('/api/batch-submit', async (req, res) => {
 });
 
 // ============================
-// AI GRADING ENDPOINTS (Groq only)
+// AI GRADING ENDPOINTS
 // ============================
 
-// Groq API Key
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const GROQ_TIMEOUT_MS = 30000;
+const GRADING_PROXY = process.env.GRADING_PROXY_URL || 'http://localhost:3002';
+const GRADING_PROXY_TIMEOUT_MS = 35000;
 
-// Groq rate limits: 30 RPM for free tier, be conservative
-const GROQ_RATE_LIMIT = {
-  maxRequestsPerMinute: 25,  // Stay under 30 RPM limit
-  minDelayBetweenRequests: 2500  // 2.5 seconds between requests
-};
-
-// Request queue for rate limiting
-class GradingQueue {
-  constructor() {
-    this.queue = [];
-    this.processing = false;
-    this.lastRequestTime = 0;
-    this.requestsThisMinute = 0;
-    this.minuteStart = Date.now();
+async function parseProxyResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
   }
 
-  async add(task) {
-    return new Promise((resolve, reject) => {
-      this.queue.push({ task, resolve, reject });
-      this.process();
-    });
-  }
-
-  async process() {
-    if (this.processing || this.queue.length === 0) return;
-    this.processing = true;
-
-    while (this.queue.length > 0) {
-      const { task, resolve, reject } = this.queue.shift();
-
-      try {
-        // Check rate limit window
-        const now = Date.now();
-        if (now - this.minuteStart > 60000) {
-          this.requestsThisMinute = 0;
-          this.minuteStart = now;
-        }
-
-        // Wait if we've hit the per-minute limit
-        if (this.requestsThisMinute >= GROQ_RATE_LIMIT.maxRequestsPerMinute) {
-          const waitTime = 60000 - (now - this.minuteStart) + 1000;
-          console.log(`⏳ Rate limit reached, waiting ${Math.round(waitTime/1000)}s...`);
-          await this.delay(waitTime);
-          this.requestsThisMinute = 0;
-          this.minuteStart = Date.now();
-        }
-
-        // Ensure minimum delay between requests
-        const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-        if (timeSinceLastRequest < GROQ_RATE_LIMIT.minDelayBetweenRequests) {
-          const waitTime = GROQ_RATE_LIMIT.minDelayBetweenRequests - timeSinceLastRequest;
-          await this.delay(waitTime);
-        }
-
-        // Execute the task
-        this.lastRequestTime = Date.now();
-        this.requestsThisMinute++;
-        const result = await task();
-        resolve(result);
-
-      } catch (error) {
-        // Check if it's a rate limit error (429)
-        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-          console.log('⚠️ Hit rate limit, backing off 30s...');
-          await this.delay(30000);
-          // Re-queue the task
-          this.queue.unshift({ task, resolve, reject });
-        } else {
-          reject(error);
-        }
-      }
-    }
-
-    this.processing = false;
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  getQueueLength() {
-    return this.queue.length;
-  }
-
-  getStats() {
-    return {
-      queueLength: this.queue.length,
-      requestsThisMinute: this.requestsThisMinute,
-      processing: this.processing
-    };
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Grading proxy returned invalid JSON (${response.status})`);
   }
 }
 
-const gradingQueue = new GradingQueue();
+async function postToGradingProxy(path, payload) {
+  const response = await fetch(`${GRADING_PROXY}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(GRADING_PROXY_TIMEOUT_MS)
+  });
+  const result = await parseProxyResponse(response);
+
+  if (!response.ok) {
+    throw new Error(result.error || `Grading proxy error ${response.status}`);
+  }
+
+  return result;
+}
+
+function getAppealFallbackScore(body = {}) {
+  if (body.currentScore) {
+    return body.currentScore;
+  }
+
+  const scoreOrder = { E: 3, P: 2, I: 1 };
+  const previousScores = Object.values(body.previousResults || {})
+    .map((previous) => typeof previous === 'string' ? previous : previous?.score)
+    .filter((score) => scoreOrder[score]);
+
+  return previousScores.reduce((best, score) => {
+    if (!best) return score;
+    return scoreOrder[score] > scoreOrder[best] ? score : best;
+  }, null) || 'I';
+}
 
 // Check AI availability
 app.get('/api/ai/status', (req, res) => {
-  const stats = gradingQueue.getStats();
   res.json({
-    available: !!GROQ_API_KEY,
-    provider: 'groq',
-    model: GROQ_MODEL,
-    queue: stats,
-    rateLimit: {
-      maxPerMinute: GROQ_RATE_LIMIT.maxRequestsPerMinute,
-      currentUsage: stats.requestsThisMinute
-    }
+    available: Boolean(GRADING_PROXY),
+    provider: 'shared-grading-proxy',
+    endpoint: GRADING_PROXY,
+    timeoutMs: GRADING_PROXY_TIMEOUT_MS
   });
 });
 
 // Grade FRQ answer with AI
 app.post('/api/ai/grade', async (req, res) => {
   try {
-    const { scenario, answers, prompt, aiPromptTemplate } = req.body;
-
-    if (!scenario || !answers) {
-      return res.status(400).json({ error: 'Missing scenario or answers' });
-    }
-
-    if (!GROQ_API_KEY) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
-    }
-
-    // Build the prompt
-    const gradingPrompt = prompt || buildDefaultGradingPrompt(scenario, answers, aiPromptTemplate);
-
-    const queuePos = gradingQueue.getQueueLength();
-    console.log(`🤖 AI grading queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
-
-    // Queue the request
-    const result = await gradingQueue.add(() => callGroq(gradingPrompt));
-
-    // CRITICAL: Server-side enforcement of MCQ grading rules
-    // Wrong MCQ answers CANNOT receive E, regardless of what AI says
-    const isMCQ = scenario.questionType === 'multiple-choice';
-    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
-    const isCorrect = scenario.correctAnswer
-      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
-      : null;
-
-    if (isMCQ && isCorrect === false && result.score === 'E') {
-      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
-      result.score = 'P';
-      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
-      result._scoreCapped = true;
-    }
-
-    // Add metadata
-    result._provider = 'groq';
-    result._model = GROQ_MODEL;
-    result._gradingMode = 'ai';
-    result._serverGraded = true;
-
-    console.log(`✅ AI grading complete: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
-
+    const result = await postToGradingProxy('/grade', req.body);
     res.json(result);
-  } catch (err) {
-    console.error('AI grading error:', err.message);
-    res.status(err.statusCode || 500).json({ error: err.message });
+  } catch (error) {
+    console.error('AI grading proxy error:', error.message);
+    res.json({
+      score: req.body?.keywordScore || 'I',
+      feedback: 'AI unavailable',
+      provider: 'fallback',
+      _provider: 'fallback'
+    });
   }
 });
-
-// Call Groq API with llama-3.3-70b-versatile
-async function callGroq(prompt) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
-
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,  // Low for consistent grading
-        max_tokens: 1500,
-        response_format: { type: 'json_object' }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Groq API error ${response.status}: ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Empty response from Groq');
-    }
-
-    // Parse and validate the response
-    const parsed = extractAndParseJSON(content);
-    if (!parsed) {
-      throw new Error('Failed to parse Groq response as JSON');
-    }
-
-    if (!isValidGradingResponse(parsed)) {
-      console.warn('Invalid grading response format, attempting normalization');
-    }
-
-    return normalizeGradingResponse(parsed);
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      const timeoutError = new Error('Groq API request timed out');
-      timeoutError.statusCode = 504;
-      throw timeoutError;
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-// Robust JSON extraction with multiple fallback strategies
-function extractAndParseJSON(text) {
-  // Strategy 1: Direct JSON extraction
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-  } catch (e) { /* continue to next strategy */ }
-
-  // Strategy 2: Repair common LLM quirks
-  try {
-    let jsonStr = text.match(/\{[\s\S]*\}/)?.[0];
-    if (jsonStr) {
-      // Fix smart quotes: " " → "
-      jsonStr = jsonStr.replace(/[\u201C\u201D]/g, '"');
-      // Fix smart single quotes: ' ' → '
-      jsonStr = jsonStr.replace(/[\u2018\u2019]/g, "'");
-      // Remove trailing commas before } or ]
-      jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
-      // Fix unquoted keys (common LLM mistake)
-      jsonStr = jsonStr.replace(/(\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-      return JSON.parse(jsonStr);
-    }
-  } catch (e) { /* continue to next strategy */ }
-
-  // Strategy 3: Extract score/feedback via regex (last resort)
-  try {
-    const scoreMatch = text.match(/["']?score["']?\s*[":]\s*["']?([EPI])["']?/i);
-    const feedbackMatch = text.match(/["']?feedback["']?\s*[":]\s*["']([^"']+)["']/i);
-
-    if (scoreMatch) {
-      return {
-        score: scoreMatch[1].toUpperCase(),
-        feedback: feedbackMatch ? feedbackMatch[1] : ''
-      };
-    }
-  } catch (e) { /* give up */ }
-
-  return null;
-}
-
-// Validate that response contains valid E/P/I grading
-function isValidGradingResponse(parsed) {
-  if (!parsed || typeof parsed !== 'object') return false;
-
-  const validScores = ['E', 'P', 'I', 'e', 'p', 'i'];
-
-  // Direct format: { score: "E", feedback: "..." }
-  if ('score' in parsed && validScores.includes(parsed.score)) {
-    return true;
-  }
-
-  // Field-keyed format: { fieldId: { score: "E", feedback: "..." } }
-  for (const [key, value] of Object.entries(parsed)) {
-    if (key.startsWith('_')) continue; // Skip metadata
-    if (value && typeof value === 'object' && 'score' in value) {
-      if (validScores.includes(value.score)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-// Normalize response to consistent format
-function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
-  if (!parsed) return { score: 'I', feedback: 'Unable to parse AI response' };
-
-  // Already in direct format with valid score
-  if ('score' in parsed && ['E', 'P', 'I'].includes(parsed.score?.toUpperCase?.())) {
-    return {
-      score: parsed.score.toUpperCase(),
-      feedback: parsed.feedback || '',
-      matched: parsed.matched || [],
-      missing: parsed.missing || []
-    };
-  }
-
-  // Field-keyed format: extract first valid field result
-  for (const [key, value] of Object.entries(parsed)) {
-    if (key.startsWith('_')) continue;
-    if (value && typeof value === 'object' && value.score) {
-      return {
-        score: value.score.toUpperCase(),
-        feedback: value.feedback || '',
-        matched: value.matched || [],
-        missing: value.missing || [],
-        _fieldId: key
-      };
-    }
-  }
-
-  // Fallback
-  return {
-    score: 'I',
-    feedback: 'Unable to determine score from AI response'
-  };
-}
-
-// Build default grading prompt
-function buildDefaultGradingPrompt(scenario, answers, template) {
-  if (template) {
-    // Replace template placeholders
-    let prompt = template;
-    for (const [key, value] of Object.entries(scenario)) {
-      prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
-    }
-    for (const [key, value] of Object.entries(answers)) {
-      prompt = prompt.replace(new RegExp(`\\{\\{${key}Answer\\}\\}`, 'g'), String(value || ''));
-      prompt = prompt.replace(/\{\{answer\}\}/gi, String(value || ''));
-    }
-    return prompt;
-  }
-
-  // Default prompt
-  const answerText = Object.entries(answers)
-    .map(([field, value]) => `${field}: ${value}`)
-    .join('\n');
-
-  return `You are an AP Statistics teacher grading a student's free-response answer.
-
-Question: ${scenario.prompt || scenario.topic || 'AP Statistics FRQ'}
-Part: ${scenario.partId || 'answer'}
-
-Expected elements to check:
-${(scenario.expectedElements || []).map((e, i) => `${i + 1}. ${e}`).join('\n') || 'Standard AP Statistics rubric elements'}
-
-Student's Answer:
-${answerText}
-
-Grade the response using the AP FRQ rubric:
-- E (Essentially correct): All key elements present and correct
-- P (Partially correct): Some key elements present, minor errors
-- I (Incorrect): Missing most key elements or major errors
-
-Respond in JSON format:
-{
-  "score": "E" or "P" or "I",
-  "feedback": "Brief explanation of the score",
-  "matched": ["list of correct elements"],
-  "missing": ["list of missing elements"]
-}`;
-}
 
 // ============================
 // AI APPEAL ENDPOINT
@@ -693,132 +387,40 @@ Respond in JSON format:
 // Appeal an AI grading decision
 app.post('/api/ai/appeal', async (req, res) => {
   try {
-    const { scenario, answers, appealText, previousResults } = req.body;
-
-    if (!scenario || !answers || !appealText) {
-      return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
+    const result = await postToGradingProxy('/appeal', req.body);
+    if (false) {
+      console.log(`âš ï¸ Appeal would downgrade ${currentScore} â†’ ${result.score}, keeping previous score`);
+      result.score = currentScore;
+      result.appealGranted = false;
+      result.upgraded = false;
+      result.appealResponse = result.appealResponse || `Your score remains ${currentScore}.`;
+      result.feedback = result.feedback || `Appeal reviewed. Your score remains ${currentScore}.`;
+      result._downgradeBlocked = true;
     }
-
-    if (!GROQ_API_KEY) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
-    }
-
-    // Build appeal-specific prompt
-    const appealPrompt = buildAppealPrompt(scenario, answers, appealText, previousResults);
-
-    const queuePos = gradingQueue.getQueueLength();
-    const framework = getFrameworkForQuestion(scenario.questionId);
-    const frameworkInfo = framework ? `Topic ${framework.unit}.${framework.lesson}` : 'no framework';
-    console.log(`🔄 AI appeal queued (position ${queuePos}): ${scenario.questionId || 'unknown'} [${frameworkInfo}]`);
-
-    // Queue the request
-    const result = await gradingQueue.add(() => callGroq(appealPrompt));
-
-    // CRITICAL: Server-side enforcement of MCQ grading rules
-    // Wrong MCQ answers CANNOT receive E, regardless of what AI says
-    const isMCQ = scenario.questionType === 'multiple-choice';
-    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
-    const isCorrect = scenario.correctAnswer
-      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
-      : null;
-
-    if (isMCQ && isCorrect === false && result.score === 'E') {
-      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
-      result.score = 'P';
-      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
-      result._scoreCapped = true;
-    }
-
-    // Add metadata
-    result._provider = 'groq';
-    result._model = GROQ_MODEL;
-    result._gradingMode = 'ai-appeal';
-    result._serverGraded = true;
-    result._appealProcessed = true;
 
     console.log(`✅ AI appeal complete: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
 
     res.json(result);
-  } catch (err) {
-    console.error('AI appeal error:', err.message);
-    res.status(err.statusCode || 500).json({ error: err.message });
+  } catch (error) {
+    console.error('AI appeal proxy error:', error.message);
+    res.json({
+      score: getAppealFallbackScore(req.body),
+      feedback: 'Appeal service unavailable',
+      appealResponse: 'Appeal service unavailable.',
+      appealGranted: false,
+      upgraded: false,
+      _provider: 'fallback'
+    });
   }
 });
 
-// Build appeal prompt - different from regular grading prompt
-function buildAppealPrompt(scenario, answers, appealText, previousResults) {
-  // Format previous results
-  const previousFeedback = previousResults
-    ? Object.entries(previousResults).map(([field, result]) =>
-        `- ${field}: Score=${result.score || result}, Feedback="${result.feedback || 'No feedback'}"`
-      ).join('\n')
-    : 'No previous grading results available';
+// Appeal prompt generation now lives in the shared grading proxy.
+/*
 
-  // Format student answers
-  const studentAnswers = Object.entries(answers)
-    .map(([field, value]) => `- ${field}: "${value}"`)
-    .join('\n');
 
-  // Check if student's answer is correct (for MCQ enforcement)
-  const studentAnswer = answers.answer || Object.values(answers)[0] || '';
-  const isCorrect = scenario.correctAnswer
-    ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
-    : null;
-  const isMCQ = scenario.questionType === 'multiple-choice';
-  const answerStatus = isCorrect === null ? '' : (isCorrect ? '(CORRECT)' : '(INCORRECT)');
+Appeal logic moved to the shared grading proxy.
 
-  // Get framework context for this question's unit/lesson
-  const framework = getFrameworkForQuestion(scenario.questionId);
-  const frameworkContext = framework ? buildFrameworkContext(framework) : '';
-
-  return `You are an AP Statistics teacher reviewing a student's APPEAL of their grade.
-
-${frameworkContext}## Question Context
-Question: ${scenario.prompt || scenario.topic || 'AP Statistics Question'}
-Question Type: ${scenario.questionType || 'unknown'}
-${scenario.correctAnswer ? `Correct Answer: ${scenario.correctAnswer}` : ''}
-${scenario.choices ? `Answer Choices:\n${scenario.choices.map(c => `  ${c.key}: ${c.text}`).join('\n')}` : ''}
-
-## Student's Answer
-${studentAnswers} ${answerStatus}
-${isMCQ && !isCorrect ? '\n⚠️ NOTE: Student selected the WRONG answer. Maximum possible score is P.' : ''}
-
-## Previous Grading
-${previousFeedback}
-
-## Student's Appeal
-The student disagrees with the grading and explains:
-"${appealText}"
-
-## Your Task
-Carefully reconsider the student's answer in light of their explanation AND the lesson context above. The student may have:
-1. Valid reasoning that wasn't initially recognized
-2. Used correct but different terminology or approach
-3. Made a valid point that connects to the concepts
-
-BE FAIR but also ACCURATE. When evaluating:
-- Connect your feedback to the specific concepts from this lesson (e.g., simulation, relative frequency, law of large numbers)
-- For FRQ: Does the student's reasoning align with what the lesson covers? Partial credit is appropriate.
-- Is the student's explanation logically sound?
-
-CRITICAL RULE FOR MULTIPLE CHOICE: If the student selected the WRONG answer, the maximum possible score is P (Partially correct). A wrong MCQ answer CANNOT receive E (Essentially correct), regardless of how sophisticated the reasoning sounds. MCQs have definitive correct answers - choosing wrong means the student did NOT demonstrate mastery.
-
-You may UPGRADE the score if the appeal shows genuine understanding, but you CANNOT upgrade a wrong MCQ answer to E. You should NOT downgrade.
-
-IMPORTANT: In your response to the student:
-- Do NOT use framework codes, learning objective IDs (like "UNC-2.A"), or numbered references
-- Do NOT mention "essential knowledge" or "learning objectives"
-- Explain concepts in plain, student-friendly language
-- Focus on the statistical concepts themselves, not the curriculum structure
-
-Respond with ONLY valid JSON:
-{
-  "score": "E" or "P" or "I",
-  "feedback": "Explanation connecting their answer to the lesson's key concepts",
-  "appealGranted": true or false,
-  "appealResponse": "Direct message to student in plain language explaining how their reasoning does or doesn't demonstrate understanding"
-}`;
-}
+*/
 
 // Get server statistics
 app.get('/api/stats', async (req, res) => {
@@ -853,6 +455,10 @@ app.get('/api/stats', async (req, res) => {
 // ============================
 // EDGAR REDOX SIGNALING CHAT
 // ============================
+
+const REDOX_CHAT_API_URL = process.env.REDOX_CHAT_API_URL;
+const REDOX_CHAT_API_KEY = process.env.REDOX_CHAT_API_KEY;
+const REDOX_CHAT_MODEL = process.env.REDOX_CHAT_MODEL || 'llama-3.3-70b-versatile';
 
 const REDOX_SYSTEM_PROMPT = `You are an expert AP Biology tutor specializing in redox signaling and cellular metabolism. You are helping students understand Edgar Chavez Lopez's research paper on "Redox Signaling: How Mitochondria Regulate Cell Fate Through Reactive Oxygen Species."
 
@@ -985,7 +591,7 @@ app.post('/api/ai/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!GROQ_API_KEY) {
+    if (!REDOX_CHAT_API_URL || !REDOX_CHAT_API_KEY) {
       return res.status(503).json({ error: 'AI service not configured' });
     }
 
@@ -998,37 +604,34 @@ app.post('/api/ai/chat', async (req, res) => {
       { role: 'user', content: message }
     ];
 
-    // Queue the request (reuse grading queue for rate limiting)
-    const response = await gradingQueue.add(async () => {
-      const apiResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 400
-        })
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error(`Groq API error: ${apiResponse.status}`);
-      }
-
-      return apiResponse.json();
+    const response = await fetch(REDOX_CHAT_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${REDOX_CHAT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({
+        model: REDOX_CHAT_MODEL,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 400
+      })
     });
 
-    const assistantMessage = response.choices[0]?.message?.content || 'I could not generate a response.';
+    if (!response.ok) {
+      throw new Error(`AI chat provider error: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const assistantMessage = payload.choices[0]?.message?.content || 'I could not generate a response.';
 
     console.log(`✅ Redox chat response (${assistantMessage.length} chars)`);
 
     res.json({
       response: assistantMessage,
-      _provider: 'groq',
-      _model: GROQ_MODEL
+      _provider: 'redox-chat',
+      _model: REDOX_CHAT_MODEL
     });
 
   } catch (error) {

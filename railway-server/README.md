@@ -104,10 +104,12 @@ curl http://localhost:3000/api/stats
 | `/api/submit-answer` | POST | Submit single answer |
 | `/api/batch-submit` | POST | Submit multiple answers |
 | `/api/stats` | GET | Server statistics |
-| `/api/ai/status` | GET | AI grading availability and rate limits |
-| `/api/ai/grade` | POST | Grade FRQ answer with AI |
-| `/api/ai/appeal` | POST | Appeal an AI grading decision |
+| `/api/ai/status` | GET | Shared grading proxy configuration |
+| `/api/ai/grade` | POST | Forward grading requests to the shared grading proxy |
+| `/api/ai/appeal` | POST | Forward appeal requests to the shared grading proxy |
 | `/api/ai/chat` | POST | Redox Signaling AI tutor chat |
+
+Set `GRADING_PROXY_URL` in `railway-server/.env` to point at the deployed shared grading proxy.
 
 ### Redox Chat Endpoint
 
@@ -128,7 +130,7 @@ The `/api/ai/chat` endpoint powers the AI tutor for Edgar's Redox Signaling pres
 ```json
 {
   "response": "ROS are reactive oxygen species...",
-  "_provider": "groq",
+  "_provider": "redox-chat",
   "_model": "llama-3.3-70b-versatile"
 }
 ```
