@@ -304,28 +304,86 @@ app.post('/api/batch-submit', async (req, res) => {
 });
 
 // ============================
-// AI GRADING ENDPOINTS (Groq only)
+// AI GRADING ENDPOINTS (Groq + DeepSeek round-robin)
 // ============================
 
-// Groq API Key
+// AI Provider Configuration
+const AI_PROVIDERS = [];
+
+if (process.env.GROQ_API_KEY) {
+  AI_PROVIDERS.push({
+    name: 'groq',
+    apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'llama-3.3-70b-versatile',
+    timeoutMs: 30000,
+    maxRPM: 25,
+    minDelayMs: 2500
+  });
+}
+
+if (process.env.DEEPSEEK_API_KEY) {
+  AI_PROVIDERS.push({
+    name: 'deepseek',
+    apiUrl: 'https://api.deepseek.com/chat/completions',
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    model: 'deepseek-chat',
+    timeoutMs: 30000,
+    maxRPM: 25,
+    minDelayMs: 2500
+  });
+}
+
+// Legacy fallback constant so existing checks still work
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const GROQ_TIMEOUT_MS = 30000;
+const AI_AVAILABLE = AI_PROVIDERS.length > 0;
 
-// Groq rate limits: 30 RPM for free tier, be conservative
-const GROQ_RATE_LIMIT = {
-  maxRequestsPerMinute: 25,  // Stay under 30 RPM limit
-  minDelayBetweenRequests: 2500  // 2.5 seconds between requests
-};
+// Per-provider rate tracking
+const providerStats = new Map();
+for (const p of AI_PROVIDERS) {
+  providerStats.set(p.name, {
+    requestsThisMinute: 0,
+    minuteStart: Date.now(),
+    lastRequestTime: 0,
+    failures: 0
+  });
+}
+let nextProviderIndex = 0;
 
-// Request queue for rate limiting
+// Pick next provider via round-robin, skipping any that are at their RPM limit
+function pickProvider() {
+  if (AI_PROVIDERS.length === 0) return null;
+  const startIndex = nextProviderIndex;
+  for (let i = 0; i < AI_PROVIDERS.length; i++) {
+    const idx = (startIndex + i) % AI_PROVIDERS.length;
+    const provider = AI_PROVIDERS[idx];
+    const stats = providerStats.get(provider.name);
+    const now = Date.now();
+    if (now - stats.minuteStart > 60000) {
+      stats.requestsThisMinute = 0;
+      stats.minuteStart = now;
+    }
+    if (stats.requestsThisMinute < provider.maxRPM) {
+      nextProviderIndex = (idx + 1) % AI_PROVIDERS.length;
+      return provider;
+    }
+  }
+  // All providers at limit — return the next one anyway (queue will wait)
+  const provider = AI_PROVIDERS[startIndex % AI_PROVIDERS.length];
+  nextProviderIndex = (startIndex + 1) % AI_PROVIDERS.length;
+  return provider;
+}
+
+// Get the alternate provider for failover
+function getAlternateProvider(currentName) {
+  return AI_PROVIDERS.find(p => p.name !== currentName) || null;
+}
+
+// Request queue with per-provider rate limiting
 class GradingQueue {
   constructor() {
     this.queue = [];
     this.processing = false;
-    this.lastRequestTime = 0;
-    this.requestsThisMinute = 0;
-    this.minuteStart = Date.now();
   }
 
   async add(task) {
@@ -343,41 +401,65 @@ class GradingQueue {
       const { task, resolve, reject } = this.queue.shift();
 
       try {
-        // Check rate limit window
+        const provider = pickProvider();
+        if (!provider) { reject(new Error('No AI providers configured')); continue; }
+        const stats = providerStats.get(provider.name);
+
+        // Wait if at RPM limit
         const now = Date.now();
-        if (now - this.minuteStart > 60000) {
-          this.requestsThisMinute = 0;
-          this.minuteStart = now;
+        if (now - stats.minuteStart > 60000) {
+          stats.requestsThisMinute = 0;
+          stats.minuteStart = now;
         }
-
-        // Wait if we've hit the per-minute limit
-        if (this.requestsThisMinute >= GROQ_RATE_LIMIT.maxRequestsPerMinute) {
-          const waitTime = 60000 - (now - this.minuteStart) + 1000;
-          console.log(`⏳ Rate limit reached, waiting ${Math.round(waitTime/1000)}s...`);
+        if (stats.requestsThisMinute >= provider.maxRPM) {
+          const waitTime = 60000 - (now - stats.minuteStart) + 1000;
+          console.log(`⏳ ${provider.name} rate limit reached, waiting ${Math.round(waitTime/1000)}s...`);
           await this.delay(waitTime);
-          this.requestsThisMinute = 0;
-          this.minuteStart = Date.now();
+          stats.requestsThisMinute = 0;
+          stats.minuteStart = Date.now();
         }
 
-        // Ensure minimum delay between requests
-        const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-        if (timeSinceLastRequest < GROQ_RATE_LIMIT.minDelayBetweenRequests) {
-          const waitTime = GROQ_RATE_LIMIT.minDelayBetweenRequests - timeSinceLastRequest;
-          await this.delay(waitTime);
+        // Minimum delay between requests to this provider
+        const timeSinceLast = Date.now() - stats.lastRequestTime;
+        if (timeSinceLast < provider.minDelayMs) {
+          await this.delay(provider.minDelayMs - timeSinceLast);
         }
 
-        // Execute the task
-        this.lastRequestTime = Date.now();
-        this.requestsThisMinute++;
-        const result = await task();
-        resolve(result);
+        stats.lastRequestTime = Date.now();
+        stats.requestsThisMinute++;
+
+        try {
+          const result = await task(provider);
+          stats.failures = 0;
+          resolve(result);
+        } catch (primaryError) {
+          console.warn(`⚠️ ${provider.name} failed: ${primaryError.message}`);
+          stats.failures++;
+
+          // Try alternate provider as fallback
+          const alt = getAlternateProvider(provider.name);
+          if (alt) {
+            console.log(`🔄 Falling back to ${alt.name}...`);
+            const altStats = providerStats.get(alt.name);
+            altStats.lastRequestTime = Date.now();
+            altStats.requestsThisMinute++;
+            try {
+              const result = await task(alt);
+              altStats.failures = 0;
+              resolve(result);
+            } catch (fallbackError) {
+              altStats.failures++;
+              reject(primaryError); // Report original error
+            }
+          } else {
+            reject(primaryError);
+          }
+        }
 
       } catch (error) {
-        // Check if it's a rate limit error (429)
         if (error.message?.includes('429') || error.message?.includes('rate limit')) {
           console.log('⚠️ Hit rate limit, backing off 30s...');
           await this.delay(30000);
-          // Re-queue the task
           this.queue.unshift({ task, resolve, reject });
         } else {
           reject(error);
@@ -397,10 +479,17 @@ class GradingQueue {
   }
 
   getStats() {
+    const stats = {};
+    for (const [name, s] of providerStats) {
+      stats[name] = {
+        requestsThisMinute: s.requestsThisMinute,
+        failures: s.failures
+      };
+    }
     return {
       queueLength: this.queue.length,
-      requestsThisMinute: this.requestsThisMinute,
-      processing: this.processing
+      processing: this.processing,
+      providers: stats
     };
   }
 }
@@ -411,14 +500,14 @@ const gradingQueue = new GradingQueue();
 app.get('/api/ai/status', (req, res) => {
   const stats = gradingQueue.getStats();
   res.json({
-    available: !!GROQ_API_KEY,
-    provider: 'groq',
-    model: GROQ_MODEL,
-    queue: stats,
-    rateLimit: {
-      maxPerMinute: GROQ_RATE_LIMIT.maxRequestsPerMinute,
-      currentUsage: stats.requestsThisMinute
-    }
+    available: AI_AVAILABLE,
+    providers: AI_PROVIDERS.map(p => ({
+      name: p.name,
+      model: p.model,
+      maxRPM: p.maxRPM,
+      ...stats.providers[p.name]
+    })),
+    queue: stats
   });
 });
 
@@ -431,8 +520,8 @@ app.post('/api/ai/grade', async (req, res) => {
       return res.status(400).json({ error: 'Missing scenario or answers' });
     }
 
-    if (!GROQ_API_KEY) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
+    if (!AI_AVAILABLE) {
+      return res.status(503).json({ error: 'No AI providers configured' });
     }
 
     // Build the prompt
@@ -441,8 +530,8 @@ app.post('/api/ai/grade', async (req, res) => {
     const queuePos = gradingQueue.getQueueLength();
     console.log(`🤖 AI grading queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
 
-    // Queue the request
-    const result = await gradingQueue.add(() => callGroq(gradingPrompt));
+    // Queue the request — provider is injected by the queue's round-robin
+    const result = await gradingQueue.add((provider) => callAI(gradingPrompt, provider));
 
     // CRITICAL: Server-side enforcement of MCQ grading rules
     // Wrong MCQ answers CANNOT receive E, regardless of what AI says
@@ -459,13 +548,11 @@ app.post('/api/ai/grade', async (req, res) => {
       result._scoreCapped = true;
     }
 
-    // Add metadata
-    result._provider = 'groq';
-    result._model = GROQ_MODEL;
+    // Metadata is already set by callAI; add grading-specific fields
     result._gradingMode = 'ai';
     result._serverGraded = true;
 
-    console.log(`✅ AI grading complete: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
+    console.log(`✅ AI grading complete [${result._provider}]: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
 
     res.json(result);
   } catch (err) {
@@ -474,63 +561,74 @@ app.post('/api/ai/grade', async (req, res) => {
   }
 });
 
-// Call Groq API with llama-3.3-70b-versatile
-async function callGroq(prompt) {
+// Call any OpenAI-compatible AI provider
+async function callAI(prompt, provider, opts = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), provider.timeoutMs);
+
+  const systemMessage = opts.systemMessage || 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.';
+  const temperature = opts.temperature ?? 0.1;
+  const maxTokens = opts.maxTokens ?? 1500;
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const body = {
+      model: provider.model,
+      messages: [
+        { role: 'system', content: systemMessage },
+        ...(opts.messages || [{ role: 'user', content: prompt }])
+      ],
+      temperature,
+      max_tokens: maxTokens
+    };
+    // Groq supports response_format; DeepSeek does too for chat model
+    if (!opts.skipJsonFormat) {
+      body.response_format = { type: 'json_object' };
+    }
+
+    const response = await fetch(provider.apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Authorization': `Bearer ${provider.apiKey}`,
         'Content-Type': 'application/json'
       },
       signal: controller.signal,
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,  // Low for consistent grading
-        max_tokens: 1500,
-        response_format: { type: 'json_object' }
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Groq API error ${response.status}: ${errorText}`);
+      throw new Error(`${provider.name} API error ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      throw new Error('Empty response from Groq');
+      throw new Error(`Empty response from ${provider.name}`);
+    }
+
+    // For non-JSON responses (e.g. chat), return raw content
+    if (opts.rawResponse) {
+      return { content, _provider: provider.name, _model: provider.model };
     }
 
     // Parse and validate the response
     const parsed = extractAndParseJSON(content);
     if (!parsed) {
-      throw new Error('Failed to parse Groq response as JSON');
+      throw new Error(`Failed to parse ${provider.name} response as JSON`);
     }
 
     if (!isValidGradingResponse(parsed)) {
-      console.warn('Invalid grading response format, attempting normalization');
+      console.warn(`Invalid grading response format from ${provider.name}, attempting normalization`);
     }
 
-    return normalizeGradingResponse(parsed);
+    const result = normalizeGradingResponse(parsed);
+    result._provider = provider.name;
+    result._model = provider.model;
+    return result;
   } catch (error) {
     if (error.name === 'AbortError') {
-      const timeoutError = new Error('Groq API request timed out');
+      const timeoutError = new Error(`${provider.name} API request timed out`);
       timeoutError.statusCode = 504;
       throw timeoutError;
     }
@@ -699,8 +797,8 @@ app.post('/api/ai/appeal', async (req, res) => {
       return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
     }
 
-    if (!GROQ_API_KEY) {
-      return res.status(503).json({ error: 'GROQ_API_KEY not configured' });
+    if (!AI_AVAILABLE) {
+      return res.status(503).json({ error: 'No AI providers configured' });
     }
 
     // Build appeal-specific prompt
@@ -711,8 +809,8 @@ app.post('/api/ai/appeal', async (req, res) => {
     const frameworkInfo = framework ? `Topic ${framework.unit}.${framework.lesson}` : 'no framework';
     console.log(`🔄 AI appeal queued (position ${queuePos}): ${scenario.questionId || 'unknown'} [${frameworkInfo}]`);
 
-    // Queue the request
-    const result = await gradingQueue.add(() => callGroq(appealPrompt));
+    // Queue the request — provider is injected by the queue's round-robin
+    const result = await gradingQueue.add((provider) => callAI(appealPrompt, provider));
 
     // CRITICAL: Server-side enforcement of MCQ grading rules
     // Wrong MCQ answers CANNOT receive E, regardless of what AI says
@@ -729,14 +827,12 @@ app.post('/api/ai/appeal', async (req, res) => {
       result._scoreCapped = true;
     }
 
-    // Add metadata
-    result._provider = 'groq';
-    result._model = GROQ_MODEL;
+    // Metadata is already set by callAI; add appeal-specific fields
     result._gradingMode = 'ai-appeal';
     result._serverGraded = true;
     result._appealProcessed = true;
 
-    console.log(`✅ AI appeal complete: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
+    console.log(`✅ AI appeal complete [${result._provider}]: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
 
     res.json(result);
   } catch (err) {
@@ -985,50 +1081,36 @@ app.post('/api/ai/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!GROQ_API_KEY) {
+    if (!AI_AVAILABLE) {
       return res.status(503).json({ error: 'AI service not configured' });
     }
 
     console.log(`🧬 Redox chat: "${message.substring(0, 50)}..."`);
 
-    // Build messages array
-    const messages = [
-      { role: 'system', content: REDOX_SYSTEM_PROMPT },
+    // Build messages array (sans system — callAI injects it)
+    const chatHistory = [
       ...history.slice(-10).map(h => ({ role: h.role, content: h.content })),
       { role: 'user', content: message }
     ];
 
-    // Queue the request (reuse grading queue for rate limiting)
-    const response = await gradingQueue.add(async () => {
-      const apiResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 400
-        })
-      });
+    // Queue the request — reuse grading queue for rate limiting
+    const result = await gradingQueue.add((provider) => callAI(null, provider, {
+      systemMessage: REDOX_SYSTEM_PROMPT,
+      messages: chatHistory,
+      temperature: 0.7,
+      maxTokens: 400,
+      skipJsonFormat: true,
+      rawResponse: true
+    }));
 
-      if (!apiResponse.ok) {
-        throw new Error(`Groq API error: ${apiResponse.status}`);
-      }
+    const assistantMessage = result.content || 'I could not generate a response.';
 
-      return apiResponse.json();
-    });
-
-    const assistantMessage = response.choices[0]?.message?.content || 'I could not generate a response.';
-
-    console.log(`✅ Redox chat response (${assistantMessage.length} chars)`);
+    console.log(`✅ Redox chat response [${result._provider}] (${assistantMessage.length} chars)`);
 
     res.json({
       response: assistantMessage,
-      _provider: 'groq',
-      _model: GROQ_MODEL
+      _provider: result._provider,
+      _model: result._model
     });
 
   } catch (error) {
