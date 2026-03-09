@@ -285,7 +285,6 @@ class GradingEngine {
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
-      const { keywordScore = null, ...scenarioContext } = context;
       const prompt = this.buildAIPrompt(rule.promptTemplate, answer, context);
 
       const response = await fetch(`${this.serverUrl}/api/ai/grade`, {
@@ -294,16 +293,15 @@ class GradingEngine {
         signal: controller.signal,
         body: JSON.stringify({
           scenario: {
-            topic: scenarioContext.topic || 'AP Statistics FRQ',
-            questionId: scenarioContext.questionId,
-            partId: scenarioContext.partId,
+            topic: context.topic || 'AP Statistics FRQ',
+            questionId: context.questionId,
+            partId: context.partId,
             expectedElements: rule.rubric?.map(r => r.description) || [],
-            ...scenarioContext
+            ...context
           },
-          answers: { [scenarioContext.partId || 'answer']: answer },
+          answers: { [context.partId || 'answer']: answer },
           prompt,
-          aiPromptTemplate: rule.promptTemplate,
-          keywordScore
+          aiPromptTemplate: rule.promptTemplate
         })
       });
 
@@ -365,10 +363,7 @@ class GradingEngine {
     let aiResult = null;
     if (this.aiEnabled) {
       try {
-        aiResult = await this.gradeWithAI(answer, rule, {
-          ...context,
-          keywordScore: regexResult.score
-        });
+        aiResult = await this.gradeWithAI(answer, rule, context);
       } catch (err) {
         console.warn('AI grading failed, using regex only:', err);
       }
@@ -467,8 +462,7 @@ class GradingEngine {
           },
           answers: { answer: answer },
           appealText: appealText,
-          previousResults: { answer: previousResult },
-          currentScore: previousResult?.score || 'I'
+          previousResults: { answer: previousResult }
         })
       });
 
@@ -481,27 +475,20 @@ class GradingEngine {
       // Determine if appeal was successful (score upgraded)
       const scoreOrder = { 'E': 3, 'P': 2, 'I': 1 };
       const previousScore = scoreOrder[previousResult?.score] || 0;
-      const returnedScore = scoreOrder[result.score] || 0;
-      const downgraded = returnedScore > 0 && returnedScore < previousScore;
-      const finalScore = downgraded ? (previousResult?.score || result.score || 'I') : (result.score || previousResult?.score || 'I');
-      const upgraded = (scoreOrder[finalScore] || 0) > previousScore;
+      const newScore = scoreOrder[result.score] || 0;
+      const upgraded = newScore > previousScore;
 
       return {
         success: true,
-        score: finalScore,
-        feedback: downgraded
-          ? (result.feedback || `Appeal reviewed. Your score remains ${previousResult?.score || finalScore}.`)
-          : (result.feedback || ''),
-        appealGranted: downgraded ? false : (result.appealGranted || upgraded),
-        appealResponse: downgraded
-          ? (result.appealResponse || `Your score remains ${previousResult?.score || finalScore}.`)
-          : (result.appealResponse || result.feedback),
+        score: result.score,
+        feedback: result.feedback || '',
+        appealGranted: result.appealGranted || upgraded,
+        appealResponse: result.appealResponse || result.feedback,
         upgraded,
         previousScore: previousResult?.score,
         _provider: result._provider,
         _model: result._model,
-        _appealProcessed: true,
-        _downgradeBlocked: downgraded || !!result._downgradeBlocked
+        _appealProcessed: true
       };
     } catch (err) {
       console.error('Appeal error:', err);
