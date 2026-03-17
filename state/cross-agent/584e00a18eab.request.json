@@ -1,0 +1,31 @@
+{
+  "envelope": {
+    "protocol": "cross-agent/v1",
+    "direction": "cc-to-codex",
+    "caller": "claude-code",
+    "call_id": "584e00a18eab",
+    "depth": 0,
+    "max_depth": 1,
+    "timeout_seconds": 600,
+    "working_dir": "C:/Users/ColsonR/curriculum_render",
+    "context": {
+      "parent_task": "",
+      "why_delegating": "",
+      "files_relevant": []
+    }
+  },
+  "payload": {
+    "task_type": "implement",
+    "prompt": "# Agent: Wire Grading Proxy into Curriculum Render\r\n\r\n## Phase\r\nP5-infrastructure | Depends on: shared-grading-proxy | Working dir: `C:/Users/ColsonR/curriculum_render`\r\n\r\n## Objective\r\nUpdate curriculum_render to call the shared grading proxy instead of its own inline grading logic.\r\n\r\n## Dependencies\r\n- **shared-grading-proxy** must be deployed and accessible\r\n\r\n## Context: What Changes\r\n\r\nThe current `railway-server/server.js` (**1875 lines**) contains substantial grading infrastructure\r\nthat was extracted into the shared proxy in P5-01:\r\n- `GradingQueue` class (rate-limited at 25 RPM, token-bucket drain loop)\r\n- MCQ enforcement (wrong answers capped at P)\r\n- 3-strategy JSON extraction (direct parse \u2192 smart-quote repair \u2192 regex)\r\n- Groq API calls (llama-3.3-70b-versatile, 0.1 temp, 30s timeout)\r\n\r\n```\r\nBEFORE:\r\n  Browser \u2192 POST /api/ai/grade \u2192 server.js \u2192 GradingQueue \u2192 Groq API\r\n  Browser \u2192 POST /api/ai/appeal \u2192 server.js \u2192 GradingQueue \u2192 Groq API\r\n\r\nAFTER:\r\n  Browser \u2192 POST /api/ai/grade \u2192 server.js \u2192 shared-grading-proxy/grade\r\n  Browser \u2192 POST /api/ai/appeal \u2192 server.js \u2192 shared-grading-proxy/appeal\r\n```\r\n\r\nThe Railway server becomes a thin proxy. Client-side code does NOT change (same endpoints).\r\n**The `GradingQueue`, JSON extraction, and MCQ enforcement all move to the shared proxy** \u2014\r\nremove them from server.js to avoid duplication.\r\n\r\n## Read First\r\n1. `railway-server/server.js` \u2014 **1875 lines**. Find the `GradingQueue` class, `/api/ai/grade` handler,\r\n   `/api/ai/appeal` handler, MCQ enforcement logic, and JSON extraction functions.\r\n   All of these will be REMOVED (they now live in the shared proxy from P5-01).\r\n2. `js/grading/grading-engine.js` \u2014 client-side grading (keyword tier stays client-side, unchanged)\r\n3. `railway_config.js` \u2014 server URL configuration\r\n4. `shared-grading-proxy/server.js` \u2014 the P5-01 output (to understand the API contract)\r\n\r\n## Owned Paths\r\n- `railway-server/server.js`\r\n- `js/grading/grading-engine.js`\r\n\r\n## Implementation\r\n\r\n### server.js \u2014 Replace GradingQueue + Groq calls with proxy calls\r\n\r\n**Remove** the following from server.js (they now live in shared-grading-proxy):\r\n- The `GradingQueue` class definition (~40 lines)\r\n- The `extractJSON()` / JSON extraction helper functions (~30 lines)\r\n- The MCQ enforcement logic (embedded in the grade handler)\r\n- The `require('groq-sdk')` or Groq fetch calls\r\n- The `GROQ_API_KEY` env var usage (proxy owns this now)\r\n\r\n**Replace** the `/api/ai/grade` and `/api/ai/appeal` handlers with thin proxies:\r\n\r\n```javascript\r\nconst GRADING_PROXY = process.env.GRADING_PROXY_URL || 'http://localhost:3002';\r\n\r\napp.post('/api/ai/grade', async (req, res) => {\r\n  try {\r\n    const proxyResponse = await fetch(`${GRADING_PROXY}/grade`, {\r\n      method: 'POST',\r\n      headers: { 'Content-Type': 'application/json' },\r\n      body: JSON.stringify(req.body),\r\n      signal: AbortSignal.timeout(35000)  // 35s > proxy's 30s internal timeout\r\n    });\r\n    const result = await proxyResponse.json();\r\n    res.json(result);\r\n  } catch (err) {\r\n    // Fallback: return keyword-only score (client already computed this)\r\n    res.json({ score: req.body.keywordScore || 'I', feedback: 'AI unavailable', provider: 'fallback' });\r\n  }\r\n});\r\n\r\napp.post('/api/ai/appeal', async (req, res) => {\r\n  try {\r\n    const proxyResponse = await fetch(`${GRADING_PROXY}/appeal`, {\r\n      method: 'POST',\r\n      headers: { 'Content-Type': 'application/json' },\r\n      body: JSON.stringify(req.body),\r\n      signal: AbortSignal.timeout(35000)\r\n    });\r\n    const result = await proxyResponse.json();\r\n    res.json(result);\r\n  } catch (err) {\r\n    res.json({ score: req.body.currentScore, feedback: 'Appeal service unavailable', upgraded: false });\r\n  }\r\n});\r\n```\r\n\r\n### Add to .env\r\n```\r\nGRADING_PROXY_URL=https://shared-grading-proxy-production.up.railway.app\r\n```\r\n\r\n### Cleanup Checklist\r\nAfter wiring, verify that server.js no longer contains:\r\n- [ ] `GradingQueue` class or instantiation\r\n- [ ] `extractJSON` or JSON repair functions\r\n- [ ] Direct Groq API calls or `GROQ_API_KEY` references\r\n- [ ] MCQ enforcement logic (now in proxy)\r\n- [ ] Smart-quote repair code\r\n\r\nThis should reduce server.js by ~200-300 lines.\r\n\r\n## Constraints\r\n- Client-side endpoints do NOT change (backward compatible)\r\n- Client-side keyword grading stays client-side (no network dependency for Tier 1)\r\n- If grading proxy is down, fall back to keyword score (existing resilience pattern)\r\n- 667+ tests must still pass\r\n- The `GradingQueue` rate limiting, MCQ enforcement, and JSON extraction are the proxy's\r\n  responsibility now \u2014 do NOT keep duplicate copies in server.js\r\n- Proxy timeout (35s) must exceed the proxy's internal Groq timeout (30s) to avoid\r\n  double-timeout race conditions\r\n\r\n## Verification\r\n```bash\r\nnpm test  # All 667+ tests pass\r\n# Integration test:\r\ncurl -X POST http://localhost:3001/api/ai/grade \\\r\n  -H \"Content-Type: application/json\" \\\r\n  -d '{\"questionId\":\"test\",\"studentAnswer\":\"test\",\"correctAnswer\":\"test\"}'\r\n```",
+    "constraints": {
+      "owned_paths": [
+        "js/grading/grading-engine.js"
+      ],
+      "read_only": false,
+      "no_git_commits": true,
+      "max_files_changed": 10
+    },
+    "expected_output": "code-changes"
+  },
+  "created_at": "2026-03-07T23:58:50Z"
+}
