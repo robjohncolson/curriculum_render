@@ -710,25 +710,29 @@ function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
 
   // Already in direct format with valid score
   if ('score' in parsed && ['E', 'P', 'I'].includes(parsed.score?.toUpperCase?.())) {
-    return {
+    const result = {
       score: parsed.score.toUpperCase(),
       feedback: parsed.feedback || '',
       matched: parsed.matched || [],
       missing: parsed.missing || []
     };
+    if (parsed.suggestion) result.suggestion = parsed.suggestion;
+    return result;
   }
 
   // Field-keyed format: extract first valid field result
   for (const [key, value] of Object.entries(parsed)) {
     if (key.startsWith('_')) continue;
     if (value && typeof value === 'object' && value.score) {
-      return {
+      const result = {
         score: value.score.toUpperCase(),
         feedback: value.feedback || '',
         matched: value.matched || [],
         missing: value.missing || [],
         _fieldId: key
       };
+      if (value.suggestion) result.suggestion = value.suggestion;
+      return result;
     }
   }
 
