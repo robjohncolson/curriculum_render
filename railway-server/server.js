@@ -736,6 +736,11 @@ function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
     }
   }
 
+  // Focus-synthesis responses don't use E/P/I scoring — pass through as-is
+  if ('priority' in parsed || 'focusLessons' in parsed || 'overallSummary' in parsed) {
+    return { ...parsed };
+  }
+
   // Fallback
   return {
     score: 'I',
