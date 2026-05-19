@@ -73,6 +73,11 @@
     <script src="docs/sync_diagnostics.js"></script>
     <script src="railway_client.js"></script>
 
+    <!-- Gradebook ledger feeder (DN2d) — config → client → feeder load order required -->
+    <script src="roster_config.js"></script>
+    <script src="roster-client.js"></script>
+    <script src="gradebook-client.js"></script>
+
     <!-- Sprite system -->
     <script src="js/sprite_sheet.js"></script>
     <script src="js/canvas_engine.js"></script>
@@ -156,8 +161,144 @@
                 <span class="fab-item-icon">🏠</span>
                 <span class="fab-item-label">LAN</span>
             </button>
+            <button class="fab-item gradebook-signin-button" onclick="showRosterSignInModal()" title="Gradebook sign-in (tracks your work)">
+                <span class="fab-item-icon">🎓</span>
+                <span class="fab-item-label">Gradebook</span>
+            </button>
         </div>
     </div>
+
+    <!-- Gradebook Roster Sign-In Modal (DN2d) — additive; never touches cr's own auth -->
+    <div id="roster-signin-overlay" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 380px;">
+            <span class="close-modal" onclick="closeRosterSignInModal()">&times;</span>
+            <h2>🎓 Gradebook Sign-In</h2>
+            <p id="roster-signin-status" style="font-size: 13px; margin: 4px 0 10px;"></p>
+            <p style="font-size: 13px; margin: 0 0 10px;">Sign in with the username &amp; password your teacher gave you so your quiz work counts toward your grade.</p>
+            <input type="text" id="roster-signin-username" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="username (e.g. coconut_shark)" style="width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;font-size:14px;">
+            <input type="password" id="roster-signin-password" autocomplete="current-password" placeholder="password" onkeydown="if(event.key==='Enter')submitRosterSignIn()" style="width:100%;box-sizing:border-box;padding:8px;font-size:14px;">
+            <div id="roster-signin-error" style="color:#cc0000;font-size:12px;min-height:14px;margin-top:6px;"></div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="roster-signin-ok" class="modal-btn" onclick="submitRosterSignIn()"><strong>Sign In</strong></button>
+                <button class="modal-btn" onclick="rosterSignOut()">Sign Out</button>
+                <button class="modal-btn" onclick="closeRosterSignInModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    // DN2d — Gradebook roster sign-in surface. Additive: never touches cr's own
+    // js/auth.js / consensusUsername onboarding except to mirror identity forward
+    // (back-compat, accepted clean-start tradeoff). See DN2D_BUILD.md.
+    (function () {
+        function rosterWho() {
+            try {
+                return (window.rosterClient && window.rosterClient.current && window.rosterClient.current()) || null;
+            } catch (_) { return null; }
+        }
+        function refreshRosterStatus() {
+            var s = document.getElementById('roster-signin-status');
+            if (!s) return;
+            var who = rosterWho();
+            s.textContent = who
+                ? ('Signed in as ' + (who.realName ? (who.realName + ' (' + who.username + ')') : who.username) + '.')
+                : 'Not signed in — your quiz work is not yet being tracked.';
+        }
+        window.showRosterSignInModal = function () {
+            var ov = document.getElementById('roster-signin-overlay');
+            if (!ov) return;
+            var err = document.getElementById('roster-signin-error');
+            if (err) err.textContent = '';
+            var who = rosterWho();
+            var u = document.getElementById('roster-signin-username');
+            var p = document.getElementById('roster-signin-password');
+            if (u) u.value = (who && who.username) || '';
+            if (p) p.value = '';
+            refreshRosterStatus();
+            ov.style.display = 'flex';
+        };
+        window.closeRosterSignInModal = function () {
+            var ov = document.getElementById('roster-signin-overlay');
+            if (ov) ov.style.display = 'none';
+        };
+        window.submitRosterSignIn = async function () {
+            if (window.submitRosterSignIn._pending) return;     // in-flight guard
+            var err = document.getElementById('roster-signin-error');
+            if (err) err.textContent = '';
+
+            if (!window.rosterClient || !window.rosterClient.signIn) {
+                if (err) err.textContent = 'Sign-in unavailable (offline). Try again on the school network.';
+                return;
+            }
+            var uEl = document.getElementById('roster-signin-username');
+            var pEl = document.getElementById('roster-signin-password');
+            var username = (uEl && uEl.value || '').trim();
+            // NOTE: password intentionally NOT trimmed — edge whitespace can be valid.
+            var password = (pEl && pEl.value || '');
+            if (!username || !password) {
+                if (err) err.textContent = 'Enter both your username and password.';
+                return;
+            }
+
+            window.submitRosterSignIn._pending = true;
+            var okBtn = document.getElementById('roster-signin-ok');
+            if (okBtn) okBtn.disabled = true;
+            if (err) err.textContent = 'Signing in…';
+            try {
+                var result;
+                try {
+                    result = await window.rosterClient.signIn(username, password);
+                } catch (e) {
+                    result = { ok: false, error: (e && e.message) || 'Network error' };
+                }
+                if (!result || !result.ok) {
+                    if (err) err.textContent = (result && result.error) || 'Sign-in failed.';
+                    return;
+                }
+                // Mirror roster identity into cr's OWN identity so the feeder
+                // actually fires and survives reload. cr's `currentUsername` is a
+                // script-scoped `let` (index.html:3671) + IDB `username` meta —
+                // a window/localStorage poke does NOT update it (Codex DN2d #1).
+                // window.acceptUsername(name) is cr's canonical identity entry
+                // point (sets the lexical + setMeta('username') + localStorage +
+                // session init). For the clean-start cohort the roster identity
+                // IS the cr identity, so this is the intended semantics.
+                var who = rosterWho() || {};
+                var rosterName = who.username || username;
+                if (typeof window.acceptUsername === 'function') {
+                    try { await window.acceptUsername(rosterName); } catch (_) {}
+                } else {
+                    // Fallback only if cr auth isn't loaded: best-effort so the
+                    // feeder's `if(!currentUsername)return` guard still passes
+                    // this session (won't survive reload — acceptUsername would).
+                    try {
+                        window.currentUsername = rosterName;
+                        localStorage.setItem('consensusUsername', rosterName);
+                    } catch (_) {}
+                    if (typeof updateCurrentUsernameDisplay === 'function') {
+                        try { updateCurrentUsernameDisplay(); } catch (_) {}
+                    }
+                }
+                refreshRosterStatus();
+                if (err) err.textContent = '';
+                window.closeRosterSignInModal();
+            } finally {
+                window.submitRosterSignIn._pending = false;
+                if (okBtn) okBtn.disabled = false;
+            }
+        };
+        // Roster sign-out clears ONLY the gradebook session — deliberately does
+        // NOT clear cr's own consensusUsername/IDB identity (that drives
+        // peer/sync/progress; co-clearing = unacceptable blast radius).
+        window.rosterSignOut = function () {
+            try {
+                if (window.rosterClient && window.rosterClient.signOut) window.rosterClient.signOut();
+            } catch (_) {}
+            refreshRosterStatus();
+            var err = document.getElementById('roster-signin-error');
+            if (err) err.textContent = '';
+        };
+    })();
+    </script>
 
     <!-- Global Sync Modal -->
     <div id="syncModal" class="modal" style="display: none;">
@@ -10769,6 +10910,24 @@ Respond with JSON:
                 markProgressAsSaved();
                 console.log('Auto-saved progress');
             }, 30000); // 30 seconds delay
+
+            // DN2d — gradebook ledger feeder. Fire-and-forget, no-ops without a
+            // roster token; questionId IS the manifest item_id (proven 817/817).
+            // source by id shape, matching the work-manifest classifier exactly.
+            // Wrapped so it can NEVER throw/block cr's submit path.
+            try {
+                if (window.gradebookClient && window.gradebookClient.record && questionId) {
+                    var gbSrc = /^U\d+-PC-/.test(questionId) ? 'pc' : 'curriculum_quiz';
+                    var gbU = /^U(\d+)-/.exec(questionId);
+                    window.gradebookClient.record({
+                        source: gbSrc,
+                        itemId: questionId,
+                        unit: gbU ? ('U' + gbU[1]) : undefined,
+                        response: answer,
+                        attempt: 1
+                    });
+                }
+            } catch (_) { /* never block cr's submit */ }
         }
 
 
