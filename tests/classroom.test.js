@@ -346,4 +346,267 @@ describe('createClassroomRegistry', () => {
     expect(result.removals[0].payload.username).toBe('alice');
     expect(registry.stateFor('PeriodA')).toBeNull();   // empty room deleted
   });
+
+  // =========================================================================
+  // v1b Gate tests
+  // =========================================================================
+
+  // --- armGate: sets gate, resets statuses, teacher-only ------------------
+
+  it('armGate sets the room gate and resets all member statuses to present', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.armGate(wsT, 'stars', now + 100);
+
+    // Gate is set.
+    var state = registry.stateFor('PeriodA');
+    expect(state.gate).not.toBeNull();
+    expect(state.gate.armed).toBe(true);
+    expect(state.gate.theme).toBe('stars');
+
+    // All statuses reset to "present".
+    state.members.forEach(function(m) {
+      expect(m.status).toBe('present');
+    });
+
+    // A classroom_gate broadcast is returned.
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_gate');
+    expect(bc.payload.gate.armed).toBe(true);
+    expect(bc.payload.gate.theme).toBe('stars');
+    // Both sockets are in the broadcast.
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS);
+  });
+
+  it('armGate resets checkedIn statuses back to present (fresh ritual)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Arm the gate so alice can check in.
+    registry.armGate(wsT, 'stars', now + 100);
+    registry.checkin(wsS, now + 200);
+
+    // alice is now checkedIn.
+    var state1 = registry.stateFor('PeriodA');
+    var alice1 = state1.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice1.status).toBe('checkedIn');
+
+    // Arm the gate again (fresh ritual) -- should reset alice to present.
+    registry.armGate(wsT, 'dots', now + 300);
+    var state2 = registry.stateFor('PeriodA');
+    var alice2 = state2.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice2.status).toBe('present');
+  });
+
+  it('armGate is rejected from a student-role socket', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.armGate(wsS, 'stars', now + 100);
+
+    // No broadcasts -- student cannot arm the gate.
+    expect(result.broadcasts).toHaveLength(0);
+
+    // Gate remains null.
+    var state = registry.stateFor('PeriodA');
+    expect(state.gate).toBeNull();
+  });
+
+  // --- checkin: sets checkedIn only with an armed gate --------------------
+
+  it('checkin sets status checkedIn and broadcasts a member update', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.armGate(wsT, 'stars', now + 100);
+    var result = registry.checkin(wsS, now + 200);
+
+    // Returns a broadcast.
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_member_update');
+    expect(bc.payload.member.username).toBe('alice');
+    expect(bc.payload.member.status).toBe('checkedIn');
+
+    // State reflects the change.
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.status).toBe('checkedIn');
+  });
+
+  it('checkin is ignored when no gate is armed', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.checkin(wsS, now + 100);
+
+    expect(result.broadcasts).toHaveLength(0);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.status).toBe('present');
+  });
+
+  // --- reset: clears gate and resets statuses -----------------------------
+
+  it('reset clears the gate and resets all member statuses, broadcasts classroom_state', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Arm gate and check in alice.
+    registry.armGate(wsT, 'stars', now + 100);
+    registry.checkin(wsS, now + 200);
+
+    var beforeState = registry.stateFor('PeriodA');
+    var aliceBefore = beforeState.members.find(function(m) { return m.username === 'alice'; });
+    expect(aliceBefore.status).toBe('checkedIn');
+
+    // Reset.
+    var result = registry.reset(wsT, now + 300);
+
+    // Gate is cleared.
+    var afterState = registry.stateFor('PeriodA');
+    expect(afterState.gate).toBeNull();
+
+    // All statuses reset.
+    afterState.members.forEach(function(m) {
+      expect(m.status).toBe('present');
+    });
+
+    // Returns a classroom_state broadcast.
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.type).toBe('classroom_state');
+  });
+
+  it('reset is rejected from a student socket', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.armGate(wsT, 'stars', now + 100);
+    var result = registry.reset(wsS, now + 200);
+
+    // No broadcasts.
+    expect(result.broadcasts).toHaveLength(0);
+
+    // Gate still armed.
+    var state = registry.stateFor('PeriodA');
+    expect(state.gate).not.toBeNull();
+  });
+
+  // --- greenLight: teacher-only -------------------------------------------
+
+  it('greenLight broadcasts classroom_greenlight to all room sockets', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.greenLight(wsT, now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_greenlight');
+    expect(bc.payload.section).toBe('PeriodA');
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS);
+  });
+
+  it('greenLight is rejected from a student socket', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.greenLight(wsS, now + 100);
+
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  // --- durability: checkedIn survives socket drop and re-join -------------
+
+  it('a checked-in member that detaches and re-joins is still checkedIn', () => {
+    var wsT = makeWs();
+    var ws1 = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(ws1, 'PeriodA', 'alice',    'student', now);
+
+    registry.armGate(wsT, 'stars', now + 100);
+    registry.checkin(ws1, now + 200);
+
+    // Verify alice is checkedIn.
+    var before = registry.stateFor('PeriodA');
+    var aliceBefore = before.members.find(function(m) { return m.username === 'alice'; });
+    expect(aliceBefore.status).toBe('checkedIn');
+
+    // alice's socket closes.
+    registry.detach(ws1, now + 300);
+
+    // alice reconnects with a new socket.
+    var ws2 = makeWs();
+    var rejoin = registry.join(ws2, 'PeriodA', 'alice', 'student', now + 400);
+
+    // The state returned to alice must still show checkedIn.
+    var rejoined = rejoin.sends[0].payload;
+    var aliceWire = rejoined.members.find(function(m) { return m.username === 'alice'; });
+    expect(aliceWire.status).toBe('checkedIn');
+
+    // Also verify via stateFor.
+    var after = registry.stateFor('PeriodA');
+    var aliceAfter = after.members.find(function(m) { return m.username === 'alice'; });
+    expect(aliceAfter.status).toBe('checkedIn');
+  });
+
+  // --- section isolation for the gate -------------------------------------
+
+  it('arming the gate in PeriodA does not affect PeriodB', () => {
+    var wsTA = makeWs();
+    var wsB  = makeWs();
+    var now = 1000;
+    registry.join(wsTA, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsB,  'PeriodB', 'carol',    'student', now);
+
+    registry.armGate(wsTA, 'stars', now + 100);
+
+    var stateA = registry.stateFor('PeriodA');
+    var stateB = registry.stateFor('PeriodB');
+
+    expect(stateA.gate).not.toBeNull();
+    expect(stateB.gate).toBeNull();
+  });
+
+  it('gate broadcast for PeriodA is not delivered to PeriodB sockets', () => {
+    var wsTA = makeWs();
+    var wsB  = makeWs();
+    var now = 1000;
+    registry.join(wsTA, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsB,  'PeriodB', 'carol',    'student', now);
+
+    var result = registry.armGate(wsTA, 'stars', now + 100);
+
+    // The broadcast sockets must not include wsB.
+    result.broadcasts.forEach(function(bc) {
+      expect(bc.sockets).not.toContain(wsB);
+    });
+  });
 });

@@ -1836,6 +1836,33 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v1b Gate cases (additive) -------------------------------------
+
+        case 'classroom_arm_gate': {
+          var theme = (typeof data.theme === 'string') ? data.theme.trim() : '';
+          var agResult = classroomRegistry.armGate(ws, theme, Date.now());
+          broadcastToClassroom(null, agResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_checkin': {
+          var ciResult = classroomRegistry.checkin(ws, Date.now());
+          broadcastToClassroom(null, ciResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_go': {
+          var glResult = classroomRegistry.greenLight(ws, Date.now());
+          broadcastToClassroom(null, glResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_reset': {
+          var rsResult = classroomRegistry.reset(ws, Date.now());
+          broadcastToClassroom(null, rsResult.broadcasts);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }

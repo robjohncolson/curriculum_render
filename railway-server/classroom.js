@@ -1,29 +1,30 @@
 // classroom.js
 // ES module -- exports createClassroomRegistry()
 //
-// Owns the in-memory classroom state for the Live Classroom v1a feature.
+// Owns the in-memory classroom state for the Live Classroom feature.
 // Holds socket references but performs NO socket I/O.
 // Methods return { sends: [{ ws, payload }], broadcasts: [{ sockets, payload }] }
 // so server.js can call .send() and the module stays unit-testable.
 //
-// Protocol: see LIVE_CLASSROOM_V1A_BUILD.md Section 2.
+// Protocol: see LIVE_CLASSROOM_V1B_BUILD.md Section 2.
 // Knobs: heartbeat 30s, liveness window 45s, idle GC 45 min.
 
 const LIVENESS_MS = 45 * 1000;          // 45 seconds
 const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
 
-// WireMember -- the shape sent on the wire (v1a).
-// status is always "present" in v1a.
+// WireMember -- the shape sent on the wire (v1b).
+// status reflects the member's real status ("present" or "checkedIn").
 function toWireMember(member) {
   return {
     username: member.username,
     role:     member.role,
-    status:   'present',
+    status:   member.status,
     online:   member.online
   };
 }
 
 // Build the full classroom_state payload for a section.
+// gate reflects the room's real gate state (null or an armed gate object).
 function buildStatePayload(room) {
   var members = [];
   room.members.forEach(function(member) {
@@ -32,7 +33,7 @@ function buildStatePayload(room) {
   return {
     type:    'classroom_state',
     section: room.section,
-    gate:    null,
+    gate:    room.gate,
     poll:    null,
     members: members
   };
@@ -70,6 +71,7 @@ export function createClassroomRegistry() {
     if (!classrooms.has(section)) {
       classrooms.set(section, {
         section: section,
+        gate:    null,       // { armed, theme, openedAt } | null
         members: new Map()   // username -> Member
       });
     }
@@ -116,6 +118,7 @@ export function createClassroomRegistry() {
       member = {
         username: username,
         role:     role,
+        status:   'present',  // durable decision; cleared only by armGate or reset
         online:   true,
         lastSeen: currentNow,
         sockets:  new Set([ws])
@@ -347,7 +350,7 @@ export function createClassroomRegistry() {
 
   // stateFor(section)
   //
-  // Return the v1a snapshot payload for a section, or null if the room
+  // Return the snapshot payload for a section, or null if the room
   // does not exist.
   function stateFor(section) {
     var room = classrooms.get(section);
@@ -355,11 +358,166 @@ export function createClassroomRegistry() {
     return buildStatePayload(room);
   }
 
+  // -------------------------------------------------------------------------
+  // v1b Gate methods
+  // -------------------------------------------------------------------------
+
+  // armGate(ws, theme, now)
+  //
+  // TEACHER only. Arms the gate for the sender's room:
+  //   - Sets room.gate = { armed:true, theme, openedAt: now }.
+  //   - Resets every member's status back to "present" (fresh ritual).
+  //   - Returns a classroom_gate broadcast to all room sockets.
+  //
+  // Returns { broadcasts } -- empty if role check fails or room not found.
+  function armGate(ws, theme, now) {
+    var currentNow = now == null ? Date.now() : now;
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    // Arm the gate and reset all member statuses.
+    room.gate = { armed: true, theme: theme || '', openedAt: currentNow };
+    room.members.forEach(function(m) { m.status = 'present'; });
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:    'classroom_gate',
+          section: entry.section,
+          gate:    { armed: room.gate.armed, theme: room.gate.theme }
+        }
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // checkin(ws, now)
+  //
+  // STUDENT. If an armed gate is present, set the sender's status to
+  // "checkedIn" and broadcast a classroom_member_update.
+  // Ignored (no broadcast) if there is no armed gate.
+  //
+  // Returns { broadcasts }.
+  function checkin(ws, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    // Ignore if no gate is armed.
+    if (!room.gate || !room.gate.armed) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    member.status = 'checkedIn';
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:    'classroom_member_update',
+          section: entry.section,
+          member:  toWireMember(member)
+        }
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // greenLight(ws, now)
+  //
+  // TEACHER only. Broadcasts classroom_greenlight to the whole room.
+  //
+  // Returns { broadcasts }.
+  function greenLight(ws, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:    'classroom_greenlight',
+          section: entry.section
+        }
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // reset(ws, now)
+  //
+  // TEACHER only. Clears the gate and resets every member status to "present".
+  // Broadcasts a full classroom_state.
+  //
+  // Returns { broadcasts }.
+  function reset(ws, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    room.gate = null;
+    room.members.forEach(function(m) { m.status = 'present'; });
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: buildStatePayload(room)
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
   return {
-    join:      join,
-    detach:    detach,
-    heartbeat: heartbeat,
-    sweep:     sweep,
-    stateFor:  stateFor
+    join:       join,
+    detach:     detach,
+    heartbeat:  heartbeat,
+    sweep:      sweep,
+    stateFor:   stateFor,
+    armGate:    armGate,
+    checkin:    checkin,
+    greenLight: greenLight,
+    reset:      reset
   };
 }
