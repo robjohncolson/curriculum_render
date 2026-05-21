@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
+import { createClassroomRegistry } from './classroom.js';
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,9 @@ const gameRooms = new Map(); // roomId -> { p1: ws, p2: ws, p1Name: string, p2Na
 const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws, timestamp }
 const wsToRoom = new Map(); // ws -> roomId
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
+
+// Classroom registry (Live Classroom v1a)
+const classroomRegistry = createClassroomRegistry();
 
 // Helper to check cache validity
 function isCacheValid(lastUpdate, ttl = cache.TTL) {
@@ -1801,6 +1805,37 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'classroom_join': {
+          var section  = (data.section  || '').trim();
+          var username = (data.username || '').trim();
+          var role     = (data.role === 'teacher') ? 'teacher' : 'student';
+          if (!section || !username) break;
+          var joinResult = classroomRegistry.join(ws, section, username, role, Date.now());
+          joinResult.sends.forEach(function(s) {
+            if (s.ws.readyState === 1) {
+              try { s.ws.send(JSON.stringify(s.payload)); } catch (e) { /* ignore */ }
+            }
+          });
+          broadcastToClassroom(section, joinResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_leave': {
+          var leaveResult = classroomRegistry.detach(ws, Date.now());
+          if (leaveResult.lostLastSocket && leaveResult.section) {
+            broadcastToClassroom(leaveResult.section, leaveResult.broadcasts);
+          }
+          break;
+        }
+
+        case 'classroom_heartbeat': {
+          var hbResult = classroomRegistry.heartbeat(ws, Date.now());
+          if (hbResult && hbResult.broadcasts && hbResult.broadcasts.length) {
+            broadcastToClassroom(hbResult.section, hbResult.broadcasts);
+          }
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }
@@ -1857,6 +1892,14 @@ wss.on('connection', (ws) => {
       challenges.delete(dcUsername);
       console.log(`♟️ Cleared pending challenges for disconnected user ${dcUsername}`);
     }
+
+    // Classroom cleanup on disconnect.
+    // Detach the socket; if the member lost its last socket, broadcast
+    // online:false to the rest of the room. The member record is NOT removed here.
+    var classroomDetach = classroomRegistry.detach(ws, Date.now());
+    if (classroomDetach.lostLastSocket && classroomDetach.section) {
+      broadcastToClassroom(classroomDetach.section, classroomDetach.broadcasts);
+    }
   });
 
   ws.on('error', (error) => {
@@ -1878,6 +1921,24 @@ function broadcastToClients(data) {
         console.error('Error broadcasting to client:', error);
       }
     }
+  });
+}
+
+// Send classroom broadcasts returned by classroomRegistry methods.
+// broadcasts is an array of { sockets, payload } objects.
+function broadcastToClassroom(section, broadcasts) {
+  if (!broadcasts || broadcasts.length === 0) return;
+  broadcasts.forEach(function(bc) {
+    var message = JSON.stringify(bc.payload);
+    bc.sockets.forEach(function(sock) {
+      if (sock.readyState === 1) {
+        try {
+          sock.send(message);
+        } catch (e) {
+          console.error('Error in broadcastToClassroom:', e);
+        }
+      }
+    });
   });
 }
 
@@ -1955,6 +2016,18 @@ setInterval(() => {
     }
   });
 }, 5000);
+
+// Classroom sweep: flip members offline on heartbeat lapse; GC idle members.
+// Runs every 15 seconds (3x the liveness window / 3).
+setInterval(() => {
+  const sweepResult = classroomRegistry.sweep(Date.now());
+  sweepResult.onlineFlips.forEach(function(bc) {
+    broadcastToClassroom(bc.payload.section, [bc]);
+  });
+  sweepResult.removals.forEach(function(bc) {
+    broadcastToClassroom(bc.payload.section, [bc]);
+  });
+}, 15000);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
