@@ -545,6 +545,94 @@ describe('createClassroomRegistry', () => {
     expect(result.broadcasts).toHaveLength(0);
   });
 
+  // =========================================================================
+  // v1c greenLight: startVideo + videoRef wire contract
+  // =========================================================================
+
+  it('greenLight with startVideo:true and a videoRef string puts both coerced fields on the broadcast', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.greenLight(wsT, now + 100, true, 'u5-lesson3');
+
+    expect(result.broadcasts).toHaveLength(1);
+    var payload = result.broadcasts[0].payload;
+    expect(payload.type).toBe('classroom_greenlight');
+    expect(payload.section).toBe('PeriodA');
+    expect(payload.startVideo).toBe(true);
+    expect(payload.videoRef).toBe('u5-lesson3');
+  });
+
+  it('greenLight with junk startVideo (string) coerces to false', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.greenLight(wsT, now + 100, 'yes', 'u5-lesson3');
+
+    var payload = result.broadcasts[0].payload;
+    expect(payload.startVideo).toBe(false);
+  });
+
+  it('greenLight with junk videoRef (number) coerces to null', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.greenLight(wsT, now + 100, true, 42);
+
+    var payload = result.broadcasts[0].payload;
+    expect(payload.startVideo).toBe(true);
+    expect(payload.videoRef).toBeNull();
+  });
+
+  it('greenLight with junk startVideo (number 1) and junk videoRef (object) both coerce', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.greenLight(wsT, now + 100, 1, { ref: 'u5' });
+
+    var payload = result.broadcasts[0].payload;
+    expect(payload.startVideo).toBe(false);
+    expect(payload.videoRef).toBeNull();
+  });
+
+  it('bare greenLight(ws, now) with no extra args broadcasts startVideo:false and videoRef:null', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.greenLight(wsT, now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var payload = result.broadcasts[0].payload;
+    expect(payload.type).toBe('classroom_greenlight');
+    expect(payload.startVideo).toBe(false);
+    expect(payload.videoRef).toBeNull();
+  });
+
+  it('startVideo and videoRef are NOT stored in room state (absent from classroom_state)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Fire a greenLight with both fields.
+    registry.greenLight(wsT, now + 100, true, 'u5-lesson3');
+
+    // The room state must not carry startVideo or videoRef.
+    var state = registry.stateFor('PeriodA');
+    expect(state).not.toHaveProperty('startVideo');
+    expect(state).not.toHaveProperty('videoRef');
+  });
+
   // --- durability: checkedIn survives socket drop and re-join -------------
 
   it('a checked-in member that detaches and re-joins is still checkedIn', () => {
@@ -834,5 +922,36 @@ describe('server.js classroom_join hue dispatch (U2 source pin)', () => {
 
   it('classroom_join calls classroomRegistry.join()', () => {
     expect(joinCase).toMatch(/classroomRegistry\.join\(/);
+  });
+});
+
+// =========================================================================
+// v1c: server.js classroom_go dispatch (U1 source pin)
+// =========================================================================
+//
+// Pins that the classroom_go case threads data.startVideo and data.videoRef
+// into classroomRegistry.greenLight(). Coercion lives in greenLight() itself
+// so the case may pass raw values straight through.
+
+describe('server.js classroom_go v1c dispatch (U1 source pin)', () => {
+  const here      = path.dirname(fileURLToPath(import.meta.url));
+  const serverSrc = readFileSync(path.join(here, '../railway-server/server.js'), 'utf8');
+  // Isolate the classroom_go case body (from its label to the next case).
+  const goCase    = (serverSrc.split("case 'classroom_go'")[1] || '').split('case ')[0];
+
+  it('the classroom_go case exists in server.js', () => {
+    expect(serverSrc).toContain("case 'classroom_go'");
+  });
+
+  it('classroom_go passes data.startVideo to greenLight', () => {
+    expect(goCase).toMatch(/data\.startVideo/);
+  });
+
+  it('classroom_go passes data.videoRef to greenLight', () => {
+    expect(goCase).toMatch(/data\.videoRef/);
+  });
+
+  it('classroom_go calls classroomRegistry.greenLight()', () => {
+    expect(goCase).toMatch(/classroomRegistry\.greenLight\(/);
   });
 });

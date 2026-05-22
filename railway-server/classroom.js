@@ -454,12 +454,16 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
-  // greenLight(ws, now)
+  // greenLight(ws, now, startVideo, videoRef)
   //
   // TEACHER only. Broadcasts classroom_greenlight to the whole room.
   //
+  // startVideo -- coerced to strict boolean (startVideo === true).
+  // videoRef   -- coerced to string-or-null (typeof videoRef === 'string' ? videoRef : null).
+  // Both fields ride only on the live broadcast; NOT stored in room state.
+  //
   // Returns { broadcasts }.
-  function greenLight(ws, now) {
+  function greenLight(ws, now, startVideo, videoRef) {
     var entry = wsIndex.get(ws);
     if (!entry) return { broadcasts: [] };
 
@@ -472,14 +476,20 @@ export function createClassroomRegistry() {
     // Teacher-only guard.
     if (member.role !== 'teacher') return { broadcasts: [] };
 
+    // Coerce types.
+    var safeStartVideo = startVideo === true;
+    var safeVideoRef   = typeof videoRef === 'string' ? videoRef : null;
+
     var sockets = allRoomSockets(room);
     var broadcasts = [];
     if (sockets.length > 0) {
       broadcasts.push({
         sockets: sockets,
         payload: {
-          type:    'classroom_greenlight',
-          section: entry.section
+          type:       'classroom_greenlight',
+          section:    entry.section,
+          startVideo: safeStartVideo,
+          videoRef:   safeVideoRef
         }
       });
     }

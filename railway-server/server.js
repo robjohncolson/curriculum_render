@@ -1857,7 +1857,7 @@ wss.on('connection', (ws) => {
         }
 
         case 'classroom_go': {
-          var glResult = classroomRegistry.greenLight(ws, Date.now());
+          var glResult = classroomRegistry.greenLight(ws, Date.now(), data.startVideo, data.videoRef);
           broadcastToClassroom(null, glResult.broadcasts);
           break;
         }
