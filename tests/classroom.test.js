@@ -3,6 +3,9 @@
 // Uses stub ws objects -- no real sockets.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { createClassroomRegistry } from '../railway-server/classroom.js';
 
 // Stub ws object. readyState 1 == WebSocket.OPEN.
@@ -608,5 +611,228 @@ describe('createClassroomRegistry', () => {
     result.broadcasts.forEach(function(bc) {
       expect(bc.sockets).not.toContain(wsB);
     });
+  });
+
+  // =========================================================================
+  // r3: hue field tests (Unit U2)
+  // =========================================================================
+
+  // --- hue rides classroom_join into classroom_state -----------------------
+
+  it('hue in join() appears in classroom_state returned to the joiner', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, 120);
+
+    var state = result.sends[0].payload;
+    expect(state.type).toBe('classroom_state');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBe(120);
+  });
+
+  it('hue in join() appears in classroom_member_update broadcast to existing members', () => {
+    var ws1 = makeWs();
+    var ws2 = makeWs();
+    registry.join(ws1, 'PeriodA', 'alice', 'student', 1000, 30);
+    var result = registry.join(ws2, 'PeriodA', 'bob', 'student', 1001, 200);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_member_update');
+    expect(bc.payload.member.username).toBe('bob');
+    expect(bc.payload.member.hue).toBe(200);
+  });
+
+  it('null hue is preserved as null in classroom_state', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, null);
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('omitted hue (undefined) normalises to null', () => {
+    var ws = makeWs();
+    // join() called without the hue argument
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000);
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('out-of-range hue (360) normalises to null', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, 360);
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('negative hue normalises to null', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, -1);
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('non-integer hue (float) normalises to null', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, 45.5);
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('string hue normalises to null', () => {
+    var ws = makeWs();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', 1000, '120');
+
+    var state = result.sends[0].payload;
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  it('boundary hue values 0 and 359 are preserved', () => {
+    var ws0   = makeWs();
+    var ws359 = makeWs();
+    registry.join(ws0,   'PeriodA', 'zero',       'student', 1000, 0);
+    registry.join(ws359, 'PeriodA', 'threefifty9', 'student', 1001, 359);
+
+    var state = registry.stateFor('PeriodA');
+    var z = state.members.find(function(m) { return m.username === 'zero'; });
+    var t = state.members.find(function(m) { return m.username === 'threefifty9'; });
+    expect(z.hue).toBe(0);
+    expect(t.hue).toBe(359);
+  });
+
+  // --- hue durability: survives armGate ------------------------------------
+
+  it('hue is NOT cleared by armGate (status is cleared, hue is not)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now, 10);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now, 180);
+
+    registry.armGate(wsT, 'stars', now + 100);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    // status reset to 'present' by armGate
+    expect(alice.status).toBe('present');
+    // hue untouched
+    expect(alice.hue).toBe(180);
+  });
+
+  // --- hue durability: survives reset --------------------------------------
+
+  it('hue is NOT cleared by reset (status is cleared, hue is not)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now, 10);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now, 240);
+
+    // Arm, check in, then reset.
+    registry.armGate(wsT, 'stars', now + 100);
+    registry.checkin(wsS, now + 200);
+    registry.reset(wsT, now + 300);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    // status reset to 'present' by reset
+    expect(alice.status).toBe('present');
+    // hue untouched
+    expect(alice.hue).toBe(240);
+  });
+
+  // --- re-join overwrites hue (last value wins) ----------------------------
+
+  it('re-join with a new hue overwrites the previous hue', () => {
+    var ws1 = makeWs();
+    var now = 1000;
+    registry.join(ws1, 'PeriodA', 'alice', 'student', now, 100);
+
+    var ws2 = makeWs();
+    registry.join(ws2, 'PeriodA', 'alice', 'student', now + 500, 200);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBe(200);
+  });
+
+  it('re-join with null hue overwrites a prior non-null hue', () => {
+    var ws1 = makeWs();
+    var now = 1000;
+    registry.join(ws1, 'PeriodA', 'alice', 'student', now, 100);
+
+    var ws2 = makeWs();
+    registry.join(ws2, 'PeriodA', 'alice', 'student', now + 500, null);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBeNull();
+  });
+
+  // --- hue survives socket drop + re-join cycle ----------------------------
+
+  it('hue survives detach + re-join when the same hue is provided', () => {
+    var wsT = makeWs();
+    var ws1 = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now, null);
+    registry.join(ws1, 'PeriodA', 'alice',    'student', now, 77);
+
+    // alice's socket closes.
+    registry.detach(ws1, now + 300);
+
+    // alice reconnects with the same hue (last value wins).
+    var ws2 = makeWs();
+    registry.join(ws2, 'PeriodA', 'alice', 'student', now + 400, 77);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.hue).toBe(77);
+    expect(alice.online).toBe(true);
+  });
+});
+
+// =========================================================================
+// r3: server.js classroom_join hue dispatch (Unit U2 -- structural pin)
+// =========================================================================
+//
+// The behavioural hue coercion is exercised on classroom.js join() above.
+// server.js applies a SECOND coercion at the WS switch(data.type) boundary.
+// server.js is a ~2000-line WS entrypoint with no unit-test harness, so this
+// pins the dispatch SOURCE directly: the classroom_join case must extract
+// data.hue, coerce it (integer 0-359 or null), and pass it into
+// classroomRegistry.join() (Codex r3 review, MAJOR).
+
+describe('server.js classroom_join hue dispatch (U2 source pin)', () => {
+  const here      = path.dirname(fileURLToPath(import.meta.url));
+  const serverSrc = readFileSync(path.join(here, '../railway-server/server.js'), 'utf8');
+  // Isolate the classroom_join case body (from its label to the next case).
+  const joinCase  = (serverSrc.split("case 'classroom_join'")[1] || '').split('case ')[0];
+
+  it('the classroom_join case exists in server.js', () => {
+    expect(serverSrc).toContain("case 'classroom_join'");
+  });
+
+  it('classroom_join extracts data.hue', () => {
+    expect(joinCase).toMatch(/data\.hue/);
+  });
+
+  it('classroom_join coerces hue with the integer 0-359 guard', () => {
+    expect(joinCase).toMatch(/Number\.isInteger/);
+    expect(joinCase).toContain('359');
+  });
+
+  it('classroom_join calls classroomRegistry.join()', () => {
+    expect(joinCase).toMatch(/classroomRegistry\.join\(/);
   });
 });

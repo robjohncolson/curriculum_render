@@ -1810,7 +1810,12 @@ wss.on('connection', (ws) => {
           var username = (data.username || '').trim();
           var role     = (data.role === 'teacher') ? 'teacher' : 'student';
           if (!section || !username) break;
-          var joinResult = classroomRegistry.join(ws, section, username, role, Date.now());
+          // Coerce hue: integer 0-359 or null (non-integer / out-of-range -> null).
+          var rawHue = data.hue;
+          var joinHue = (typeof rawHue === 'number' && Number.isInteger(rawHue) && rawHue >= 0 && rawHue <= 359)
+            ? rawHue
+            : null;
+          var joinResult = classroomRegistry.join(ws, section, username, role, Date.now(), joinHue);
           joinResult.sends.forEach(function(s) {
             if (s.ws.readyState === 1) {
               try { s.ws.send(JSON.stringify(s.payload)); } catch (e) { /* ignore */ }

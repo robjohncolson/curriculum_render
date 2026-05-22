@@ -14,12 +14,14 @@ const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
 
 // WireMember -- the shape sent on the wire (v1b).
 // status reflects the member's real status ("present" or "checkedIn").
+// hue is an integer 0-359 or null (r3 addition -- see Section 2.7).
 function toWireMember(member) {
   return {
     username: member.username,
     role:     member.role,
     status:   member.status,
-    online:   member.online
+    online:   member.online,
+    hue:      member.hue
   };
 }
 
@@ -78,17 +80,24 @@ export function createClassroomRegistry() {
     return classrooms.get(section);
   }
 
-  // join(ws, section, username, role, now)
+  // join(ws, section, username, role, now, hue)
   //
   // Add the socket to the room. Create the member if first join; re-attach
   // if the member already exists (reconnect after drop).
+  //
+  // hue -- integer 0-359 or null. Durable: not cleared by armGate or reset.
+  //        A re-join overwrites hue (last value wins).
   //
   // Returns:
   //   { sends, broadcasts }
   //   sends      -- [{ ws, payload }]  -- reply classroom_state to this socket
   //   broadcasts -- [{ sockets, payload }]  -- classroom_member_update to rest
-  function join(ws, section, username, role, now) {
+  function join(ws, section, username, role, now, hue) {
     var currentNow = now == null ? Date.now() : now;
+    // Normalise hue: must be an integer in 0-359 or null.
+    var safeHue = (typeof hue === 'number' && Number.isInteger(hue) && hue >= 0 && hue <= 359)
+      ? hue
+      : null;
 
     // If this socket is already bound to a member (a re-join on the same
     // connection, possibly to a different section/username), unbind it
@@ -119,6 +128,7 @@ export function createClassroomRegistry() {
         username: username,
         role:     role,
         status:   'present',  // durable decision; cleared only by armGate or reset
+        hue:      safeHue,    // durable; NOT cleared by armGate or reset
         online:   true,
         lastSeen: currentNow,
         sockets:  new Set([ws])
@@ -130,6 +140,8 @@ export function createClassroomRegistry() {
       var wasOnline = member.online;
       member.online  = true;
       member.lastSeen = currentNow;
+      // Re-join always overwrites hue (last value wins).
+      member.hue = safeHue;
 
       // If the member was offline and is now back, we need to broadcast the
       // online-flip below (treated the same as a new member broadcast).

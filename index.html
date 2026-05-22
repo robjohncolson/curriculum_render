@@ -12620,6 +12620,23 @@ Respond with JSON:
                 playerSprite.setHue(hue);
             }
 
+            // U3 -- best-effort persist hue to roster server (never blocks local save)
+            try {
+                var _token = window.rosterClient && window.rosterClient.token && window.rosterClient.token();
+                var _sid   = window.rosterClient && window.rosterClient.studentId && window.rosterClient.studentId();
+                var _base  = window.ROSTER_SERVICE_URL;
+                if (_token && _sid && _base) {
+                    fetch(_base + '/roster/' + _sid + '/sprite-hue', {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': 'Bearer ' + _token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ spriteHue: hue })
+                    }).catch(function () { /* offline or pre-migration -- silent no-op */ });
+                }
+            } catch (_) { /* never block local save */ }
+
             if (spritesEnabled) {
                 if (canvasEngine && !canvasEngine.running) {
                     canvasEngine.start();
