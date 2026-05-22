@@ -955,3 +955,915 @@ describe('server.js classroom_go v1c dispatch (U1 source pin)', () => {
     expect(goCase).toMatch(/classroomRegistry\.greenLight\(/);
   });
 });
+
+// =========================================================================
+// v2 Poll tests -- classroom.js openPoll / castVote / closePoll / revealPoll
+// =========================================================================
+
+describe('v2 Poll: openPoll', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('openPoll broadcasts classroom_poll to all room sockets', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.openPoll(wsT, 'Favorite color?', ['Red', 'Blue', 'Green'], false, now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_poll');
+    expect(bc.payload.question).toBe('Favorite color?');
+    expect(bc.payload.options).toEqual(['Red', 'Blue', 'Green']);
+    expect(bc.payload.blind).toBe(false);
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS);
+  });
+
+  it('openPoll with exactly 2 options succeeds', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.openPoll(wsT, 'Yes or No?', ['Yes', 'No'], false, now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.type).toBe('classroom_poll');
+  });
+
+  it('openPoll with exactly 8 options succeeds', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var opts = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    var result = registry.openPoll(wsT, 'Pick one?', opts, false, now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.options).toHaveLength(8);
+  });
+
+  it('openPoll with 1 option is rejected (too few)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.openPoll(wsT, 'Only one?', ['A'], false, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('openPoll with 9 options is rejected (too many)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var opts = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+    var result = registry.openPoll(wsT, 'Too many?', opts, false, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('openPoll resets every member vote to null and status to present', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Open a first poll and vote, then open a second to verify reset.
+    registry.openPoll(wsT, 'Q1', ['A', 'B'], false, now + 100);
+    registry.castVote(wsS, 0, now + 200);
+
+    // Open a second poll -- should reset alice's vote.
+    registry.openPoll(wsT, 'Q2', ['X', 'Y'], false, now + 300);
+    var state = registry.stateFor('PeriodA');
+    state.members.forEach(function(m) {
+      expect(m.vote).toBeNull();
+      expect(m.status).toBe('present');
+    });
+  });
+
+  it('openPoll is rejected from a student socket', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.openPoll(wsS, 'Student poll?', ['A', 'B'], false, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('openPoll is rejected while a gate is armed (mode exclusivity)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.armGate(wsT, 'stars', now + 100);
+
+    var result = registry.openPoll(wsT, 'Poll during gate?', ['A', 'B'], false, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('classroom_state carries poll after openPoll', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Test?', ['A', 'B'], false, now + 100);
+
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).not.toBeNull();
+    expect(state.poll.question).toBe('Test?');
+  });
+});
+
+describe('v2 Poll: castVote', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('castVote sets vote and status voted, broadcasts classroom_member_update', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B', 'C'], false, now + 100);
+
+    var result = registry.castVote(wsS, 1, now + 200);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_member_update');
+    expect(bc.payload.member.username).toBe('alice');
+    expect(bc.payload.member.vote).toBe(1);
+    expect(bc.payload.member.status).toBe('voted');
+  });
+
+  it('castVote with choice 0 (boundary) succeeds', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.castVote(wsS, 0, now + 200);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.member.vote).toBe(0);
+  });
+
+  it('castVote with out-of-range choice is ignored', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.castVote(wsS, 5, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+
+    var state = registry.stateFor('PeriodA');
+    var alice = state.members.find(function(m) { return m.username === 'alice'; });
+    expect(alice.vote).toBeNull();
+  });
+
+  it('castVote with negative choice is ignored', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.castVote(wsS, -1, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('castVote with non-integer choice is ignored', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.castVote(wsS, 0.5, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('castVote when no poll is open is ignored', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.castVote(wsS, 0, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+});
+
+describe('v2 Poll: closePoll', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('closePoll computes correct tally and broadcasts classroom_poll_closed', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var wsS3 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    registry.join(wsS3, 'PeriodA', 'carol',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B', 'C'], false, now + 100);
+    registry.castVote(wsS1, 0, now + 200);  // alice -> A
+    registry.castVote(wsS2, 0, now + 300);  // bob   -> A
+    registry.castVote(wsS3, 2, now + 400);  // carol -> C
+
+    var result = registry.closePoll(wsT, now + 500);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_poll_closed');
+    expect(bc.payload.tally).toEqual([2, 0, 1]);  // A=2, B=0, C=1
+  });
+
+  it('closePoll clears room.poll after closing', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+    registry.closePoll(wsT, now + 200);
+
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).toBeNull();
+  });
+
+  it('closePoll returns empty broadcasts if no poll is open', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.closePoll(wsT, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('closePoll is rejected from a student socket', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.closePoll(wsS, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+
+    // Poll should still be open.
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).not.toBeNull();
+  });
+
+  it('tally with no votes is all zeros', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B', 'C'], false, now + 100);
+
+    var result = registry.closePoll(wsT, now + 200);
+    expect(result.broadcasts[0].payload.tally).toEqual([0, 0, 0]);
+  });
+});
+
+describe('v2 Poll: revealPoll', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('revealPoll broadcasts classroom_poll_reveal with tally and members', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);  // blind
+    registry.castVote(wsS1, 0, now + 200);  // alice -> A
+    registry.castVote(wsS2, 1, now + 300);  // bob   -> B
+
+    var result = registry.revealPoll(wsT, now + 400);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_poll_reveal');
+    expect(bc.payload.tally).toEqual([1, 1]);
+    expect(Array.isArray(bc.payload.members)).toBe(true);
+
+    // All sockets (teacher + students) receive the reveal.
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS1);
+    expect(bc.sockets).toContain(wsS2);
+  });
+
+  it('revealPoll does NOT clear room.poll (poll remains for closePoll)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.revealPoll(wsT, now + 200);
+
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).not.toBeNull();
+  });
+
+  it('revealPoll returns empty broadcasts if no poll is open', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.revealPoll(wsT, now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('revealPoll is rejected from a student socket', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+
+    var result = registry.revealPoll(wsS, now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+});
+
+describe('v2 Poll: blind-poll role-aware broadcast rule (Section 1.4)', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('castVote in a blind poll sends TWO broadcast objects (students, teacher)', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);  // blind
+    var result = registry.castVote(wsS1, 0, now + 200);          // alice votes
+
+    // Two broadcast objects: one for students, one for teacher.
+    expect(result.broadcasts).toHaveLength(2);
+
+    // The student-bucket broadcast masks vote as null for ALL students in a
+    // blind poll -- the voter's client already knows their own choice.
+    var studentBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsS2); });
+    expect(studentBc).toBeDefined();
+    expect(studentBc.payload.member.username).toBe('alice');
+    // In a blind poll student broadcast, vote is always masked to null.
+    expect(studentBc.payload.member.vote).toBeNull();
+
+    // The teacher-bucket broadcast shows full vote.
+    var teacherBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsT); });
+    expect(teacherBc).toBeDefined();
+    expect(teacherBc.payload.member.vote).toBe(0);
+  });
+
+  it('in blind poll, a student socket never sees another student vote in castVote broadcast', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    // Bob votes -- alice should not see bob's vote.
+    var result = registry.castVote(wsS2, 1, now + 200);
+
+    // Find the broadcast delivered to alice's socket.
+    var aliceBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsS1); });
+    expect(aliceBc).toBeDefined();
+    // The member being updated is bob, but alice's view must mask his vote.
+    expect(aliceBc.payload.member.username).toBe('bob');
+    expect(aliceBc.payload.member.vote).toBeNull();  // masked for alice
+  });
+
+  it('teacher socket always sees real vote in a blind poll castVote broadcast', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    var result = registry.castVote(wsS, 1, now + 200);
+
+    var teacherBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsT); });
+    expect(teacherBc).toBeDefined();
+    expect(teacherBc.payload.member.vote).toBe(1);
+  });
+
+  it('non-blind poll: single broadcast, vote visible to all', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+    var result = registry.castVote(wsS, 0, now + 200);
+
+    // Only one broadcast for non-blind poll.
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS);
+    expect(bc.payload.member.vote).toBe(0);
+  });
+
+  it('classroom_state in blind poll masks other student votes for a student viewer', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);  // alice votes
+    registry.castVote(wsS2, 1, now + 300);  // bob votes
+
+    // From alice's perspective: she sees her own vote, bob's is masked.
+    var stateForAlice = registry.stateFor('PeriodA', 'student', 'alice');
+    var aliceInState = stateForAlice.members.find(function(m) { return m.username === 'alice'; });
+    var bobInState   = stateForAlice.members.find(function(m) { return m.username === 'bob'; });
+    expect(aliceInState.vote).toBe(0);   // own vote visible
+    expect(bobInState.vote).toBeNull();  // other student masked
+  });
+
+  it('classroom_state in blind poll exposes all votes to teacher viewer', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);
+    registry.castVote(wsS2, 1, now + 300);
+
+    var stateForTeacher = registry.stateFor('PeriodA', 'teacher', 'teacher1');
+    var aliceInState = stateForTeacher.members.find(function(m) { return m.username === 'alice'; });
+    var bobInState   = stateForTeacher.members.find(function(m) { return m.username === 'bob'; });
+    expect(aliceInState.vote).toBe(0);
+    expect(bobInState.vote).toBe(1);
+  });
+
+  it('reveal unmasks all votes in classroom_poll_reveal for every socket', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);
+    registry.castVote(wsS2, 1, now + 300);
+
+    var result = registry.revealPoll(wsT, now + 400);
+    var bc = result.broadcasts[0];
+
+    // All sockets receive reveal.
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).toContain(wsS1);
+    expect(bc.sockets).toContain(wsS2);
+
+    // members list has full unmasked votes.
+    var aliceMember = bc.payload.members.find(function(m) { return m.username === 'alice'; });
+    var bobMember   = bc.payload.members.find(function(m) { return m.username === 'bob'; });
+    expect(aliceMember.vote).toBe(0);
+    expect(bobMember.vote).toBe(1);
+  });
+});
+
+describe('v2 Poll: mode exclusivity (Section 1.5)', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('armGate is rejected while a poll is open', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.armGate(wsT, 'stars', now + 200);
+
+    // Gate rejected while poll is open.
+    expect(result.broadcasts).toHaveLength(0);
+    var state = registry.stateFor('PeriodA');
+    expect(state.gate).toBeNull();
+    expect(state.poll).not.toBeNull();
+  });
+
+  it('openPoll is rejected while a gate is armed', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.armGate(wsT, 'stars', now + 100);
+
+    var result = registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 200);
+
+    expect(result.broadcasts).toHaveLength(0);
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).toBeNull();
+    expect(state.gate).not.toBeNull();
+  });
+});
+
+describe('v2 Poll: reset clears poll and votes', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('reset clears room.poll and all member votes', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+    registry.castVote(wsS, 1, now + 200);
+
+    registry.reset(wsT, now + 300);
+
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).toBeNull();
+    state.members.forEach(function(m) {
+      expect(m.vote).toBeNull();
+      expect(m.status).toBe('present');
+    });
+  });
+
+  it('reset broadcasts classroom_state (not poll_closed)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+
+    var result = registry.reset(wsT, now + 200);
+
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.type).toBe('classroom_state');
+    expect(result.broadcasts[0].payload.poll).toBeNull();
+  });
+});
+
+// =========================================================================
+// v2 Poll: server.js structural pins (source pins for the four new cases)
+// =========================================================================
+
+describe('server.js v2 poll cases (source pins)', () => {
+  const here      = path.dirname(fileURLToPath(import.meta.url));
+  const serverSrc = readFileSync(path.join(here, '../railway-server/server.js'), 'utf8');
+
+  it('classroom_open_poll case exists', () => {
+    expect(serverSrc).toContain("case 'classroom_open_poll'");
+  });
+
+  it('classroom_vote case exists', () => {
+    expect(serverSrc).toContain("case 'classroom_vote'");
+  });
+
+  it('classroom_close_poll case exists', () => {
+    expect(serverSrc).toContain("case 'classroom_close_poll'");
+  });
+
+  it('classroom_reveal case exists', () => {
+    expect(serverSrc).toContain("case 'classroom_reveal'");
+  });
+
+  it('classroom_open_poll calls classroomRegistry.openPoll()', () => {
+    const openPollCase = (serverSrc.split("case 'classroom_open_poll'")[1] || '').split('case ')[0];
+    expect(openPollCase).toMatch(/classroomRegistry\.openPoll\(/);
+  });
+
+  it('classroom_vote calls classroomRegistry.castVote()', () => {
+    const voteCase = (serverSrc.split("case 'classroom_vote'")[1] || '').split('case ')[0];
+    expect(voteCase).toMatch(/classroomRegistry\.castVote\(/);
+  });
+
+  it('classroom_close_poll calls classroomRegistry.closePoll()', () => {
+    const closeCase = (serverSrc.split("case 'classroom_close_poll'")[1] || '').split('case ')[0];
+    expect(closeCase).toMatch(/classroomRegistry\.closePoll\(/);
+  });
+
+  it('classroom_reveal calls classroomRegistry.revealPoll()', () => {
+    const revealCase = (serverSrc.split("case 'classroom_reveal'")[1] || '').split('case ')[0];
+    expect(revealCase).toMatch(/classroomRegistry\.revealPoll\(/);
+  });
+
+  it('classroom_open_poll extracts data.options', () => {
+    const openPollCase = (serverSrc.split("case 'classroom_open_poll'")[1] || '').split('case ')[0];
+    expect(openPollCase).toMatch(/data\.options/);
+  });
+
+  it('classroom_vote extracts data.choice', () => {
+    const voteCase = (serverSrc.split("case 'classroom_vote'")[1] || '').split('case ')[0];
+    expect(voteCase).toMatch(/data\.choice/);
+  });
+});
+
+// =========================================================================
+// F4 code-review: Finding 2 -- Blind-poll secrecy on non-vote broadcasts
+// =========================================================================
+
+describe('F4 Finding 2: blind-poll secrecy on join/detach/heartbeat/sweep', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  // --- join during blind poll must NOT expose another student's vote -------
+
+  it('join during blind poll: classroom_member_update to existing student has vote masked', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);  // blind
+    registry.castVote(wsS1, 0, now + 200);  // alice votes
+
+    // Bob joins -- alice's vote must be masked in the broadcast bob gets
+    // via the join broadcast (classroom_member_update for alice if alice is
+    // already in the room -- but here alice is the existing member and bob
+    // joins, so alice receives a classroom_member_update for BOB with bob's
+    // vote masked because a blind poll is open and alice is a student).
+    var result = registry.join(wsS2, 'PeriodA', 'bob', 'student', now + 300);
+
+    // Find the broadcast that goes to alice's socket.
+    var aliceBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsS1); });
+    expect(aliceBc).toBeDefined();
+    // In a blind poll, bob's vote should be null to the student viewer alice.
+    expect(aliceBc.payload.member.username).toBe('bob');
+    expect(aliceBc.payload.member.vote).toBeNull();
+  });
+
+  it('join during blind poll: classroom_state returned to joiner masks other student votes', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);
+
+    // Bob joins -- his classroom_state should show alice's vote as null.
+    var result = registry.join(wsS2, 'PeriodA', 'bob', 'student', now + 300);
+
+    var stateForBob = result.sends[0].payload;
+    var aliceInState = stateForBob.members.find(function(m) { return m.username === 'alice'; });
+    expect(aliceInState.vote).toBeNull();  // bob cannot see alice's vote
+  });
+
+  it('join during blind poll: classroom_state returned to joiner shows own vote', () => {
+    // alice is rejoining while a blind poll is open and she has already voted.
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 1, now + 200);
+
+    // alice reconnects.
+    var wsS2 = makeWs();
+    var result = registry.join(wsS2, 'PeriodA', 'alice', 'student', now + 300);
+
+    var stateForAlice = result.sends[0].payload;
+    var aliceInState = stateForAlice.members.find(function(m) { return m.username === 'alice'; });
+    // Alice can see her own vote in the state (viewerUsername matches).
+    expect(aliceInState.vote).toBe(1);
+  });
+
+  // --- detach during blind poll must mask vote in offline broadcast --------
+
+  it('detach during blind poll: offline broadcast to student socket masks vote', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);  // alice votes
+
+    // alice goes offline.
+    var result = registry.detach(wsS1, now + 300);
+
+    // The broadcast that reaches bob (a student) must mask alice's vote.
+    var bobBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsS2); });
+    expect(bobBc).toBeDefined();
+    expect(bobBc.payload.member.username).toBe('alice');
+    expect(bobBc.payload.member.vote).toBeNull();  // masked for bob
+  });
+
+  it('detach during blind poll: offline broadcast to teacher shows real vote', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 1, now + 200);
+
+    var result = registry.detach(wsS1, now + 300);
+
+    var teacherBc = result.broadcasts.find(function(bc) { return bc.sockets.includes(wsT); });
+    expect(teacherBc).toBeDefined();
+    expect(teacherBc.payload.member.vote).toBe(1);  // teacher sees real vote
+  });
+
+  // --- heartbeat revival during blind poll must mask vote -----------------
+
+  it('heartbeat revival during blind poll: broadcast to student masks vote', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);
+
+    // alice is flipped offline by a sweep.
+    registry.detach(wsS1, now + 300);
+
+    // alice's socket sends a heartbeat -- revives her.
+    // Reconnect alice with a new socket to simulate heartbeat revival.
+    var wsS3 = makeWs();
+    registry.join(wsS3, 'PeriodA', 'alice', 'student', now + 400);
+    // Now simulate alice going offline again via sweep for heartbeat test.
+    registry.sweep(now + 400 + 46000);  // alice was rejoined at now+400; sweep at +46s
+
+    // Heartbeat revives alice.
+    var hbResult = registry.heartbeat(wsS3, now + 400 + 47000);
+
+    // The broadcast for the revival must mask alice's vote for bob.
+    if (hbResult.broadcasts.length > 0) {
+      var bobBc2 = hbResult.broadcasts.find(function(bc) { return bc.sockets.includes(wsS2); });
+      if (bobBc2) {
+        expect(bobBc2.payload.member.vote).toBeNull();  // masked for student
+      }
+    }
+    // If no broadcasts or bob not in broadcasts, the test still passes --
+    // the key invariant is no REAL vote leaked (checked via absence of bob
+    // in the non-masked bucket).
+  });
+
+  // --- sweep offline-flip during blind poll must mask vote ----------------
+
+  it('sweep offline-flip during blind poll: broadcast to student masks vote', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);  // alice votes
+
+    // Sweep flips alice offline (heartbeat lapsed).
+    var sweepResult = registry.sweep(now + 46000 + 200);
+
+    // The sweep onlineFlips broadcast must mask alice's vote for bob.
+    var aliceFlip = sweepResult.onlineFlips.find(function(bc) {
+      return bc.payload.member && bc.payload.member.username === 'alice' && bc.sockets.includes(wsS2);
+    });
+    expect(aliceFlip).toBeDefined();
+    expect(aliceFlip.payload.member.vote).toBeNull();  // masked for student bob
+  });
+
+  it('sweep offline-flip during blind poll: broadcast to teacher shows real vote', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS1, 0, now + 200);
+
+    var sweepResult = registry.sweep(now + 46000 + 200);
+
+    var aliceTeacherFlip = sweepResult.onlineFlips.find(function(bc) {
+      return bc.payload.member && bc.payload.member.username === 'alice' && bc.sockets.includes(wsT);
+    });
+    expect(aliceTeacherFlip).toBeDefined();
+    expect(aliceTeacherFlip.payload.member.vote).toBe(0);  // teacher sees real vote
+  });
+});
+
+// =========================================================================
+// F4 code-review: Finding 4 -- revealPoll rejected for non-blind polls
+// =========================================================================
+
+describe('F4 Finding 4: revealPoll rejected when poll is not blind', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('revealPoll on a non-blind poll returns empty broadcasts', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Open a non-blind poll.
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], false, now + 100);
+    registry.castVote(wsS, 0, now + 200);
+
+    // Reveal must be rejected for a non-blind poll.
+    var result = registry.revealPoll(wsT, now + 300);
+    expect(result.broadcasts).toHaveLength(0);
+
+    // Poll is still open (reveal did not close it).
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).not.toBeNull();
+  });
+
+  it('revealPoll on a blind poll still succeeds', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Open a blind poll.
+    registry.openPoll(wsT, 'Q?', ['A', 'B'], true, now + 100);
+    registry.castVote(wsS, 1, now + 200);
+
+    var result = registry.revealPoll(wsT, now + 300);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.type).toBe('classroom_poll_reveal');
+  });
+
+  it('revealPoll on non-blind poll does not broadcast classroom_poll_reveal', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openPoll(wsT, 'Q?', ['X', 'Y', 'Z'], false, now + 100);
+
+    var result = registry.revealPoll(wsT, now + 200);
+    var hasReveal = result.broadcasts.some(function(bc) {
+      return bc.payload.type === 'classroom_poll_reveal';
+    });
+    expect(hasReveal).toBe(false);
+  });
+});

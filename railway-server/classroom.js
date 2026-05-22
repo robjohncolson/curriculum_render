@@ -13,32 +13,135 @@ const LIVENESS_MS = 45 * 1000;          // 45 seconds
 const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
 
 // WireMember -- the shape sent on the wire (v1b).
-// status reflects the member's real status ("present" or "checkedIn").
+// status reflects the member's real status ("present", "checkedIn", or "voted").
 // hue is an integer 0-359 or null (r3 addition -- see Section 2.7).
+// vote is an option index or null (v2 poll addition).
 function toWireMember(member) {
   return {
     username: member.username,
     role:     member.role,
     status:   member.status,
     online:   member.online,
-    hue:      member.hue
+    hue:      member.hue,
+    vote:     member.vote
+  };
+}
+
+// toWireMemberForRole -- role-aware wire shape for a single member.
+// In a blind poll (room.poll && room.poll.blind === true):
+//   - for a teacher: always include real vote.
+//   - for a student: include vote only for themselves (viewerUsername);
+//     for other students mask vote as null.
+// When no blind poll is open, vote is always included (toWireMember is sufficient).
+function toWireMemberForRole(member, viewerRole, viewerUsername, blindPollOpen) {
+  if (!blindPollOpen || viewerRole === 'teacher') {
+    return toWireMember(member);
+  }
+  // blind poll, student viewer
+  return {
+    username: member.username,
+    role:     member.role,
+    status:   member.status,
+    online:   member.online,
+    hue:      member.hue,
+    vote:     (member.username === viewerUsername) ? member.vote : null
   };
 }
 
 // Build the full classroom_state payload for a section.
+// forRole: 'teacher' or 'student'. forUsername: the viewer's username.
 // gate reflects the room's real gate state (null or an armed gate object).
-function buildStatePayload(room) {
+// poll carries the live poll descriptor (null when idle).
+// Member votes are role-gated per Section 1.4.
+function buildStatePayload(room, forRole, forUsername) {
+  var blindPollOpen = !!(room.poll && room.poll.blind);
   var members = [];
   room.members.forEach(function(member) {
-    members.push(toWireMember(member));
+    members.push(toWireMemberForRole(member, forRole, forUsername, blindPollOpen));
   });
   return {
     type:    'classroom_state',
     section: room.section,
     gate:    room.gate,
-    poll:    null,
+    poll:    room.poll || null,
     members: members
   };
+}
+
+// buildRoleAwareMemberUpdateBroadcasts(room, section, member)
+//
+// Shared helper for classroom_member_update broadcasts (Finding 2).
+// When a blind poll is open, we must split recipients so students never
+// see another student's real vote -- this applies to join, detach,
+// heartbeat, and sweep, not just castVote.
+//
+// Returns [] or a 1-2 element broadcasts array ready to dispatch.
+function buildRoleAwareMemberUpdateBroadcasts(room, section, member, excludeWs) {
+  var blindPollOpen = !!(room.poll && room.poll.blind);
+
+  if (!blindPollOpen) {
+    // No blind poll -- send full member to everyone (existing behaviour).
+    var sockets = roomSockets(room, excludeWs);
+    if (sockets.length === 0) return [];
+    return [{
+      sockets: sockets,
+      payload: {
+        type:    'classroom_member_update',
+        section: section,
+        member:  toWireMember(member)
+      }
+    }];
+  }
+
+  // Blind poll open -- split into student and teacher buckets.
+  var studentSockets = [];
+  var teacherSockets = [];
+  room.members.forEach(function(m) {
+    m.sockets.forEach(function(sock) {
+      if (sock === excludeWs) return;
+      if (m.role === 'teacher') {
+        teacherSockets.push(sock);
+      } else {
+        studentSockets.push(sock);
+      }
+    });
+  });
+
+  var broadcasts = [];
+
+  if (studentSockets.length > 0) {
+    // Students: mask vote for ALL members (no student can infer another's vote).
+    var studentShape = {
+      username: member.username,
+      role:     member.role,
+      status:   member.status,
+      online:   member.online,
+      hue:      member.hue,
+      vote:     null
+    };
+    broadcasts.push({
+      sockets: studentSockets,
+      payload: {
+        type:    'classroom_member_update',
+        section: section,
+        member:  studentShape
+      }
+    });
+  }
+
+  if (teacherSockets.length > 0) {
+    // Teacher: full vote always visible.
+    broadcasts.push({
+      sockets: teacherSockets,
+      payload: {
+        type:    'classroom_member_update',
+        section: section,
+        member:  toWireMember(member)
+      }
+    });
+  }
+
+  return broadcasts;
 }
 
 // Collect all open sockets for a room (excluding a specific ws if given).
@@ -74,6 +177,7 @@ export function createClassroomRegistry() {
       classrooms.set(section, {
         section: section,
         gate:    null,       // { armed, theme, openedAt } | null
+        poll:    null,       // { id, question, options, blind, openedAt } | null
         members: new Map()   // username -> Member
       });
     }
@@ -129,6 +233,7 @@ export function createClassroomRegistry() {
         role:     role,
         status:   'present',  // durable decision; cleared only by armGate or reset
         hue:      safeHue,    // durable; NOT cleared by armGate or reset
+        vote:     null,       // option index or null; reset by openPoll and reset
         online:   true,
         lastSeen: currentNow,
         sockets:  new Set([ws])
@@ -152,24 +257,17 @@ export function createClassroomRegistry() {
 
     wsIndex.set(ws, { section: section, username: username });
 
-    // Reply to this socket with the full state.
-    var statePayload = buildStatePayload(room);
+    // Reply to this socket with the full state (role-aware for blind polls).
+    var statePayload = buildStatePayload(room, role, username);
     var sends = [{ ws: ws, payload: statePayload }];
 
     // Broadcast the member update to everyone else in the room.
+    // Use the role-aware helper so blind-poll secrecy is preserved on
+    // join / reconnect (Finding 2 fix).
     var broadcasts = [];
     if (isNewMember) {
-      var others = roomSockets(room, ws);
-      if (others.length > 0) {
-        broadcasts.push({
-          sockets: others,
-          payload: {
-            type:    'classroom_member_update',
-            section: section,
-            member:  toWireMember(member)
-          }
-        });
-      }
+      var joinBroadcasts = buildRoleAwareMemberUpdateBroadcasts(room, section, member, ws);
+      broadcasts = joinBroadcasts;
     }
 
     return { sends: sends, broadcasts: broadcasts };
@@ -216,24 +314,15 @@ export function createClassroomRegistry() {
     member.online   = false;
     member.lastSeen = currentNow;
 
-    var others = roomSockets(room, null);
-    var broadcasts = [];
-    if (others.length > 0) {
-      broadcasts.push({
-        sockets: others,
-        payload: {
-          type:    'classroom_member_update',
-          section: section,
-          member:  toWireMember(member)
-        }
-      });
-    }
+    // Use the role-aware helper so blind-poll secrecy is preserved on
+    // detach / offline-flip (Finding 2 fix).
+    var detachBroadcasts = buildRoleAwareMemberUpdateBroadcasts(room, section, member, null);
 
     return {
       lostLastSocket: true,
       section:  section,
       username: username,
-      broadcasts: broadcasts
+      broadcasts: detachBroadcasts
     };
   }
 
@@ -262,17 +351,9 @@ export function createClassroomRegistry() {
     var broadcasts = [];
     if (!member.online) {
       member.online = true;
-      var sockets = roomSockets(room, null);
-      if (sockets.length > 0) {
-        broadcasts.push({
-          sockets: sockets,
-          payload: {
-            type:    'classroom_member_update',
-            section: entry.section,
-            member:  toWireMember(member)
-          }
-        });
-      }
+      // Use the role-aware helper so blind-poll secrecy is preserved on
+      // heartbeat-driven online revival (Finding 2 fix).
+      broadcasts = buildRoleAwareMemberUpdateBroadcasts(room, entry.section, member, null);
     }
 
     return { section: entry.section, broadcasts: broadcasts };
@@ -306,17 +387,10 @@ export function createClassroomRegistry() {
         // (i.e. the socket is still open but no heartbeat arrived).
         if (member.online && age > LIVENESS_MS) {
           member.online = false;
-          var sockets = allRoomSockets(room);
-          if (sockets.length > 0) {
-            onlineFlips.push({
-              sockets: sockets,
-              payload: {
-                type:    'classroom_member_update',
-                section: section,
-                member:  toWireMember(member)
-              }
-            });
-          }
+          // Use the role-aware helper so blind-poll secrecy is preserved on
+          // sweep-driven offline-flip (Finding 2 fix).
+          var sweepBroadcasts = buildRoleAwareMemberUpdateBroadcasts(room, section, member, null);
+          sweepBroadcasts.forEach(function(bc) { onlineFlips.push(bc); });
         }
 
         // GC: remove members that have been offline for longer than
@@ -360,14 +434,15 @@ export function createClassroomRegistry() {
     return { onlineFlips: onlineFlips, removals: removals };
   }
 
-  // stateFor(section)
+  // stateFor(section, forRole, forUsername)
   //
   // Return the snapshot payload for a section, or null if the room
-  // does not exist.
-  function stateFor(section) {
+  // does not exist. forRole and forUsername are used for role-aware masking
+  // when a blind poll is open; both are optional (default: teacher view).
+  function stateFor(section, forRole, forUsername) {
     var room = classrooms.get(section);
     if (!room) return null;
-    return buildStatePayload(room);
+    return buildStatePayload(room, forRole || 'teacher', forUsername || null);
   }
 
   // -------------------------------------------------------------------------
@@ -395,6 +470,9 @@ export function createClassroomRegistry() {
 
     // Teacher-only guard.
     if (member.role !== 'teacher') return { broadcasts: [] };
+
+    // Mode-exclusivity guard: reject if a poll is open (Section 1.5).
+    if (room.poll !== null) return { broadcasts: [] };
 
     // Arm the gate and reset all member statuses.
     room.gate = { armed: true, theme: theme || '', openedAt: currentNow };
@@ -517,7 +595,11 @@ export function createClassroomRegistry() {
     if (member.role !== 'teacher') return { broadcasts: [] };
 
     room.gate = null;
-    room.members.forEach(function(m) { m.status = 'present'; });
+    room.poll = null;
+    room.members.forEach(function(m) {
+      m.status = 'present';
+      m.vote   = null;
+    });
 
     var sockets = allRoomSockets(room);
     var broadcasts = [];
@@ -525,6 +607,301 @@ export function createClassroomRegistry() {
       broadcasts.push({
         sockets: sockets,
         payload: buildStatePayload(room)
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // -------------------------------------------------------------------------
+  // v2 Poll methods
+  // -------------------------------------------------------------------------
+
+  // openPoll(ws, question, options, blind, now)
+  //
+  // TEACHER only. Opens a poll:
+  //   - options must have length 2-8.
+  //   - Rejected if a gate is armed (mode exclusivity, Section 1.5).
+  //   - Resets every member vote=null, status="present".
+  //   - Broadcasts classroom_poll to all room sockets.
+  //
+  // Returns { broadcasts }.
+  function openPoll(ws, question, options, blind, now) {
+    var currentNow = now == null ? Date.now() : now;
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    // options must be an array with 2-8 entries.
+    if (!Array.isArray(options) || options.length < 2 || options.length > 8) {
+      return { broadcasts: [] };
+    }
+
+    // Mode-exclusivity guard: reject if a gate is armed.
+    if (room.gate !== null) return { broadcasts: [] };
+
+    // Assign a poll id.
+    var pollId = (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function')
+      ? globalThis.crypto.randomUUID()
+      : String(currentNow) + '-' + Math.random().toString(36).slice(2);
+
+    room.poll = {
+      id:       pollId,
+      question: String(question || ''),
+      options:  options.map(String),
+      blind:    blind === true,
+      openedAt: currentNow
+    };
+
+    // Reset every member vote and status.
+    room.members.forEach(function(m) {
+      m.vote   = null;
+      m.status = 'present';
+    });
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:     'classroom_poll',
+          section:  entry.section,
+          id:       room.poll.id,
+          question: room.poll.question,
+          options:  room.poll.options,
+          blind:    room.poll.blind
+        }
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // castVote(ws, choice, now)
+  //
+  // STUDENT. Records the sender's vote:
+  //   - Ignored if no poll is open.
+  //   - Ignored if choice is not an integer in [0, options.length).
+  //   - Sets sender vote=choice, status="voted".
+  //   - Broadcasts a role-aware classroom_member_update per Section 1.4.
+  //
+  // Returns { broadcasts }.
+  function castVote(ws, choice, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    // Ignore if no poll is open.
+    if (!room.poll) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Validate choice: must be an integer in [0, options.length).
+    if (typeof choice !== 'number' || !Number.isInteger(choice) ||
+        choice < 0 || choice >= room.poll.options.length) {
+      return { broadcasts: [] };
+    }
+
+    member.vote   = choice;
+    member.status = 'voted';
+
+    // Build role-aware broadcasts per Section 1.4.
+    var blindPollOpen = room.poll.blind;
+    var broadcasts    = [];
+
+    if (blindPollOpen) {
+      // Split sockets into student and teacher buckets.
+      var studentSockets = [];
+      var teacherSockets = [];
+      room.members.forEach(function(m) {
+        m.sockets.forEach(function(sock) {
+          if (m.role === 'teacher') {
+            teacherSockets.push(sock);
+          } else {
+            studentSockets.push(sock);
+          }
+        });
+      });
+
+      // Student payload: vote is always masked (null) in a blind poll.
+      // A student can only see their OWN vote in classroom_state, not in
+      // member_update payloads where another student's socket is the viewer.
+      // The voter's client already knows their own choice (they sent it).
+      if (studentSockets.length > 0) {
+        var studentMemberShape = {
+          username: member.username,
+          role:     member.role,
+          status:   member.status,
+          online:   member.online,
+          hue:      member.hue,
+          vote:     null
+        };
+        broadcasts.push({
+          sockets: studentSockets,
+          payload: {
+            type:    'classroom_member_update',
+            section: entry.section,
+            member:  studentMemberShape
+          }
+        });
+      }
+
+      // Teacher payload: full vote visible.
+      if (teacherSockets.length > 0) {
+        broadcasts.push({
+          sockets: teacherSockets,
+          payload: {
+            type:    'classroom_member_update',
+            section: entry.section,
+            member:  toWireMember(member)
+          }
+        });
+      }
+    } else {
+      // Non-blind poll: vote visible to all.
+      var sockets = allRoomSockets(room);
+      if (sockets.length > 0) {
+        broadcasts.push({
+          sockets: sockets,
+          payload: {
+            type:    'classroom_member_update',
+            section: entry.section,
+            member:  toWireMember(member)
+          }
+        });
+      }
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // closePoll(ws, now)
+  //
+  // TEACHER only. Closes the active poll:
+  //   - Computes the final tally (count per option index).
+  //   - Clears room.poll.
+  //   - Broadcasts classroom_poll_closed to all room sockets.
+  //
+  // Returns { broadcasts }.
+  function closePoll(ws, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    // Nothing to close.
+    if (!room.poll) return { broadcasts: [] };
+
+    var pollId      = room.poll.id;
+    var optionCount = room.poll.options.length;
+
+    // Tally votes.
+    var tally = [];
+    var i;
+    for (i = 0; i < optionCount; i++) { tally.push(0); }
+    room.members.forEach(function(m) {
+      if (typeof m.vote === 'number' && m.vote >= 0 && m.vote < optionCount) {
+        tally[m.vote]++;
+      }
+    });
+
+    // Clear the poll.
+    room.poll = null;
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:    'classroom_poll_closed',
+          section: entry.section,
+          id:      pollId,
+          tally:   tally
+        }
+      });
+    }
+
+    return { broadcasts: broadcasts };
+  }
+
+  // revealPoll(ws, now)
+  //
+  // TEACHER only. Reveals blind poll results to ALL sockets:
+  //   - Broadcasts classroom_poll_reveal with full tally + per-member votes.
+  //   - Does NOT clear room.poll (poll remains open for closePoll).
+  //   - If no poll is open, returns empty broadcasts.
+  //
+  // Returns { broadcasts }.
+  function revealPoll(ws, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    // Teacher-only guard.
+    if (member.role !== 'teacher') return { broadcasts: [] };
+
+    // Nothing to reveal.
+    if (!room.poll) return { broadcasts: [] };
+
+    // Reveal is blind-only (Section 1.4 / Finding 4).
+    if (!room.poll.blind) return { broadcasts: [] };
+
+    var pollId      = room.poll.id;
+    var optionCount = room.poll.options.length;
+
+    // Tally votes.
+    var tally = [];
+    var i;
+    for (i = 0; i < optionCount; i++) { tally.push(0); }
+    room.members.forEach(function(m) {
+      if (typeof m.vote === 'number' && m.vote >= 0 && m.vote < optionCount) {
+        tally[m.vote]++;
+      }
+    });
+
+    // Build per-member list (username + vote), unmasked.
+    var memberList = [];
+    room.members.forEach(function(m) {
+      memberList.push({ username: m.username, vote: m.vote });
+    });
+
+    var sockets = allRoomSockets(room);
+    var broadcasts = [];
+    if (sockets.length > 0) {
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:    'classroom_poll_reveal',
+          section: entry.section,
+          id:      pollId,
+          tally:   tally,
+          members: memberList
+        }
       });
     }
 
@@ -540,6 +917,10 @@ export function createClassroomRegistry() {
     armGate:    armGate,
     checkin:    checkin,
     greenLight: greenLight,
-    reset:      reset
+    reset:      reset,
+    openPoll:   openPoll,
+    castVote:   castVote,
+    closePoll:  closePoll,
+    revealPoll: revealPoll
   };
 }

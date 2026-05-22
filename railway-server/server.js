@@ -1868,6 +1868,34 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v2 Poll cases (additive) --------------------------------------
+
+        case 'classroom_open_poll': {
+          var opOptions = Array.isArray(data.options) ? data.options : [];
+          var opBlind   = data.blind === true;
+          var opResult  = classroomRegistry.openPoll(ws, data.question, opOptions, opBlind, Date.now());
+          broadcastToClassroom(null, opResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_vote': {
+          var voteResult = classroomRegistry.castVote(ws, data.choice, Date.now());
+          broadcastToClassroom(null, voteResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_close_poll': {
+          var cpResult = classroomRegistry.closePoll(ws, Date.now());
+          broadcastToClassroom(null, cpResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_reveal': {
+          var rvResult = classroomRegistry.revealPoll(ws, Date.now());
+          broadcastToClassroom(null, rvResult.broadcasts);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }
