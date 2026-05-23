@@ -1904,6 +1904,39 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v3 P1+P2: cockpit monitor + Live mode ----------------------
+
+        case 'classroom_monitor_start': {
+          var msResult = classroomRegistry.subscribeMonitor(ws);
+          msResult.sends.forEach(function(s) {
+            if (s.ws.readyState === 1) {
+              try { s.ws.send(JSON.stringify(s.payload)); } catch (e) { /* ignore */ }
+            }
+          });
+          break;
+        }
+
+        case 'classroom_monitor_stop': {
+          classroomRegistry.unsubscribeMonitor(ws);
+          break;
+        }
+
+        case 'classroom_live_start': {
+          var lsSection = (data.section || '').trim();
+          if (!lsSection) break;
+          var lsResult = classroomRegistry.setLive(lsSection, true, Date.now());
+          broadcastToClassroom(null, lsResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_live_stop': {
+          var lxSection = (data.section || '').trim();
+          if (!lxSection) break;
+          var lxResult = classroomRegistry.setLive(lxSection, false, Date.now());
+          broadcastToClassroom(null, lxResult.broadcasts);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }

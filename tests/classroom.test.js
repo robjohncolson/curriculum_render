@@ -1989,3 +1989,287 @@ describe('createClassroomRegistry -- position (Phase 2)', () => {
     expect(alice.pos).toBeNull();
   });
 });
+
+// =========================================================================
+// v3 P1+P2: monitor sockets + setLive (Unit T tests for Unit A+B cr code)
+// =========================================================================
+//
+// Covers the new public surface added in LIVE_CLASSROOM_V3_P12_BUILD.md C7:
+//   - subscribeMonitor / unsubscribeMonitor
+//   - setLive (false->true transitions, no-op on identity)
+//   - _fanoutToMonitors via observable behaviour on existing broadcasts
+//   - getAllSectionsState (public exposure of buildAllSectionsStatePayload)
+//   - detach removes monitor sockets
+
+describe('createClassroomRegistry -- v3 P1+P2 monitor + setLive', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  // --- subscribeMonitor: empty registry snapshot ---------------------------
+
+  it('subscribeMonitor on an empty registry returns a classroom_state_all snapshot with empty sections', () => {
+    var mws = makeWs();
+    var result = registry.subscribeMonitor(mws);
+
+    expect(result.sends).toHaveLength(1);
+    expect(result.sends[0].ws).toBe(mws);
+    expect(result.sends[0].payload.type).toBe('classroom_state_all');
+    expect(result.sends[0].payload.sections).toEqual([]);
+  });
+
+  // --- subscribeMonitor: populated registry snapshot -----------------------
+
+  it('subscribeMonitor with existing rooms returns one entry per section with gate, poll, live, members', () => {
+    var wsA = makeWs();
+    var wsB = makeWs();
+    var now = 1000;
+    registry.join(wsA, 'PeriodA', 'alice', 'student', now);
+    registry.join(wsB, 'PeriodB', 'bob',   'student', now);
+
+    var mws = makeWs();
+    var result = registry.subscribeMonitor(mws);
+    var payload = result.sends[0].payload;
+
+    expect(payload.type).toBe('classroom_state_all');
+    expect(payload.sections).toHaveLength(2);
+
+    payload.sections.forEach(function (s) {
+      expect(typeof s.section).toBe('string');
+      expect(s.gate).toBeNull();
+      expect(s.poll).toBeNull();
+      expect(s.live).toBe(false);
+      expect(Array.isArray(s.members)).toBe(true);
+      expect(s.members.length).toBe(1);
+    });
+
+    var names = payload.sections.map(function (s) { return s.section; }).sort();
+    expect(names).toEqual(['PeriodA', 'PeriodB']);
+  });
+
+  // --- subscribeMonitor: idempotent -- no duplicate internal entries -------
+
+  it('subscribeMonitor called twice with the same ws does not duplicate the socket', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var mws = makeWs();
+    var first  = registry.subscribeMonitor(mws);
+    var second = registry.subscribeMonitor(mws);
+
+    // Both calls produce a fresh snapshot reply.
+    expect(first.sends).toHaveLength(1);
+    expect(second.sends).toHaveLength(1);
+    expect(second.sends[0].ws).toBe(mws);
+
+    // A follow-up broadcast must include the monitor exactly ONCE,
+    // even though we subscribed twice.
+    var bcResult = registry.armGate(wsT, 'stars', now + 100);
+    expect(bcResult.broadcasts).toHaveLength(1);
+    var bc = bcResult.broadcasts[0];
+    var count = bc.sockets.filter(function (s) { return s === mws; }).length;
+    expect(count).toBe(1);
+  });
+
+  // --- unsubscribeMonitor: socket removed from broadcast list --------------
+
+  it('unsubscribeMonitor removes the socket so subsequent broadcasts skip it', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var mws = makeWs();
+    registry.subscribeMonitor(mws);
+    registry.unsubscribeMonitor(mws);
+
+    // armGate will broadcast to the teacher socket only; the unsubscribed
+    // monitor must NOT be in the broadcast's sockets list.
+    var result = registry.armGate(wsT, 'stars', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].sockets).not.toContain(mws);
+  });
+
+  // --- unsubscribeMonitor: idempotent on unknown ws ------------------------
+
+  it('unsubscribeMonitor on a never-subscribed ws does not throw', () => {
+    var stranger = makeWs();
+    expect(function () { registry.unsubscribeMonitor(stranger); }).not.toThrow();
+  });
+
+  // --- detach removes the monitor socket -----------------------------------
+
+  it('detach removes a monitor-only socket so later broadcasts skip it', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var mws = makeWs();
+    registry.subscribeMonitor(mws);
+
+    // detach the monitor ws (it is not bound to any member -- detach must
+    // still clean it out of monitorSockets per the v3 P1+P2 contract).
+    registry.detach(mws, now + 50);
+
+    var result = registry.armGate(wsT, 'stars', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].sockets).not.toContain(mws);
+  });
+
+  // --- setLive: non-existent section ---------------------------------------
+
+  it('setLive on a non-existent section returns empty broadcasts', () => {
+    var result = registry.setLive('NonexistentSection', true, 1000);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  // --- setLive: identity transition is a no-op -----------------------------
+
+  it('setLive(true) twice -- second call is a no-op (no broadcast on identity)', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var first  = registry.setLive('PeriodA', true, now + 100);
+    expect(first.broadcasts).toHaveLength(1);
+
+    var second = registry.setLive('PeriodA', true, now + 200);
+    expect(second.broadcasts).toHaveLength(0);
+  });
+
+  // --- setLive: false -> true broadcast payload + room.live mutation -------
+
+  it('setLive false->true broadcasts classroom_live_state and flips room.live', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.setLive('PeriodA', true, now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload).toEqual({
+      type:    'classroom_live_state',
+      section: 'PeriodA',
+      live:    true
+    });
+
+    // room.live is now true -- visible via getAllSectionsState.
+    var snap = registry.getAllSectionsState();
+    var periodA = snap.sections.find(function (s) { return s.section === 'PeriodA'; });
+    expect(periodA.live).toBe(true);
+  });
+
+  // --- setLive: fans out to room sockets AND monitor sockets ---------------
+
+  it('setLive broadcast targets room sockets AND monitor sockets', () => {
+    var wsR = makeWs();
+    var now = 1000;
+    registry.join(wsR, 'PeriodA', 'alice', 'student', now);
+
+    var mws = makeWs();
+    registry.subscribeMonitor(mws);
+
+    var result = registry.setLive('PeriodA', true, now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.sockets).toContain(wsR);
+    expect(bc.sockets).toContain(mws);
+  });
+
+  // --- _fanoutToMonitors integration -- join broadcasts reach monitors -----
+
+  it('a new student join broadcast includes monitor sockets via _fanoutToMonitors', () => {
+    var mws = makeWs();
+    registry.subscribeMonitor(mws);
+
+    var ws1 = makeWs();
+    var now = 1000;
+    registry.join(ws1, 'PeriodA', 'alice', 'student', now);
+
+    // bob joins -- triggers a classroom_member_update broadcast.
+    var ws2 = makeWs();
+    var result = registry.join(ws2, 'PeriodA', 'bob', 'student', now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_member_update');
+    expect(bc.sockets).toContain(ws1);  // existing room socket
+    expect(bc.sockets).toContain(mws);  // monitor receives the fanout
+    expect(bc.sockets).not.toContain(ws2); // joiner excluded
+  });
+
+  // --- _fanoutToMonitors deduplicates --------------------------------------
+
+  it('_fanoutToMonitors does not duplicate a ws that is both a room socket and a monitor', () => {
+    // dual is BOTH a member socket AND a monitor socket.
+    var dual = makeWs();
+    var now = 1000;
+    // First subscribe dual as a monitor.
+    registry.subscribeMonitor(dual);
+    // Then have dual join a room as a member (so it's in member.sockets too).
+    registry.join(dual, 'PeriodA', 'teacher1', 'teacher', now);
+
+    // A second member joins -- the broadcast targets the room (dual) +
+    // fans out to monitors (dual). It must NOT include dual twice.
+    var ws2 = makeWs();
+    var result = registry.join(ws2, 'PeriodA', 'alice', 'student', now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    var count = bc.sockets.filter(function (s) { return s === dual; }).length;
+    expect(count).toBe(1);
+  });
+
+  // --- getAllSectionsState: same shape as subscribeMonitor's reply ---------
+
+  it('getAllSectionsState returns the same payload shape as subscribeMonitor', () => {
+    var wsA = makeWs();
+    var wsB = makeWs();
+    var now = 1000;
+    registry.join(wsA, 'PeriodA', 'alice', 'student', now);
+    registry.join(wsB, 'PeriodB', 'bob',   'student', now);
+
+    var direct = registry.getAllSectionsState();
+
+    var mws = makeWs();
+    var sub = registry.subscribeMonitor(mws);
+    var viaSubscribe = sub.sends[0].payload;
+
+    expect(direct.type).toBe('classroom_state_all');
+    expect(direct).toEqual(viaSubscribe);
+  });
+});
+
+// =============================================================
+// v3 P1+P2 -- Codex BLOCKER fold: live propagates through the join snapshot.
+// =============================================================
+
+describe('createClassroomRegistry -- v3 P1+P2 BLOCKER fold (join snapshot carries live)', () => {
+  it('classroom_state join reply carries live:false on a fresh room', () => {
+    const reg = createClassroomRegistry();
+    const ws = makeWs();
+    const result = reg.join(ws, 'PeriodE', 'alice', 'student', 1000, null);
+    const snap = result.sends[0].payload;
+    expect(snap.type).toBe('classroom_state');
+    expect(snap.live).toBe(false);
+  });
+
+  it('classroom_state join reply carries live:true on an already-Live room (late joiner)', () => {
+    const reg = createClassroomRegistry();
+    // First socket joins -> room is created with live:false.
+    reg.join(makeWs(), 'PeriodE', 'alice', 'student', 1000, null);
+    // Cockpit sets the room Live.
+    const setLiveResult = reg.setLive('PeriodE', true, 1100);
+    expect(setLiveResult.broadcasts.length).toBe(1);
+    // Late joiner arrives -- their snapshot MUST include live:true.
+    const lateWs = makeWs();
+    const lateResult = reg.join(lateWs, 'PeriodE', 'bob', 'student', 1200, null);
+    const lateSnap = lateResult.sends[0].payload;
+    expect(lateSnap.type).toBe('classroom_state');
+    expect(lateSnap.live).toBe(true);
+  });
+});

@@ -68,6 +68,7 @@ function buildStatePayload(room, forRole, forUsername) {
     section: room.section,
     gate:    room.gate,
     poll:    room.poll || null,
+    live:    !!room.live,
     members: members
   };
 }
@@ -183,10 +184,96 @@ export function createClassroomRegistry() {
         section: section,
         gate:    null,       // { armed, theme, openedAt } | null
         poll:    null,       // { id, question, options, blind, openedAt } | null
+        live:    false,      // v3 P1+P2: durable Live flag (NOT cleared by armGate/greenLight/reset)
         members: new Map()   // username -> Member
       });
     }
     return classrooms.get(section);
+  }
+
+  // Set of teacher sockets in "monitor" mode -- they receive every
+  // broadcast from every room without joining any specific room.
+  var monitorSockets = new Set();
+
+  // subscribeMonitor(ws) -> { sends }
+  // Add ws to monitorSockets and send back a classroom_state_all snapshot.
+  // No room state mutation; idempotent.
+  function subscribeMonitor(ws) {
+    monitorSockets.add(ws);
+    return { sends: [{ ws: ws, payload: buildAllSectionsStatePayload() }] };
+  }
+
+  // unsubscribeMonitor(ws) -> void
+  // Remove ws from monitorSockets. Idempotent.
+  function unsubscribeMonitor(ws) {
+    monitorSockets.delete(ws);
+  }
+
+  // buildAllSectionsStatePayload() -> { type, sections: [...] }
+  // Returns a snapshot of every room's state, role-aware for teachers
+  // (monitor is teacher-only -- buildStatePayload's blind-poll mask
+  // does not apply since the viewer is always a teacher).
+  function buildAllSectionsStatePayload() {
+    var sections = [];
+    classrooms.forEach(function(room, section) {
+      var members = [];
+      room.members.forEach(function(member) {
+        // Monitor viewer is always teacher -- no blind-poll mask needed.
+        members.push(toWireMember(member));
+      });
+      sections.push({
+        section: section,
+        gate:    room.gate,
+        poll:    room.poll || null,
+        live:    !!room.live,
+        members: members
+      });
+    });
+    return { type: 'classroom_state_all', sections: sections };
+  }
+
+  // setLive(section, live, now) -> { broadcasts }
+  // Set the room's live state. Returns a classroom_live_state broadcast
+  // that fans out to the room's sockets AND every monitor socket via the
+  // shared _fanoutToMonitors helper (avoids the duplicate-broadcast bug
+  // where a ws that is BOTH a room socket and a monitor socket would
+  // otherwise receive the message twice).
+  // If the section's room does not exist, returns empty broadcasts (no-op).
+  function setLive(section, live, now) {
+    if (!classrooms.has(section)) {
+      return { broadcasts: [] };
+    }
+    var room = classrooms.get(section);
+    var liveBool = !!live;
+    if (room.live === liveBool) {
+      return { broadcasts: [] };  // no-op on identity transition
+    }
+    room.live = liveBool;
+    var payload = { type: 'classroom_live_state', section: section, live: liveBool };
+    var sockets = roomSockets(room, null);
+    if (sockets.length === 0 && monitorSockets.size === 0) {
+      return { broadcasts: [] };
+    }
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // Inject monitor sockets into every broadcast target list. Call AFTER
+  // building the room-scoped broadcasts; mutates each broadcast's
+  // sockets list in place.
+  function _fanoutToMonitors(broadcasts) {
+    if (monitorSockets.size === 0 || !broadcasts || broadcasts.length === 0) {
+      return broadcasts;
+    }
+    broadcasts.forEach(function(bc) {
+      monitorSockets.forEach(function(mws) {
+        if (!bc.sockets.includes(mws)) {
+          bc.sockets.push(mws);
+        }
+      });
+    });
+    return broadcasts;
   }
 
   // join(ws, section, username, role, now, hue)
@@ -276,6 +363,7 @@ export function createClassroomRegistry() {
       broadcasts = joinBroadcasts;
     }
 
+    _fanoutToMonitors(broadcasts);
     return { sends: sends, broadcasts: broadcasts };
   }
 
@@ -289,6 +377,9 @@ export function createClassroomRegistry() {
   //   broadcasts -- [{ sockets, payload }] -- classroom_member_update if
   //                 the member just went offline.
   function detach(ws, now) {
+    // v3 P1+P2: remove from monitorSockets BEFORE building broadcasts so a
+    // detached monitor ws does not receive the broadcast it just generated.
+    monitorSockets.delete(ws);
     var currentNow = now == null ? Date.now() : now;
     var entry = wsIndex.get(ws);
     if (!entry) {
@@ -324,6 +415,7 @@ export function createClassroomRegistry() {
     // detach / offline-flip (Finding 2 fix).
     var detachBroadcasts = buildRoleAwareMemberUpdateBroadcasts(room, section, member, null);
 
+    _fanoutToMonitors(detachBroadcasts);
     return {
       lostLastSocket: true,
       section:  section,
@@ -362,6 +454,7 @@ export function createClassroomRegistry() {
       broadcasts = buildRoleAwareMemberUpdateBroadcasts(room, entry.section, member, null);
     }
 
+    _fanoutToMonitors(broadcasts);
     return { section: entry.section, broadcasts: broadcasts };
   }
 
@@ -437,6 +530,8 @@ export function createClassroomRegistry() {
       }
     });
 
+    _fanoutToMonitors(onlineFlips);
+    _fanoutToMonitors(removals);
     return { onlineFlips: onlineFlips, removals: removals };
   }
 
@@ -497,6 +592,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -535,6 +631,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -578,6 +675,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -616,6 +714,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -689,6 +788,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -791,6 +891,7 @@ export function createClassroomRegistry() {
       }
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -848,6 +949,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -912,6 +1014,7 @@ export function createClassroomRegistry() {
       });
     }
 
+    _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
   }
 
@@ -956,20 +1059,20 @@ export function createClassroomRegistry() {
     var sockets = roomSockets(room, ws);
     if (sockets.length === 0) return { broadcasts: [] };
 
-    return {
-      broadcasts: [{
-        sockets: sockets,
-        payload: {
-          type:     'classroom_pos',
-          section:  entry.section,
-          username: entry.username,
-          x:        safeX,
-          y:        safeY,
-          state:    safeState,
-          vx:       safeVx
-        }
-      }]
-    };
+    var posBroadcasts = [{
+      sockets: sockets,
+      payload: {
+        type:     'classroom_pos',
+        section:  entry.section,
+        username: entry.username,
+        x:        safeX,
+        y:        safeY,
+        state:    safeState,
+        vx:       safeVx
+      }
+    }];
+    _fanoutToMonitors(posBroadcasts);
+    return { broadcasts: posBroadcasts };
   }
 
   return {
@@ -986,6 +1089,11 @@ export function createClassroomRegistry() {
     castVote:   castVote,
     closePoll:  closePoll,
     revealPoll: revealPoll,
-    position:   position
+    position:   position,
+    // v3 P1+P2 additions:
+    subscribeMonitor:    subscribeMonitor,
+    unsubscribeMonitor:  unsubscribeMonitor,
+    setLive:             setLive,
+    getAllSectionsState: buildAllSectionsStatePayload
   };
 }
