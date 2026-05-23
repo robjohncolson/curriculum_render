@@ -16,6 +16,8 @@ const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
 // status reflects the member's real status ("present", "checkedIn", or "voted").
 // hue is an integer 0-359 or null (r3 addition -- see Section 2.7).
 // vote is an option index or null (v2 poll addition).
+// pos is the last-known position broadcast by the member, or null
+// (KEYBOARD_AVATAR Phase 2 addition; shape: { x, y, state, vx }).
 function toWireMember(member) {
   return {
     username: member.username,
@@ -23,7 +25,8 @@ function toWireMember(member) {
     status:   member.status,
     online:   member.online,
     hue:      member.hue,
-    vote:     member.vote
+    vote:     member.vote,
+    pos:      member.pos || null
   };
 }
 
@@ -44,7 +47,8 @@ function toWireMemberForRole(member, viewerRole, viewerUsername, blindPollOpen) 
     status:   member.status,
     online:   member.online,
     hue:      member.hue,
-    vote:     (member.username === viewerUsername) ? member.vote : null
+    vote:     (member.username === viewerUsername) ? member.vote : null,
+    pos:      member.pos || null
   };
 }
 
@@ -117,7 +121,8 @@ function buildRoleAwareMemberUpdateBroadcasts(room, section, member, excludeWs) 
       status:   member.status,
       online:   member.online,
       hue:      member.hue,
-      vote:     null
+      vote:     null,
+      pos:      member.pos || null
     };
     broadcasts.push({
       sockets: studentSockets,
@@ -234,6 +239,7 @@ export function createClassroomRegistry() {
         status:   'present',  // durable decision; cleared only by armGate or reset
         hue:      safeHue,    // durable; NOT cleared by armGate or reset
         vote:     null,       // option index or null; reset by openPoll and reset
+        pos:      null,       // last-known {x,y,state,vx} from classroom_pos (Phase 2)
         online:   true,
         lastSeen: currentNow,
         sockets:  new Set([ws])
@@ -746,7 +752,8 @@ export function createClassroomRegistry() {
           status:   member.status,
           online:   member.online,
           hue:      member.hue,
-          vote:     null
+          vote:     null,
+          pos:      member.pos || null
         };
         broadcasts.push({
           sockets: studentSockets,
@@ -908,6 +915,63 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
+  // -------------------------------------------------------------------------
+  // KEYBOARD_AVATAR Phase 2 -- position broadcast
+  // -------------------------------------------------------------------------
+
+  // position(ws, x, y, state, vx, now)
+  //
+  // Cross-client position sync (KEYBOARD_AVATAR_SPEC.md Phase 2).
+  // Records last-known {x, y, state, vx} on the member (for late-joiner
+  // classroom_state snapshots) and forwards the position broadcast to all
+  // OTHER sockets in the room. The sender does not receive an echo --
+  // their PlayerSprite already owns the local position.
+  //
+  // Ignored (empty broadcasts) if the socket is not bound to a member,
+  // the room is missing, or the values are not finite numbers.
+  //
+  // Returns { broadcasts }.
+  function position(ws, x, y, state, vx, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+
+    var member = room.members.get(entry.username);
+    if (!member) return { broadcasts: [] };
+
+    var safeX = (typeof x === 'number' && isFinite(x)) ? x : null;
+    var safeY = (typeof y === 'number' && isFinite(y)) ? y : null;
+    if (safeX === null || safeY === null) return { broadcasts: [] };
+
+    var safeVx    = (typeof vx === 'number' && isFinite(vx)) ? vx : 0;
+    var safeState = (typeof state === 'string') ? state : 'idle';
+
+    // Update last-known position for late-joiner snapshots.
+    member.pos = { x: safeX, y: safeY, state: safeState, vx: safeVx };
+
+    // Forward to all OTHER sockets in the room (sender excluded -- they
+    // already own the authoritative local position).
+    var sockets = roomSockets(room, ws);
+    if (sockets.length === 0) return { broadcasts: [] };
+
+    return {
+      broadcasts: [{
+        sockets: sockets,
+        payload: {
+          type:     'classroom_pos',
+          section:  entry.section,
+          username: entry.username,
+          x:        safeX,
+          y:        safeY,
+          state:    safeState,
+          vx:       safeVx
+        }
+      }]
+    };
+  }
+
   return {
     join:       join,
     detach:     detach,
@@ -921,6 +985,7 @@ export function createClassroomRegistry() {
     openPoll:   openPoll,
     castVote:   castVote,
     closePoll:  closePoll,
-    revealPoll: revealPoll
+    revealPoll: revealPoll,
+    position:   position
   };
 }

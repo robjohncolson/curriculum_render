@@ -1867,3 +1867,125 @@ describe('F4 Finding 4: revealPoll rejected when poll is not blind', () => {
     expect(hasReveal).toBe(false);
   });
 });
+
+// =============================================================
+// KEYBOARD_AVATAR Phase 2 -- position broadcast
+// =============================================================
+
+describe('createClassroomRegistry -- position (Phase 2)', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('records last-known pos on the sender member', () => {
+    var ws = makeWs();
+    var now = Date.now();
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    registry.position(ws, 250, 200, 'walking', 120, now + 100);
+
+    // Inspect via stateFor (the snapshot carries pos).
+    var state = registry.stateFor('PeriodA', 'teacher', 'observer');
+    var alice = state.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos).toEqual({ x: 250, y: 200, state: 'walking', vx: 120 });
+  });
+
+  it('forwards classroom_pos to OTHER sockets in the room (sender excluded)', () => {
+    var wsA = makeWs();
+    var wsB = makeWs();
+    var wsT = makeWs();
+    var now = Date.now();
+    registry.join(wsA, 'PeriodA', 'alice', 'student', now);
+    registry.join(wsB, 'PeriodA', 'bob',   'student', now);
+    registry.join(wsT, 'PeriodA', 'tea',   'teacher', now);
+
+    var result = registry.position(wsA, 150, 220, 'walking', 120, now + 100);
+    expect(result.broadcasts.length).toBe(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_pos');
+    expect(bc.payload.username).toBe('alice');
+    expect(bc.payload.x).toBe(150);
+    expect(bc.payload.y).toBe(220);
+    expect(bc.payload.state).toBe('walking');
+    expect(bc.payload.vx).toBe(120);
+    // Sender excluded; bob + teacher receive.
+    expect(bc.sockets).toContain(wsB);
+    expect(bc.sockets).toContain(wsT);
+    expect(bc.sockets).not.toContain(wsA);
+  });
+
+  it('non-finite x or y -> empty broadcasts (sender pos unchanged)', () => {
+    var ws = makeWs();
+    var now = Date.now();
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var bad1 = registry.position(ws, NaN, 100, 'idle', 0, now + 100);
+    expect(bad1.broadcasts).toEqual([]);
+
+    var bad2 = registry.position(ws, 50, undefined, 'idle', 0, now + 200);
+    expect(bad2.broadcasts).toEqual([]);
+
+    // The member's pos should still be null (no record).
+    var state = registry.stateFor('PeriodA', 'teacher', 'observer');
+    var alice = state.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos).toBeNull();
+  });
+
+  it('unbound socket -> empty broadcasts (no member, no record)', () => {
+    var lone = makeWs();
+    var now = Date.now();
+    var result = registry.position(lone, 50, 50, 'idle', 0, now);
+    expect(result.broadcasts).toEqual([]);
+  });
+
+  it('alone in the room -> empty broadcasts (no peers to forward to)', () => {
+    var ws = makeWs();
+    var now = Date.now();
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+    var result = registry.position(ws, 100, 200, 'walking', 120, now + 50);
+    // pos IS recorded.
+    var state = registry.stateFor('PeriodA', 'teacher', 'observer');
+    var alice = state.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos.x).toBe(100);
+    // But no broadcast (room has no other members).
+    expect(result.broadcasts).toEqual([]);
+  });
+
+  it('classroom_state join snapshot includes each member.pos', () => {
+    var wsA = makeWs();
+    var wsB = makeWs();
+    var now = Date.now();
+    registry.join(wsA, 'PeriodA', 'alice', 'student', now);
+    registry.position(wsA, 300, 180, 'walking', 120, now + 50);
+
+    // bob joins; the snapshot bob receives must carry alice.pos.
+    var joinResult = registry.join(wsB, 'PeriodA', 'bob', 'student', now + 100);
+    var bobSnapshot = joinResult.sends[0].payload;
+    expect(bobSnapshot.type).toBe('classroom_state');
+    var alice = bobSnapshot.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos).toEqual({ x: 300, y: 180, state: 'walking', vx: 120 });
+  });
+
+  it('default coercions: missing state -> "idle"; missing vx -> 0', () => {
+    var ws = makeWs();
+    var now = Date.now();
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    registry.position(ws, 50, 50, undefined, undefined, now + 50);
+    var state = registry.stateFor('PeriodA', 'teacher', 'observer');
+    var alice = state.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos.state).toBe('idle');
+    expect(alice.pos.vx).toBe(0);
+  });
+
+  it('toWireMember carries pos:null by default for a fresh member', () => {
+    var ws = makeWs();
+    var now = Date.now();
+    var result = registry.join(ws, 'PeriodA', 'alice', 'student', now);
+    var snapshot = result.sends[0].payload;
+    var alice = snapshot.members.find(function (m) { return m.username === 'alice'; });
+    expect(alice.pos).toBeNull();
+  });
+});

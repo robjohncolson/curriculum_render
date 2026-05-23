@@ -1896,6 +1896,14 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- KEYBOARD_AVATAR Phase 2: cross-client position sync ----------
+
+        case 'classroom_pos': {
+          var posResult = classroomRegistry.position(ws, data.x, data.y, data.state, data.vx, Date.now());
+          broadcastToClassroom(null, posResult.broadcasts);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }
