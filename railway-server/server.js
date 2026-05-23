@@ -1972,6 +1972,32 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v3 P4: vote-with-your-feet ----------------------------------
+
+        case 'classroom_open_doorways': {
+          var dwId       = (typeof data.id === 'string') ? data.id : '';
+          var dwQuestion = (typeof data.question === 'string') ? data.question : '';
+          var dwOptions  = Array.isArray(data.options) ? data.options : [];
+          var dwResult   = classroomRegistry.openDoorways(ws, dwId, dwQuestion, dwOptions, Date.now());
+          broadcastToClassroom(null, dwResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_doorway_vote': {
+          var dvId     = (typeof data.id === 'string') ? data.id : '';
+          var dvDoorId = (typeof data.doorId === 'string') ? data.doorId : '';
+          var dvResult = classroomRegistry.castDoorwayVote(ws, dvId, dvDoorId, Date.now());
+          broadcastToClassroom(null, dvResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_close_doorways': {
+          var dcId     = (typeof data.id === 'string') ? data.id : '';
+          var dcResult = classroomRegistry.closeDoorways(ws, dcId, Date.now());
+          broadcastToClassroom(null, dcResult.broadcasts);
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }

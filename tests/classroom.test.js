@@ -2357,3 +2357,251 @@ describe('createClassroomRegistry -- v3 P3 signaling routing helpers', () => {
     expect(sockets).toContain(ws2);
   });
 });
+
+// =========================================================================
+// v3 P4 doorways -- LIVE_CLASSROOM_V3_P4_BUILD.md C2 tests
+// =========================================================================
+//
+// Covers openDoorways / castDoorwayVote / closeDoorways and the mutual
+// exclusion guard added to openPoll. Mirrors the v2 Poll describe-block
+// style (numeric clocks for determinism, makeWs() harness).
+
+describe('createClassroomRegistry -- v3 P4 doorways', () => {
+  let registry;
+
+  // Helper: build a 2-option doorways payload that the openDoorways method
+  // accepts. Keeps tests skimmable.
+  function defaultOptions() {
+    return [
+      { label: 'Option A', doorId: 'd0' },
+      { label: 'Option B', doorId: 'd1' }
+    ];
+  }
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  // --- openDoorways requires teacher role -------------------------------
+
+  it('openDoorways requires teacher role', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.openDoorways(wsS, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  // --- openDoorways mutual exclusion vs an open poll --------------------
+
+  it('openDoorways rejects when a poll is open (mutual exclusion)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Open a poll first.
+    var pollResult = registry.openPoll(wsT, 'Poll Q?', ['A', 'B'], false, now + 100);
+    expect(pollResult.broadcasts).toHaveLength(1);
+
+    // Doorways open must be rejected (silent).
+    var result = registry.openDoorways(wsT, 'doorways-1', 'Door Q?', defaultOptions(), now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+
+    // room.doorways stayed null (no opening occurred).
+    var state = registry.stateFor('PeriodA');
+    expect(state.poll).not.toBeNull();
+  });
+
+  // --- reverse: openPoll rejects when doorways are open -----------------
+
+  it('openPoll rejects when doorways are open (reverse mutual exclusion)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    // Open doorways first.
+    var dwResult = registry.openDoorways(wsT, 'doorways-1', 'Door Q?', defaultOptions(), now + 100);
+    expect(dwResult.broadcasts).toHaveLength(1);
+
+    // openPoll must be rejected silently.
+    var pollResult = registry.openPoll(wsT, 'Poll Q?', ['A', 'B'], false, now + 200);
+    expect(pollResult.broadcasts).toHaveLength(0);
+  });
+
+  // --- validates 2-8 options --------------------------------------------
+
+  it('openDoorways validates 2-8 options (1 option rejected, 9 options rejected)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    // 1 option -- too few.
+    var tooFew = registry.openDoorways(wsT, 'doorways-1', 'Q?',
+      [{ label: 'Only A', doorId: 'd0' }], now + 100);
+    expect(tooFew.broadcasts).toHaveLength(0);
+
+    // 9 options -- too many.
+    var nineOpts = [];
+    for (var i = 0; i < 9; i++) {
+      nineOpts.push({ label: 'Opt' + i, doorId: 'd' + i });
+    }
+    var tooMany = registry.openDoorways(wsT, 'doorways-2', 'Q?', nineOpts, now + 200);
+    expect(tooMany.broadcasts).toHaveLength(0);
+
+    // 2 options -- accepted (boundary).
+    var two = registry.openDoorways(wsT, 'doorways-3', 'Q?', defaultOptions(), now + 300);
+    expect(two.broadcasts).toHaveLength(1);
+  });
+
+  // --- castDoorwayVote increments the matched doorId count --------------
+
+  it('castDoorwayVote increments the matched doorId count', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    var result = registry.castDoorwayVote(wsS, 'doorways-1', 'd1', now + 200);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_doorway_tally');
+    expect(bc.payload.id).toBe('doorways-1');
+    // Tally: d0=0, d1=1 -- alice voted for d1.
+    expect(bc.payload.tally).toEqual([
+      { doorId: 'd0', count: 0 },
+      { doorId: 'd1', count: 1 }
+    ]);
+  });
+
+  // --- castDoorwayVote rejects an unknown doorId silently ---------------
+
+  it('castDoorwayVote rejects unknown doorId silently', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    var result = registry.castDoorwayVote(wsS, 'doorways-1', 'd99', now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  // --- castDoorwayVote switches a vote ----------------------------------
+
+  it('castDoorwayVote switches a vote: prior doorId decrements + new increments', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    // Alice votes d0 first.
+    registry.castDoorwayVote(wsS, 'doorways-1', 'd0', now + 200);
+    // Then switches to d1.
+    var result = registry.castDoorwayVote(wsS, 'doorways-1', 'd1', now + 300);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    // d0 decremented to 0, d1 incremented to 1.
+    expect(bc.payload.tally).toEqual([
+      { doorId: 'd0', count: 0 },
+      { doorId: 'd1', count: 1 }
+    ]);
+  });
+
+  // --- castDoorwayVote re-vote for same door is a no-op (tally unchanged) ---
+
+  it('castDoorwayVote re-vote for same door is a no-op', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    // First vote.
+    registry.castDoorwayVote(wsS, 'doorways-1', 'd0', now + 200);
+    // Second vote for the SAME door.
+    var result = registry.castDoorwayVote(wsS, 'doorways-1', 'd0', now + 300);
+
+    // Broadcast still fires (a tally rebroadcast), but the count must NOT
+    // double -- d0 stays at 1.
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.tally).toEqual([
+      { doorId: 'd0', count: 1 },
+      { doorId: 'd1', count: 0 }
+    ]);
+  });
+
+  // --- closeDoorways emits final tally + clears room.doorways -----------
+
+  it('closeDoorways emits final tally + clears room.doorways', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    registry.castDoorwayVote(wsS1, 'doorways-1', 'd0', now + 200);
+    registry.castDoorwayVote(wsS2, 'doorways-1', 'd1', now + 300);
+
+    var result = registry.closeDoorways(wsT, 'doorways-1', now + 400);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_close_doorways');
+    expect(bc.payload.id).toBe('doorways-1');
+    // Final tally captured at close time.
+    expect(bc.payload.tally).toEqual([
+      { doorId: 'd0', count: 1 },
+      { doorId: 'd1', count: 1 }
+    ]);
+
+    // Room state -- room.doorways was cleared. (stateFor does not expose
+    // doorways on the wire, but a subsequent castDoorwayVote should return
+    // empty broadcasts because the room has no active doorways.)
+    var revote = registry.castDoorwayVote(wsS1, 'doorways-1', 'd0', now + 500);
+    expect(revote.broadcasts).toHaveLength(0);
+  });
+
+  // --- closeDoorways requires teacher role ------------------------------
+
+  it('closeDoorways requires teacher role', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    // Student tries to close.
+    var result = registry.closeDoorways(wsS, 'doorways-1', now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  // --- non-students cannot castDoorwayVote (teacher attempts a vote) ----
+
+  it('non-students cannot castDoorwayVote', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    // Teacher tries to vote -- silent reject.
+    var result = registry.castDoorwayVote(wsT, 'doorways-1', 'd0', now + 200);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+});

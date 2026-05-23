@@ -69,6 +69,9 @@ function buildStatePayload(room, forRole, forUsername) {
     gate:    room.gate,
     poll:    room.poll || null,
     live:    !!room.live,
+    // v3 P4 Codex BLOCKER fold: include doorways in the snapshot so
+    // late-joiners + cockpit refreshes see the active data mode.
+    doorways: room.doorways || null,
     members: members
   };
 }
@@ -185,6 +188,7 @@ export function createClassroomRegistry() {
         gate:    null,       // { armed, theme, openedAt } | null
         poll:    null,       // { id, question, options, blind, openedAt } | null
         live:    false,      // v3 P1+P2: durable Live flag (NOT cleared by armGate/greenLight/reset)
+        doorways: null,   // v3 P4: { id, question, options: [{label, doorId, count}], openedAt } | null
         members: new Map()   // username -> Member
       });
     }
@@ -222,11 +226,14 @@ export function createClassroomRegistry() {
         members.push(toWireMember(member));
       });
       sections.push({
-        section: section,
-        gate:    room.gate,
-        poll:    room.poll || null,
-        live:    !!room.live,
-        members: members
+        section:  section,
+        gate:     room.gate,
+        poll:     room.poll || null,
+        live:     !!room.live,
+        // v3 P4 Codex BLOCKER fold: include doorways so the cockpit's
+        // global presence view can hydrate the active data mode.
+        doorways: room.doorways || null,
+        members:  members
       });
     });
     return { type: 'classroom_state_all', sections: sections };
@@ -574,6 +581,9 @@ export function createClassroomRegistry() {
 
     // Mode-exclusivity guard: reject if a poll is open (Section 1.5).
     if (room.poll !== null) return { broadcasts: [] };
+    // v3 P4 Codex MAJOR 3 fold: armGate is mutually exclusive with
+    // an active doorways data mode.
+    if (room.doorways) return { broadcasts: [] };
 
     // Arm the gate and reset all member statuses.
     room.gate = { armed: true, theme: theme || '', openedAt: currentNow };
@@ -612,6 +622,9 @@ export function createClassroomRegistry() {
 
     // Ignore if no gate is armed.
     if (!room.gate || !room.gate.armed) return { broadcasts: [] };
+    // v3 P4 Codex MAJOR 3 fold: silently drop checkins while doorways
+    // are open -- the gate ritual is suspended during a data mode.
+    if (room.doorways) return { broadcasts: [] };
 
     var member = room.members.get(entry.username);
     if (!member) return { broadcasts: [] };
@@ -698,11 +711,16 @@ export function createClassroomRegistry() {
     // Teacher-only guard.
     if (member.role !== 'teacher') return { broadcasts: [] };
 
-    room.gate = null;
-    room.poll = null;
+    room.gate     = null;
+    room.poll     = null;
+    // v3 P4 Codex BLOCKER fold: reset also clears doorways + each
+    // member's doorVote. Otherwise the server stayed in the doorway
+    // session while clients saw "idle".
+    room.doorways = null;
     room.members.forEach(function(m) {
-      m.status = 'present';
-      m.vote   = null;
+      m.status   = 'present';
+      m.vote     = null;
+      m.doorVote = null;
     });
 
     var sockets = allRoomSockets(room);
@@ -738,6 +756,8 @@ export function createClassroomRegistry() {
 
     var room = classrooms.get(entry.section);
     if (!room) return { broadcasts: [] };
+
+    if (room.doorways) return { broadcasts: [] };  // mutual exclusion vs P4
 
     var member = room.members.get(entry.username);
     if (!member) return { broadcasts: [] };
@@ -1018,6 +1038,141 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
+  // openDoorways(ws, id, question, options, now) -> { broadcasts }
+  // Teacher-only. Rejects if a poll is open (mutual exclusion).
+  // Initializes per-option count to 0; broadcasts to the room.
+  function openDoorways(ws, id, question, options, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    if (room.poll) return { broadcasts: [] };  // mutual exclusion vs v2 poll
+    // v3 P4 Codex MAJOR 2 fold: reject if doorways are ALREADY open
+    // (a second open would overwrite without clearing prior doorVotes).
+    if (room.doorways) return { broadcasts: [] };
+    // v3 P4 Codex MAJOR 3 fold: mutual exclusion with the v1b gate.
+    if (room.gate && room.gate.armed) return { broadcasts: [] };
+    if (!Array.isArray(options) || options.length < 2 || options.length > 8) return { broadcasts: [] };
+    var safeId       = (typeof id === 'string' && id.trim()) ? id.trim() : ('doorways-' + (now || Date.now()));
+    var safeQuestion = (typeof question === 'string') ? question.trim() : '';
+    var optionsState = [];
+    for (var i = 0; i < options.length; i++) {
+      var o = options[i] || {};
+      optionsState.push({
+        label:  (typeof o.label === 'string') ? o.label.trim() : ('Option ' + String.fromCharCode(65 + i)),
+        doorId: (typeof o.doorId === 'string' && o.doorId.trim()) ? o.doorId.trim() : ('d' + i),
+        count:  0
+      });
+    }
+    room.doorways = {
+      id:       safeId,
+      question: safeQuestion,
+      options:  optionsState,
+      openedAt: now == null ? Date.now() : now
+    };
+    // Reset each member's status to "present" + clear stale doorVote
+    // (Codex MAJOR 2 defense-in-depth -- even if a future code path
+    // reuses room.doorways, votes start from a clean slate).
+    room.members.forEach(function(m) { m.status = 'present'; m.doorVote = null; });
+    var payload = {
+      type:     'classroom_open_doorways',
+      section:  entry.section,
+      id:       safeId,
+      question: safeQuestion,
+      options:  optionsState.map(function(o) { return { label: o.label, doorId: o.doorId }; }),
+      openedAt: room.doorways.openedAt
+    };
+    var sockets = roomSockets(room, null);
+    if (sockets.length === 0 && monitorSockets.size === 0) {
+      return { broadcasts: [] };
+    }
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // castDoorwayVote(ws, id, doorId, now) -> { broadcasts }
+  // Student-only. Idempotent on a re-vote (the same student switching
+  // doors moves their vote; one vote per student). Broadcasts the live
+  // tally to the room + monitors.
+  function castDoorwayVote(ws, id, doorId, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.doorways) return { broadcasts: [] };
+    if (room.doorways.id !== id) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'student') return { broadcasts: [] };
+    var safeDoorId = (typeof doorId === 'string') ? doorId.trim() : '';
+    // Find the option for the new vote. Bail if doorId unknown.
+    var found = null;
+    for (var i = 0; i < room.doorways.options.length; i++) {
+      if (room.doorways.options[i].doorId === safeDoorId) { found = room.doorways.options[i]; break; }
+    }
+    if (!found) return { broadcasts: [] };
+    // If switching, decrement the prior doorId's count.
+    var priorDoorId = member.doorVote || null;
+    if (priorDoorId && priorDoorId !== safeDoorId) {
+      for (var j = 0; j < room.doorways.options.length; j++) {
+        if (room.doorways.options[j].doorId === priorDoorId) {
+          room.doorways.options[j].count = Math.max(0, room.doorways.options[j].count - 1);
+        }
+      }
+    }
+    // No-op if voting for the same door again.
+    if (priorDoorId !== safeDoorId) {
+      found.count += 1;
+      member.doorVote = safeDoorId;
+      member.status   = 'voted';
+    }
+    var payload = {
+      type:    'classroom_doorway_tally',
+      section: entry.section,
+      id:      room.doorways.id,
+      tally:   room.doorways.options.map(function(o) { return { doorId: o.doorId, count: o.count }; })
+    };
+    var sockets = roomSockets(room, null);
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // closeDoorways(ws, id, now) -> { broadcasts }
+  // Teacher-only. Emits the final tally then clears room.doorways.
+  // Each member's doorVote is cleared.
+  function closeDoorways(ws, id, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.doorways) return { broadcasts: [] };
+    if (room.doorways.id !== id) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    var finalTally = room.doorways.options.map(function(o) { return { doorId: o.doorId, count: o.count }; });
+    var closedId = room.doorways.id;
+    var closedQuestion = room.doorways.question;
+    var closedOptions = room.doorways.options.map(function(o) { return { label: o.label, doorId: o.doorId }; });
+    room.doorways = null;
+    room.members.forEach(function(m) {
+      if (m.doorVote != null) { m.doorVote = null; }
+      m.status = 'present';
+    });
+    var payload = {
+      type:     'classroom_close_doorways',
+      section:  entry.section,
+      id:       closedId,
+      question: closedQuestion,
+      options:  closedOptions,
+      tally:    finalTally
+    };
+    var sockets = roomSockets(room, null);
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
   // -------------------------------------------------------------------------
   // KEYBOARD_AVATAR Phase 2 -- position broadcast
   // -------------------------------------------------------------------------
@@ -1113,6 +1268,9 @@ export function createClassroomRegistry() {
     castVote:   castVote,
     closePoll:  closePoll,
     revealPoll: revealPoll,
+    openDoorways:    openDoorways,
+    castDoorwayVote: castDoorwayVote,
+    closeDoorways:   closeDoorways,
     position:   position,
     // v3 P1+P2 additions:
     subscribeMonitor:    subscribeMonitor,
