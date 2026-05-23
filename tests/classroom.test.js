@@ -2641,3 +2641,50 @@ describe('createClassroomRegistry -- s111 hotfix: re-join overwrites role', () =
     expect(open.broadcasts[0].payload.type).toBe('classroom_open_doorways');
   });
 });
+
+// =============================================================
+// s111 HOTFIX: classroom_state snapshot includes a normalized
+// doorways.tally array (not raw options-with-count). Before this,
+// a cockpit refresh saw doorways.tally as undefined + the bar
+// chart showed all zeros even though room.doorways had real votes.
+// =============================================================
+
+describe('createClassroomRegistry -- s111 hotfix: doorways snapshot normalization', () => {
+  it('classroom_state snapshot returns doorways with options[{label,doorId}] + tally[{doorId,count}]', () => {
+    var reg = createClassroomRegistry();
+    var teacherWs = makeWs();
+    var studentWs = makeWs();
+    reg.join(teacherWs, 'PeriodX', 'teach', 'teacher', 1000, null);
+    reg.join(studentWs, 'PeriodX', 'alice', 'student', 1100, null);
+    // Open doorways + cast a vote.
+    reg.openDoorways(teacherWs, 'dw-1', 'Pick?', [
+      { label: 'Yes', doorId: 'y' },
+      { label: 'No',  doorId: 'n' }
+    ], 1200);
+    reg.castDoorwayVote(studentWs, 'dw-1', 'y', 1300);
+    // Simulate a cockpit refresh: a new ws re-joins as teacher.
+    var refreshWs = makeWs();
+    var joinResult = reg.join(refreshWs, 'PeriodX', 'teach2', 'teacher', 1400, null);
+    var snap = joinResult.sends[0].payload;
+    expect(snap.type).toBe('classroom_state');
+    expect(snap.doorways).toBeTruthy();
+    expect(snap.doorways.id).toBe('dw-1');
+    // options: NO count inlined (wire-shape).
+    expect(snap.doorways.options).toEqual([
+      { label: 'Yes', doorId: 'y' },
+      { label: 'No',  doorId: 'n' }
+    ]);
+    // tally: separate array with the real counts.
+    expect(snap.doorways.tally).toEqual([
+      { doorId: 'y', count: 1 },
+      { doorId: 'n', count: 0 }
+    ]);
+  });
+
+  it('classroom_state snapshot returns doorways:null when no doorways are open', () => {
+    var reg = createClassroomRegistry();
+    var ws = makeWs();
+    var joinResult = reg.join(ws, 'PeriodX', 'alice', 'student', 1000, null);
+    expect(joinResult.sends[0].payload.doorways).toBeNull();
+  });
+});

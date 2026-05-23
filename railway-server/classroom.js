@@ -52,6 +52,30 @@ function toWireMemberForRole(member, viewerRole, viewerUsername, blindPollOpen) 
   };
 }
 
+// s111 P4 HOTFIX: normalize doorways for the wire. Internal server
+// shape stores counts inline on options[i].count; the WIRE shape
+// separates them into a tally:[{doorId,count}] array (matching the
+// classroom_open_doorways + classroom_doorway_tally + classroom_close_doorways
+// payloads). Without this normalization the snapshot path delivered
+// options-with-counts but no tally array, so on cockpit refresh the
+// client's renderDoorwaysTally fell back to (d.tally || []) = [] and
+// the bar chart showed all zeros even though the server had the
+// real votes.
+function _wireDoorways(roomDoorways) {
+  if (!roomDoorways) { return null; }
+  return {
+    id:       roomDoorways.id,
+    question: roomDoorways.question || '',
+    options:  (roomDoorways.options || []).map(function (o) {
+                return { label: o.label, doorId: o.doorId };
+              }),
+    tally:    (roomDoorways.options || []).map(function (o) {
+                return { doorId: o.doorId, count: o.count || 0 };
+              }),
+    openedAt: roomDoorways.openedAt
+  };
+}
+
 // Build the full classroom_state payload for a section.
 // forRole: 'teacher' or 'student'. forUsername: the viewer's username.
 // gate reflects the room's real gate state (null or an armed gate object).
@@ -71,7 +95,9 @@ function buildStatePayload(room, forRole, forUsername) {
     live:    !!room.live,
     // v3 P4 Codex BLOCKER fold: include doorways in the snapshot so
     // late-joiners + cockpit refreshes see the active data mode.
-    doorways: room.doorways || null,
+    // s111 hotfix: normalize via _wireDoorways so the snapshot shape
+    // matches the open/tally/close broadcasts (separate tally array).
+    doorways: _wireDoorways(room.doorways),
     members: members
   };
 }
@@ -232,7 +258,9 @@ export function createClassroomRegistry() {
         live:     !!room.live,
         // v3 P4 Codex BLOCKER fold: include doorways so the cockpit's
         // global presence view can hydrate the active data mode.
-        doorways: room.doorways || null,
+        // s111 hotfix: normalize via _wireDoorways for wire-shape
+        // consistency with open/tally/close broadcasts.
+        doorways: _wireDoorways(room.doorways),
         members:  members
       });
     });
