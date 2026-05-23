@@ -2273,3 +2273,87 @@ describe('createClassroomRegistry -- v3 P1+P2 BLOCKER fold (join snapshot carrie
     expect(lateSnap.live).toBe(true);
   });
 });
+
+// =========================================================================
+// v3 P3: WebRTC signaling routing helpers (Unit T tests for Unit A cr code)
+// =========================================================================
+//
+// Covers the two public lookups introduced in LIVE_CLASSROOM_V3_P3_BUILD.md
+// C2 + C3 (server.js rtc_offer / rtc_answer / rtc_ice relay):
+//   - _wsEntry(ws) -> { section, username } | null
+//   - findSocketByUsername(section, username) -> [ws, ws, ...]
+//
+// These are the building blocks the rtc_* server case uses to look up the
+// sender's section and the target peer's sockets without re-parsing the
+// classroom_join payload.
+
+describe('createClassroomRegistry -- v3 P3 signaling routing helpers', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  // --- _wsEntry ---------------------------------------------------------
+
+  it('_wsEntry(ws) returns null for an unbound socket', () => {
+    var lone = makeWs();
+    expect(registry._wsEntry(lone)).toBeNull();
+  });
+
+  it('_wsEntry(ws) returns {section, username} after join', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var entry = registry._wsEntry(ws);
+    expect(entry).not.toBeNull();
+    expect(entry.section).toBe('PeriodA');
+    expect(entry.username).toBe('alice');
+  });
+
+  // --- findSocketByUsername ---------------------------------------------
+
+  it('findSocketByUsername finds the joined socket', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var sockets = registry.findSocketByUsername('PeriodA', 'alice');
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0]).toBe(ws);
+  });
+
+  it('findSocketByUsername returns [] for an unknown section', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var sockets = registry.findSocketByUsername('NoSuchSection', 'alice');
+    expect(sockets).toEqual([]);
+  });
+
+  it('findSocketByUsername returns [] for an unknown username in a known section', () => {
+    var ws = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    var sockets = registry.findSocketByUsername('PeriodA', 'bob');
+    expect(sockets).toEqual([]);
+  });
+
+  it('findSocketByUsername returns multiple sockets when a user has multiple connections', () => {
+    // alice joins twice (a re-attach -- second tab / browser) so she has
+    // two open sockets bound to the same (section, username).
+    var ws1 = makeWs();
+    var ws2 = makeWs();
+    var now = 1000;
+    registry.join(ws1, 'PeriodA', 'alice', 'student', now);
+    registry.join(ws2, 'PeriodA', 'alice', 'student', now + 100);
+
+    var sockets = registry.findSocketByUsername('PeriodA', 'alice');
+    expect(sockets).toHaveLength(2);
+    expect(sockets).toContain(ws1);
+    expect(sockets).toContain(ws2);
+  });
+});

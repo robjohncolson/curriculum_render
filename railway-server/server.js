@@ -1937,6 +1937,41 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v3 P3: WebRTC signaling for the classroom case ----------
+        // The three rtc_* messages route by `to: username` within the
+        // sender's section. They're shared with Tetris's game P2P but
+        // the classroom case is opt-in via the `to` field's presence
+        // and the sender being bound to a classroom room.
+
+        case 'rtc_offer':
+        case 'rtc_answer':
+        case 'rtc_ice': {
+          var senderEntry = classroomRegistry._wsEntry
+            ? classroomRegistry._wsEntry(ws) : null;
+          if (!senderEntry) {
+            // Sender is not bound to a classroom room -- this might be
+            // the Tetris path. Fall through to existing Tetris routing
+            // (if present); for the classroom case we require a binding.
+            break;
+          }
+          var targetUsername = (data.to || '').trim();
+          if (!targetUsername) break;
+          var targetSockets = classroomRegistry.findSocketByUsername(
+            senderEntry.section, targetUsername);
+          if (targetSockets.length === 0) break;
+          var forwardPayload = {
+            type: data.type,
+            from: senderEntry.username
+          };
+          if (data.sdp != null)       { forwardPayload.sdp = data.sdp; }
+          if (data.candidate != null) { forwardPayload.candidate = data.candidate; }
+          var forwardMsg = JSON.stringify(forwardPayload);
+          targetSockets.forEach(function(sock) {
+            try { sock.send(forwardMsg); } catch (e) { /* ignore */ }
+          });
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }

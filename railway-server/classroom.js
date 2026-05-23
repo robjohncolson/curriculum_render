@@ -1075,6 +1075,30 @@ export function createClassroomRegistry() {
     return { broadcasts: posBroadcasts };
   }
 
+  // findSocketByUsername(section, username) -> [ws, ws, ...]
+  // Returns the open WS sockets bound to (section, username), or an
+  // empty array if the user is not in the section or has no sockets.
+  // Used by the rtc_* relay to target a specific peer in the same room.
+  function findSocketByUsername(section, username) {
+    if (!classrooms.has(section)) { return []; }
+    var room = classrooms.get(section);
+    var member = room.members.get(username);
+    if (!member) { return []; }
+    var sockets = [];
+    member.sockets.forEach(function(s) {
+      if (s.readyState === 1) { sockets.push(s); }
+    });
+    return sockets;
+  }
+
+  // _wsEntry(ws) -> { section, username } | null
+  // Internal-but-exported lookup for the section/username bound to a ws.
+  // Used by server.js to route the rtc_* signaling without re-parsing
+  // any classroom_join payload.
+  function _wsEntry(ws) {
+    return wsIndex.get(ws) || null;
+  }
+
   return {
     join:       join,
     detach:     detach,
@@ -1094,6 +1118,9 @@ export function createClassroomRegistry() {
     subscribeMonitor:    subscribeMonitor,
     unsubscribeMonitor:  unsubscribeMonitor,
     setLive:             setLive,
-    getAllSectionsState: buildAllSectionsStatePayload
+    getAllSectionsState: buildAllSectionsStatePayload,
+    // v3 P3 additions:
+    findSocketByUsername: findSocketByUsername,
+    _wsEntry:             _wsEntry
   };
 }
