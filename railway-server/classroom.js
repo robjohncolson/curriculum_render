@@ -347,6 +347,13 @@ export function createClassroomRegistry() {
       member.lastSeen = currentNow;
       // Re-join always overwrites hue (last value wins).
       member.hue = safeHue;
+      // s111 HOTFIX: re-join also overwrites role (last value wins),
+      // same pattern as hue. Without this, a user who joined first as
+      // a student (e.g. from the Desk) then as a teacher (the cockpit)
+      // would stay registered as 'student' -- armGate / openDoorways
+      // / closeDoorways all fail the teacher check silently. The user
+      // explicitly indicates their role on each classroom_join.
+      member.role = role;
 
       // If the member was offline and is now back, we need to broadcast the
       // online-flip below (treated the same as a new member broadcast).

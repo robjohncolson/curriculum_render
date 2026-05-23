@@ -2605,3 +2605,39 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
     expect(result.broadcasts).toHaveLength(0);
   });
 });
+
+// =============================================================
+// s111 HOTFIX -- re-join overwrites role (last value wins).
+// Before this fix, a user who joined as 'student' first (e.g. via the
+// Desk) then re-joined as 'teacher' (the cockpit) stayed registered
+// as 'student'. All teacher actions failed silently.
+// =============================================================
+
+describe('createClassroomRegistry -- s111 hotfix: re-join overwrites role', () => {
+  it('a student re-joining as teacher upgrades member.role to teacher', () => {
+    var reg = createClassroomRegistry();
+    var deskWs = makeWs();
+    var cockpitWs = makeWs();
+    reg.join(deskWs, 'PeriodX', 'date_tiger', 'student', 1000, null);
+    var rejected = reg.armGate(deskWs, 'theme1', 1100);
+    expect(rejected.broadcasts).toHaveLength(0);
+    reg.join(cockpitWs, 'PeriodX', 'date_tiger', 'teacher', 2000, null);
+    var arm = reg.armGate(cockpitWs, 'theme2', 2100);
+    expect(arm.broadcasts.length).toBeGreaterThanOrEqual(1);
+    expect(arm.broadcasts[0].payload.type).toBe('classroom_gate');
+    expect(arm.broadcasts[0].payload.gate.armed).toBe(true);
+  });
+
+  it('openDoorways works after a student-to-teacher re-join', () => {
+    var reg = createClassroomRegistry();
+    var ws = makeWs();
+    reg.join(ws, 'PeriodX', 'date_tiger', 'student', 1000, null);
+    reg.join(ws, 'PeriodX', 'date_tiger', 'teacher', 2000, null);
+    var open = reg.openDoorways(ws, 'dw1', 'Test?', [
+      { label: 'A', doorId: 'a' },
+      { label: 'B', doorId: 'b' }
+    ], 2100);
+    expect(open.broadcasts.length).toBeGreaterThanOrEqual(1);
+    expect(open.broadcasts[0].payload.type).toBe('classroom_open_doorways');
+  });
+});
