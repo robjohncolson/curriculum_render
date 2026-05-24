@@ -2005,6 +2005,55 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // v3 P3 Teacher-Student Console: bidirectional free-text nudges.
+        // Nudges are TARGETED (specific sockets), NOT broadcast to the whole
+        // section -- do NOT use broadcastToClassroom here.
+
+        case 'classroom_teacher_nudge': {
+          var tnNudgeId          = (typeof data.nudgeId === 'string') ? data.nudgeId : '';
+          var tnRecipients       = Array.isArray(data.recipientUsernames) ? data.recipientUsernames : [];
+          var tnText             = (typeof data.text === 'string') ? data.text : '';
+          var tnResult           = classroomRegistry.teacherNudge(ws, tnNudgeId, tnRecipients, tnText, Date.now());
+          // Send ack back to teacher.
+          if (tnResult.sends) {
+            tnResult.sends.forEach(function(s) {
+              if (s.ws.readyState === 1) {
+                try { s.ws.send(JSON.stringify(s.payload)); } catch (e) {}
+              }
+            });
+          }
+          // Deliver nudge to specific student sockets only (NOT the whole room).
+          if (tnResult.broadcasts && tnResult.broadcasts.length > 0) {
+            tnResult.broadcasts.forEach(function(bc) {
+              var msg = JSON.stringify(bc.payload);
+              bc.sockets.forEach(function(sock) {
+                if (sock.readyState === 1) {
+                  try { sock.send(msg); } catch (e) {}
+                }
+              });
+            });
+          }
+          break;
+        }
+
+        case 'classroom_student_nudge_reply': {
+          var srNudgeId = (typeof data.nudgeId === 'string') ? data.nudgeId : '';
+          var srText    = (typeof data.text === 'string') ? data.text : '';
+          var srResult  = classroomRegistry.studentNudgeReply(ws, srNudgeId, srText, Date.now());
+          // Deliver reply to specific teacher sockets only (NOT the whole room).
+          if (srResult.broadcasts && srResult.broadcasts.length > 0) {
+            srResult.broadcasts.forEach(function(bc) {
+              var msg = JSON.stringify(bc.payload);
+              bc.sockets.forEach(function(sock) {
+                if (sock.readyState === 1) {
+                  try { sock.send(msg); } catch (e) {}
+                }
+              });
+            });
+          }
+          break;
+        }
+
         default:
           console.log('Unknown message type:', data.type);
       }

@@ -11,6 +11,7 @@
 
 const LIVENESS_MS = 45 * 1000;          // 45 seconds
 const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
+const NUDGE_TTL_MS = 10 * 60 * 1000;    // 10 minutes: recentNudges retention (P3 Codex BLOCKER fold)
 
 // WireMember -- the shape sent on the wire (v1b).
 // status reflects the member's real status ("present", "checkedIn", or "voted").
@@ -215,7 +216,11 @@ export function createClassroomRegistry() {
         poll:    null,       // { id, question, options, blind, openedAt } | null
         live:    false,      // v3 P1+P2: durable Live flag (NOT cleared by armGate/greenLight/reset)
         doorways: null,   // v3 P4: { id, question, options: [{label, doorId, count}], openedAt } | null
-        members: new Map()   // username -> Member
+        members: new Map(), // username -> Member
+        // P3 nudges (Codex BLOCKER fold): nudgeId -> { recipients: Set<username>, ts }.
+        // Populated by teacherNudge; consumed by studentNudgeReply to verify the
+        // sender was an actual recipient. Aged out in sweep (NUDGE_TTL_MS).
+        recentNudges: new Map()
       });
     }
     return classrooms.get(section);
@@ -520,6 +525,17 @@ export function createClassroomRegistry() {
 
     classrooms.forEach(function(room, section) {
       var toRemove = [];
+
+      // P3 nudges (Codex BLOCKER fold): age out recentNudges so the per-room
+      // Map doesn't grow unbounded. 10-minute TTL is generous (covers a
+      // student replying to a nudge after a 5-min delay) but bounded.
+      if (room.recentNudges) {
+        var nudgesToRemove = [];
+        room.recentNudges.forEach(function(rec, nudgeId) {
+          if (currentNow - rec.ts > NUDGE_TTL_MS) nudgesToRemove.push(nudgeId);
+        });
+        nudgesToRemove.forEach(function(id) { room.recentNudges.delete(id); });
+      }
 
       room.members.forEach(function(member, username) {
         var age = currentNow - member.lastSeen;
@@ -1302,6 +1318,131 @@ export function createClassroomRegistry() {
     return { broadcasts: posBroadcasts };
   }
 
+  // -------------------------------------------------------------------------
+  // v3 P3 (Teacher-Student Console) -- teacherNudge + studentNudgeReply
+  // -------------------------------------------------------------------------
+
+  // teacherNudge(ws, nudgeId, recipientUsernames, text, now) -> { broadcasts, sends }
+  //
+  // TEACHER only. Sends a free-text nudge to one or more students in the
+  // sender's section. Only online recipients receive the nudge broadcast;
+  // offline recipients are silently dropped. An ack is sent back to the
+  // teacher with delivered[] and offline[] lists.
+  //
+  // Returns:
+  //   { broadcasts, sends }
+  //   broadcasts -- [{ sockets, payload }] -- classroom_teacher_nudge to each online recipient
+  //   sends      -- [{ ws, payload }]       -- classroom_teacher_nudge_ack back to the teacher
+  function teacherNudge(ws, nudgeId, recipientUsernames, text, now) {
+    // Resolve sender's section + role from socket.
+    var entry = _wsEntry(ws);
+    if (!entry) return { broadcasts: [], sends: [] };
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [], sends: [] };
+    var sender = room.members.get(entry.username);
+    if (!sender || sender.role !== 'teacher') return { broadcasts: [], sends: [] };
+    if (!Array.isArray(recipientUsernames) || recipientUsernames.length === 0) return { broadcasts: [], sends: [] };
+    if (typeof text !== 'string' || text.trim().length === 0) return { broadcasts: [], sends: [] };
+    if (text.length > 280) text = text.slice(0, 280);
+
+    // For each requested recipient, look up online socket(s) in the same section.
+    var deliveredUsernames = [];
+    var broadcasts = [];
+    for (var i = 0; i < recipientUsernames.length; i++) {
+      var ru = recipientUsernames[i];
+      var sockets = findSocketByUsername(entry.section, ru);
+      if (!sockets || sockets.length === 0) continue;  // offline -> dropped
+      deliveredUsernames.push(ru);
+      broadcasts.push({
+        sockets: sockets,
+        payload: {
+          type:         'classroom_teacher_nudge',
+          nudgeId:      nudgeId,
+          text:         text,
+          fromUsername: entry.username,
+          ts:           now
+        }
+      });
+    }
+
+    // Send ack back to teacher with the delivery breakdown.
+    var sends = [{
+      ws: ws,
+      payload: {
+        type:      'classroom_teacher_nudge_ack',
+        nudgeId:   nudgeId,
+        delivered: deliveredUsernames,
+        offline:   recipientUsernames.filter(function(u) { return deliveredUsernames.indexOf(u) < 0; }),
+        ts:        now
+      }
+    }];
+
+    // Codex BLOCKER fold P3: do NOT fanout nudge broadcasts to monitor
+    // sockets. Nudges are per-recipient private DMs; broadcasting them to
+    // every cockpit monitor would leak cross-section private content.
+    // Track the nudge so studentNudgeReply can verify the sender was an
+    // actual recipient (defense against unsolicited DM-to-teacher spam).
+    if (!room.recentNudges) room.recentNudges = new Map();
+    room.recentNudges.set(nudgeId, {
+      recipients: new Set(deliveredUsernames),
+      ts: now
+    });
+    return { broadcasts: broadcasts, sends: sends };
+  }
+
+  // studentNudgeReply(ws, nudgeId, text, now) -> { broadcasts }
+  //
+  // STUDENT only. Sends a reply to all teachers in the sender's section.
+  // Both teachers (if two co-monitor) receive the reply.
+  //
+  // Returns:
+  //   { broadcasts }
+  //   broadcasts -- [{ sockets, payload }] -- classroom_student_nudge_reply to all teacher sockets
+  function studentNudgeReply(ws, nudgeId, text, now) {
+    var entry = _wsEntry(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+    var sender = room.members.get(entry.username);
+    if (!sender || sender.role !== 'student') return { broadcasts: [] };
+    if (typeof text !== 'string' || text.trim().length === 0) return { broadcasts: [] };
+    if (text.length > 280) text = text.slice(0, 280);
+
+    // Codex BLOCKER fold P3: verify sender was an actual recipient of the
+    // original nudge. Without this, any student can DM all teachers in the
+    // section with arbitrary text by inventing a nudgeId.
+    var nudgeRec = room.recentNudges ? room.recentNudges.get(nudgeId) : null;
+    if (!nudgeRec || !nudgeRec.recipients || !nudgeRec.recipients.has(entry.username)) {
+      return { broadcasts: [] };
+    }
+
+    // Find all teacher sockets in the same section.
+    var teacherSockets = [];
+    room.members.forEach(function(m) {
+      if (m.role === 'teacher') {
+        m.sockets.forEach(function(sock) {
+          if (sock.readyState === 1) teacherSockets.push(sock);
+        });
+      }
+    });
+    if (teacherSockets.length === 0) return { broadcasts: [] };
+
+    var broadcasts = [{
+      sockets: teacherSockets,
+      payload: {
+        type:         'classroom_student_nudge_reply',
+        nudgeId:      nudgeId,
+        fromUsername: entry.username,
+        text:         text,
+        ts:           now
+      }
+    }];
+    // Codex BLOCKER fold P3: do NOT fanout reply broadcasts to monitor
+    // sockets. Replies are addressed to teachers only and contain private
+    // student-authored text.
+    return { broadcasts: broadcasts };
+  }
+
   // findSocketByUsername(section, username) -> [ws, ws, ...]
   // Returns the open WS sockets bound to (section, username), or an
   // empty array if the user is not in the section or has no sockets.
@@ -1352,6 +1493,9 @@ export function createClassroomRegistry() {
     getAllSectionsState: buildAllSectionsStatePayload,
     // v3 P3 additions:
     findSocketByUsername: findSocketByUsername,
-    _wsEntry:             _wsEntry
+    _wsEntry:             _wsEntry,
+    // v3 P3 Teacher-Student Console nudge methods:
+    teacherNudge:        teacherNudge,
+    studentNudgeReply:   studentNudgeReply
   };
 }

@@ -2755,3 +2755,348 @@ describe('createClassroomRegistry -- s111 hotfix: retractDoorwayVote', () => {
     expect(byId.b).toBe(1);
   });
 });
+
+// =========================================================================
+// v3 P3 Teacher-Student Console: teacherNudge
+// (TEACHER_STUDENT_CONSOLE_P3_BUILD.md §2.5)
+// =========================================================================
+
+describe('teacherNudge', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('returns empty broadcasts when sender is not a teacher (silent no-op)', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+
+    var result = registry.teacherNudge(wsS, 'nudge-1', ['alice'], 'Try problem 3', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+    expect(result.sends).toHaveLength(0);
+  });
+
+  it('returns empty broadcasts when no recipient names provided', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.teacherNudge(wsT, 'nudge-1', [], 'Hello', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+    expect(result.sends).toHaveLength(0);
+  });
+
+  it('returns empty broadcasts when text is empty or blank-only', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var emptyText = registry.teacherNudge(wsT, 'nudge-1', ['alice'], '', now + 100);
+    expect(emptyText.broadcasts).toHaveLength(0);
+
+    var blankText = registry.teacherNudge(wsT, 'nudge-2', ['alice'], '   ', now + 200);
+    expect(blankText.broadcasts).toHaveLength(0);
+  });
+
+  it('truncates text to 280 chars when longer', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var longText = 'x'.repeat(400);
+    var result = registry.teacherNudge(wsT, 'nudge-1', ['alice'], longText, now + 100);
+    // The truncated text appears in the broadcast payload.
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.text).toHaveLength(280);
+    // Also in the ack.
+    expect(result.sends[0].payload.delivered).toContain('alice');
+  });
+
+  it('online recipient receives classroom_teacher_nudge with nudgeId + text + fromUsername + ts', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.teacherNudge(wsT, 'nudge-42', ['alice'], 'Try problem 3', now + 100);
+
+    expect(result.broadcasts).toHaveLength(1);
+    var bc = result.broadcasts[0];
+    expect(bc.payload.type).toBe('classroom_teacher_nudge');
+    expect(bc.payload.nudgeId).toBe('nudge-42');
+    expect(bc.payload.text).toBe('Try problem 3');
+    expect(bc.payload.fromUsername).toBe('teacher1');
+    expect(bc.payload.ts).toBe(now + 100);
+    expect(bc.sockets).toContain(wsS);
+  });
+
+  it('offline recipient (no socket in section) is silently dropped and not in delivered list', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    // 'ghost' was never joined -- simulates a fully offline student.
+
+    var result = registry.teacherNudge(wsT, 'nudge-1', ['ghost'], 'Hello?', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+    expect(result.sends).toHaveLength(1);
+    expect(result.sends[0].payload.delivered).toHaveLength(0);
+    expect(result.sends[0].payload.offline).toContain('ghost');
+  });
+
+  it('mixed online + offline recipients: only online in delivered, others in offline', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    // 'bob' was never joined -- offline.
+
+    var result = registry.teacherNudge(wsT, 'nudge-1', ['alice', 'bob'], 'Hi class', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.sends[0].payload.delivered).toContain('alice');
+    expect(result.sends[0].payload.delivered).not.toContain('bob');
+    expect(result.sends[0].payload.offline).toContain('bob');
+    expect(result.sends[0].payload.offline).not.toContain('alice');
+  });
+
+  it('ack back to teacher carries delivered + offline arrays + nudgeId', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+
+    var result = registry.teacherNudge(wsT, 'nudge-99', ['alice', 'ghost'], 'Check in', now + 100);
+    expect(result.sends).toHaveLength(1);
+    var ack = result.sends[0];
+    expect(ack.ws).toBe(wsT);
+    expect(ack.payload.type).toBe('classroom_teacher_nudge_ack');
+    expect(ack.payload.nudgeId).toBe('nudge-99');
+    expect(Array.isArray(ack.payload.delivered)).toBe(true);
+    expect(Array.isArray(ack.payload.offline)).toBe(true);
+    expect(ack.payload.delivered).toContain('alice');
+    expect(ack.payload.offline).toContain('ghost');
+  });
+
+  it('recipients in another section are NOT delivered (section isolation)', () => {
+    var wsTA  = makeWs();
+    var wsSA  = makeWs();
+    var wsSB  = makeWs();
+    var now = 1000;
+    registry.join(wsTA, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsSA, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsSB, 'PeriodB', 'bob',      'student', now);
+
+    // Teacher in PeriodA tries to nudge 'bob' who is in PeriodB.
+    // findSocketByUsername is scoped to the teacher's section (PeriodA),
+    // so 'bob' is not found -> treated as offline.
+    var result = registry.teacherNudge(wsTA, 'nudge-1', ['bob'], 'Hello bob', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+    expect(result.sends[0].payload.offline).toContain('bob');
+    // wsSB must NOT appear in any broadcast.
+    result.broadcasts.forEach(function(bc) {
+      expect(bc.sockets).not.toContain(wsSB);
+    });
+  });
+
+  it('_fanoutToMonitors hook called so cockpit monitor sees the nudge', () => {
+    var wsT   = makeWs();
+    var wsS   = makeWs();
+    var mws   = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.subscribeMonitor(mws);
+
+    var result = registry.teacherNudge(wsT, 'nudge-1', ['alice'], 'Focus!', now + 100);
+
+    // Codex BLOCKER fold P3: nudges are private DMs and must NOT be
+    // fanned out to monitor sockets (which could be cross-section).
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].sockets).not.toContain(mws);
+    expect(result.broadcasts[0].sockets).toContain(wsS);
+  });
+
+  it('records recentNudges so studentNudgeReply can verify recipient ownership (Codex BLOCKER fold)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    registry.teacherNudge(wsT, 'nudge-abc', ['alice'], 'Hello', now + 100);
+
+    // Now Alice replies -- should succeed.
+    var reply = registry.studentNudgeReply(wsS, 'nudge-abc', 'On it!', now + 200);
+    expect(reply.broadcasts).toHaveLength(1);
+    expect(reply.broadcasts[0].sockets).toContain(wsT);
+  });
+});
+
+// =========================================================================
+// v3 P3 Teacher-Student Console: studentNudgeReply
+// (TEACHER_STUDENT_CONSOLE_P3_BUILD.md §2.5)
+// =========================================================================
+
+describe('studentNudgeReply', () => {
+  let registry;
+
+  beforeEach(() => {
+    registry = createClassroomRegistry();
+  });
+
+  it('returns empty broadcasts when sender is not a student (silent no-op)', () => {
+    var wsT = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+
+    var result = registry.studentNudgeReply(wsT, 'nudge-1', 'On it!', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('returns empty broadcasts when text is empty or blank-only', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+
+    var emptyResult = registry.studentNudgeReply(wsS, 'nudge-1', '', now + 100);
+    expect(emptyResult.broadcasts).toHaveLength(0);
+
+    var blankResult = registry.studentNudgeReply(wsS, 'nudge-1', '   ', now + 200);
+    expect(blankResult.broadcasts).toHaveLength(0);
+  });
+
+  it('truncates text to 280 chars when longer', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    // Codex BLOCKER fold P3: must precede studentNudgeReply with a teacher
+    // nudge that names this student as a recipient (recentNudges check).
+    registry.teacherNudge(wsT, 'nudge-1', ['alice'], 'parent', now + 50);
+
+    var longText = 'y'.repeat(500);
+    var result = registry.studentNudgeReply(wsS, 'nudge-1', longText, now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].payload.text).toHaveLength(280);
+  });
+
+  it('reply payload reaches all teacher sockets in section', () => {
+    var wsT1 = makeWs();
+    var wsT2 = makeWs();
+    var wsS  = makeWs();
+    var now = 1000;
+    registry.join(wsT1, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsT2, 'PeriodA', 'teacher2', 'teacher', now);
+    registry.join(wsS,  'PeriodA', 'alice',    'student', now);
+    registry.teacherNudge(wsT1, 'nudge-1', ['alice'], 'parent', now + 50);
+
+    var result = registry.studentNudgeReply(wsS, 'nudge-1', 'On it!', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].sockets).toContain(wsT1);
+    expect(result.broadcasts[0].sockets).toContain(wsT2);
+  });
+
+  it('reply payload does NOT reach other students (only teachers)', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    registry.teacherNudge(wsT, 'nudge-1', ['alice'], 'parent', now + 50);
+
+    var result = registry.studentNudgeReply(wsS1, 'nudge-1', 'On it!', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    // bob must NOT receive the reply.
+    expect(result.broadcasts[0].sockets).not.toContain(wsS2);
+    // Alice (sender) must also not be in the sockets.
+    expect(result.broadcasts[0].sockets).not.toContain(wsS1);
+  });
+
+  it('reply payload includes nudgeId + fromUsername + text + ts', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.teacherNudge(wsT, 'nudge-99', ['alice'], 'parent', now + 50);
+
+    var result = registry.studentNudgeReply(wsS, 'nudge-99', 'Got it!', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    var payload = result.broadcasts[0].payload;
+    expect(payload.type).toBe('classroom_student_nudge_reply');
+    expect(payload.nudgeId).toBe('nudge-99');
+    expect(payload.fromUsername).toBe('alice');
+    expect(payload.text).toBe('Got it!');
+    expect(payload.ts).toBe(now + 100);
+  });
+
+  it('no teachers online -> empty broadcasts (no error)', () => {
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsS, 'PeriodA', 'alice', 'student', now);
+    // No teacher in this room.
+
+    var result = registry.studentNudgeReply(wsS, 'nudge-1', 'Hello?', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('replies in another section do not bleed into the sender section (section isolation)', () => {
+    var wsTA = makeWs();
+    var wsSA = makeWs();
+    var wsTB = makeWs();
+    var wsSB = makeWs();
+    var now = 1000;
+    registry.join(wsTA, 'PeriodA', 'teacherA', 'teacher', now);
+    registry.join(wsSA, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsTB, 'PeriodB', 'teacherB', 'teacher', now);
+    registry.join(wsSB, 'PeriodB', 'bob',      'student', now);
+    registry.teacherNudge(wsTB, 'nudge-1', ['bob'], 'parent', now + 50);
+
+    // Bob (in PeriodB) replies -- teacherA in PeriodA must NOT receive it.
+    var result = registry.studentNudgeReply(wsSB, 'nudge-1', 'From Bob', now + 100);
+    expect(result.broadcasts).toHaveLength(1);
+    expect(result.broadcasts[0].sockets).toContain(wsTB);
+    expect(result.broadcasts[0].sockets).not.toContain(wsTA);
+  });
+
+  it('rejects reply when no matching parent nudge (Codex BLOCKER fold)', () => {
+    var wsT = makeWs();
+    var wsS = makeWs();
+    var now = 1000;
+    registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    // No teacherNudge call -- recentNudges has nothing for 'nudge-xyz'.
+
+    var result = registry.studentNudgeReply(wsS, 'nudge-xyz', 'Reply', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+
+  it('rejects reply when sender was not in the original recipient list (Codex BLOCKER fold)', () => {
+    var wsT = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    // Nudge sent only to alice.
+    registry.teacherNudge(wsT, 'nudge-1', ['alice'], 'parent', now + 50);
+
+    // Bob tries to reply -- must be rejected (he was not a recipient).
+    var result = registry.studentNudgeReply(wsS2, 'nudge-1', 'Spoof reply', now + 100);
+    expect(result.broadcasts).toHaveLength(0);
+  });
+});
