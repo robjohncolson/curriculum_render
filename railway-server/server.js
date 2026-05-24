@@ -1991,6 +1991,13 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'classroom_doorway_retract': {
+          var drId     = (typeof data.id === 'string') ? data.id : '';
+          var drResult = classroomRegistry.retractDoorwayVote(ws, drId, Date.now());
+          broadcastToClassroom(null, drResult.broadcasts);
+          break;
+        }
+
         case 'classroom_close_doorways': {
           var dcId     = (typeof data.id === 'string') ? data.id : '';
           var dcResult = classroomRegistry.closeDoorways(ws, dcId, Date.now());

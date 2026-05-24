@@ -2688,3 +2688,70 @@ describe('createClassroomRegistry -- s111 hotfix: doorways snapshot normalizatio
     expect(joinResult.sends[0].payload.doorways).toBeNull();
   });
 });
+
+// =============================================================
+// s111 HOTFIX: retractDoorwayVote -- a student cancelling out of a
+// doorway should retract their vote so the count decrements.
+// =============================================================
+
+describe('createClassroomRegistry -- s111 hotfix: retractDoorwayVote', () => {
+  function setupVotedRoom() {
+    var reg = createClassroomRegistry();
+    var teacherWs = makeWs();
+    var studentWs = makeWs();
+    reg.join(teacherWs, 'P', 'teach', 'teacher', 1000, null);
+    reg.join(studentWs, 'P', 'alice',  'student', 1100, null);
+    reg.openDoorways(teacherWs, 'dw', 'Q', [
+      { label: 'A', doorId: 'a' },
+      { label: 'B', doorId: 'b' }
+    ], 1200);
+    reg.castDoorwayVote(studentWs, 'dw', 'a', 1300);
+    return { reg: reg, teacherWs: teacherWs, studentWs: studentWs };
+  }
+
+  it('retract decrements the prior doorId count + clears member.doorVote', () => {
+    var s = setupVotedRoom();
+    var r = s.reg.retractDoorwayVote(s.studentWs, 'dw', 1400);
+    expect(r.broadcasts.length).toBeGreaterThanOrEqual(1);
+    var tally = r.broadcasts[0].payload.tally;
+    var byId = {};
+    tally.forEach(function(t){ byId[t.doorId] = t.count; });
+    expect(byId.a).toBe(0);
+    expect(byId.b).toBe(0);
+  });
+
+  it('retract is a no-op when the student has no prior vote', () => {
+    var reg = createClassroomRegistry();
+    var ws = makeWs();
+    var tWs = makeWs();
+    reg.join(tWs, 'P', 'teach', 'teacher', 1000, null);
+    reg.join(ws,  'P', 'alice', 'student', 1100, null);
+    reg.openDoorways(tWs, 'dw', 'Q', [
+      { label: 'A', doorId: 'a' }, { label: 'B', doorId: 'b' }
+    ], 1200);
+    var r = reg.retractDoorwayVote(ws, 'dw', 1300);
+    expect(r.broadcasts).toHaveLength(0);
+  });
+
+  it('retract is a no-op when the id does not match', () => {
+    var s = setupVotedRoom();
+    var r = s.reg.retractDoorwayVote(s.studentWs, 'WRONG-ID', 1400);
+    expect(r.broadcasts).toHaveLength(0);
+  });
+
+  it('retract rejects non-students (teacher cannot retract)', () => {
+    var s = setupVotedRoom();
+    var r = s.reg.retractDoorwayVote(s.teacherWs, 'dw', 1400);
+    expect(r.broadcasts).toHaveLength(0);
+  });
+
+  it('after retract, the same student can vote again and the new count is correct', () => {
+    var s = setupVotedRoom();
+    s.reg.retractDoorwayVote(s.studentWs, 'dw', 1400);
+    var r = s.reg.castDoorwayVote(s.studentWs, 'dw', 'b', 1500);
+    var byId = {};
+    r.broadcasts[0].payload.tally.forEach(function(t){ byId[t.doorId] = t.count; });
+    expect(byId.a).toBe(0);
+    expect(byId.b).toBe(1);
+  });
+});

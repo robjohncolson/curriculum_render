@@ -1174,6 +1174,43 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
+  // retractDoorwayVote(ws, id, now) -> { broadcasts }
+  // Student-only. Clears the sender's prior doorVote + decrements the
+  // count for that doorId, then broadcasts the new tally. No-op if
+  // the sender has no prior vote, or if the id doesn't match. Used
+  // when a student cancels a doorway absorb (presses Up to walk back
+  // out) -- without this, the vote stays attached to the door even
+  // though the avatar has left the hole.
+  function retractDoorwayVote(ws, id, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.doorways) return { broadcasts: [] };
+    if (room.doorways.id !== id) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'student') return { broadcasts: [] };
+    var priorDoorId = member.doorVote || null;
+    if (!priorDoorId) return { broadcasts: [] };
+    // Decrement the prior doorId's count.
+    for (var j = 0; j < room.doorways.options.length; j++) {
+      if (room.doorways.options[j].doorId === priorDoorId) {
+        room.doorways.options[j].count = Math.max(0, room.doorways.options[j].count - 1);
+      }
+    }
+    member.doorVote = null;
+    member.status   = 'present';
+    var payload = {
+      type:    'classroom_doorway_tally',
+      section: entry.section,
+      id:      room.doorways.id,
+      tally:   room.doorways.options.map(function(o) { return { doorId: o.doorId, count: o.count }; })
+    };
+    var sockets = roomSockets(room, null);
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
   // closeDoorways(ws, id, now) -> { broadcasts }
   // Teacher-only. Emits the final tally then clears room.doorways.
   // Each member's doorVote is cleared.
@@ -1303,9 +1340,10 @@ export function createClassroomRegistry() {
     castVote:   castVote,
     closePoll:  closePoll,
     revealPoll: revealPoll,
-    openDoorways:    openDoorways,
-    castDoorwayVote: castDoorwayVote,
-    closeDoorways:   closeDoorways,
+    openDoorways:       openDoorways,
+    castDoorwayVote:    castDoorwayVote,
+    retractDoorwayVote: retractDoorwayVote,
+    closeDoorways:      closeDoorways,
     position:   position,
     // v3 P1+P2 additions:
     subscribeMonitor:    subscribeMonitor,
