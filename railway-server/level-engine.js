@@ -1,21 +1,26 @@
 // level-engine.js
-// ES module -- V7 Live Classroom level engine.
+// ES module -- V7.1 Live Classroom level engine.
 //
-// Stateless module: parses level JSON files (cached), spawns level state
-// per activity instance, applies positional ticks against actors. The
-// 'level' activity plugin in classroom.js delegates to these functions.
+// V7.1 rewrites the engine as a PHASE-BASED state machine. The internal
+// switch/gate arrays from V7 are gone. The VOTING phase delegates to
+// the existing v3 P4 doorways mechanism (open/walk-through/press-Up).
+// The engine emits sideEffects.openDoorways at the SIPPING -> VOTING
+// transition; classroom.js's activityTick wrapper consumes the
+// sideEffect and calls a server-driven openDoorways that mirrors the
+// teacher-driven path. The engine watches room.closedDoorways per
+// tick to detect the winning option and advance the state machine.
 //
-// Contract: see LIVE_CLASSROOM_V7_BUILD.md sections C2, C3, C8.
+// Contract: see LIVE_CLASSROOM_V7_1_BUILD.md sections C1, C2, C7.
 //
 // Coordinate system:
 //   - Actor coords (x, y) are in CHIP units. Multiply by chipSize for CSS px.
 //   - Player coords (state.players[u].x/y) are in CSS px in the SENDER's
-//     coord space (the Desk's canvas). Per the V5 BLOCKER fix the engine
-//     reads each Player's canvasW from room.members.get(u).canvasW.
-//   - Overlap test: |player_css - actor_chip * chipSize| <= 16 in both axes.
+//     coord space (their classroom-board canvas). Per the V5 BLOCKER fix
+//     the engine reads each Player's canvasW from room.members.get(u).canvasW
+//     and rescales into level coord space before overlap-testing actors.
+//   - Overlap test: |player_level_px - actor_chip * chipSize| <= 16 in both axes.
 //
-// Wire-safety: serialize() converts any Set instances into arrays so the
-// returned shape is JSON-safe (member.voters is a Set internally).
+// Wire-safety: serialize() converts internal Sets to JSON-safe arrays.
 
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -26,10 +31,20 @@ var __dirname  = dirname(__filename);
 
 // Overlap radius (CSS pixels) -- per spec C2 "Player overlaps X within 16 px".
 var OVERLAP_PX = 16;
-// 2026-05-25 Codex V7 BLOCKER 3 fold: time-based auto-clear duration
+
+// V7 Codex BLOCKER 3 fold (preserved in V7.1): time-based auto-clear
 // for the reflection panel. 8 seconds is enough to read the reflection
 // text (~1-2 sentences) without dragging the class.
 var REFLECTION_DURATION_MS = 8000;
+
+// Phase enum constants. Authoritative across engine + tests + cockpit
+// observability. NEVER add a phase here without updating the cockpit.
+var PHASE_INIT            = 'INIT';
+var PHASE_SIPPING         = 'SIPPING';
+var PHASE_VOTING          = 'VOTING';
+var PHASE_REFLECTION      = 'REFLECTION';
+var PHASE_GOAL_AVAILABLE  = 'GOAL_AVAILABLE';
+var PHASE_LEVEL_CLEARED   = 'LEVEL_CLEARED';
 
 // Module-scope cache: lessonKey -> parsed LevelDef OR null (loadLevel
 // memoizes both success and failure so a missing file isn't re-statted
@@ -46,11 +61,6 @@ function loadLevel(lessonKey) {
   if (_levelCache.has(lessonKey)) {
     return _levelCache.get(lessonKey);
   }
-  // 2026-05-25: Railway deploys railway-server/ as the project root,
-  // so the activities/ folder MUST live inside railway-server/. The
-  // earlier path (`../activities/...`) was outside the deploy bundle
-  // and every loadLevel call returned null on prod (-> level-missing
-  // errors on the cockpit).
   var filePath = join(__dirname, 'activities', lessonKey + '.json');
   var def = null;
   try {
@@ -82,17 +92,33 @@ function _actorsOfType(actors, type) {
   return out;
 }
 
-// Internal: number of online students currently in the level.
-function _onlineCount(state) {
-  if (!state || !state.players) return 0;
-  return Object.keys(state.players).length;
+// Build a stable doorways id from the levelKey and a phase counter.
+// The phase counter ticks every time we open a fresh doorways
+// instance (VOTING phase entry OR REFLECTION re-vote) so the id is
+// unique across re-votes for the same level.
+function _doorwaysIdFor(state, phaseEntry) {
+  return 'level-' + state.levelKey + '-vote-' + phaseEntry;
+}
+
+// Build the openDoorways sideEffect payload from a state. Pure function
+// of state.doorways + state.levelKey + the level's vote question.
+function _buildOpenDoorwaysSideEffect(state, phaseEntry) {
+  var doors = state.doorways || [];
+  var id = _doorwaysIdFor(state, phaseEntry);
+  var question = state._voteQuestion || 'Which question is the right one?';
+  var options = [];
+  for (var i = 0; i < doors.length; i++) {
+    options.push({
+      label:  doors[i].text || ('Option ' + String.fromCharCode(65 + i)),
+      doorId: doors[i].id
+    });
+  }
+  return { id: id, question: question, options: options };
 }
 
 // createLevelState(levelDef, onlineStudents) -> LevelState
-// Spawns one Player per online student at the FIRST PlayerSpawn coord
-// (or the matching PlayerSpawn coord if multiple are declared; for v7
-// U1.1 has a single spawn, but we support per-player spawn assignment
-// for future levels with multi-spawn layouts).
+// Spawns one Player per online student at the FIRST PlayerSpawn coord.
+// Initial phase is SIPPING (V7.1 spec C1.1).
 function createLevelState(levelDef, onlineStudents) {
   if (!levelDef || !Array.isArray(levelDef.actors)) {
     return null;
@@ -100,24 +126,19 @@ function createLevelState(levelDef, onlineStudents) {
   var students = Array.isArray(onlineStudents) ? onlineStudents : [];
   var spawns   = _actorsOfType(levelDef.actors, 'PlayerSpawn');
   if (spawns.length === 0) {
-    // No spawn -- fall back to (0,0) so the engine still produces a state.
     spawns = [{ type: 'PlayerSpawn', x: 0, y: 0 }];
   }
   var chipSize = (levelDef.map && typeof levelDef.map.chipSize === 'number')
     ? levelDef.map.chipSize
-    : 24;
+    : 10;
 
   var players = {};
   for (var i = 0; i < students.length; i++) {
     var u  = students[i].username;
     var sp = spawns[i % spawns.length];
     players[u] = {
-      x:             sp.x * chipSize,
-      y:             sp.y * chipSize,
-      vx:            0,
-      vy:            0,
-      inReflection:  false,
-      lastInteracted: 0
+      x: sp.x * chipSize,
+      y: sp.y * chipSize
     };
   }
 
@@ -131,43 +152,24 @@ function createLevelState(levelDef, onlineStudents) {
       x:         sa.x,
       y:         sa.y,
       drink:     sa.drink || 'A',
-      collected: false,
-      payload:   null
+      collected: false
     });
   }
 
-  // Switches + gates derived from QuestionDoor actors. Each door owns
-  // both a switch zone (vote trigger) and a gate (pass trigger). We
-  // represent them as parallel arrays keyed by doorId so onTick can
-  // walk them in O(N).
-  var switches = [];
-  var gates    = [];
+  // Doorways from QuestionDoor actors. The engine no longer manages
+  // switches/gates; it just records the level's question doors and
+  // hands them to the v3 P4 mechanism at the VOTING transition.
+  var doorways = [];
   var doors    = _actorsOfType(levelDef.actors, 'QuestionDoor');
   for (var d = 0; d < doors.length; d++) {
     var door = doors[d];
-    var did  = door.id || ('door-' + d);
-    switches.push({
-      id:         did + '-switch',
-      doorId:     did,
+    doorways.push({
+      id:         door.id || ('door-' + d),
       x:          door.x,
       y:          door.y,
-      pressed:    false,
-      voteCount:  0,
-      voters:     new Set()
-    });
-    gates.push({
-      id:      did + '-gate',
-      doorId:  did,
-      x:       door.x,
-      y:       door.y,
-      correct: !!door.correct,
-      opened:  false,
-      passed:  false,
-      // 2026-05-25 V7 Codex BLOCKER 3 fold: stash the door's
-      // reflection text on the gate so onTick can copy it onto
-      // state.reflection.reflectionText when this wrong door is
-      // walked through.
-      reflectionText: (typeof door.reflection === 'string') ? door.reflection : ''
+      text:       (typeof door.text === 'string') ? door.text : '',
+      correct:    !!door.correct,
+      reflection: (typeof door.reflection === 'string') ? door.reflection : ''
     });
   }
 
@@ -181,90 +183,58 @@ function createLevelState(levelDef, onlineStudents) {
     reachedBy: null
   };
 
-  // Stash the canonical spawn coord (first PlayerSpawn) for warp-back
-  // logic and onMemberJoin late-spawn placement.
+  // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
 
-  // Reflection-room return warp coord (chip-space). Engine reads this
-  // when checking "Player walked to ReturnWarp" inside reflection mode.
-  var reflectionMap     = (levelDef.reflection_room && levelDef.reflection_room.map) || null;
-  var reflectionWarp    = { x: 8, y: 6 };
-  var reflectionSpawn   = { x: 8, y: 2 };
-  if (levelDef.reflection_room && Array.isArray(levelDef.reflection_room.actors)) {
-    var rActors = levelDef.reflection_room.actors;
-    for (var ri = 0; ri < rActors.length; ri++) {
-      if (rActors[ri] && rActors[ri].type === 'ReturnWarp') {
-        reflectionWarp = { x: rActors[ri].x, y: rActors[ri].y };
-        break;
-      }
-    }
-  }
+  // Vote question shown above the doorways panel. Pulled from the
+  // level def if provided, else a sensible default.
+  var voteQuestion = (levelDef.vote_question && typeof levelDef.vote_question === 'string')
+    ? levelDef.vote_question
+    : 'Which question is the right one?';
 
   return {
-    levelKey:    levelDef.levelKey || '',
-    lessonKey:   levelDef.lessonKey || '',
-    chipSize:    chipSize,
-    // 2026-05-25 Codex V7 BLOCKER 2 fold: stash mapWidth so onTick can
-    // rescale player positions from the SENDER's canvas-space into the
-    // LEVEL's coord space before overlap-testing actors.
-    mapWidth:    (levelDef.map && typeof levelDef.map.width  === 'number') ? levelDef.map.width  : 32,
-    mapHeight:   (levelDef.map && typeof levelDef.map.height === 'number') ? levelDef.map.height : 16,
-    startedAt:   Date.now(),
-    spawnX:      spawnX,
-    spawnY:      spawnY,
-    players:     players,
-    coins:       coins,
-    switches:    switches,
-    gates:       gates,
-    goal:        goal,
-    reflection:  {
+    levelKey:        levelDef.levelKey || '',
+    lessonKey:       levelDef.lessonKey || '',
+    chipSize:        chipSize,
+    mapWidth:        (levelDef.map && typeof levelDef.map.width  === 'number') ? levelDef.map.width  : 32,
+    mapHeight:       (levelDef.map && typeof levelDef.map.height === 'number') ? levelDef.map.height :  8,
+    phase:           PHASE_SIPPING,
+    startedAt:       Date.now(),
+    spawnX:          spawnX,
+    spawnY:          spawnY,
+    players:         players,
+    coins:           coins,
+    doorways:        doorways,
+    // Bumped every time the engine emits a fresh openDoorways
+    // sideEffect so the wrapper can synthesize stable, unique ids.
+    _phaseEntry:     0,
+    // Set by the engine when a doorways round is live; cleared on close.
+    liveDoorwaysId:  null,
+    reflection: {
       active:         false,
       doorId:         null,
-      returnedCount:  0,
-      returnedSet:    new Set(),
-      returnWarp:     reflectionWarp,
-      reflectionSpawn: reflectionSpawn,
-      // 2026-05-25 Codex V7 BLOCKER 3 fold: physical walk-back to a
-      // ReturnWarp is not durable (the hidden classroom-board keeps
-      // broadcasting positions that overwrite the warp). V7 SIMPLIFIES
-      // to time-based auto-clear: reflection.active becomes false after
-      // REFLECTION_DURATION_MS, the wrong switch resets, class re-votes.
-      // V7.1 will revisit movement authority for a true walk-back.
-      autoCloseAt:    0,
-      // Cache the chosen door's reflection text for the level renderer.
-      reflectionText: ''
+      reflectionText: '',
+      autoCloseAt:    0
     },
-    tally:       {
-      sips:  { A: 0, B: 0 },
-      votes: {}
-    }
+    goal:            goal,
+    tally:           { sips: { A: 0, B: 0 } },
+    _voteQuestion:   voteQuestion,
+    // sideEffects is cleared each tick by the wrapper after consumption.
+    sideEffects:     null
   };
 }
 
 // applyInput(state, username, payload) -> nextState | null
-// V7 has no student-input message channel -- movement piggybacks on
+// V7.1 has no student-input message channel; movement piggybacks on
 // classroom_pos, which onTick consumes. Returns null unconditionally.
 function applyInput(state, username, payload) {
   return null;
 }
 
 // Internal: snap a Player's tracked x/y to the latest broadcast position
-// from room.members.get(u).pos. Per the V5 BLOCKER fix the engine reads
-// each Player's coords in their own canvas; for v7 we trust the absolute
-// CSS pixels the Desk sent.
-// 2026-05-25 Codex V7 BLOCKER 2 fold: rescale player positions from
-// the SENDER's canvas space into the LEVEL's coord space. The level's
-// full pixel width is mapWidth * chipSize (e.g., 32 * 24 = 768 px for
-// U1.1), but the student broadcasts CSS-pixel positions in their own
-// canvas width (commonly 320, sometimes 640+). Without rescaling, a
-// 320-canvas student walking to "x=160" (their canvas center) maps to
-// chip 6.66 in the LEVEL space (160/24 = 6.66), missing every actor
-// placed past chip 13. With rescaling, x=160 of a 320-wide canvas
-// becomes x=384 in level space = chip 16 = center.
-//
-// Also stashes m.canvasW on state.players[u]._canvasW so _overlapsActor
-// can read it without re-fetching from room each call.
+// from room.members.get(u).pos. Also stash sender canvasW for overlap
+// math so per-canvasW rescaling stays consistent with V5 BLOCKER 2 fix.
 function _refreshPlayerPositions(state, room) {
   if (!room || !room.members) return;
   var keys = Object.keys(state.players);
@@ -279,20 +249,17 @@ function _refreshPlayerPositions(state, room) {
   }
 }
 
-// Internal: is a Player within OVERLAP_PX of an actor whose coord is in
-// chip units? Multiplies actor coord by chipSize first, AND rescales
-// the Player's CSS-pixel position into level-pixel space using the
-// player's stashed sender canvas width.
+// Internal: rescale a Player's sender-canvas X into LEVEL coord X so
+// the overlap test can compare against actor chip * chipSize. With
+// chipSize=10 and mapWidth=32 the level width = 320 px; if the sender
+// is also broadcasting on a 320-wide canvas the rescale is identity
+// (player_level_x = player_x / 320 * 320 = player_x). The math stays
+// in place anyway so any non-320 sender (cockpit @ 640+) still works.
 function _overlapsActor(player, actor, chipSize, state) {
   var levelW = (state && state.mapWidth) ? state.mapWidth * chipSize : 320;
   var senderCw = (player && typeof player._canvasW === 'number' && player._canvasW > 0) ? player._canvasW : 320;
-  // X axis: rescale player from sender canvas-space into level coord
-  // space (fixes Codex V7 BLOCKER 2 for the canvas width axis).
   var playerLevelX = (player.x / senderCw) * levelW;
-  // Y axis: pass-through. classroom_pos does not carry canvasH yet; the
-  // assumption is sender and level share the same Y coord space. Level
-  // authors should keep map.height * chipSize <= sender BOARD_H (220 px)
-  // until V7.1 adds canvasH to the wire + scaling here.
+  // Y axis pass-through (no canvasH on the wire yet).
   var playerLevelY = player.y;
   var ax = actor.x * chipSize;
   var ay = actor.y * chipSize;
@@ -300,204 +267,189 @@ function _overlapsActor(player, actor, chipSize, state) {
          Math.abs(playerLevelY - ay) <= OVERLAP_PX;
 }
 
-// Internal: warp every Player to a coord (chip-space x/y -> CSS px).
-function _warpAllPlayersTo(state, chipX, chipY, inReflection) {
-  var chipSize = state.chipSize;
-  var keys = Object.keys(state.players);
-  for (var i = 0; i < keys.length; i++) {
-    var u = keys[i];
-    state.players[u].x = chipX * chipSize;
-    state.players[u].y = chipY * chipSize;
-    state.players[u].inReflection = !!inReflection;
+// Internal: check the SIPPING -> VOTING precondition. Default is
+// "all coins collected"; if the level overrode `sipping_complete`
+// future-shape we can wire it in here (V7.2+, not V7.1).
+function _isSippingComplete(state) {
+  if (!state.coins || state.coins.length === 0) return true;
+  for (var i = 0; i < state.coins.length; i++) {
+    if (!state.coins[i].collected) return false;
   }
+  return true;
 }
 
 // tick(state, deltaMs, room) -> nextState
-// The state-machine driver. See LIVE_CLASSROOM_V7_BUILD.md C2 for the
-// transition diagram. Returns the mutated state (mutation is OK -- the
-// engine owns the state object and the test suite asserts identity is
-// preserved across ticks).
+// Phase-based state machine driver. See LIVE_CLASSROOM_V7_1_BUILD.md
+// C1 + C2 for the transition diagram. Mutates and returns state.
 function tick(state, deltaMs, room) {
   if (!state) return state;
+
+  // Clear any sideEffect emitted on the previous tick; the wrapper has
+  // already consumed it. This is the only place we clear sideEffects.
+  state.sideEffects = null;
 
   // Pull latest positions from the live room before checking overlaps.
   _refreshPlayerPositions(state, room);
 
-  var chipSize    = state.chipSize;
-  var onlineN     = _onlineCount(state);
-  var playerKeys  = Object.keys(state.players);
+  var chipSize = state.chipSize;
 
-  // 2026-05-25 Codex V7 BLOCKER 3 fold: replace walk-to-ReturnWarp
-  // with TIME-BASED auto-clear. The physical walk-back was not
-  // durable because the hidden classroom-board kept broadcasting
-  // positions that overwrote the server's warp. Movement authority
-  // is a v7.1 problem; v7 ships the simpler model:
-  //   * On wrong-door pass, set reflection.active = true +
-  //     autoCloseAt = now + REFLECTION_DURATION_MS.
-  //   * Every tick, if now >= autoCloseAt, clear reflection +
-  //     reset the wrong-door switch + return to main scene.
-  //   * Players don't physically walk anywhere; the renderer shows
-  //     the reflection text as a panel + a countdown.
-  if (state.reflection.active) {
+  // ----- LEVEL_CLEARED is terminal; nothing to do. -----
+  if (state.phase === PHASE_LEVEL_CLEARED) {
+    return state;
+  }
+
+  // ----- REFLECTION: wait for autoCloseAt, then return to VOTING. -----
+  if (state.phase === PHASE_REFLECTION) {
     var nowMs = Date.now();
     if (nowMs >= state.reflection.autoCloseAt) {
-      var wrongDoorId = state.reflection.doorId;
-      for (var s = 0; s < state.switches.length; s++) {
-        if (state.switches[s].doorId === wrongDoorId) {
-          state.switches[s].pressed   = false;
-          state.switches[s].voteCount = 0;
-          state.switches[s].voters    = new Set();
-          if (state.tally.votes[wrongDoorId] != null) {
-            state.tally.votes[wrongDoorId] = 0;
-          }
-        }
-      }
-      for (var g = 0; g < state.gates.length; g++) {
-        if (state.gates[g].doorId === wrongDoorId) {
-          state.gates[g].opened = false;
-          state.gates[g].passed = false;
-        }
-      }
-      state.reflection.active        = false;
-      state.reflection.doorId        = null;
-      state.reflection.returnedCount = 0;
-      state.reflection.returnedSet   = new Set();
-      state.reflection.autoCloseAt   = 0;
+      state.reflection.active         = false;
+      state.reflection.doorId         = null;
       state.reflection.reflectionText = '';
-      for (var pi2 = 0; pi2 < playerKeys.length; pi2++) {
-        state.players[playerKeys[pi2]].inReflection = false;
-      }
+      state.reflection.autoCloseAt    = 0;
+      // Return to VOTING and emit a fresh openDoorways sideEffect with
+      // a NEW id (phase counter bumps) so the wrapper opens a clean
+      // round. The wrong door already closed via the prior vote; no
+      // closeDoorways sideEffect is needed.
+      state.phase = PHASE_VOTING;
+      state._phaseEntry += 1;
+      var voteSideEffect = _buildOpenDoorwaysSideEffect(state, state._phaseEntry);
+      state.liveDoorwaysId = voteSideEffect.id;
+      state.sideEffects = { openDoorways: voteSideEffect };
     }
     return state;
   }
 
-  // ---------- MAIN SCENE ----------
-
-  // 1. Coin collection.
-  for (var c = 0; c < state.coins.length; c++) {
-    var coin = state.coins[c];
-    if (coin.collected) continue;
-    for (var pi = 0; pi < playerKeys.length; pi++) {
-      var pl = state.players[playerKeys[pi]];
-      if (_overlapsActor(pl, coin, chipSize, state)) {
-        coin.collected = true;
-        if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
-        state.tally.sips[coin.drink]++;
-        break;
-      }
-    }
-  }
-
-  // 2. Switch press + recompute pressed threshold.
-  // pressed = (voteCount >= ceil(onlineN * 1/3)). We use Math.ceil so a
-  // 2-student class needs 1 voter, a 3-student class needs 1, a 4-student
-  // class needs 2, etc. (matches spec wording ">= 1/3 of online players").
-  var threshold = Math.max(1, Math.ceil(onlineN / 3));
-  for (var sw = 0; sw < state.switches.length; sw++) {
-    var swo = state.switches[sw];
-    for (var spi = 0; spi < playerKeys.length; spi++) {
-      var spu = playerKeys[spi];
-      var spp = state.players[spu];
-      if (swo.voters.has(spu)) continue;
-      if (_overlapsActor(spp, swo, chipSize, state)) {
-        swo.voters.add(spu);
-        swo.voteCount = swo.voters.size;
-      }
-    }
-    swo.pressed = swo.voteCount >= threshold;
-    state.tally.votes[swo.doorId] = swo.voteCount;
-  }
-
-  // 3. Gate opening + Gate-pass detection.
-  // A gate opens when its matching switch is pressed (sticky).
-  // A Player "passes" a gate by overlapping the door coords AFTER the
-  // gate is opened. The first wrong-door pass triggers reflection.
-  for (var gi = 0; gi < state.gates.length; gi++) {
-    var gate = state.gates[gi];
-    var matchSwitch = null;
-    for (var ms = 0; ms < state.switches.length; ms++) {
-      if (state.switches[ms].doorId === gate.doorId) {
-        matchSwitch = state.switches[ms];
-        break;
-      }
-    }
-    if (matchSwitch && matchSwitch.pressed) gate.opened = true;
-    if (!gate.opened || gate.passed) continue;
-    for (var gpi = 0; gpi < playerKeys.length; gpi++) {
-      var gpu = playerKeys[gpi];
-      var gpp = state.players[gpu];
-      if (_overlapsActor(gpp, gate, chipSize, state)) {
-        gate.passed = true;
-        if (!gate.correct) {
-          // 2026-05-25 V7 fold: time-based reflection. Stash the
-          // doorId + the door's reflection text so the renderer can
-          // display it. autoCloseAt determines when tick() auto-
-          // clears reflection + resets the wrong switch. We DO mark
-          // players as inReflection so the renderer can show the
-          // reflection panel over them, but we do NOT physically warp
-          // (the hidden classroom-board would just overwrite it).
-          state.reflection.active        = true;
-          state.reflection.doorId        = gate.doorId;
-          state.reflection.reflectionText = (gate.reflectionText || gate.reflection || '');
-          state.reflection.autoCloseAt   = Date.now() + REFLECTION_DURATION_MS;
-          state.reflection.returnedCount = 0;
-          state.reflection.returnedSet   = new Set();
-          for (var rfi = 0; rfi < playerKeys.length; rfi++) {
-            state.players[playerKeys[rfi]].inReflection = true;
-          }
-          // Stop further per-tick processing -- subsequent gate/goal
-          // checks should run only outside reflection.
-          return state;
+  // ----- SIPPING: coin collection; emit VOTING sideEffect when done. -----
+  if (state.phase === PHASE_SIPPING) {
+    var playerKeys = Object.keys(state.players);
+    for (var c = 0; c < state.coins.length; c++) {
+      var coin = state.coins[c];
+      if (coin.collected) continue;
+      for (var pi = 0; pi < playerKeys.length; pi++) {
+        var pl = state.players[playerKeys[pi]];
+        if (_overlapsActor(pl, coin, chipSize, state)) {
+          coin.collected = true;
+          if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
+          state.tally.sips[coin.drink]++;
+          break;
         }
-        break;
       }
     }
+    if (_isSippingComplete(state)) {
+      state.phase = PHASE_VOTING;
+      state._phaseEntry += 1;
+      var openSideEffect = _buildOpenDoorwaysSideEffect(state, state._phaseEntry);
+      state.liveDoorwaysId = openSideEffect.id;
+      state.sideEffects = { openDoorways: openSideEffect };
+    }
+    return state;
   }
 
-  // 4. Goal reach -- only if at least one correct gate is opened.
-  var anyCorrectOpened = false;
-  for (var gci = 0; gci < state.gates.length; gci++) {
-    if (state.gates[gci].opened && state.gates[gci].correct) {
-      anyCorrectOpened = true;
-      break;
+  // ----- VOTING: watch for room.closedDoorways matching liveDoorwaysId. -----
+  if (state.phase === PHASE_VOTING) {
+    if (!room || !room.closedDoorways) {
+      return state;
     }
-  }
-  if (anyCorrectOpened && !state.goal.reached) {
-    for (var goi = 0; goi < playerKeys.length; goi++) {
-      var gou = playerKeys[goi];
-      var gop = state.players[gou];
-      if (_overlapsActor(gop, state.goal, chipSize, state)) {
-        state.goal.reached   = true;
-        state.goal.reachedBy = gou;
+    if (room.closedDoorways.id !== state.liveDoorwaysId) {
+      return state;
+    }
+    // Identify the winning option from the tally (highest count; ties
+    // resolved by lowest array index). If every count is zero the
+    // vote effectively went nowhere; treat as no-winner and stay in
+    // VOTING. closedDoorways.tally is [{doorId, count}, ...].
+    var tally = room.closedDoorways.tally || [];
+    var winnerDoorId = null;
+    var winnerCount = -1;
+    for (var ti = 0; ti < tally.length; ti++) {
+      var entry = tally[ti];
+      if (typeof entry.count !== 'number' || entry.count <= 0) continue;
+      if (entry.count > winnerCount) {
+        winnerDoorId = entry.doorId;
+        winnerCount = entry.count;
+      }
+    }
+    // Consume the close event regardless so we don't re-process it.
+    state.liveDoorwaysId = null;
+    if (winnerDoorId == null) {
+      // No votes cast (vote closed empty). Re-open the same question
+      // on the next tick: bump phaseEntry + emit a fresh openDoorways.
+      state._phaseEntry += 1;
+      var reopenSideEffect = _buildOpenDoorwaysSideEffect(state, state._phaseEntry);
+      state.liveDoorwaysId = reopenSideEffect.id;
+      state.sideEffects = { openDoorways: reopenSideEffect };
+      return state;
+    }
+    // Look up the winning door's metadata.
+    var winnerDoor = null;
+    for (var di = 0; di < state.doorways.length; di++) {
+      if (state.doorways[di].id === winnerDoorId) {
+        winnerDoor = state.doorways[di];
         break;
       }
     }
+    if (!winnerDoor) {
+      // Unknown doorId in tally (shouldn't happen). Re-vote.
+      state._phaseEntry += 1;
+      var unknownReopenSideEffect = _buildOpenDoorwaysSideEffect(state, state._phaseEntry);
+      state.liveDoorwaysId = unknownReopenSideEffect.id;
+      state.sideEffects = { openDoorways: unknownReopenSideEffect };
+      return state;
+    }
+    if (winnerDoor.correct) {
+      state.phase = PHASE_GOAL_AVAILABLE;
+    } else {
+      state.phase = PHASE_REFLECTION;
+      state.reflection.active         = true;
+      state.reflection.doorId         = winnerDoor.id;
+      state.reflection.reflectionText = winnerDoor.reflection || '';
+      state.reflection.autoCloseAt    = Date.now() + REFLECTION_DURATION_MS;
+    }
+    return state;
+  }
+
+  // ----- GOAL_AVAILABLE: detect Player-Goal overlap. -----
+  if (state.phase === PHASE_GOAL_AVAILABLE) {
+    if (state.goal.reached) {
+      state.phase = PHASE_LEVEL_CLEARED;
+      return state;
+    }
+    var goalKeys = Object.keys(state.players);
+    for (var gi = 0; gi < goalKeys.length; gi++) {
+      var gu = goalKeys[gi];
+      var gp = state.players[gu];
+      if (_overlapsActor(gp, state.goal, chipSize, state)) {
+        state.goal.reached   = true;
+        state.goal.reachedBy = gu;
+        state.phase = PHASE_LEVEL_CLEARED;
+        break;
+      }
+    }
+    return state;
   }
 
   return state;
 }
 
 // isComplete(state) -> bool
-// Level clears when Goal is reached AND we're not stuck in reflection.
+// Level clears when the state machine reaches LEVEL_CLEARED.
 function isComplete(state) {
   if (!state) return false;
-  if (state.reflection && state.reflection.active) return false;
-  return !!(state.goal && state.goal.reached);
+  return state.phase === PHASE_LEVEL_CLEARED;
 }
 
 // serialize(state) -> publicState
-// Wire-safe shape per LIVE_CLASSROOM_V7_BUILD.md C4. Sets become arrays
-// (raw username lists for voters / returned). Internal-only fields
-// (vx, vy, lastInteracted, voters Set instances) are stripped.
+// Wire-safe shape. Includes `phase` for cockpit observability. The
+// renderer reads `coins`, `doorways`, `goal`, `reflection`, and `phase`
+// to draw the overlay (the v3 P4 doorways layer renders QuestionDoors
+// natively in VOTING phase).
 function serialize(state) {
   if (!state) return null;
   var players = {};
   Object.keys(state.players).forEach(function (u) {
     var p = state.players[u];
     players[u] = {
-      x:            p.x,
-      y:            p.y,
-      inReflection: !!p.inReflection
+      x: p.x,
+      y: p.y
     };
   });
   var coins = state.coins.map(function (c) {
@@ -509,26 +461,13 @@ function serialize(state) {
       collected: !!c.collected
     };
   });
-  var switches = state.switches.map(function (s) {
+  var doorways = state.doorways.map(function (d) {
     return {
-      id:             s.id,
-      doorId:         s.doorId,
-      x:              s.x,
-      y:              s.y,
-      voteCount:      s.voteCount,
-      pressed:        !!s.pressed,
-      voterUsernames: Array.from(s.voters)
-    };
-  });
-  var gates = state.gates.map(function (g) {
-    return {
-      id:      g.id,
-      doorId:  g.doorId,
-      x:       g.x,
-      y:       g.y,
-      correct: !!g.correct,
-      opened:  !!g.opened,
-      passed:  !!g.passed
+      id:      d.id,
+      x:       d.x,
+      y:       d.y,
+      text:    d.text,
+      correct: !!d.correct
     };
   });
   var goal = {
@@ -538,77 +477,50 @@ function serialize(state) {
     reachedBy: state.goal.reachedBy
   };
   var reflection = {
-    active:        !!state.reflection.active,
-    doorId:        state.reflection.doorId,
-    returnedCount: state.reflection.returnedCount || 0,
-    totalCount:    Object.keys(state.players).length
+    active:         !!state.reflection.active,
+    doorId:         state.reflection.doorId,
+    reflectionText: state.reflection.reflectionText || '',
+    autoCloseAt:    state.reflection.autoCloseAt || 0
   };
   return {
-    levelKey:   state.levelKey,
-    lessonKey:  state.lessonKey,
-    chipSize:   state.chipSize,
-    players:    players,
-    coins:      coins,
-    switches:   switches,
-    gates:      gates,
-    goal:       goal,
-    reflection: reflection,
-    tally:      {
-      sips:  Object.assign({}, state.tally.sips),
-      votes: Object.assign({}, state.tally.votes)
-    }
+    levelKey:        state.levelKey,
+    lessonKey:       state.lessonKey,
+    chipSize:        state.chipSize,
+    mapWidth:        state.mapWidth,
+    mapHeight:       state.mapHeight,
+    phase:           state.phase,
+    players:         players,
+    coins:           coins,
+    doorways:        doorways,
+    goal:            goal,
+    reflection:      reflection,
+    tally:           { sips: Object.assign({}, state.tally.sips) }
   };
 }
 
 // onMemberLeave(state, username) -> nextState | null
-// Drop the leaver from state.players and from any switch's voters set;
-// recompute that switch's voteCount + pressed.
+// Drop the leaver from state.players. Doorway votes live on the v3
+// P4 layer (room.doorways), not in level state, so no vote cleanup
+// is needed here -- the registry's existing doorway logic handles it.
 function onMemberLeave(state, username) {
   if (!state || !state.players) return null;
   if (!(username in state.players)) return null;
   delete state.players[username];
-  // Per the spec, leaver is also removed from any switch they voted on.
-  var onlineN = _onlineCount(state);
-  var threshold = Math.max(1, Math.ceil(onlineN / 3));
-  for (var i = 0; i < state.switches.length; i++) {
-    var swo = state.switches[i];
-    if (swo.voters.has(username)) {
-      swo.voters.delete(username);
-      swo.voteCount = swo.voters.size;
-    }
-    swo.pressed = swo.voteCount >= threshold;
-    state.tally.votes[swo.doorId] = swo.voteCount;
-  }
-  // Also remove from the reflection returnedSet if they were stuck.
-  if (state.reflection && state.reflection.returnedSet &&
-      state.reflection.returnedSet.has(username)) {
-    state.reflection.returnedSet.delete(username);
-    state.reflection.returnedCount = state.reflection.returnedSet.size;
-  }
   return state;
 }
 
 // onMemberJoin(state, username, room) -> nextState | null
-// Spawn a brand-new Player at the FIRST PlayerSpawn coord. Re-join (the
-// same username already in state.players) is a no-op so their progress
-// is preserved.
+// Spawn a brand-new Player at the canonical spawn coord. Re-join
+// (already in players) is a no-op so prior progress is preserved.
 function onMemberJoin(state, username, room) {
   if (!state || !state.players) return null;
   if (username in state.players) return null;
-  // The spawn coord is the engine's seed default: (4, 12) for U1.1.
-  // We can't read the level def here, but createLevelState stamped the
-  // initial player coords, and onMemberJoin reuses an EXISTING player
-  // coord if one is available (otherwise fall back to (4, 12) chips).
-  var chipSize = state.chipSize || 24;
+  var chipSize = state.chipSize || 10;
   var sx = (state.spawnX != null) ? state.spawnX : 4;
-  var sy = (state.spawnY != null) ? state.spawnY : 12;
+  var sy = (state.spawnY != null) ? state.spawnY : 4;
   state.players[username] = {
-    x:             sx * chipSize,
-    y:             sy * chipSize,
-    vx:            0,
-    vy:            0,
-    inReflection:  !!state.reflection.active,
-    lastInteracted: 0
+    x: sx * chipSize,
+    y: sy * chipSize
   };
   return state;
 }
@@ -634,5 +546,12 @@ export {
   serialize,
   onMemberLeave,
   onMemberJoin,
-  _clearCache
+  _clearCache,
+  PHASE_INIT,
+  PHASE_SIPPING,
+  PHASE_VOTING,
+  PHASE_REFLECTION,
+  PHASE_GOAL_AVAILABLE,
+  PHASE_LEVEL_CLEARED,
+  REFLECTION_DURATION_MS
 };

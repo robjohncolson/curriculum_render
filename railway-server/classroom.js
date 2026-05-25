@@ -1420,6 +1420,9 @@ export function createClassroomRegistry() {
     // member's doorVote. Otherwise the server stayed in the doorway
     // session while clients saw "idle".
     room.doorways = null;
+    // V7.1 BUILD Unit A: also clear the closed-doorways one-shot so a
+    // stale event doesn't fire on the next activity tick.
+    room.closedDoorways = null;
     room.members.forEach(function(m) {
       m.status   = 'present';
       m.vote     = null;
@@ -1885,6 +1888,72 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
+  // _openDoorwaysServerSide(room, section, id, question, options, now)
+  //   -> { broadcasts, closedDoorways }
+  //
+  // 2026-05-25 V7.1 BUILD Unit A: server-driven openDoorways for the
+  // level-engine. Mirrors openDoorways(...) verbatim except:
+  //   - No ws / no wsIndex.get(ws) -- the caller is the activityTick
+  //     loop, not a teacher socket.
+  //   - No teacher-role check (no socket to attribute it to).
+  //   - No poll/gate/activity mutex check (the level engine has already
+  //     reserved the room via room.activity; the engine sequences its
+  //     own doorway calls).
+  //   - Returns the broadcasts array AND a closedDoorways shape so the
+  //     wrapper can synthesize the close-event the engine listens for
+  //     when needed (currently only the OPEN path is server-driven;
+  //     CLOSE still arrives via the existing v3 P4 close flow when the
+  //     teacher closes the vote OR when the engine emits a sideEffects
+  //     close in future versions).
+  //
+  // Note: this MUST NOT throw if room.doorways is already set -- the
+  // wrapper guards against double-open by checking liveDoorwaysId before
+  // emitting the sideEffect, but defense-in-depth is cheap.
+  function _openDoorwaysServerSide(room, section, id, question, options, now) {
+    if (room.doorways) {
+      // Already open; engine emitted a second open by accident. No-op.
+      return { broadcasts: [] };
+    }
+    if (!Array.isArray(options) || options.length < 2 || options.length > 8) {
+      return { broadcasts: [] };
+    }
+    var safeId       = (typeof id === 'string' && id.trim()) ? id.trim() : ('doorways-' + (now || Date.now()));
+    var safeQuestion = (typeof question === 'string') ? question.trim() : '';
+    var optionsState = [];
+    for (var i = 0; i < options.length; i++) {
+      var o = options[i] || {};
+      optionsState.push({
+        label:  (typeof o.label === 'string') ? o.label.trim() : ('Option ' + String.fromCharCode(65 + i)),
+        doorId: (typeof o.doorId === 'string' && o.doorId.trim()) ? o.doorId.trim() : ('d' + i),
+        count:  0
+      });
+    }
+    room.doorways = {
+      id:       safeId,
+      question: safeQuestion,
+      options:  optionsState,
+      openedAt: now == null ? Date.now() : now
+    };
+    // Reset each member's status + clear stale doorVote (parity with
+    // the teacher-driven openDoorways path).
+    room.members.forEach(function (m) { m.status = 'present'; m.doorVote = null; });
+    var payload = {
+      type:     'classroom_open_doorways',
+      section:  section,
+      id:       safeId,
+      question: safeQuestion,
+      options:  optionsState.map(function (o) { return { label: o.label, doorId: o.doorId }; }),
+      openedAt: room.doorways.openedAt
+    };
+    var sockets = roomSockets(room, null);
+    if (sockets.length === 0 && monitorSockets.size === 0) {
+      return { broadcasts: [] };
+    }
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
   // closeDoorways(ws, id, now) -> { broadcasts }
   // Teacher-only. Emits the final tally then clears room.doorways.
   // Each member's doorVote is cleared.
@@ -1901,6 +1970,17 @@ export function createClassroomRegistry() {
     var closedQuestion = room.doorways.question;
     var closedOptions = room.doorways.options.map(function(o) { return { label: o.label, doorId: o.doorId }; });
     room.doorways = null;
+    // 2026-05-25 V7.1 BUILD Unit A: stash the closed event on the room
+    // so the level-engine's VOTING-phase tick can detect it + transition
+    // to GOAL_AVAILABLE or REFLECTION. Cleared by activityTick after the
+    // engine consumes it (one-shot). Pre-V7.1 code paths ignore this
+    // field; it's only read by the level plugin's onTick.
+    room.closedDoorways = {
+      id:       closedId,
+      question: closedQuestion,
+      options:  closedOptions,
+      tally:    finalTally
+    };
     room.members.forEach(function(m) {
       if (m.doorVote != null) { m.doorVote = null; }
       m.status = 'present';
@@ -2121,6 +2201,41 @@ export function createClassroomRegistry() {
       // the 3rd arg (JavaScript permits extra args silently).
       var nextState = plugin.onTick(room.activity.state, ACTIVITY_TICK_MS, room);
       if (nextState) { room.activity.state = nextState; }
+      // 2026-05-25 V7.1 BUILD Unit A: consume any sideEffects the
+      // plugin emitted (V7.1 level engine emits openDoorways at the
+      // SIPPING -> VOTING transition and on REFLECTION -> VOTING
+      // re-vote). The wrapper calls _openDoorwaysServerSide (a
+      // teacher-less variant of openDoorways) and appends its
+      // broadcasts to this tick. The plugin already nulled sideEffects
+      // for itself on entry; we still null it here defensively so a
+      // single sideEffect can't fire twice on a re-tick.
+      // Older plugins (V4/V5/V6) never set sideEffects, so this is a
+      // pure additive code path.
+      if (nextState && nextState.sideEffects) {
+        var se = nextState.sideEffects;
+        if (se.openDoorways) {
+          var openRes = _openDoorwaysServerSide(
+            room,
+            section,
+            se.openDoorways.id,
+            se.openDoorways.question,
+            se.openDoorways.options,
+            currentNow
+          );
+          if (openRes.broadcasts && openRes.broadcasts.length > 0) {
+            broadcasts.push.apply(broadcasts, openRes.broadcasts);
+          }
+        }
+        nextState.sideEffects = null;
+      }
+      // 2026-05-25 V7.1 BUILD Unit A: clear room.closedDoorways AFTER
+      // the engine had a chance to read it during onTick. The engine
+      // already consumed the matching id (or ignored if mismatched);
+      // any future close events will re-stamp room.closedDoorways via
+      // the closeDoorways() path.
+      if (room.closedDoorways) {
+        room.closedDoorways = null;
+      }
       // Success check.
       if (plugin.isComplete(room.activity.state)) {
         room.activity.finished = true;
