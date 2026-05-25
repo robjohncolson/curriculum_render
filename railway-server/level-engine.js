@@ -226,10 +226,47 @@ function createLevelState(levelDef, onlineStudents) {
 }
 
 // applyInput(state, username, payload) -> nextState | null
-// V7.1 has no student-input message channel; movement piggybacks on
-// classroom_pos, which onTick consumes. Returns null unconditionally.
+//
+// V7.2 sprite-collide rev (2026-05-25): the avatar canvas now owns
+// coin sprites and detects sprite-vs-coin collision client-side. When
+// the local player touches a SipStation sprite the client sends
+// `classroom_activity_value` with { kind: 'collect', coinId }. We
+// validate (right phase, coin exists, not already collected, player
+// actually near the coin in level X space -- anti-cheat) and flip the
+// coin.collected flag + bump the tally. onTick still re-checks the
+// SIPPING -> VOTING transition; clients only nominate which coin they
+// hit, the server stays authoritative.
 function applyInput(state, username, payload) {
+  if (!state || !payload || typeof payload !== 'object') return null;
+  if (payload.kind === 'collect') return _handleCoinCollect(state, username, payload);
   return null;
+}
+
+function _handleCoinCollect(state, username, payload) {
+  if (state.phase !== PHASE_SIPPING) return null;
+  if (typeof payload.coinId !== 'string' || !payload.coinId) return null;
+  if (!Array.isArray(state.coins)) return null;
+  var coin = null;
+  for (var i = 0; i < state.coins.length; i++) {
+    if (state.coins[i].id === payload.coinId) { coin = state.coins[i]; break; }
+  }
+  if (!coin || coin.collected) return null;
+  // Anti-cheat: confirm the claiming player is within 2 * OVERLAP_PX of
+  // the coin's level X. 2x accounts for client-side prediction latency.
+  // Players with no tracked position (just joined, no classroom_pos yet)
+  // are allowed -- harmless edge case.
+  var player = state.players && state.players[username];
+  if (player && typeof player.x === 'number') {
+    var levelW   = (state.mapWidth || 32) * (state.chipSize || 10);
+    var senderCw = (typeof player._canvasW === 'number' && player._canvasW > 0) ? player._canvasW : 320;
+    var playerLevelX = (player.x / senderCw) * levelW;
+    var ax = coin.x * (state.chipSize || 10);
+    if (Math.abs(playerLevelX - ax) > OVERLAP_PX * 2) return null;
+  }
+  coin.collected = true;
+  if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
+  state.tally.sips[coin.drink]++;
+  return state;
 }
 
 // Internal: snap a Player's tracked x/y to the latest broadcast position
