@@ -31,6 +31,15 @@ var COLORBOX_HUE_ZONES = [
   { id: 3, label: 'Blue',   hueMin: 270, hueMax: 359 }
 ];
 
+// v6 Activity engine -- colorbox-grid plugin constants.
+// Same 5-second hold target as V5, but a separate constant so the two
+// plugins can drift independently if V6 ever needs a different mastery
+// threshold (chi-square variants etc.). Default duration is 75 s --
+// halfway between V4's 90 s coordination and V5's 60 s walking, since
+// V6 adds a per-student pick step before the walk.
+var COLORBOX_GRID_HOLD_TARGET_MS = 5000;
+var COLORBOX_GRID_DEFAULT_DURATION_MS = 75000;
+
 // Stable per-username hue fallback. Mirrors the LC render layer's
 // fallback so a hue-less student gets the same "category" across
 // sessions. Result is in [0, 359].
@@ -61,9 +70,11 @@ function zoneForHue(hue) {
 
 // v4 Activity engine -- per-activity lesson key map for override-gate auto-fire.
 // v5: colorbox-hue maps to U1.3 (Displaying Categorical Data) per spec.
+// v6: colorbox-grid maps to U1.4 (Two-Way Tables) per spec.
 var ACTIVITY_LESSON_MAP = {
-  'bridge-mean':  '1.1',
-  'colorbox-hue': '1.3'
+  'bridge-mean':   '1.1',
+  'colorbox-hue':  '1.3',
+  'colorbox-grid': '1.4'
 };
 
 // v4 Activity engine -- plugin registry. Keyed by activity type string.
@@ -338,6 +349,214 @@ activityPlugins['colorbox-hue'] = {
       holdMs:       state.holdMs,
       holdTargetMs: COLORBOX_HUE_HOLD_TARGET_MS,
       zones:        state.zones
+    };
+  }
+};
+
+// v6 Activity engine -- colorbox-grid plugin.
+// Pedagogy: U1 Topic 1.4 (Two-Way Tables). Generalizes V5's 1-D hue
+// sort to a 2-D contingency-table grid: row = student's hue (4
+// values, identical to V5), column = a second categorical attribute
+// supplied at launch via opts.secondAxis.
+//
+// secondAxis modes:
+//   mode='prompt'  -- each student answers a 1-key prompt at launch
+//                     (e.g., "Are you left-handed? [No] [Yes]"); pick
+//                     is recorded via classroom_activity_value.
+//   mode='auto'    -- server randomly assigns each student a column at
+//                     launch (e.g., "Group A" / "Group B"); no prompt.
+//
+// Mastery: every student has picked (in prompt mode) AND is standing
+// in their CORRECT (hue x pick) cell for 5 sustained seconds.
+
+function validateSecondAxis(s) {
+  if (!s || typeof s !== 'object') return null;
+  if (s.mode === 'prompt') {
+    if (typeof s.question !== 'string' || !Array.isArray(s.options)) return null;
+    if (s.options.length < 2 || s.options.length > 4) return null;
+    if (!s.options.every(function (o) { return typeof o === 'string'; })) return null;
+    return {
+      mode:     'prompt',
+      question: s.question.trim().slice(0, 280),
+      options:  s.options.map(function (o) { return String(o).trim().slice(0, 40); })
+    };
+  }
+  if (s.mode === 'auto') {
+    if (!Array.isArray(s.labels)) return null;
+    if (s.labels.length < 2 || s.labels.length > 4) return null;
+    if (!s.labels.every(function (o) { return typeof o === 'string'; })) return null;
+    return {
+      mode:   'auto',
+      labels: s.labels.map(function (o) { return String(o).trim().slice(0, 40); })
+    };
+  }
+  return null;
+}
+
+function emptyTally(rows, cols) {
+  var out = [];
+  for (var r = 0; r < rows; r++) {
+    var row = [];
+    for (var c = 0; c < cols; c++) { row.push(0); }
+    out.push(row);
+  }
+  return out;
+}
+
+activityPlugins['colorbox-grid'] = {
+  minMembers: 2,
+
+  initActivity: function (room, onlineStudents, opts) {
+    var safeOpts = opts || {};
+    var secondAxis = validateSecondAxis(safeOpts.secondAxis);
+    if (!secondAxis) {
+      // Default fallback: prompt for a Yes/No (spec C2 default).
+      secondAxis = { mode: 'prompt', question: 'Yes or No?', options: ['No', 'Yes'] };
+    }
+    var colCount = (secondAxis.mode === 'prompt')
+      ? secondAxis.options.length
+      : secondAxis.labels.length;
+    var assignments = {};   // username -> { row }
+    var picks       = {};   // username -> 0..colCount-1 OR null (still picking)
+    onlineStudents.forEach(function (m) {
+      var hue = (m.hue != null) ? m.hue : fallbackHueForUsername(m.username);
+      var row = zoneForHue(hue);
+      var col = null;
+      if (secondAxis.mode === 'auto') {
+        col = Math.floor(Math.random() * colCount);
+      }
+      assignments[m.username] = { row: row };
+      picks[m.username] = col;
+    });
+    return {
+      secondAxis:  secondAxis,
+      colCount:    colCount,
+      assignments: assignments,
+      picks:       picks,
+      currentCell: {},
+      tally:       emptyTally(4, colCount),
+      holdMs:      0
+    };
+  },
+
+  onStudentInput: function (state, username, payload) {
+    // Prompt mode: { choice: <int> } sets the student's pick. Ignored
+    // in auto mode (server already assigned the column).
+    if (!payload || typeof payload.choice !== 'number') return null;
+    if (state.secondAxis.mode === 'auto') return null;
+    if (!(username in state.picks)) return null;
+    var c = Math.floor(payload.choice);
+    if (c < 0 || c >= state.colCount) return null;
+    if (state.picks[username] === c) return null;
+    var next = Object.assign({}, state, { picks: Object.assign({}, state.picks) });
+    next.picks[username] = c;
+    return next;
+  },
+
+  onTick: function (state, deltaMs, room) {
+    // V5 Codex BLOCKER fold parity: read PER-MEMBER canvasW from the
+    // last classroom_pos broadcast. A hardcoded canvasW=320 would
+    // misclassify columns whenever the sender's responsive board canvas
+    // was wider (e.g., Desk sidebar at 480 CSS, cockpit at 640+). Row
+    // math also uses BOARD_H = 220 (matches classroom-board.js).
+    // Members without a recorded canvasW fall back to DEFAULT_BOARD_W=320.
+    var BOARD_H = 220;
+    var colCount = state.colCount;
+    var nextCurrent = {};
+    var nextTally   = emptyTally(4, colCount);
+    var allCorrect  = true;
+    var allPicked   = true;
+    var anyAssigned = false;
+
+    var keys = Object.keys(state.assignments);
+    for (var k = 0; k < keys.length; k++) {
+      anyAssigned = true;
+      var uname = keys[k];
+      var pick  = state.picks[uname];
+      if (pick == null) {
+        allPicked  = false;
+        allCorrect = false;
+        nextCurrent[uname] = { row: -1, col: -1 };
+        continue;
+      }
+      var m = room.members.get(uname);
+      if (!m || m.online === false) {
+        nextCurrent[uname] = { row: -1, col: -1 };
+        allCorrect = false;
+        continue;
+      }
+      var cw = (typeof m.canvasW === 'number' && m.canvasW > 0) ? m.canvasW : 320;
+      var x = (m.pos && typeof m.pos.x === 'number') ? m.pos.x : 0;
+      var y = (m.pos && typeof m.pos.y === 'number') ? m.pos.y : 0;
+      var col = Math.max(0, Math.min(colCount - 1, Math.floor(x / (cw / colCount))));
+      var row = Math.max(0, Math.min(3, Math.floor(y / (BOARD_H / 4))));
+      nextCurrent[uname] = { row: row, col: col };
+      nextTally[row][col]++;
+      var expectedRow = state.assignments[uname].row;
+      var expectedCol = state.picks[uname];
+      if (row !== expectedRow || col !== expectedCol) {
+        allCorrect = false;
+      }
+    }
+    if (!anyAssigned) { allCorrect = false; }
+    var holdEligible = allPicked && allCorrect;
+    var nextHoldMs = holdEligible ? (state.holdMs + deltaMs) : 0;
+    return Object.assign({}, state, {
+      currentCell: nextCurrent,
+      tally:       nextTally,
+      holdMs:      nextHoldMs
+    });
+  },
+
+  isComplete: function (state) {
+    return state.holdMs >= COLORBOX_GRID_HOLD_TARGET_MS;
+  },
+
+  onMemberLeave: function (state, username) {
+    if (!(username in state.assignments)) return null;
+    var next = Object.assign({}, state, {
+      assignments: Object.assign({}, state.assignments),
+      picks:       Object.assign({}, state.picks),
+      currentCell: Object.assign({}, state.currentCell)
+    });
+    delete next.assignments[username];
+    delete next.picks[username];
+    delete next.currentCell[username];
+    return next;
+  },
+
+  onMemberJoin: function (state, username, room) {
+    // V5 signature: room is passed so we can look up the joining
+    // member's hue without coupling to a separate state slot. A
+    // re-join (already in assignments) keeps the prior row + pick.
+    if (username in state.assignments) return null;
+    if (!room) return null;
+    var m = room.members.get(username);
+    if (!m) return null;
+    var hue = (m.hue != null) ? m.hue : fallbackHueForUsername(username);
+    var col = null;
+    if (state.secondAxis.mode === 'auto') {
+      col = Math.floor(Math.random() * state.colCount);
+    }
+    var next = Object.assign({}, state, {
+      assignments: Object.assign({}, state.assignments),
+      picks:       Object.assign({}, state.picks)
+    });
+    next.assignments[username] = { row: zoneForHue(hue) };
+    next.picks[username] = col;
+    return next;
+  },
+
+  serializeForBoard: function (state) {
+    return {
+      secondAxis:   state.secondAxis,
+      colCount:     state.colCount,
+      assignments:  state.assignments,
+      picks:        state.picks,
+      currentCell:  state.currentCell,
+      tally:        state.tally,
+      holdMs:       state.holdMs,
+      holdTargetMs: COLORBOX_GRID_HOLD_TARGET_MS
     };
   }
 };
@@ -2180,3 +2399,8 @@ export var __COLORBOX_HUE_HOLD_TARGET_MS = COLORBOX_HUE_HOLD_TARGET_MS;
 export var __COLORBOX_HUE_ZONES = COLORBOX_HUE_ZONES;
 export var __zoneForHue = zoneForHue;
 export var __fallbackHueForUsername = fallbackHueForUsername;
+// v6 colorbox-grid plugin -- exported helpers + constants for tests.
+export var __COLORBOX_GRID_HOLD_TARGET_MS = COLORBOX_GRID_HOLD_TARGET_MS;
+export var __COLORBOX_GRID_DEFAULT_DURATION_MS = COLORBOX_GRID_DEFAULT_DURATION_MS;
+export var __validateSecondAxis = validateSecondAxis;
+export var __emptyTally = emptyTally;
