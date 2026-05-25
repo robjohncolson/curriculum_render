@@ -46,7 +46,12 @@ function loadLevel(lessonKey) {
   if (_levelCache.has(lessonKey)) {
     return _levelCache.get(lessonKey);
   }
-  var filePath = join(__dirname, '..', 'activities', lessonKey + '.json');
+  // 2026-05-25: Railway deploys railway-server/ as the project root,
+  // so the activities/ folder MUST live inside railway-server/. The
+  // earlier path (`../activities/...`) was outside the deploy bundle
+  // and every loadLevel call returned null on prod (-> level-missing
+  // errors on the cockpit).
+  var filePath = join(__dirname, 'activities', lessonKey + '.json');
   var def = null;
   try {
     var raw = readFileSync(filePath, 'utf8');
