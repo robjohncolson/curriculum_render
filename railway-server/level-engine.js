@@ -238,8 +238,23 @@ function createLevelState(levelDef, onlineStudents) {
 // hit, the server stays authoritative.
 function applyInput(state, username, payload) {
   if (!state || !payload || typeof payload !== 'object') return null;
-  if (payload.kind === 'collect') return _handleCoinCollect(state, username, payload);
+  if (payload.kind === 'collect')    return _handleCoinCollect(state, username, payload);
+  if (payload.kind === 'reach-goal') return _handleReachGoal(state, username);
   return null;
+}
+
+// Shared anti-cheat: is the claiming player within tolerance px of the
+// actor's level X? Players with no tracked position (just joined) are
+// allowed through -- harmless edge case.
+function _playerNearActorX(state, username, actorChipX, tolerancePx) {
+  var player = state.players && state.players[username];
+  if (!player || typeof player.x !== 'number') return true;
+  var chipSize    = state.chipSize || 10;
+  var levelW      = (state.mapWidth || 32) * chipSize;
+  var senderCw    = (typeof player._canvasW === 'number' && player._canvasW > 0) ? player._canvasW : 320;
+  var playerLevelX = (player.x / senderCw) * levelW;
+  var actorLevelX  = actorChipX * chipSize;
+  return Math.abs(playerLevelX - actorLevelX) <= tolerancePx;
 }
 
 function _handleCoinCollect(state, username, payload) {
@@ -251,21 +266,26 @@ function _handleCoinCollect(state, username, payload) {
     if (state.coins[i].id === payload.coinId) { coin = state.coins[i]; break; }
   }
   if (!coin || coin.collected) return null;
-  // Anti-cheat: confirm the claiming player is within 2 * OVERLAP_PX of
-  // the coin's level X. 2x accounts for client-side prediction latency.
-  // Players with no tracked position (just joined, no classroom_pos yet)
-  // are allowed -- harmless edge case.
-  var player = state.players && state.players[username];
-  if (player && typeof player.x === 'number') {
-    var levelW   = (state.mapWidth || 32) * (state.chipSize || 10);
-    var senderCw = (typeof player._canvasW === 'number' && player._canvasW > 0) ? player._canvasW : 320;
-    var playerLevelX = (player.x / senderCw) * levelW;
-    var ax = coin.x * (state.chipSize || 10);
-    if (Math.abs(playerLevelX - ax) > OVERLAP_PX * 2) return null;
-  }
+  // Anti-cheat: 2 * OVERLAP_PX (covers client-side prediction latency).
+  if (!_playerNearActorX(state, username, coin.x, OVERLAP_PX * 2)) return null;
   coin.collected = true;
   if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
   state.tally.sips[coin.drink]++;
+  return state;
+}
+
+// V7.2 sprite-collide -- client-driven Goal completion. Mirrors the
+// coin-collect path: GoalSprite on the avatar canvas fires onReach when
+// the local player walks under the goal flag; that emits
+// classroom_activity_value { kind:'reach-goal' }, and we mark
+// state.goal.reached + transition to PHASE_LEVEL_CLEARED.
+function _handleReachGoal(state, username) {
+  if (state.phase !== PHASE_GOAL_AVAILABLE) return null;
+  if (!state.goal || state.goal.reached) return null;
+  if (!_playerNearActorX(state, username, state.goal.x, OVERLAP_PX * 2)) return null;
+  state.goal.reached   = true;
+  state.goal.reachedBy = username;
+  state.phase          = PHASE_LEVEL_CLEARED;
   return state;
 }
 
@@ -446,22 +466,20 @@ function tick(state, deltaMs, room) {
     return state;
   }
 
-  // ----- GOAL_AVAILABLE: detect Player-Goal overlap. -----
+  // ----- GOAL_AVAILABLE: client-driven goal-reach (V7.2 sprite-collide). --
+  //
+  // The server-side auto-overlap scan was REMOVED in V7.2 alongside the
+  // SIPPING auto-collect, for the same reason: players spawn at chip
+  // (4, 4) and any goal authored near that X (or any auto-tick before
+  // a classroom_pos lands) would auto-fire on phase entry. GoalSprite
+  // on the avatar canvas now fires onReach when the local player walks
+  // under the goal flag, which sends classroom_activity_value
+  // { kind:'reach-goal' } -- _handleReachGoal validates + transitions
+  // to LEVEL_CLEARED. The tick loop only acknowledges the transition.
   if (state.phase === PHASE_GOAL_AVAILABLE) {
     if (state.goal.reached) {
       state.phase = PHASE_LEVEL_CLEARED;
       return state;
-    }
-    var goalKeys = Object.keys(state.players);
-    for (var gi = 0; gi < goalKeys.length; gi++) {
-      var gu = goalKeys[gi];
-      var gp = state.players[gu];
-      if (_overlapsActor(gp, state.goal, chipSize, state)) {
-        state.goal.reached   = true;
-        state.goal.reachedBy = gu;
-        state.phase = PHASE_LEVEL_CLEARED;
-        break;
-      }
     }
     return state;
   }

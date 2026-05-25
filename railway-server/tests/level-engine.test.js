@@ -392,7 +392,7 @@ describe('V7.1 level-engine -- REFLECTION phase: auto-clear + re-vote', () => {
 
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
-  it('Player overlapping Goal in GOAL_AVAILABLE transitions to LEVEL_CLEARED', () => {
+  it('V7.2: applyInput {kind:"reach-goal"} in GOAL_AVAILABLE transitions to LEVEL_CLEARED', () => {
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
     advanceToVoting(k.state, room);
@@ -401,9 +401,10 @@ describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
     ]);
     tick(k.state, 200, room);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
-    // Walk alice to Goal (chip 16, 7) on a 320-wide canvas: x=160, y=70.
+    // Walk alice to Goal (chip 16, 7), then fire the client-driven reach.
     room.members.get('alice').pos = chipPos(16, 7, k.chipSize);
     tick(k.state, 200, room);
+    applyInput(k.state, 'alice', { kind: 'reach-goal' });
     expect(k.state.phase).toBe(PHASE_LEVEL_CLEARED);
     expect(k.state.goal.reached).toBe(true);
     expect(k.state.goal.reachedBy).toBe('alice');
@@ -418,22 +419,46 @@ describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
     tick(k.state, 200, room);
     room.members.get('alice').pos = chipPos(16, 7, k.chipSize);
     tick(k.state, 200, room);
+    applyInput(k.state, 'alice', { kind: 'reach-goal' });
+    tick(k.state, 200, room);
     tick(k.state, 200, room);
     tick(k.state, 200, room);
     expect(k.state.phase).toBe(PHASE_LEVEL_CLEARED);
     expect(isComplete(k.state)).toBe(true);
   });
 
-  it('GOAL_AVAILABLE does NOT advance without Player-Goal overlap', () => {
+  it('V7.2: GOAL_AVAILABLE does NOT auto-advance on tick without reach-goal input', () => {
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
     advanceToVoting(k.state, room);
     landCloseDoorways(room, k.state.liveDoorwaysId, [{ doorId: 'd2', count: 1 }]);
     tick(k.state, 200, room);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
-    tick(k.state, 200, room);  // alice still at spawn
+    // Even if alice walks onto the goal, tick alone won't advance --
+    // applyInput must fire (mirrors the SIPPING auto-collect fix).
+    room.members.get('alice').pos = chipPos(16, 7, k.chipSize);
+    tick(k.state, 200, room);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
     expect(k.state.goal.reached).toBe(false);
+  });
+
+  it('V7.2: applyInput {kind:"reach-goal"} no-ops outside GOAL_AVAILABLE phase', () => {
+    var k = setupCola(['alice']);   // starts in SIPPING
+    expect(applyInput(k.state, 'alice', { kind: 'reach-goal' })).toBeNull();
+    expect(k.state.goal.reached).toBe(false);
+  });
+
+  it('V7.2 anti-cheat: applyInput {kind:"reach-goal"} rejects far-away player', () => {
+    var k = setupCola(['alice']);
+    var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
+    advanceToVoting(k.state, room);
+    landCloseDoorways(room, k.state.liveDoorwaysId, [{ doorId: 'd2', count: 1 }]);
+    tick(k.state, 200, room);
+    // Alice is still at chip (4, 4) -> level x=40. Goal at chip 16 -> x=160.
+    // |40-160| = 120 px, well past 2 * OVERLAP_PX = 32. Reject.
+    expect(applyInput(k.state, 'alice', { kind: 'reach-goal' })).toBeNull();
+    expect(k.state.goal.reached).toBe(false);
+    expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
   });
 });
 
