@@ -2107,15 +2107,27 @@ export function createClassroomRegistry() {
   }
 
   // activityValue(ws, payload) -> { broadcasts }
-  // Student-only. Forwards to plugin.onStudentInput. The next tick carries
-  // the updated state out -- no separate broadcast on input.
+  // Forwards to plugin.onStudentInput (legacy name -- the method now
+  // accepts any participating role). The next tick carries the updated
+  // state out -- no separate broadcast on input.
+  //
+  // V7.3.6: role gate lifted. Originally student-only (V6 colorbox-grid
+  // used this for prompt picks), but V7.2 sprite-collide turned this
+  // into the coin / goal collect channel for the avatar -- and the
+  // teacher participates as an avatar too. Without lifting the gate,
+  // a teacher walking into a coin saw their CoinSprite vanish locally
+  // (optimistic _sentCollect) but the server silently dropped the
+  // value -- coin never went away on student screens, tally stayed
+  // wrong. Each plugin is responsible for its own role logic if it
+  // cares (the level plugin doesn't; the colorbox-grid plugin can
+  // ignore non-student inputs internally if needed).
   function activityValue(ws, payload) {
     var entry = wsIndex.get(ws);
     if (!entry) return { broadcasts: [] };
     var room = classrooms.get(entry.section);
     if (!room || !room.activity || room.activity.finished) return { broadcasts: [] };
     var member = room.members.get(entry.username);
-    if (!member || member.role !== 'student') return { broadcasts: [] };
+    if (!member) return { broadcasts: [] };
     var plugin = activityPlugins[room.activity.type];
     if (!plugin) return { broadcasts: [] };
     var next = plugin.onStudentInput(room.activity.state, entry.username, payload);
