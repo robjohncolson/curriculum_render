@@ -13,6 +13,169 @@ const LIVENESS_MS = 45 * 1000;          // 45 seconds
 const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
 const NUDGE_TTL_MS = 10 * 60 * 1000;    // 10 minutes: recentNudges retention (P3 Codex BLOCKER fold)
 
+// v4 Activity engine -- bridge-mean plugin constants.
+const BRIDGE_MEAN_HOLD_TARGET_MS = 3000;
+const BRIDGE_MEAN_TOLERANCE      = 0.3;
+const ACTIVITY_TICK_MS           = 200;
+const DEFAULT_ACTIVITY_DURATION_MS = 90000;
+
+// v4 Activity engine -- per-activity lesson key map for override-gate auto-fire.
+var ACTIVITY_LESSON_MAP = {
+  'bridge-mean': '1.1'
+};
+
+// v4 Activity engine -- plugin registry. Keyed by activity type string.
+// Populated below with the bridge-mean plugin. Module-scope so server.js
+// and tests can interrogate it.
+var activityPlugins = {};
+
+// v4 Activity engine -- fire-and-forget override-gate unlock POST.
+// Used on activity success to unlock the lesson for every present student.
+// Failures are logged via console.warn and do NOT block the success broadcast.
+function _postOverrideGate(username, lessonKey, reason) {
+  var base = (typeof process !== 'undefined' && process.env && process.env.ROSTER_SERVICE_URL) || null;
+  if (!base) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[activity] ROSTER_SERVICE_URL not set; override-gate skipped for', username, lessonKey);
+    }
+    return;
+  }
+  var secret = (typeof process !== 'undefined' && process.env && process.env.TEACHER_SECRET) || null;
+  var url = base.replace(/\/+$/, '') + '/teacher/lesson-unlock';
+  // 2026-05-24 Codex BLOCKER fold: the lesson-unlock route validates
+  // `studentUsername` (NOT `username`). With the wrong field, every
+  // success-path POST returned 400 and the lesson never unlocked,
+  // breaking the frozen mastery action. The route's spec is in
+  // `follow-alongs/roster-server/lesson-unlock.js`.
+  var body = JSON.stringify({
+    studentUsername: username,
+    lessonKey:       lessonKey,
+    reason:          reason || 'activity-success'
+  });
+  // Best-effort: use globalThis.fetch when available; ignore promise.
+  if (typeof globalThis === 'undefined' || typeof globalThis.fetch !== 'function') {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[activity] global fetch unavailable; override-gate skipped for', username, lessonKey);
+    }
+    return;
+  }
+  try {
+    var headers = { 'content-type': 'application/json' };
+    if (secret) { headers['x-teacher-secret'] = secret; }
+    globalThis.fetch(url, { method: 'POST', headers: headers, body: body }).then(function (res) {
+      if (!res || !res.ok) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[activity] override-gate POST returned non-ok for', username, lessonKey, res && res.status);
+        }
+      }
+    }).catch(function (err) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[activity] override-gate POST failed for', username, lessonKey, err && err.message);
+      }
+    });
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[activity] override-gate POST threw for', username, lessonKey, e && e.message);
+    }
+  }
+}
+
+// v4 Activity engine -- bridge-mean plugin.
+// Initial state: each online student gets a random int [1,10] value.
+// Target: random int [3,8] but NEVER equal to round(mean(initialValues)).
+// Tolerance: fixed +/- 0.3.
+// onStudentInput accepts payload.delta in {-1, +1}; clamps values to [1,10].
+// onTick recomputes currentMean + holdMs; holdMs resets on exit from band.
+// isComplete: holdMs >= 3000.
+// serializeForBoard exposes values/target/tolerance/currentMean(2dp)/holdMs/holdTargetMs.
+activityPlugins['bridge-mean'] = {
+  minMembers: 2,
+
+  initActivity: function (room, onlineStudents, opts) {
+    var values = {};
+    var sum = 0;
+    onlineStudents.forEach(function (m) {
+      var v = 1 + Math.floor(Math.random() * 10);
+      values[m.username] = v;
+      sum += v;
+    });
+    var initialMean = onlineStudents.length > 0 ? (sum / onlineStudents.length) : 0;
+    var rounded = Math.round(initialMean);
+    var candidates = [];
+    for (var t = 3; t <= 8; t++) {
+      if (t !== rounded) { candidates.push(t); }
+    }
+    // candidates is never empty: rounded eliminates at most one of six values.
+    var target = candidates[Math.floor(Math.random() * candidates.length)];
+    return {
+      values:     values,
+      target:     target,
+      tolerance:  BRIDGE_MEAN_TOLERANCE,
+      currentMean: initialMean,
+      holdMs:     0,
+      lastTickAt: Date.now()
+    };
+  },
+
+  onStudentInput: function (state, username, payload) {
+    if (!payload || typeof payload.delta !== 'number') { return null; }
+    // Only -1 or +1 deltas accepted; everything else is dropped.
+    var d = (payload.delta > 0) ? 1 : (payload.delta < 0) ? -1 : 0;
+    if (d === 0) { return null; }
+    if (!(username in state.values)) { return null; }
+    var next = Object.assign({}, state);
+    next.values = Object.assign({}, state.values);
+    next.values[username] = Math.max(1, Math.min(10, state.values[username] + d));
+    return next;
+  },
+
+  onTick: function (state, deltaMs) {
+    var keys = Object.keys(state.values);
+    if (keys.length === 0) {
+      return Object.assign({}, state, { currentMean: 0, holdMs: 0 });
+    }
+    var sum = 0;
+    for (var i = 0; i < keys.length; i++) { sum += state.values[keys[i]]; }
+    var mean = sum / keys.length;
+    var inBand = Math.abs(mean - state.target) <= state.tolerance;
+    var nextHoldMs = inBand ? (state.holdMs + deltaMs) : 0;
+    return Object.assign({}, state, {
+      currentMean: mean,
+      holdMs:      nextHoldMs
+    });
+  },
+
+  isComplete: function (state) {
+    return state.holdMs >= BRIDGE_MEAN_HOLD_TARGET_MS;
+  },
+
+  serializeForBoard: function (state) {
+    return {
+      values:       state.values,
+      target:       state.target,
+      tolerance:    state.tolerance,
+      currentMean:  Math.round(state.currentMean * 100) / 100,
+      holdMs:       state.holdMs,
+      holdTargetMs: BRIDGE_MEAN_HOLD_TARGET_MS
+    };
+  },
+
+  onMemberLeave: function (state, username) {
+    if (!(username in state.values)) { return null; }
+    var next = Object.assign({}, state, { values: Object.assign({}, state.values) });
+    delete next.values[username];
+    return next;
+  },
+
+  onMemberJoin: function (state, username) {
+    if (username in state.values) { return null; }  // re-join: keep prior value
+    var v = 1 + Math.floor(Math.random() * 10);
+    var next = Object.assign({}, state, { values: Object.assign({}, state.values) });
+    next.values[username] = v;
+    return next;
+  }
+};
+
 // WireMember -- the shape sent on the wire (v1b).
 // status reflects the member's real status ("present", "checkedIn", or "voted").
 // hue is an integer 0-359 or null (r3 addition -- see Section 2.7).
@@ -88,6 +251,20 @@ function buildStatePayload(room, forRole, forUsername) {
   room.members.forEach(function(member) {
     members.push(toWireMemberForRole(member, forRole, forUsername, blindPollOpen));
   });
+  // v4: serialize current activity (if any) for late-joiner / cockpit hydration.
+  var activityWire = null;
+  if (room.activity) {
+    var plugin = activityPlugins[room.activity.type];
+    if (plugin) {
+      activityWire = {
+        type:       room.activity.type,
+        startedAt:  room.activity.startedAt,
+        durationMs: room.activity.durationMs,
+        finished:   room.activity.finished,
+        state:      plugin.serializeForBoard(room.activity.state)
+      };
+    }
+  }
   return {
     type:    'classroom_state',
     section: room.section,
@@ -99,6 +276,7 @@ function buildStatePayload(room, forRole, forUsername) {
     // s111 hotfix: normalize via _wireDoorways so the snapshot shape
     // matches the open/tally/close broadcasts (separate tally array).
     doorways: _wireDoorways(room.doorways),
+    activity: activityWire,
     members: members
   };
 }
@@ -216,6 +394,7 @@ export function createClassroomRegistry() {
         poll:    null,       // { id, question, options, blind, openedAt } | null
         live:    false,      // v3 P1+P2: durable Live flag (NOT cleared by armGate/greenLight/reset)
         doorways: null,   // v3 P4: { id, question, options: [{label, doorId, count}], openedAt } | null
+        activity: null,   // v4: { type, startedAt, durationMs, state, finished } | null
         members: new Map(), // username -> Member
         // P3 nudges (Codex BLOCKER fold): nudgeId -> { recipients: Set<username>, ts }.
         // Populated by teacherNudge; consumed by studentNudgeReply to verify the
@@ -256,6 +435,20 @@ export function createClassroomRegistry() {
         // Monitor viewer is always teacher -- no blind-poll mask needed.
         members.push(toWireMember(member));
       });
+      // v4: include serialized activity for monitor snapshot.
+      var activityWire = null;
+      if (room.activity) {
+        var monPlugin = activityPlugins[room.activity.type];
+        if (monPlugin) {
+          activityWire = {
+            type:       room.activity.type,
+            startedAt:  room.activity.startedAt,
+            durationMs: room.activity.durationMs,
+            finished:   room.activity.finished,
+            state:      monPlugin.serializeForBoard(room.activity.state)
+          };
+        }
+      }
       sections.push({
         section:  section,
         gate:     room.gate,
@@ -266,6 +459,7 @@ export function createClassroomRegistry() {
         // s111 hotfix: normalize via _wireDoorways for wire-shape
         // consistency with open/tally/close broadcasts.
         doorways: _wireDoorways(room.doorways),
+        activity: activityWire,
         members:  members
       });
     });
@@ -357,6 +551,7 @@ export function createClassroomRegistry() {
     var room = getOrCreateRoom(section);
 
     var isNewMember = !room.members.has(username);
+    var isFirstTimeMember = isNewMember;  // track whether this is a true first join (not just online-flip)
     var member;
 
     if (isNewMember) {
@@ -372,6 +567,10 @@ export function createClassroomRegistry() {
         sockets:  new Set([ws])
       };
       room.members.set(username, member);
+      // v4: if a new student joins mid-activity, the plugin assigns them a value.
+      if (role === 'student') {
+        activityOnMemberJoin(room, username);
+      }
     } else {
       member = room.members.get(username);
       member.sockets.add(ws);
@@ -567,6 +766,9 @@ export function createClassroomRegistry() {
           // close/heartbeat on a zombie socket is a clean no-op.
           goneMember.sockets.forEach(function(sock) { wsIndex.delete(sock); });
         }
+        // v4: if an activity is live, let the plugin drop the leaver's
+        // domain state (e.g. their bridge-mean value).
+        activityOnMemberLeave(room, username);
         room.members.delete(username);
         // Always record the removal. The recipient socket list may be
         // empty (the room is now empty, or had no other members) -- the
@@ -635,6 +837,12 @@ export function createClassroomRegistry() {
     // v3 P4 Codex MAJOR 3 fold: armGate is mutually exclusive with
     // an active doorways data mode.
     if (room.doorways) return { broadcasts: [] };
+    // 2026-05-24 V4 Codex BLOCKER fold: reverse mutex -- a live activity
+    // (bridge-mean etc.) also blocks armGate. startActivity already
+    // rejects when {gate, poll, doorways} are live; the reverse must
+    // hold so the room cannot get into a mixed-mode state clients
+    // can't reconcile.
+    if (room.activity && !room.activity.finished) return { broadcasts: [] };
 
     // Arm the gate and reset all member statuses.
     room.gate = { armed: true, theme: theme || '', openedAt: currentNow };
@@ -809,6 +1017,9 @@ export function createClassroomRegistry() {
     if (!room) return { broadcasts: [] };
 
     if (room.doorways) return { broadcasts: [] };  // mutual exclusion vs P4
+    // 2026-05-24 V4 Codex BLOCKER fold: reverse mutex -- a live
+    // activity blocks openPoll.
+    if (room.activity && !room.activity.finished) return { broadcasts: [] };
 
     var member = room.members.get(entry.username);
     if (!member) return { broadcasts: [] };
@@ -1100,6 +1311,9 @@ export function createClassroomRegistry() {
     var member = room.members.get(entry.username);
     if (!member || member.role !== 'teacher') return { broadcasts: [] };
     if (room.poll) return { broadcasts: [] };  // mutual exclusion vs v2 poll
+    // 2026-05-24 V4 Codex BLOCKER fold: reverse mutex -- a live
+    // activity blocks openDoorways.
+    if (room.activity && !room.activity.finished) return { broadcasts: [] };
     // v3 P4 Codex MAJOR 2 fold: reject if doorways are ALREADY open
     // (a second open would overwrite without clearing prior doorVotes).
     if (room.doorways) return { broadcasts: [] };
@@ -1259,6 +1473,257 @@ export function createClassroomRegistry() {
     var broadcasts = [{ sockets: sockets, payload: payload }];
     _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
+  }
+
+  // -------------------------------------------------------------------------
+  // v4 Activity engine (LIVE_CLASSROOM_V4_BUILD.md sections C1, C2)
+  // -------------------------------------------------------------------------
+  //
+  // One activity per room. The plugin (keyed by activity.type) provides
+  // the domain behaviour; the engine wires lifecycle, ticks, mutex, and
+  // monitor fanout.
+  //
+  // Mutex (startActivity): rejects when room.gate.armed || room.poll
+  //                        || room.doorways || room.activity.
+  //
+  // Lifecycle:
+  //   startActivity -> classroom_activity_start (room + monitors)
+  //   activityValue -> no immediate broadcast; next tick covers it
+  //   activityTick (5 Hz) -> classroom_activity_state (room + monitors)
+  //   isComplete -> classroom_activity_success (+ override-gate auto-fire)
+  //   timeout    -> classroom_activity_timeout
+  //   cancelActivity -> classroom_activity_cancel
+
+  // startActivity(ws, type, opts, now) -> { broadcasts }
+  // Teacher-only. opts: { durationMs?, target?, tolerance? } -- plugin may use or ignore.
+  function startActivity(ws, type, opts, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    // Mutex: gate armed, poll open, doorways open, or activity live all reject.
+    if (room.gate && room.gate.armed) return { broadcasts: [] };
+    if (room.poll || room.doorways || room.activity) return { broadcasts: [] };
+    var plugin = activityPlugins[type];
+    if (!plugin) return { broadcasts: [] };
+    // Count online students.
+    var online = [];
+    room.members.forEach(function (m) {
+      if (m.role === 'student' && m.online !== false) { online.push(m); }
+    });
+    if (online.length < plugin.minMembers) {
+      return { broadcasts: [{ sockets: [ws], payload: {
+        type:       'classroom_activity_error',
+        section:    entry.section,
+        code:       'not-enough-members',
+        minMembers: plugin.minMembers,
+        online:     online.length
+      }}] };
+    }
+    var safeOpts = opts || {};
+    var initialState = plugin.initActivity(room, online, safeOpts);
+    var durationMs = (typeof safeOpts.durationMs === 'number' && safeOpts.durationMs > 0)
+      ? safeOpts.durationMs
+      : DEFAULT_ACTIVITY_DURATION_MS;
+    room.activity = {
+      type:       type,
+      startedAt:  now == null ? Date.now() : now,
+      durationMs: durationMs,
+      state:      initialState,
+      finished:   false
+    };
+    // Fresh ritual: reset every member status (parity with armGate / openPoll).
+    room.members.forEach(function (m) { m.status = 'present'; });
+    var payload = {
+      type:    'classroom_activity_start',
+      section: entry.section,
+      activity: {
+        type:       type,
+        startedAt:  room.activity.startedAt,
+        durationMs: room.activity.durationMs,
+        state:      plugin.serializeForBoard(initialState)
+      }
+    };
+    var sockets = roomSockets(room, null);
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // activityValue(ws, payload) -> { broadcasts }
+  // Student-only. Forwards to plugin.onStudentInput. The next tick carries
+  // the updated state out -- no separate broadcast on input.
+  function activityValue(ws, payload) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.activity || room.activity.finished) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'student') return { broadcasts: [] };
+    var plugin = activityPlugins[room.activity.type];
+    if (!plugin) return { broadcasts: [] };
+    var next = plugin.onStudentInput(room.activity.state, entry.username, payload);
+    if (next) { room.activity.state = next; }
+    return { broadcasts: [] };
+  }
+
+  // cancelActivity(ws) -> { broadcasts }
+  // Teacher-only. Sets finished=true and broadcasts classroom_activity_cancel.
+  // The tick loop drops finished activities on the next tick.
+  function cancelActivity(ws) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.activity) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    room.activity.finished = true;
+    var payload = {
+      type:         'classroom_activity_cancel',
+      section:      entry.section,
+      activityType: room.activity.type
+    };
+    var sockets = roomSockets(room, null);
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // activityTick(now) -> { broadcasts }
+  // Called by the module-scope setInterval(ACTIVITY_TICK_MS). Per room:
+  //   1. plugin.onTick(state, ACTIVITY_TICK_MS) -> derive next state.
+  //   2. plugin.isComplete -> broadcast success + override-gate auto-fire.
+  //   3. elapsed >= durationMs -> broadcast timeout.
+  //   4. otherwise -> broadcast state (5 Hz fanout).
+  // Finished activities are dropped on the NEXT tick (room.activity = null).
+  function activityTick(now) {
+    var currentNow = now == null ? Date.now() : now;
+    var broadcasts = [];
+    classrooms.forEach(function (room, section) {
+      if (!room.activity) return;
+      // Drop fully-finished activities. We keep the activity for one extra
+      // tick after finished is set so the cancel/success/timeout broadcasts
+      // (which set finished=true) have already gone out. Once finished is
+      // already true on entry, clear the slot.
+      if (room.activity.finished) {
+        room.activity = null;
+        return;
+      }
+      var plugin = activityPlugins[room.activity.type];
+      if (!plugin) {
+        room.activity = null;
+        return;
+      }
+      // 2026-05-24 V4 Codex MAJOR fold: when the room drops to zero
+      // online students, cancel the activity instead of letting tick
+      // accumulate hold time on a stale state.values map (which the
+      // GC sweep wouldn't clear for 45 minutes). Treated as a
+      // timeout outcome so cockpit's result panel surfaces it.
+      var onlineCount = 0;
+      room.members.forEach(function (mm) {
+        if (mm.role === 'student' && mm.online !== false) onlineCount++;
+      });
+      if (onlineCount === 0) {
+        room.activity.finished = true;
+        var emptyPayload = {
+          type:         'classroom_activity_timeout',
+          section:      section,
+          activityType: room.activity.type,
+          finalState:   plugin.serializeForBoard(room.activity.state),
+          reason:       'room-empty'
+        };
+        var emptySockets = roomSockets(room, null);
+        var emptyBc = [{ sockets: emptySockets, payload: emptyPayload }];
+        _fanoutToMonitors(emptyBc);
+        broadcasts.push.apply(broadcasts, emptyBc);
+        return;
+      }
+      var elapsed = currentNow - room.activity.startedAt;
+      var nextState = plugin.onTick(room.activity.state, ACTIVITY_TICK_MS);
+      if (nextState) { room.activity.state = nextState; }
+      // Success check.
+      if (plugin.isComplete(room.activity.state)) {
+        room.activity.finished = true;
+        var successPayload = {
+          type:         'classroom_activity_success',
+          section:      section,
+          activityType: room.activity.type,
+          finalState:   plugin.serializeForBoard(room.activity.state)
+        };
+        var successSockets = roomSockets(room, null);
+        var successBc = [{ sockets: successSockets, payload: successPayload }];
+        _fanoutToMonitors(successBc);
+        broadcasts.push.apply(broadcasts, successBc);
+        _fireOverrideGateForRoom(room, room.activity.type);
+        return;
+      }
+      // Timeout check.
+      if (elapsed >= room.activity.durationMs) {
+        room.activity.finished = true;
+        var timeoutPayload = {
+          type:         'classroom_activity_timeout',
+          section:      section,
+          activityType: room.activity.type,
+          finalState:   plugin.serializeForBoard(room.activity.state)
+        };
+        var timeoutSockets = roomSockets(room, null);
+        var timeoutBc = [{ sockets: timeoutSockets, payload: timeoutPayload }];
+        _fanoutToMonitors(timeoutBc);
+        broadcasts.push.apply(broadcasts, timeoutBc);
+        return;
+      }
+      // Normal tick: broadcast current state.
+      var statePayload = {
+        type:         'classroom_activity_state',
+        section:      section,
+        activityType: room.activity.type,
+        state:        plugin.serializeForBoard(room.activity.state),
+        elapsedMs:    elapsed
+      };
+      var stateSockets = roomSockets(room, null);
+      var stateBc = [{ sockets: stateSockets, payload: statePayload }];
+      _fanoutToMonitors(stateBc);
+      broadcasts.push.apply(broadcasts, stateBc);
+    });
+    return { broadcasts: broadcasts };
+  }
+
+  // _fireOverrideGateForRoom(room, activityType)
+  // Posts /teacher/lesson-unlock for each online student in the room for
+  // the lesson key associated with the activity type. Fire-and-forget;
+  // failures are logged but do NOT block the success broadcast.
+  function _fireOverrideGateForRoom(room, activityType) {
+    var lessonKey = ACTIVITY_LESSON_MAP[activityType];
+    if (!lessonKey) return;
+    room.members.forEach(function (m) {
+      if (m.role !== 'student' || m.online === false) return;
+      _postOverrideGate(m.username, lessonKey, 'activity-' + activityType);
+    });
+  }
+
+  // activityOnMemberLeave(room, username) -> void
+  // Called from the existing detach/sweep paths when a member is removed
+  // entirely (not just offline-flipped). Drops their value from the
+  // activity state via the plugin's onMemberLeave hook.
+  function activityOnMemberLeave(room, username) {
+    if (!room || !room.activity || room.activity.finished) return;
+    var plugin = activityPlugins[room.activity.type];
+    if (!plugin || typeof plugin.onMemberLeave !== 'function') return;
+    var next = plugin.onMemberLeave(room.activity.state, username);
+    if (next) { room.activity.state = next; }
+  }
+
+  // activityOnMemberJoin(room, username) -> void
+  // Called from the existing join handler when a NEW member joins a room
+  // mid-activity. Assigns them a value via the plugin's onMemberJoin hook.
+  function activityOnMemberJoin(room, username) {
+    if (!room || !room.activity || room.activity.finished) return;
+    var plugin = activityPlugins[room.activity.type];
+    if (!plugin || typeof plugin.onMemberJoin !== 'function') return;
+    var next = plugin.onMemberJoin(room.activity.state, username);
+    if (next) { room.activity.state = next; }
   }
 
   // -------------------------------------------------------------------------
@@ -1467,6 +1932,15 @@ export function createClassroomRegistry() {
     return wsIndex.get(ws) || null;
   }
 
+  // _getRoom(section) -> room | null
+  // Test-only backdoor. Returns the live in-memory room reference so
+  // unit tests can pin activity state (target, values) deterministically.
+  // Production code should NOT mutate the room via this method -- use
+  // the public lifecycle methods instead.
+  function _getRoom(section) {
+    return classrooms.get(section) || null;
+  }
+
   return {
     join:       join,
     detach:     detach,
@@ -1496,6 +1970,25 @@ export function createClassroomRegistry() {
     _wsEntry:             _wsEntry,
     // v3 P3 Teacher-Student Console nudge methods:
     teacherNudge:        teacherNudge,
-    studentNudgeReply:   studentNudgeReply
+    studentNudgeReply:   studentNudgeReply,
+    // v4 Activity engine methods:
+    startActivity:            startActivity,
+    activityValue:            activityValue,
+    cancelActivity:           cancelActivity,
+    activityTick:             activityTick,
+    activityOnMemberLeave:    activityOnMemberLeave,
+    activityOnMemberJoin:     activityOnMemberJoin,
+    // Test-only backdoor:
+    _getRoom:                 _getRoom
   };
 }
+
+// v4 Activity engine -- exported registry + lesson map for tests/introspection.
+// Module-scope so test files and server.js can inspect / extend without
+// reaching into a registry instance.
+export var __ACTIVITY_PLUGINS = activityPlugins;
+export var __ACTIVITY_LESSON_MAP = ACTIVITY_LESSON_MAP;
+export var __ACTIVITY_TICK_MS = ACTIVITY_TICK_MS;
+export var __BRIDGE_MEAN_HOLD_TARGET_MS = BRIDGE_MEAN_HOLD_TARGET_MS;
+export var __BRIDGE_MEAN_TOLERANCE = BRIDGE_MEAN_TOLERANCE;
+export var __DEFAULT_ACTIVITY_DURATION_MS = DEFAULT_ACTIVITY_DURATION_MS;

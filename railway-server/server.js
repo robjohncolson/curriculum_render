@@ -2005,6 +2005,29 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // --- v4: Activity engine (LIVE_CLASSROOM_V4_BUILD.md C1, C2) ----
+
+        case 'classroom_activity_start': {
+          var actType   = (typeof data.activityType === 'string') ? data.activityType : '';
+          var actOpts   = (data.opts && typeof data.opts === 'object') ? data.opts : {};
+          var actResult = classroomRegistry.startActivity(ws, actType, actOpts, Date.now());
+          broadcastToClassroom(null, actResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_activity_value': {
+          var actVPayload = (data.payload && typeof data.payload === 'object') ? data.payload : {};
+          var actVResult  = classroomRegistry.activityValue(ws, actVPayload);
+          broadcastToClassroom(null, actVResult.broadcasts);
+          break;
+        }
+
+        case 'classroom_activity_cancel': {
+          var actCResult = classroomRegistry.cancelActivity(ws);
+          broadcastToClassroom(null, actCResult.broadcasts);
+          break;
+        }
+
         // v3 P3 Teacher-Student Console: bidirectional free-text nudges.
         // Nudges are TARGETED (specific sockets), NOT broadcast to the whole
         // section -- do NOT use broadcastToClassroom here.
@@ -2246,6 +2269,17 @@ setInterval(() => {
     broadcastToClassroom(bc.payload.section, [bc]);
   });
 }, 15000);
+
+// v4 Activity engine tick loop. Runs every 200 ms (5 Hz). Per active
+// room, the engine advances plugin state and emits classroom_activity_state
+// (or _success / _timeout once terminal). Idle rooms cost a single Map
+// lookup -- safe to leave running globally.
+setInterval(() => {
+  const tickResult = classroomRegistry.activityTick(Date.now());
+  if (tickResult && tickResult.broadcasts && tickResult.broadcasts.length > 0) {
+    broadcastToClassroom(null, tickResult.broadcasts);
+  }
+}, 200);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
