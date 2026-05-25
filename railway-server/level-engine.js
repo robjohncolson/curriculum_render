@@ -361,22 +361,19 @@ function tick(state, deltaMs, room) {
     return state;
   }
 
-  // ----- SIPPING: coin collection; emit VOTING sideEffect when done. -----
+  // ----- SIPPING: client-driven coin collection (V7.2 sprite-collide). --
+  //
+  // The server-side auto-collect scan was REMOVED in V7.2: every player
+  // spawns at PlayerSpawn (e.g. chip (4, 4)) and the first tick fired
+  // before any movement, so the X-only overlap auto-collected whichever
+  // coin happened to be near the spawn X. Users perceived this as
+  // "collected by proximity" -- correctly, because it was. Collection
+  // is now driven by client CoinSprite.update collision events that
+  // arrive via classroom_activity_value { kind:'collect', coinId } and
+  // are validated by applyInput / _handleCoinCollect (this same engine,
+  // with a server-side X-overlap anti-cheat). The tick loop only needs
+  // to check the SIPPING -> VOTING transition.
   if (state.phase === PHASE_SIPPING) {
-    var playerKeys = Object.keys(state.players);
-    for (var c = 0; c < state.coins.length; c++) {
-      var coin = state.coins[c];
-      if (coin.collected) continue;
-      for (var pi = 0; pi < playerKeys.length; pi++) {
-        var pl = state.players[playerKeys[pi]];
-        if (_overlapsActor(pl, coin, chipSize, state)) {
-          coin.collected = true;
-          if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
-          state.tally.sips[coin.drink]++;
-          break;
-        }
-      }
-    }
     if (_isSippingComplete(state)) {
       state.phase = PHASE_VOTING;
       state._phaseEntry += 1;
