@@ -255,16 +255,21 @@ function _refreshPlayerPositions(state, room) {
 // is also broadcasting on a 320-wide canvas the rescale is identity
 // (player_level_x = player_x / 320 * 320 = player_x). The math stays
 // in place anyway so any non-320 sender (cockpit @ 640+) still works.
+//
+// 2026-05-25 V7.1 Y-axis fix: per V7.1 spec ("Players walk on the
+// existing LC floor; overlays sit above"), the player Y is fixed at
+// the avatar floor (canvas y ~= 146) while every level actor lives in
+// the OVERLAY region at chip y * chipSize (e.g. coins at chip y=2 ->
+// pixel y=20). The previous Y comparison was |146 - 20| = 126 > 16 and
+// could NEVER succeed, so coins never collected, phase never advanced
+// to VOTING, and openDoorways was never emitted. Treat the player as
+// a vertical column: actors with matching X (regardless of Y) trigger.
 function _overlapsActor(player, actor, chipSize, state) {
   var levelW = (state && state.mapWidth) ? state.mapWidth * chipSize : 320;
   var senderCw = (player && typeof player._canvasW === 'number' && player._canvasW > 0) ? player._canvasW : 320;
   var playerLevelX = (player.x / senderCw) * levelW;
-  // Y axis pass-through (no canvasH on the wire yet).
-  var playerLevelY = player.y;
   var ax = actor.x * chipSize;
-  var ay = actor.y * chipSize;
-  return Math.abs(playerLevelX - ax) <= OVERLAP_PX &&
-         Math.abs(playerLevelY - ay) <= OVERLAP_PX;
+  return Math.abs(playerLevelX - ax) <= OVERLAP_PX;
 }
 
 // Internal: check the SIPPING -> VOTING precondition. Default is
