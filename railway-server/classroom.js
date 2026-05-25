@@ -19,14 +19,56 @@ const BRIDGE_MEAN_TOLERANCE      = 0.3;
 const ACTIVITY_TICK_MS           = 200;
 const DEFAULT_ACTIVITY_DURATION_MS = 90000;
 
+// v5 Activity engine -- colorbox-hue plugin constants + helpers.
+// Logical board width matches the Desk renderer's coordinate system
+// (DEFAULT_BOARD_W = 320). Four zones partition the horizontal axis
+// at 0-89, 90-179, 180-269, 270-359 hue degrees.
+var COLORBOX_HUE_HOLD_TARGET_MS = 5000;
+var COLORBOX_HUE_ZONES = [
+  { id: 0, label: 'Red',    hueMin:   0, hueMax:  89 },
+  { id: 1, label: 'Yellow', hueMin:  90, hueMax: 179 },
+  { id: 2, label: 'Green',  hueMin: 180, hueMax: 269 },
+  { id: 3, label: 'Blue',   hueMin: 270, hueMax: 359 }
+];
+
+// Stable per-username hue fallback. Mirrors the LC render layer's
+// fallback so a hue-less student gets the same "category" across
+// sessions. Result is in [0, 359].
+// 2026-05-24 V5 Codex MAJOR fold: this function MUST exactly match
+// classroom-board.js `hashStringToHue` so a hue-less student's avatar
+// tint and their colorbox-hue zone assignment use the same hue. The
+// previous implementation used `(h * 31 + char) & 0x7fffffff` -- a
+// different hash that gave different hues (e.g. "student" -> server 203
+// vs board 285, drifting them into different zones).
+function fallbackHueForUsername(username) {
+  // Verbatim from follow-alongs classroom-board.js hashStringToHue
+  // (which itself is a verbatim copy from curriculum_render's
+  // sprite_manager.js). Do not modify -- parity matters.
+  var hash = 0;
+  for (var i = 0; i < username.length; i++) {
+    hash = ((hash << 5) - hash) + username.charCodeAt(i);
+    hash = hash | 0;  // keep 32-bit signed
+  }
+  return Math.abs(hash) % 360;
+}
+
+// Quadrant index for a hue in degrees. Wraparound-safe: 360 -> 0,
+// -10 -> 350 -> 3. Returns one of {0, 1, 2, 3}.
+function zoneForHue(hue) {
+  var h = ((hue % 360) + 360) % 360;
+  return Math.floor(h / 90);
+}
+
 // v4 Activity engine -- per-activity lesson key map for override-gate auto-fire.
+// v5: colorbox-hue maps to U1.3 (Displaying Categorical Data) per spec.
 var ACTIVITY_LESSON_MAP = {
-  'bridge-mean': '1.1'
+  'bridge-mean':  '1.1',
+  'colorbox-hue': '1.3'
 };
 
 // v4 Activity engine -- plugin registry. Keyed by activity type string.
-// Populated below with the bridge-mean plugin. Module-scope so server.js
-// and tests can interrogate it.
+// Populated below with the bridge-mean plugin (v4) + colorbox-hue (v5).
+// Module-scope so server.js and tests can interrogate it.
 var activityPlugins = {};
 
 // v4 Activity engine -- fire-and-forget override-gate unlock POST.
@@ -173,6 +215,130 @@ activityPlugins['bridge-mean'] = {
     var next = Object.assign({}, state, { values: Object.assign({}, state.values) });
     next.values[username] = v;
     return next;
+  }
+};
+
+// v5 Activity engine -- colorbox-hue plugin.
+// Pedagogy: U1 Topic 1.3 (Displaying Categorical Data). Each present
+// student's pre-existing sprite hue IS their category (Red 0-89,
+// Yellow 90-179, Green 180-269, Blue 270-359). Mastery = every
+// assigned student walking their avatar into the matching zone for
+// 5 sustained seconds. The plugin reads avatar x-positions from
+// room.members.get(username).pos -- the v5 engine extension passes
+// room as a 3rd arg to onTick and onMemberJoin so plugins can do
+// this without coupling to a separate state slot.
+//
+// Logical board width is DEFAULT_BOARD_W (320); the Desk renderer
+// partitions the same width into 4 columns of (320 / 4) = 80 each.
+// Vertical y is ignored.
+activityPlugins['colorbox-hue'] = {
+  minMembers: 2,
+
+  initActivity: function (room, onlineStudents, opts) {
+    // Each online student's category is pinned once at start from
+    // their hue (null -> stable username-hash fallback).
+    var assignments = {};
+    onlineStudents.forEach(function (m) {
+      var hue = (m.hue != null) ? m.hue : fallbackHueForUsername(m.username);
+      assignments[m.username] = zoneForHue(hue);
+    });
+    return {
+      assignments: assignments,
+      currentZone: {},                              // username -> 0..3 or -1
+      tally:       [0, 0, 0, 0],
+      holdMs:      0,
+      zones:       COLORBOX_HUE_ZONES.map(function (z) {
+                     return { id: z.id, label: z.label };
+                   })
+    };
+  },
+
+  // No input channel: ColorBox piggybacks on classroom_pos broadcasts.
+  // The plugin reads positions via room in onTick (v5 signature).
+  onStudentInput: function (state, username, payload) { return null; },
+
+  onTick: function (state, deltaMs, room) {
+    // 2026-05-24 V5 Codex BLOCKER fold: read PER-MEMBER canvasW from the
+    // last classroom_pos broadcast. The old hardcoded canvasW=320
+    // misclassified zones whenever the sender's responsive board canvas
+    // was wider (e.g., a Desk sidebar at 480 CSS or a cockpit at 640+).
+    // Members without a recorded canvasW fall back to DEFAULT_BOARD_W=320.
+    // Zone i = [i * (cw/4), (i+1) * (cw/4)] in the sender's coord space.
+    // Offline / missing members contribute -1 (never equals their
+    // assignment) so the hold timer resets while they're away.
+    var nextCurrent = {};
+    var nextTally   = [0, 0, 0, 0];
+    var allCorrect  = true;
+    var anyAssigned = false;
+
+    var keys = Object.keys(state.assignments);
+    for (var k = 0; k < keys.length; k++) {
+      anyAssigned = true;
+      var uname = keys[k];
+      var m = room.members.get(uname);
+      if (!m || m.online === false) {
+        nextCurrent[uname] = -1;
+        if (state.assignments[uname] !== -1) { allCorrect = false; }
+        continue;
+      }
+      var cw = (typeof m.canvasW === 'number' && m.canvasW > 0) ? m.canvasW : 320;
+      var x = (m.pos && typeof m.pos.x === 'number') ? m.pos.x : 0;
+      var zone = Math.max(0, Math.min(3, Math.floor(x / (cw / 4))));
+      nextCurrent[uname] = zone;
+      nextTally[zone]++;
+      if (zone !== state.assignments[uname]) { allCorrect = false; }
+    }
+
+    if (!anyAssigned) { allCorrect = false; }
+
+    var nextHoldMs = allCorrect ? (state.holdMs + deltaMs) : 0;
+    return Object.assign({}, state, {
+      currentZone: nextCurrent,
+      tally:       nextTally,
+      holdMs:      nextHoldMs
+    });
+  },
+
+  isComplete: function (state) {
+    return state.holdMs >= COLORBOX_HUE_HOLD_TARGET_MS;
+  },
+
+  onMemberLeave: function (state, username) {
+    if (!(username in state.assignments)) return null;
+    var next = Object.assign({}, state, {
+      assignments: Object.assign({}, state.assignments),
+      currentZone: Object.assign({}, state.currentZone)
+    });
+    delete next.assignments[username];
+    delete next.currentZone[username];
+    return next;
+  },
+
+  onMemberJoin: function (state, username, room) {
+    // v5 signature: room is passed so we can look up the joining
+    // member's hue without coupling to a separate state slot. A
+    // re-join (already in assignments) keeps the prior category.
+    if (username in state.assignments) return null;
+    if (!room) return null;
+    var m = room.members.get(username);
+    if (!m) return null;
+    var hue = (m.hue != null) ? m.hue : fallbackHueForUsername(username);
+    var next = Object.assign({}, state, {
+      assignments: Object.assign({}, state.assignments)
+    });
+    next.assignments[username] = zoneForHue(hue);
+    return next;
+  },
+
+  serializeForBoard: function (state) {
+    return {
+      assignments:  state.assignments,
+      currentZone:  state.currentZone,
+      tally:        state.tally,
+      holdMs:       state.holdMs,
+      holdTargetMs: COLORBOX_HUE_HOLD_TARGET_MS,
+      zones:        state.zones
+    };
   }
 };
 
@@ -1641,7 +1807,11 @@ export function createClassroomRegistry() {
         return;
       }
       var elapsed = currentNow - room.activity.startedAt;
-      var nextState = plugin.onTick(room.activity.state, ACTIVITY_TICK_MS);
+      // v5 signature extension: room is passed as the 3rd arg so
+      // position-driven plugins (colorbox-hue) can read avatar
+      // positions from room.members. V4's bridge-mean onTick ignores
+      // the 3rd arg (JavaScript permits extra args silently).
+      var nextState = plugin.onTick(room.activity.state, ACTIVITY_TICK_MS, room);
       if (nextState) { room.activity.state = nextState; }
       // Success check.
       if (plugin.isComplete(room.activity.state)) {
@@ -1722,7 +1892,11 @@ export function createClassroomRegistry() {
     if (!room || !room.activity || room.activity.finished) return;
     var plugin = activityPlugins[room.activity.type];
     if (!plugin || typeof plugin.onMemberJoin !== 'function') return;
-    var next = plugin.onMemberJoin(room.activity.state, username);
+    // v5 signature extension: room is passed as the 3rd arg so
+    // plugins can look up the joining member's properties (hue,
+    // pos, etc.) without coupling to a separate state slot. V4's
+    // bridge-mean onMemberJoin ignores the 3rd arg.
+    var next = plugin.onMemberJoin(room.activity.state, username, room);
     if (next) { room.activity.state = next; }
   }
 
@@ -1742,7 +1916,7 @@ export function createClassroomRegistry() {
   // the room is missing, or the values are not finite numbers.
   //
   // Returns { broadcasts }.
-  function position(ws, x, y, state, vx, now) {
+  function position(ws, x, y, state, vx, now, canvasW) {
     var entry = wsIndex.get(ws);
     if (!entry) return { broadcasts: [] };
 
@@ -1758,6 +1932,14 @@ export function createClassroomRegistry() {
 
     var safeVx    = (typeof vx === 'number' && isFinite(vx)) ? vx : 0;
     var safeState = (typeof state === 'string') ? state : 'idle';
+    // 2026-05-24 V5 Codex BLOCKER fold: stash sender canvas width so a
+    // position-driven plugin (colorbox-hue, future colorbox-grid) can
+    // bin x correctly into zones regardless of the sender's responsive
+    // canvas size. Backwards compatible: missing/invalid -> last value
+    // preserved; never below 1.
+    if (typeof canvasW === 'number' && isFinite(canvasW) && canvasW > 0) {
+      member.canvasW = canvasW;
+    }
 
     // Update last-known position for late-joiner snapshots.
     member.pos = { x: safeX, y: safeY, state: safeState, vx: safeVx };
@@ -1776,7 +1958,8 @@ export function createClassroomRegistry() {
         x:        safeX,
         y:        safeY,
         state:    safeState,
-        vx:       safeVx
+        vx:       safeVx,
+        canvasW:  member.canvasW || null
       }
     }];
     _fanoutToMonitors(posBroadcasts);
@@ -1992,3 +2175,8 @@ export var __ACTIVITY_TICK_MS = ACTIVITY_TICK_MS;
 export var __BRIDGE_MEAN_HOLD_TARGET_MS = BRIDGE_MEAN_HOLD_TARGET_MS;
 export var __BRIDGE_MEAN_TOLERANCE = BRIDGE_MEAN_TOLERANCE;
 export var __DEFAULT_ACTIVITY_DURATION_MS = DEFAULT_ACTIVITY_DURATION_MS;
+// v5 colorbox-hue plugin -- exported helpers + constants for tests.
+export var __COLORBOX_HUE_HOLD_TARGET_MS = COLORBOX_HUE_HOLD_TARGET_MS;
+export var __COLORBOX_HUE_ZONES = COLORBOX_HUE_ZONES;
+export var __zoneForHue = zoneForHue;
+export var __fallbackHueForUsername = fallbackHueForUsername;

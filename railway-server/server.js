@@ -1899,7 +1899,9 @@ wss.on('connection', (ws) => {
         // --- KEYBOARD_AVATAR Phase 2: cross-client position sync ----------
 
         case 'classroom_pos': {
-          var posResult = classroomRegistry.position(ws, data.x, data.y, data.state, data.vx, Date.now());
+          // 2026-05-24 V5 Codex BLOCKER fold: pass data.canvasW so the
+          // server can interpret x in the sender's coord space.
+          var posResult = classroomRegistry.position(ws, data.x, data.y, data.state, data.vx, Date.now(), data.canvasW);
           broadcastToClassroom(null, posResult.broadcasts);
           break;
         }
