@@ -13,11 +13,11 @@
     "chipSize": 10
   },
   "actors": [
-    { "type": "Text",          "x":  4, "y":  0, "text": "Welcome to AP Stats! The science of asking questions about variable data." },
-    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "A" },
-    { "type": "SipStation",    "id": "s2", "x": 12, "y":  2, "drink": "A" },
-    { "type": "SipStation",    "id": "s3", "x": 20, "y":  2, "drink": "B" },
-    { "type": "SipStation",    "id": "s4", "x": 28, "y":  2, "drink": "B" },
+    { "type": "Text",          "x":  4, "y":  0, "text": "Cola Mystery: 4 mystery cups. Sip each -- data reveals what kind. Then: what question CAN we answer with that data?" },
+    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "A", "hidden": true },
+    { "type": "SipStation",    "id": "s2", "x": 12, "y":  2, "drink": "A", "hidden": true },
+    { "type": "SipStation",    "id": "s3", "x": 20, "y":  2, "drink": "B", "hidden": true },
+    { "type": "SipStation",    "id": "s4", "x": 28, "y":  2, "drink": "B", "hidden": true },
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
     { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
     {
@@ -26,7 +26,7 @@
       "x":           6, "y":  6,
       "text":       "Is Cup A Coke?",
       "correct":    false,
-      "reflection": "Notice the data doesn't say what's IN each cup -- only what students preferred."
+      "reflection": "You sipped A and B blind -- the data measured PREFERENCE, not what's inside the cup."
     },
     {
       "type":       "QuestionDoor",
@@ -41,7 +41,7 @@
       "x":          26, "y":  6,
       "text":       "Is Coke better than Pepsi?",
       "correct":    false,
-      "reflection": "Statistics observes patterns; it doesn't decide quality."
+      "reflection": "Statistics observes the pattern in your sips. 'Better' is a value judgment, not a measurement."
     },
     { "type": "Goal", "x": 16, "y":  7 }
   ],

@@ -129,6 +129,60 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
     expect(k.state.players.alice.y).toBe(4 * k.chipSize);
   });
 
+  it('V7.4: coins default to hidden=false and revealed=true (no opt-in)', () => {
+    var k = setupCola(['alice']);
+    expect(k.state.coins.every(function (c) { return c.hidden === false; })).toBe(true);
+    expect(k.state.coins.every(function (c) { return c.revealed === true; })).toBe(true);
+  });
+
+  it('V7.4: SipStation hidden=true makes coin.hidden=true and coin.revealed=false at start', () => {
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.H', lessonKey: 'T.H',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'SipStation', id: 's1', x: 4,  y: 2, drink: 'A', hidden: true },
+        { type: 'SipStation', id: 's2', x: 12, y: 2, drink: 'B' },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, text: '?', correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    };
+    var st = createLevelState(levelDef, [{ username: 'alice' }]);
+    expect(st.coins[0].hidden).toBe(true);
+    expect(st.coins[0].revealed).toBe(false);
+    expect(st.coins[1].hidden).toBe(false);   // explicit non-hidden
+    expect(st.coins[1].revealed).toBe(true);
+  });
+
+  it('V7.4: applyInput {kind:"collect"} on a hidden coin flips collected AND revealed', () => {
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.H2', lessonKey: 'T.H2',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 2 },
+        { type: 'SipStation', id: 's1', x: 4, y: 2, drink: 'A', hidden: true },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, text: '?', correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    };
+    var st = createLevelState(levelDef, [{ username: 'alice' }]);
+    var room = makeRoom({ alice: chipPos(4, 2, 10) });
+    tick(st, 200, room);
+    applyInput(st, 'alice', { kind: 'collect', coinId: 's1' });
+    expect(st.coins[0].collected).toBe(true);
+    expect(st.coins[0].revealed).toBe(true);
+    expect(st.tally.sips.A).toBe(1);
+  });
+
+  it('V7.4: serialize wire shape includes hidden + revealed per coin', () => {
+    var k = setupCola(['alice']);
+    var wire = serialize(k.state);
+    expect(wire.coins[0]).toHaveProperty('hidden');
+    expect(wire.coins[0]).toHaveProperty('revealed');
+    expect(wire.coins[0].hidden).toBe(false);
+    expect(wire.coins[0].revealed).toBe(true);
+  });
+
   it('coins reflect the 4 SipStations (uncollected, drink tags A/A/B/B)', () => {
     var k = setupCola(['alice']);
     expect(k.state.coins.length).toBe(4);

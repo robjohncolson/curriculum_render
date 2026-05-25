@@ -143,16 +143,27 @@ function createLevelState(levelDef, onlineStudents) {
   }
 
   // Coins from SipStation actors.
+  //
+  // V7.4: optional `hidden: true` on a SipStation marks it as a
+  // blind-test coin -- the drink identity is concealed pre-collect
+  // ('?' on the client) and revealed only on contact. State carries
+  // a separate `revealed` flag so the wire shape can transmit the
+  // pre/post identity distinction independently of `collected`.
+  // Default behavior (no hidden field) keeps the V7.2/3 contract:
+  // identity always visible, revealed===true from t=0.
   var coins = [];
   var sipActors = _actorsOfType(levelDef.actors, 'SipStation');
   for (var c = 0; c < sipActors.length; c++) {
     var sa = sipActors[c];
+    var hidden = sa.hidden === true;
     coins.push({
       id:        sa.id || ('sip-' + c),
       x:         sa.x,
       y:         sa.y,
       drink:     sa.drink || 'A',
-      collected: false
+      collected: false,
+      hidden:    hidden,
+      revealed:  !hidden
     });
   }
 
@@ -269,6 +280,12 @@ function _handleCoinCollect(state, username, payload) {
   // Anti-cheat: 2 * OVERLAP_PX (covers client-side prediction latency).
   if (!_playerNearActorX(state, username, coin.x, OVERLAP_PX * 2)) return null;
   coin.collected = true;
+  // V7.4: collect always reveals identity. Even non-hidden coins set
+  // revealed=true here (it was already true from createLevelState), so
+  // the flag is consistent everywhere. Hidden coins now flip false ->
+  // true on this same transition, which the client uses to drive the
+  // pre/post reveal swap + floating "+A"/"+B" text.
+  coin.revealed = true;
   if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
   state.tally.sips[coin.drink]++;
   return state;
@@ -515,7 +532,12 @@ function serialize(state) {
       x:         c.x,
       y:         c.y,
       drink:     c.drink,
-      collected: !!c.collected
+      collected: !!c.collected,
+      // V7.4 blind-test wire fields. hidden = level-author opted into
+      // identity concealment; revealed = current per-coin truth flag.
+      // Always sent so the client doesn't have to default-guess.
+      hidden:    !!c.hidden,
+      revealed:  c.revealed !== false
     };
   });
   var doorways = state.doorways.map(function (d) {
