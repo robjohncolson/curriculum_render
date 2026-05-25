@@ -1,0 +1,41 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U5.8",
+  "lessonKey":  "5.8",
+  "title":      "Diff of x-bars",
+  "skill":      "3.B",
+  "lo":         "UNC-3.T",
+  "ek":         ["UNC-3.T.1", "UNC-3.U.1", "UNC-3.U.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  3, "y":  0, "text": "sigma1=6, n1=36; sigma2=8, n2=64. SD of (x-bar1 - x-bar2) = sqrt(sigma1^2/n1 + sigma2^2/n2) = ?" },
+    { "type": "SipStation",   "id": "s1", "x":  4, "y":  2, "drink": "A" },
+    { "type": "SipStation",   "id": "s2", "x":  9, "y":  2, "drink": "B" },
+    { "type": "SipStation",   "id": "s3", "x": 14, "y":  2, "drink": "A" },
+    { "type": "SipStation",   "id": "s4", "x": 19, "y":  2, "drink": "B" },
+    { "type": "SipStation",   "id": "s5", "x": 24, "y":  2, "drink": "A" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "TallyDisplay", "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y":  6, "text": "SD = sqrt(2) approx 1.414", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  6, "text": "SD = sigma1 - sigma2 = -2", "correct": false, "reflection": "SDs are never negative, and you do NOT subtract SDs. You add the VARIANCES (sigma^2/n) and take the square root: sqrt(36/36 + 64/64) = sqrt(2)." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y":  6, "text": "SD = sigma1/sqrt(n1) - sigma2/sqrt(n2)", "correct": false, "reflection": "For a DIFFERENCE of independent means, variances ADD even though means subtract. Compute sigma1^2/n1 + sigma2^2/n2 first, then take the square root." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

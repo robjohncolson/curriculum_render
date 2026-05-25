@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U3.3",
+  "lessonKey":  "3.3",
+  "title":      "Name the Sample",
+  "skill":      "1.C",
+  "lo":         "DAT-2.C",
+  "ek":         ["DAT-2.C.3"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  3, "y":  0, "text": "Split the school by grade. Randomly pick 10 from each grade. Sip the picks. Which sampling method is this?" },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  2, "drink": "9" },
+    { "type": "SipStation",    "id": "s2", "x":  9, "y":  2, "drink": "10" },
+    { "type": "SipStation",    "id": "s3", "x": 15, "y":  2, "drink": "11" },
+    { "type": "SipStation",    "id": "s4", "x": 21, "y":  2, "drink": "12" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           5, "y":  7,
+      "text":       "Cluster sample",
+      "correct":    false,
+      "reflection": "Cluster sampling picks a few WHOLE clusters and surveys all members. Here we pick a few from EVERY grade -- that's stratified."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Stratified random sample",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          27, "y":  7,
+      "text":       "Simple random sample",
+      "correct":    false,
+      "reflection": "An SRS gives every group of size n an equal chance. Here groupings are forced -- 10 from each grade. The strata change which samples are possible."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

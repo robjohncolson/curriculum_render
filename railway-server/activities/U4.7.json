@@ -1,0 +1,40 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U4.7",
+  "lessonKey":  "4.7",
+  "title":      "Valid Distribution?",
+  "skill":      "2.B",
+  "lo":         "VAR-5.A",
+  "ek":         ["VAR-5.A.2", "VAR-5.A.3"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  2, "y":  0, "text": "X = pets owned. Probs: P(0)=0.2, P(1)=0.5, P(2)=0.2, P(3)=0.1. Is this a valid distribution?" },
+    { "type": "SipStation",   "id": "s1", "x":  3, "y":  2, "drink": "0" },
+    { "type": "SipStation",   "id": "s2", "x": 11, "y":  2, "drink": "1" },
+    { "type": "SipStation",   "id": "s3", "x": 19, "y":  2, "drink": "2" },
+    { "type": "SipStation",   "id": "s4", "x": 27, "y":  2, "drink": "3" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "TallyDisplay", "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  5, "y":  7, "text": "Yes, valid", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "No, sum != 1", "correct": false, "reflection": "Add them: 0.2 + 0.5 + 0.2 + 0.1 = 1.0. The sum IS exactly 1, so that condition is satisfied." },
+    { "type": "QuestionDoor", "id": "d3", "x": 27, "y":  7, "text": "No, probs > 1",  "correct": false, "reflection": "Every listed probability is between 0 and 1 inclusive. No value exceeds 1, so this rule is satisfied." },
+    { "type": "Goal",         "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

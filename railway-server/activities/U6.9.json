@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U6.9",
+  "lessonKey":  "6.9",
+  "title":      "Two-Prop CI Claim",
+  "skill":      "4.D",
+  "lo":         "UNC-4.N",
+  "ek":         ["UNC-4.N.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "A 95% CI for p1 - p2 (city A minus city B support) is (-0.04, 0.18). Does the data support 'the cities differ'?" },
+    { "type": "SipStation", "id": "s1", "x": 16, "y": 2, "drink": "A" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "Yes -- the interval is mostly positive", "correct": false, "reflection": "Direction of most values doesn't decide. The interval includes 0, so we can't rule out NO difference." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "No -- the interval contains 0, so we cannot conclude the proportions differ", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "Yes -- 95% confidence means we're 95% sure", "correct": false, "reflection": "Confidence level describes the METHOD's capture rate, not certainty about this specific question. With 0 in the interval, the data are consistent with no difference." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

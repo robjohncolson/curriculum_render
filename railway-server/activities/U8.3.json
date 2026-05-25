@@ -1,0 +1,40 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U8.3",
+  "lessonKey":  "8.3",
+  "title":      "GOF Verdict",
+  "skill":      "4.E",
+  "lo":         "DAT-3.J",
+  "ek":         ["VAR-8.F.1","DAT-3.I.1","DAT-3.J.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "GOF on the candy mix: chi-square = 12.4, df = 3, p = 0.006, alpha = 0.05. What is the conclusion?" },
+    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "A" },
+    { "type": "SipStation",    "id": "s2", "x": 12, "y":  2, "drink": "B" },
+    { "type": "SipStation",    "id": "s3", "x": 20, "y":  2, "drink": "C" },
+    { "type": "SipStation",    "id": "s4", "x": 28, "y":  2, "drink": "D" },
+    { "type": "PlayerSpawn",   "x":  3, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor",  "id": "d1", "x":  6, "y":  7, "text": "Reject Ho: evidence the mix differs from claimed", "correct": true },
+    { "type": "QuestionDoor",  "id": "d2", "x": 16, "y":  7, "text": "Fail to reject Ho: mix matches the claim", "correct": false, "reflection": "p = 0.006 < alpha = 0.05, so we REJECT Ho. Small p-value = strong evidence AGAINST the claimed distribution." },
+    { "type": "QuestionDoor",  "id": "d3", "x": 26, "y":  7, "text": "Accept Ho: mix is exactly as claimed", "correct": false, "reflection": "We never ACCEPT Ho. Even when failing to reject, we say 'insufficient evidence' -- and here we are rejecting anyway." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

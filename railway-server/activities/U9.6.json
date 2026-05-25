@@ -1,0 +1,39 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U9.6",
+  "lessonKey":  "9.6",
+  "title":      "Pick The Test",
+  "skill":      "1.E",
+  "lo":         "VAR-7.J",
+  "ek":         ["VAR-7.J.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 2, "y": 0, "text": "Scenario: 30 cars; we recorded (weight, mpg). Test whether weight predicts mpg. Pick the procedure." },
+    { "type": "SipStation", "id": "s1", "x":  4, "y": 2, "drink": "(w,mpg)" },
+    { "type": "SipStation", "id": "s2", "x": 11, "y": 2, "drink": "(w,mpg)" },
+    { "type": "SipStation", "id": "s3", "x": 18, "y": 2, "drink": "(w,mpg)" },
+    { "type": "SipStation", "id": "s4", "x": 25, "y": 2, "drink": "(w,mpg)" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "t-test for the slope of a regression model", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "2-sample t-test for means", "correct": false, "reflection": "A 2-sample t-test compares two group means. Here weight and mpg are paired quantitative variables on each car -- use a t-test for slope." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "Chi-square test of independence", "correct": false, "reflection": "Chi-square independence is for two CATEGORICAL variables. Weight and mpg are both quantitative -- use a t-test for slope." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

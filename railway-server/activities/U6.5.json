@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U6.5",
+  "lessonKey":  "6.5",
+  "title":      "P-Value Meaning",
+  "skill":      "4.B",
+  "lo":         "DAT-3.A",
+  "ek":         ["DAT-3.A.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "Test H0: p=0.30 vs Ha: p>0.30. We got p-hat=0.38, z=1.74, p-value=0.041. Interpret 0.041." },
+    { "type": "SipStation", "id": "s1", "x": 16, "y": 2, "drink": "A" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "There is a 4.1% chance H0 is true", "correct": false, "reflection": "A p-value is NOT the probability that H0 is true. H0 is treated as given; the p-value is a probability under H0." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "Assuming p=0.30, the probability of getting p-hat >= 0.38 (or more extreme) is 0.041", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "4.1% of voters favor the measure", "correct": false, "reflection": "The p-value is a probability for the test statistic under H0, not a percentage of the population. The sample proportion was 38%, not 4.1%." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

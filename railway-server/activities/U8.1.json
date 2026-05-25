@@ -1,0 +1,42 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U8.1",
+  "lessonKey":  "8.1",
+  "title":      "Bag of Beads",
+  "skill":      "1.A",
+  "lo":         "VAR-1.J",
+  "ek":         ["VAR-1.J.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "The bag was claimed to be 50%R, 30%W, 20%B. We sampled 25 beads: 7R, 11W, 7B. Surprised?" },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  2, "drink": "R" },
+    { "type": "SipStation",    "id": "s2", "x":  8, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "s3", "x": 13, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "s4", "x": 18, "y":  2, "drink": "B" },
+    { "type": "SipStation",    "id": "s5", "x": 23, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "s6", "x": 28, "y":  2, "drink": "R" },
+    { "type": "PlayerSpawn",   "x":  3, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor",  "id": "d1", "x":  6, "y":  7, "text": "Is red the prettiest color?", "correct": false, "reflection": "Statistics observes patterns; it cannot judge beauty. The question must be about the DATA, not opinion." },
+    { "type": "QuestionDoor",  "id": "d2", "x": 16, "y":  7, "text": "Are observed counts unexpectedly far from 50/30/20?", "correct": true },
+    { "type": "QuestionDoor",  "id": "d3", "x": 26, "y":  7, "text": "Will the next bead be white?", "correct": false, "reflection": "This is a single-trial probability question. Chi-square asks about DEPARTURE of an entire DISTRIBUTION from what was expected." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

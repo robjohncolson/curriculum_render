@@ -1,0 +1,39 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U6.8",
+  "lessonKey":  "6.8",
+  "title":      "Two-Sample CI",
+  "skill":      "1.D",
+  "lo":         "UNC-4.I",
+  "ek":         ["UNC-4.I.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "We sample voters from two cities and want to estimate the DIFFERENCE in support rates. Which procedure?" },
+    { "type": "SipStation", "id": "s1", "x":  6, "y": 2, "drink": "Y" },
+    { "type": "SipStation", "id": "s2", "x": 12, "y": 2, "drink": "N" },
+    { "type": "SipStation", "id": "s3", "x": 20, "y": 2, "drink": "Y" },
+    { "type": "SipStation", "id": "s4", "x": 26, "y": 2, "drink": "Y" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "One-sample z-interval for p", "correct": false, "reflection": "That's for ONE proportion. We have two independent samples and want the difference -- a two-sample procedure is needed." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "Two-sample z-interval for p1 - p2", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "Two-sample t-interval for means", "correct": false, "reflection": "T-intervals for means are for quantitative data. We have categorical (Yes/No) data -- use a z-interval for proportions." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

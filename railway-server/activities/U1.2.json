@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U1.2",
+  "lessonKey":  "1.2",
+  "title":      "Variable Sort",
+  "skill":      "2.A",
+  "lo":         "VAR-1.C",
+  "ek":         ["VAR-1.B.1", "VAR-1.C.1", "VAR-1.C.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  4, "y":  0, "text": "Sip each cup. Each carries a value of the variable 'Dominant Hand'." },
+    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "Right" },
+    { "type": "SipStation",    "id": "s2", "x": 11, "y":  2, "drink": "Left" },
+    { "type": "SipStation",    "id": "s3", "x": 18, "y":  2, "drink": "Right" },
+    { "type": "SipStation",    "id": "s4", "x": 25, "y":  2, "drink": "Right" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "This is a Categorical Variable",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "This is a Quantitative Variable",
+      "correct":    false,
+      "reflection": "Quantitative means numerical measurements or counts. 'Right' and 'Left' are category labels, not numbers."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "This is not a variable at all",
+      "correct":    false,
+      "reflection": "A variable is any characteristic that changes from one individual to another. Dominant hand changes from person to person, so it IS a variable."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

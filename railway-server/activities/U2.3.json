@@ -1,0 +1,59 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U2.3",
+  "lessonKey":  "2.3",
+  "title":      "Conditional Count",
+  "skill":      "2.C",
+  "lo":         "UNC-1.Q",
+  "ek":         ["UNC-1.Q.1", "UNC-1.Q.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "Two-way: 30 seniors total, 18 seniors take stats. Find P(stats | senior)." },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  3, "drink": "Sr=30" },
+    { "type": "SipStation",    "id": "s2", "x": 10, "y":  3, "drink": "Sr+Stat=18" },
+    { "type": "SipStation",    "id": "s3", "x": 17, "y":  3, "drink": "Total=120" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 24, "y":  3, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "18/30 = 0.60",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "18/120 = 0.15",
+      "correct":    false,
+      "reflection": "18/120 is the JOINT relative frequency (senior AND stats out of everyone). The CONDITIONAL frequency given senior uses the senior row total (30), not the table total."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "30/120 = 0.25",
+      "correct":    false,
+      "reflection": "30/120 is the MARGINAL relative frequency for seniors. The question asks for P(stats | senior), which requires the senior subgroup ratio 18/30."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

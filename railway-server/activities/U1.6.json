@@ -1,0 +1,61 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U1.6",
+  "lessonKey":  "1.6",
+  "title":      "Name the Shape",
+  "skill":      "2.A",
+  "lo":         "UNC-1.H",
+  "ek":         ["UNC-1.H.1", "UNC-1.H.3"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  4, "y":  0, "text": "Sip exam scores. Most cluster low; one stretches to the right. Describe the SHAPE." },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  2, "drink": "60" },
+    { "type": "SipStation",    "id": "s2", "x":  8, "y":  2, "drink": "62" },
+    { "type": "SipStation",    "id": "s3", "x": 13, "y":  2, "drink": "64" },
+    { "type": "SipStation",    "id": "s4", "x": 18, "y":  2, "drink": "66" },
+    { "type": "SipStation",    "id": "s5", "x": 28, "y":  2, "drink": "95" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "Skewed right (right tail longer)",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Skewed left (left tail longer)",
+      "correct":    false,
+      "reflection": "The DIRECTION of the SKEW follows the long tail. Here the long tail stretches to the RIGHT (toward 95), so the distribution is skewed RIGHT, not left."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "Approximately symmetric",
+      "correct":    false,
+      "reflection": "Symmetric means the left and right halves mirror each other. Here the bulk is at low values with a long right tail -- that's a clear asymmetry."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

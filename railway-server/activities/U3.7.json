@@ -1,0 +1,56 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U3.7",
+  "lessonKey":  "3.7",
+  "title":      "Read the Result",
+  "skill":      "4.B",
+  "lo":         "VAR-3.E",
+  "ek":         ["VAR-3.E.2", "VAR-3.E.3", "VAR-3.E.4"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  3, "y":  0, "text": "A randomized experiment finds Drug A reduces blood pressure significantly more than B. Subjects were 60 volunteers. What can we conclude?" },
+    { "type": "SipStation",    "id": "s1", "x": 16, "y":  2, "drink": "result" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           5, "y":  7,
+      "text":       "Drug A caused lower BP, generalizes to all adults",
+      "correct":    false,
+      "reflection": "Random assignment supports CAUSE, but volunteers are not a random sample of all adults. Cannot generalize beyond similar volunteers."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Drug A caused lower BP for these subjects",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          27, "y":  7,
+      "text":       "Drug A is associated with lower BP, no cause",
+      "correct":    false,
+      "reflection": "Random ASSIGNMENT of treatments lets us claim CAUSE inside the experiment. 'Just association' would apply to an observational study, not this one."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

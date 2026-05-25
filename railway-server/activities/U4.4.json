@@ -1,0 +1,40 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U4.4",
+  "lessonKey":  "4.4",
+  "title":      "Disjoint or Not",
+  "skill":      "4.B",
+  "lo":         "VAR-4.C",
+  "ek":         ["VAR-4.C.1", "VAR-4.C.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  2, "y":  0, "text": "Draw one card. Event A = 'Heart'. Event B = 'Spade'. Are A and B mutually exclusive?" },
+    { "type": "SipStation",   "id": "s1", "x":  4, "y":  2, "drink": "H" },
+    { "type": "SipStation",   "id": "s2", "x": 12, "y":  2, "drink": "S" },
+    { "type": "SipStation",   "id": "s3", "x": 20, "y":  2, "drink": "D" },
+    { "type": "SipStation",   "id": "s4", "x": 28, "y":  2, "drink": "C" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "TallyDisplay", "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  5, "y":  7, "text": "Yes, disjoint", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "No, they overlap", "correct": false, "reflection": "A card is exactly one suit. A single draw can't be both a heart and a spade, so P(A and B) = 0 -- they ARE mutually exclusive." },
+    { "type": "QuestionDoor", "id": "d3", "x": 27, "y":  7, "text": "Independent",   "correct": false, "reflection": "Disjoint and independent are DIFFERENT ideas. Heart and Spade cannot co-occur (disjoint), so they are actually highly dependent." },
+    { "type": "Goal",         "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

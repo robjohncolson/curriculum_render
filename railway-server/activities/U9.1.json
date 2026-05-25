@@ -1,0 +1,41 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U9.1",
+  "lessonKey":  "9.1",
+  "title":      "Do Points Align?",
+  "skill":      "1.A",
+  "lo":         "VAR-1.K",
+  "ek":         ["VAR-1.K.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "Each cup is one (x, y) point. The cloud rises -- but is the rise random, or real?" },
+    { "type": "SipStation", "id": "s1", "x":  3, "y": 2, "drink": "(1,2)" },
+    { "type": "SipStation", "id": "s2", "x":  8, "y": 2, "drink": "(2,3)" },
+    { "type": "SipStation", "id": "s3", "x": 13, "y": 2, "drink": "(3,5)" },
+    { "type": "SipStation", "id": "s4", "x": 18, "y": 2, "drink": "(4,6)" },
+    { "type": "SipStation", "id": "s5", "x": 23, "y": 2, "drink": "(5,8)" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "TallyDisplay", "x": 16, "y": 4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "Is the apparent slope real or just chance?", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "What is the exact value of y when x = 10?", "correct": false, "reflection": "Unit 9 is about INFERENCE on the slope, not point prediction. We ask whether the pattern itself is real before predicting." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "Which cup tastes best?", "correct": false, "reflection": "Statistics looks for patterns in variables, not opinions about quality. The right question concerns variation in slope across samples." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

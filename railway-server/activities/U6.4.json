@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U6.4",
+  "lessonKey":  "6.4",
+  "title":      "Hypotheses Setup",
+  "skill":      "1.F",
+  "lo":         "VAR-6.D",
+  "ek":         ["VAR-6.D.3", "VAR-6.D.4"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "Claim: MORE than 30% of voters favor the measure. Pick the correct hypotheses." },
+    { "type": "SipStation", "id": "s1", "x": 16, "y": 2, "drink": "Y" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "H0: p-hat = 0.30; Ha: p-hat > 0.30", "correct": false, "reflection": "Hypotheses are about the PARAMETER p, not the sample statistic p-hat. Use p for both H0 and Ha." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "H0: p = 0.30; Ha: p > 0.30", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "H0: p = 0.30; Ha: p != 0.30", "correct": false, "reflection": "The claim says MORE than 30% -- that's a one-sided alternative (>). A two-sided != would not match the direction of the claim." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

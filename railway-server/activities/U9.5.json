@@ -1,0 +1,39 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U9.5",
+  "lessonKey":  "9.5",
+  "title":      "P-Value Verdict",
+  "skill":      "4.E",
+  "lo":         "DAT-3.N",
+  "ek":         ["DAT-3.N.1", "DAT-3.M.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 2, "y": 0, "text": "H0: beta = 0. Output: b = 0.44, SE = 0.10, t = 4.4, p = 0.003. Alpha = 0.05. Conclude?" },
+    { "type": "SipStation", "id": "s1", "x":  6, "y": 2, "drink": "(x,y)" },
+    { "type": "SipStation", "id": "s2", "x": 12, "y": 2, "drink": "(x,y)" },
+    { "type": "SipStation", "id": "s3", "x": 18, "y": 2, "drink": "(x,y)" },
+    { "type": "SipStation", "id": "s4", "x": 24, "y": 2, "drink": "(x,y)" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "Reject H0; evidence that beta is not 0", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "Fail to reject H0; slope is 0", "correct": false, "reflection": "p = 0.003 is less than alpha = 0.05, so we REJECT H0. Also, never conclude the slope IS zero -- failing to reject is not proof of equality." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "Accept H0; slope must be 0.44", "correct": false, "reflection": "We never accept H0. With p = 0.003 < 0.05 we reject H0; 0.44 is just our SAMPLE slope b -- the population slope beta is estimated, not known exactly." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U2.2",
+  "lessonKey":  "2.2",
+  "title":      "Two-Way Picture",
+  "skill":      "2.D",
+  "lo":         "UNC-1.P",
+  "ek":         ["UNC-1.P.1", "UNC-1.P.2", "UNC-1.P.3", "UNC-1.P.4"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "Sip pairs of (gender, sport). Which display best compares the TWO categorical variables side by side?" },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  3, "drink": "(M,soccer)" },
+    { "type": "SipStation",    "id": "s2", "x":  9, "y":  3, "drink": "(F,soccer)" },
+    { "type": "SipStation",    "id": "s3", "x": 15, "y":  3, "drink": "(M,tennis)" },
+    { "type": "SipStation",    "id": "s4", "x": 21, "y":  3, "drink": "(F,tennis)" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 26, "y":  3, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "Side-by-side bar graph",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Single histogram",
+      "correct":    false,
+      "reflection": "A histogram displays ONE quantitative variable. With two categorical variables, use a side-by-side bar graph, segmented bar graph, or mosaic plot."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "Scatterplot",
+      "correct":    false,
+      "reflection": "A scatterplot displays two QUANTITATIVE variables. Here both variables are categorical, so a bar-graph display is appropriate."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

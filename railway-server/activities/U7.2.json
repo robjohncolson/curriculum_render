@@ -1,0 +1,41 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U7.2",
+  "lessonKey":  "7.2",
+  "title":      "One-Sample t Interval",
+  "skill":      "1.D",
+  "lo":         "UNC-4.O",
+  "ek":         ["UNC-4.O.1", "UNC-4.O.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  4, "y":  0, "text": "SipStations measure cup volume (oz). We want to estimate the population mean volume. Pick the procedure." },
+    { "type": "SipStation",   "id": "s1", "x":  4, "y":  2, "drink": "12.1" },
+    { "type": "SipStation",   "id": "s2", "x": 10, "y":  2, "drink": "11.9" },
+    { "type": "SipStation",   "id": "s3", "x": 16, "y":  2, "drink": "12.0" },
+    { "type": "SipStation",   "id": "s4", "x": 22, "y":  2, "drink": "12.2" },
+    { "type": "SipStation",   "id": "s5", "x": 28, "y":  2, "drink": "11.8" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "TallyDisplay", "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y":  7, "text": "One-sample t-interval for a mean", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "One-sample z-interval for a mean", "correct": false, "reflection": "We do not know sigma (population SD). When using s, the test statistic follows a t-distribution -- use a t-interval, not z." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y":  7, "text": "One-proportion z-interval", "correct": false, "reflection": "Volume is a quantitative variable, not a binary outcome. Use a t-interval for a mean, not a proportion procedure." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

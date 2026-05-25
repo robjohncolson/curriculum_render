@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U9.3",
+  "lessonKey":  "9.3",
+  "title":      "Slope CI Read",
+  "skill":      "4.B",
+  "lo":         "UNC-4.AG",
+  "ek":         ["UNC-4.AG.1", "UNC-4.AG.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 2, "y": 0, "text": "A 95% CI for the slope of cost vs miles is (0.08, 0.14). Which interpretation is correct?" },
+    { "type": "SipStation", "id": "s1", "x": 16, "y": 2, "drink": "(x,y)" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "We are 95% sure the true slope is in (0.08, 0.14)", "correct": false, "reflection": "Common but wrong. The 95% describes the METHOD across repeated samples, not certainty about this single interval. beta is fixed; the interval is random." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "We are 95% confident the population slope beta is between 0.08 and 0.14 dollars per mile", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "95% of sample slopes will fall in (0.08, 0.14)", "correct": false, "reflection": "The CI describes the PARAMETER beta, not the spread of sample slopes. Individual b values vary much more widely than the CI." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

@@ -1,0 +1,40 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U4.5",
+  "lessonKey":  "4.5",
+  "title":      "Given That",
+  "skill":      "3.A",
+  "lo":         "VAR-4.D",
+  "ek":         ["VAR-4.D.1", "VAR-4.D.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  2, "y":  0, "text": "Of 20 students: 12 take Stats, of those 8 also take Calc. What is P(Calc | Stats)?" },
+    { "type": "SipStation",   "id": "s1", "x":  4, "y":  2, "drink": "SC" },
+    { "type": "SipStation",   "id": "s2", "x": 12, "y":  2, "drink": "S" },
+    { "type": "SipStation",   "id": "s3", "x": 20, "y":  2, "drink": "C" },
+    { "type": "SipStation",   "id": "s4", "x": 28, "y":  2, "drink": "N" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "TallyDisplay", "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "QuestionDoor", "id": "d1", "x":  5, "y":  7, "text": "8/20 = 0.4",  "correct": false, "reflection": "8/20 is P(Stats AND Calc), the joint probability. Conditional probability divides by P(Stats), not by the whole class." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "8/12 = 0.67",  "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 27, "y":  7, "text": "12/20 = 0.6",  "correct": false, "reflection": "12/20 is P(Stats), not P(Calc | Stats). The 'given' restricts the sample space to the 12 Stats students." },
+    { "type": "Goal",         "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

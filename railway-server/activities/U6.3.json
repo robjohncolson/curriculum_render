@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U6.3",
+  "lessonKey":  "6.3",
+  "title":      "CI Reading",
+  "skill":      "4.B",
+  "lo":         "UNC-4.F",
+  "ek":         ["UNC-4.F.2", "UNC-4.F.3"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text", "x": 4, "y": 0, "text": "A 95% CI for p (prop. of voters favoring the measure) is (0.42, 0.58). Pick the correct interpretation." },
+    { "type": "SipStation", "id": "s1", "x": 16, "y": 2, "drink": "A" },
+    { "type": "PlayerSpawn", "x": 4, "y": 4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y": 6, "text": "There is a 95% chance p is in (0.42, 0.58)", "correct": false, "reflection": "Common but wrong. p is a fixed parameter; the interval is random. The 95% describes the METHOD's long-run capture rate, not a probability for one interval." },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y": 6, "text": "We are 95% confident that this interval captures the true proportion of voters who favor the measure", "correct": true },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y": 6, "text": "95% of voters favor the measure", "correct": false, "reflection": "The CI estimates the parameter p, not the sample data. It bounds where the true proportion likely lies; it doesn't say 95% of voters voted Yes." },
+    { "type": "Goal", "x": 16, "y": 7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

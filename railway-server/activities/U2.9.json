@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U2.9",
+  "lessonKey":  "2.9",
+  "title":      "Spot the Influence",
+  "skill":      "2.A",
+  "lo":         "DAT-1.I",
+  "ek":         ["DAT-1.I.1", "DAT-1.I.2", "DAT-1.I.3"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "Bulk of points cluster near x in [1,5]. One cup has x=20 far from the rest. Best label for that point?" },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  3, "drink": "(1,2)" },
+    { "type": "SipStation",    "id": "s2", "x":  8, "y":  3, "drink": "(2,4)" },
+    { "type": "SipStation",    "id": "s3", "x": 13, "y":  3, "drink": "(3,5)" },
+    { "type": "SipStation",    "id": "s4", "x": 18, "y":  3, "drink": "(4,7)" },
+    { "type": "SipStation",    "id": "s5", "x": 23, "y":  3, "drink": "(20,9)" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "High-leverage point",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Regression outlier with huge residual",
+      "correct":    false,
+      "reflection": "A regression OUTLIER has a large RESIDUAL (vertical distance from the line). The flagged point has an unusual x-value, which makes it HIGH LEVERAGE."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "Not unusual at all",
+      "correct":    false,
+      "reflection": "A point with x = 20 when the rest live in [1, 5] is clearly unusual in the x-direction. High-leverage points are exactly that and they often become influential."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

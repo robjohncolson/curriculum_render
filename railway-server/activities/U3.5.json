@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U3.5",
+  "lessonKey":  "3.5",
+  "title":      "Spot Confounding",
+  "skill":      "1.B",
+  "lo":         "VAR-3.A",
+  "ek":         ["VAR-3.A.2", "VAR-3.A.3", "VAR-3.A.4"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  3, "y":  0, "text": "Group A gets new fertilizer in sunny plots. Group B gets old fertilizer in shady plots. Yields differ. What is the response variable?" },
+    { "type": "SipStation",    "id": "s1", "x":  5, "y":  2, "drink": "A" },
+    { "type": "SipStation",    "id": "s2", "x": 13, "y":  2, "drink": "A" },
+    { "type": "SipStation",    "id": "s3", "x": 19, "y":  2, "drink": "B" },
+    { "type": "SipStation",    "id": "s4", "x": 27, "y":  2, "drink": "B" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           5, "y":  7,
+      "text":       "Type of fertilizer",
+      "correct":    false,
+      "reflection": "Fertilizer is the EXPLANATORY variable (factor) -- the thing being manipulated. The response is what gets measured after."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Crop yield",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          27, "y":  7,
+      "text":       "Amount of sunlight",
+      "correct":    false,
+      "reflection": "Sunlight is a CONFOUNDING variable here -- it tracks with fertilizer assignment. It is not what we set out to measure."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

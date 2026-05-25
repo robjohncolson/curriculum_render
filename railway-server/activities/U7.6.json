@@ -1,0 +1,40 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U7.6",
+  "lessonKey":  "7.6",
+  "title":      "Two-Sample t CI",
+  "skill":      "1.D",
+  "lo":         "UNC-4.V",
+  "ek":         ["UNC-4.V.1", "UNC-4.V.2"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  2, "y":  0, "text": "Station A and B cups are INDEPENDENT samples. To estimate mu_A - mu_B, which procedure?" },
+    { "type": "SipStation",   "id": "s1", "x":  3, "y":  2, "drink": "A:12.1" },
+    { "type": "SipStation",   "id": "s2", "x":  9, "y":  2, "drink": "A:11.9" },
+    { "type": "SipStation",   "id": "s3", "x": 15, "y":  2, "drink": "A:12.0" },
+    { "type": "SipStation",   "id": "s4", "x": 21, "y":  2, "drink": "B:11.5" },
+    { "type": "SipStation",   "id": "s5", "x": 27, "y":  2, "drink": "B:11.6" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y":  7, "text": "Two-sample t-interval for mu_A - mu_B", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "Matched-pairs t-interval", "correct": false, "reflection": "Matched pairs require a natural pairing (same subject, before/after). Station A and B are INDEPENDENT samples -- use a two-sample t-interval." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y":  7, "text": "Two-proportion z-interval", "correct": false, "reflection": "Volume is quantitative, not a binary outcome. A two-proportion interval is for two proportions of successes." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

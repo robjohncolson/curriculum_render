@@ -1,0 +1,36 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U7.7",
+  "lessonKey":  "7.7",
+  "title":      "Difference CI",
+  "skill":      "4.D",
+  "lo":         "UNC-4.AA",
+  "ek":         ["UNC-4.Z.2", "UNC-4.AA.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",         "x":  2, "y":  0, "text": "A 95% CI for mu_A - mu_B is (0.2, 0.8) oz. Does evidence support mu_A > mu_B?" },
+    { "type": "SipStation",   "id": "s1", "x": 16, "y":  3, "drink": "data" },
+    { "type": "PlayerSpawn",  "x":  4, "y":  4 },
+    { "type": "QuestionDoor", "id": "d1", "x":  6, "y":  7, "text": "Yes -- the interval is entirely above 0", "correct": true },
+    { "type": "QuestionDoor", "id": "d2", "x": 16, "y":  7, "text": "No -- 0 could still be the true difference", "correct": false, "reflection": "The interval (0.2, 0.8) does NOT contain 0. Plausible values for the difference are all positive, supporting mu_A > mu_B." },
+    { "type": "QuestionDoor", "id": "d3", "x": 26, "y":  7, "text": "Cannot tell without the p-value", "correct": false, "reflection": "A CI alone can justify a claim about the difference. If the interval excludes 0, that is evidence the means differ in the direction of the interval." },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

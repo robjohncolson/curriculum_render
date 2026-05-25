@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U2.4",
+  "lessonKey":  "2.4",
+  "title":      "Read the Scatter",
+  "skill":      "2.A",
+  "lo":         "DAT-1.A",
+  "ek":         ["DAT-1.A.1", "DAT-1.A.2", "DAT-1.A.3", "DAT-1.A.4", "DAT-1.A.5"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   8,
+    "chipSize": 10
+  },
+  "actors": [
+    { "type": "Text",          "x":  2, "y":  0, "text": "Each cup is (hours studied, exam score). Points rise steadily and hug a line. Describe the association." },
+    { "type": "SipStation",    "id": "s1", "x":  3, "y":  3, "drink": "(1,62)" },
+    { "type": "SipStation",    "id": "s2", "x":  8, "y":  3, "drink": "(2,71)" },
+    { "type": "SipStation",    "id": "s3", "x": 13, "y":  3, "drink": "(3,79)" },
+    { "type": "SipStation",    "id": "s4", "x": 18, "y":  3, "drink": "(4,88)" },
+    { "type": "SipStation",    "id": "s5", "x": 23, "y":  3, "drink": "(5,95)" },
+    { "type": "PlayerSpawn",   "x":  4, "y":  4 },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y":  7,
+      "text":       "Positive, linear, strong",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y":  7,
+      "text":       "Negative, linear, strong",
+      "correct":    false,
+      "reflection": "As hours rise (1->5), scores rise (62->95). That is a POSITIVE direction, not negative."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y":  7,
+      "text":       "Positive, non-linear, weak",
+      "correct":    false,
+      "reflection": "The points lie very close to a straight line and the upward pattern is steady, so the form is LINEAR and the strength is STRONG, not weak/non-linear."
+    },
+    { "type": "Goal", "x": 16, "y":  7 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}
