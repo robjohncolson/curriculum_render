@@ -1,0 +1,60 @@
+{
+  "schema":     "v7-level-1",
+  "levelKey":   "U1.1",
+  "lessonKey":  "1.1",
+  "title":      "The Cola Mystery",
+  "skill":      "1.A",
+  "lo":         "VAR-1.A",
+  "ek":         ["VAR-1.A.1"],
+  "duration":   180,
+  "map": {
+    "width":    32,
+    "height":   16,
+    "chipSize": 24
+  },
+  "actors": [
+    { "type": "Text",          "x":  4, "y":  2, "text": "Welcome to AP Stats! The science of asking questions about variable data." },
+    { "type": "SipStation",    "id": "s1", "x":  6, "y":  6, "drink": "A" },
+    { "type": "SipStation",    "id": "s2", "x": 12, "y":  6, "drink": "A" },
+    { "type": "SipStation",    "id": "s3", "x": 18, "y":  6, "drink": "B" },
+    { "type": "SipStation",    "id": "s4", "x": 24, "y":  6, "drink": "B" },
+    { "type": "PlayerSpawn",   "x":  4, "y": 12 },
+    { "type": "TallyDisplay",  "x": 16, "y": 10, "binds": "tally.sips" },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d1",
+      "x":           6, "y": 14,
+      "text":       "Is Cup A Coke?",
+      "correct":    false,
+      "reflection": "Notice the data doesn't say what's IN each cup -- only what students preferred."
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d2",
+      "x":          16, "y": 14,
+      "text":       "Can students tell A from B?",
+      "correct":    true
+    },
+    {
+      "type":       "QuestionDoor",
+      "id":         "d3",
+      "x":          26, "y": 14,
+      "text":       "Is Coke better than Pepsi?",
+      "correct":    false,
+      "reflection": "Statistics observes patterns; it doesn't decide quality."
+    },
+    { "type": "Goal", "x": 16, "y": 15 }
+  ],
+  "reflection_room": {
+    "map":     { "width": 16, "height": 8, "chipSize": 24 },
+    "actors":  [
+      { "type": "Text",       "x": 8, "y": 2, "text": "[Reflection text placeholder -- filled at runtime from the chosen door's `reflection` field]" },
+      { "type": "ReturnWarp", "x": 8, "y": 6 }
+    ]
+  },
+  "completion": {
+    "kind": "lock-and-switch-state + goal-overlap",
+    "rule": "any correct QuestionDoor switch pressed by >= 1/3 of online players, then any Player walks onto Goal"
+  },
+  "min_students": 2
+}

@@ -1,6 +1,11 @@
 // classroom.js
 // ES module -- exports createClassroomRegistry()
 //
+// V7 (2026-05-25): adds the 'level' activity plugin -- delegates to
+// level-engine.js so the engine layer stays separable.
+import * as levelEngine from './level-engine.js';
+
+//
 // Owns the in-memory classroom state for the Live Classroom feature.
 // Holds socket references but performs NO socket I/O.
 // Methods return { sends: [{ ws, payload }], broadcasts: [{ sockets, payload }] }
@@ -561,6 +566,52 @@ activityPlugins['colorbox-grid'] = {
   }
 };
 
+// v7 Activity engine -- level plugin (LIVE_CLASSROOM_V7_BUILD.md C1).
+// Thin wrapper around level-engine.js. The level loader keys off
+// opts.levelKey (e.g. 'U1.1'); on missing file initActivity returns
+// null and startActivity surfaces classroom_activity_error{code:'level-missing'}.
+activityPlugins['level'] = {
+  minMembers: 2,
+
+  initActivity: function (room, online, opts) {
+    var levelKey = (opts && typeof opts.levelKey === 'string') ? opts.levelKey : null;
+    if (!levelKey) { return null; }
+    var levelDef = levelEngine.loadLevel(levelKey);
+    if (!levelDef) { return null; }
+    var state = levelEngine.createLevelState(levelDef, online);
+    if (!state) { return null; }
+    // Stash the full level def on the state so startActivity can
+    // include it in the classroom_activity_start broadcast (clients
+    // need the actor layout to render the scene).
+    state._levelDef = levelDef;
+    return state;
+  },
+
+  onStudentInput: function (state, username, payload) {
+    return levelEngine.applyInput(state, username, payload);
+  },
+
+  onTick: function (state, deltaMs, room) {
+    return levelEngine.tick(state, deltaMs, room);
+  },
+
+  isComplete: function (state) {
+    return levelEngine.isComplete(state);
+  },
+
+  serializeForBoard: function (state) {
+    return levelEngine.serialize(state);
+  },
+
+  onMemberLeave: function (state, username) {
+    return levelEngine.onMemberLeave(state, username);
+  },
+
+  onMemberJoin: function (state, username, room) {
+    return levelEngine.onMemberJoin(state, username, room);
+  }
+};
+
 // WireMember -- the shape sent on the wire (v1b).
 // status reflects the member's real status ("present", "checkedIn", or "voted").
 // hue is an integer 0-359 or null (r3 addition -- see Section 2.7).
@@ -648,6 +699,14 @@ function buildStatePayload(room, forRole, forUsername) {
         finished:   room.activity.finished,
         state:      plugin.serializeForBoard(room.activity.state)
       };
+      // 2026-05-25 V7 Codex MAJOR 4 fold: include the LevelDef in
+      // late-joiner / cockpit-refresh snapshots so reconnecting
+      // clients can reconstruct the actor layout. The 5 Hz state
+      // payload still omits this (size optimization); only the
+      // snapshot path carries it.
+      if (room.activity.type === 'level' && room.activity.level) {
+        activityWire.level = room.activity.level;
+      }
     }
   }
   return {
@@ -1909,9 +1968,31 @@ export function createClassroomRegistry() {
     }
     var safeOpts = opts || {};
     var initialState = plugin.initActivity(room, online, safeOpts);
-    var durationMs = (typeof safeOpts.durationMs === 'number' && safeOpts.durationMs > 0)
-      ? safeOpts.durationMs
-      : DEFAULT_ACTIVITY_DURATION_MS;
+    // V7: a null initialState signals the plugin couldn't construct
+    // (e.g. 'level' couldn't find activities/<levelKey>.json). Surface
+    // a structured error rather than crashing on serializeForBoard.
+    if (initialState == null) {
+      var errCode = (type === 'level') ? 'level-missing' : 'init-failed';
+      return { broadcasts: [{ sockets: [ws], payload: {
+        type:    'classroom_activity_error',
+        section: entry.section,
+        code:    errCode,
+        activityType: type
+      }}] };
+    }
+    // V7: per-level duration override -- if the plugin returned a state
+    // with an attached level def carrying a duration (seconds), respect
+    // it. Falls back to opts.durationMs, then the engine default.
+    var durationMs;
+    if (typeof safeOpts.durationMs === 'number' && safeOpts.durationMs > 0) {
+      durationMs = safeOpts.durationMs;
+    } else if (initialState && initialState._levelDef &&
+               typeof initialState._levelDef.duration === 'number' &&
+               initialState._levelDef.duration > 0) {
+      durationMs = initialState._levelDef.duration * 1000;
+    } else {
+      durationMs = DEFAULT_ACTIVITY_DURATION_MS;
+    }
     room.activity = {
       type:       type,
       startedAt:  now == null ? Date.now() : now,
@@ -1921,15 +2002,23 @@ export function createClassroomRegistry() {
     };
     // Fresh ritual: reset every member status (parity with armGate / openPoll).
     room.members.forEach(function (m) { m.status = 'present'; });
+    var activityBlock = {
+      type:       type,
+      startedAt:  room.activity.startedAt,
+      durationMs: room.activity.durationMs,
+      state:      plugin.serializeForBoard(initialState)
+    };
+    // V7: for 'level' activities, include the full LevelDef in the
+    // START broadcast (clients need the actor layout to draw the scene).
+    // Subsequent classroom_activity_state broadcasts don't carry the
+    // def -- only the mutating state block.
+    if (type === 'level' && initialState._levelDef) {
+      activityBlock.level = initialState._levelDef;
+    }
     var payload = {
       type:    'classroom_activity_start',
       section: entry.section,
-      activity: {
-        type:       type,
-        startedAt:  room.activity.startedAt,
-        durationMs: room.activity.durationMs,
-        state:      plugin.serializeForBoard(initialState)
-      }
+      activity: activityBlock
     };
     var sockets = roomSockets(room, null);
     var broadcasts = [{ sockets: sockets, payload: payload }];
@@ -2079,12 +2168,24 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
-  // _fireOverrideGateForRoom(room, activityType)
+  // _fireOverrideGateForRoom(room, activityType, lessonKeyOverride)
   // Posts /teacher/lesson-unlock for each online student in the room for
   // the lesson key associated with the activity type. Fire-and-forget;
   // failures are logged but do NOT block the success broadcast.
-  function _fireOverrideGateForRoom(room, activityType) {
-    var lessonKey = ACTIVITY_LESSON_MAP[activityType];
+  //
+  // V7 extension: a 3rd-arg lessonKeyOverride takes priority over the
+  // static ACTIVITY_LESSON_MAP. Used by the 'level' activity type whose
+  // lesson key is stamped on room.activity.state.lessonKey by the level
+  // JSON (a level for U1.7 is the same 'level' activity type but routes
+  // to a different lesson unlock).
+  function _fireOverrideGateForRoom(room, activityType, lessonKeyOverride) {
+    var lessonKey = lessonKeyOverride || ACTIVITY_LESSON_MAP[activityType];
+    // V7: when 'level' activity finishes, the lessonKey rides on the
+    // level state. Fall back to that if no override was passed in.
+    if (!lessonKey && activityType === 'level' &&
+        room.activity && room.activity.state && room.activity.state.lessonKey) {
+      lessonKey = room.activity.state.lessonKey;
+    }
     if (!lessonKey) return;
     room.members.forEach(function (m) {
       if (m.role !== 'student' || m.online === false) return;
