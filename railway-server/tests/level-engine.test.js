@@ -23,6 +23,7 @@ import {
   PHASE_SIPPING,
   PHASE_VOTING,
   PHASE_REFLECTION,
+  PHASE_KEY_HUNT,
   PHASE_GOAL_AVAILABLE,
   PHASE_LEVEL_CLEARED,
   REFLECTION_DURATION_MS
@@ -85,6 +86,57 @@ function advanceToVoting(state, room) {
   return state.sideEffects;
 }
 
+// V7.5: U1.1 is now multi-stage (4 stages of voting before KEY_HUNT).
+// Helper drives through all remaining stages by repeatedly landing the
+// CORRECT doorway close for the current state.doorways set. State must
+// already be in PHASE_VOTING with a liveDoorwaysId set (i.e. caller has
+// already run advanceToVoting). Stops when phase leaves VOTING (so
+// KEY_HUNT or GOAL_AVAILABLE depending on whether the level has a Key
+// actor). Returns the final state.sideEffects from the last close tick.
+function advanceThroughAllStages(state, room) {
+  var keys = Object.keys(state.players);
+  var firstPlayer = keys[0];
+  var guardrail = 0;
+  var lastSideEffects = state.sideEffects;
+  while (state.phase === 'VOTING' && guardrail < 20) {
+    guardrail += 1;
+    // Find the correct doorway in the current state.doorways set.
+    var correct = null;
+    for (var i = 0; i < state.doorways.length; i++) {
+      if (state.doorways[i].correct) { correct = state.doorways[i]; break; }
+    }
+    if (!correct) break;   // malformed stage; nothing to do
+    // Land the close event with the correct doorway as winner.
+    landCloseDoorways(room, state.liveDoorwaysId, [{ doorId: correct.id, count: 1 }]);
+    tick(state, 200, room);
+    lastSideEffects = state.sideEffects;
+  }
+  return lastSideEffects;
+}
+
+// V7.5: full drive from SIPPING all the way to GOAL_AVAILABLE for a
+// level that may have stages + KEY_HUNT. Used by tests that previously
+// assumed single-stage U1.1 ended in GOAL_AVAILABLE on the first
+// correct vote. Move first player onto the key chip after KEY_HUNT
+// enters so the collect-key anti-cheat passes.
+function advanceToGoalAvailable(state, room) {
+  advanceToVoting(state, room);
+  // Drive any first-vote close that the caller hasn't landed yet.
+  var keys = Object.keys(state.players);
+  var firstPlayer = keys[0];
+  if (state.phase === 'VOTING' && state.liveDoorwaysId) {
+    advanceThroughAllStages(state, room);
+  }
+  // If KEY_HUNT now, walk to the key chip + collect; next tick promotes.
+  if (state.phase === 'KEY_HUNT' && state.key) {
+    room.members.get(firstPlayer).pos = chipPos(state.key.x, state.key.y, state.chipSize);
+    tick(state, 200, room);
+    applyInput(state, firstPlayer, { kind: 'collect-key' });
+    tick(state, 200, room);
+  }
+  return state.sideEffects;
+}
+
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- loadLevel', () => {
   beforeEach(() => { _clearCache(); });
@@ -129,10 +181,29 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
     expect(k.state.players.alice.y).toBe(4 * k.chipSize);
   });
 
-  it('V7.4: coins default to hidden=false and revealed=true (no opt-in)', () => {
+  it('V7.4: coins default to hidden=false and revealed=true (synthetic level, no opt-in)', () => {
+    // U1.1 opted into hidden via V7.4-C, so default-behavior coverage
+    // builds a synthetic level without the hidden flag.
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.DEFAULT', lessonKey: 'T.D',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'SipStation', id: 's1', x: 4,  y: 2, drink: 'A' },
+        { type: 'SipStation', id: 's2', x: 12, y: 2, drink: 'B' },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, text: '?', correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    };
+    var st = createLevelState(levelDef, [{ username: 'alice' }]);
+    expect(st.coins.every(function (c) { return c.hidden === false; })).toBe(true);
+    expect(st.coins.every(function (c) { return c.revealed === true; })).toBe(true);
+  });
+
+  it('V7.4-C: U1.1 opts every SipStation into hidden=true (blind cola mystery)', () => {
     var k = setupCola(['alice']);
-    expect(k.state.coins.every(function (c) { return c.hidden === false; })).toBe(true);
-    expect(k.state.coins.every(function (c) { return c.revealed === true; })).toBe(true);
+    expect(k.state.coins.every(function (c) { return c.hidden === true; })).toBe(true);
+    expect(k.state.coins.every(function (c) { return c.revealed === false; })).toBe(true);
   });
 
   it('V7.4: SipStation hidden=true makes coin.hidden=true and coin.revealed=false at start', () => {
@@ -175,12 +246,14 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
   });
 
   it('V7.4: serialize wire shape includes hidden + revealed per coin', () => {
+    // U1.1 opted into hidden via V7.4-C, so wire shape now has
+    // hidden=true / revealed=false at spawn for this level.
     var k = setupCola(['alice']);
     var wire = serialize(k.state);
     expect(wire.coins[0]).toHaveProperty('hidden');
     expect(wire.coins[0]).toHaveProperty('revealed');
-    expect(wire.coins[0].hidden).toBe(false);
-    expect(wire.coins[0].revealed).toBe(true);
+    expect(wire.coins[0].hidden).toBe(true);
+    expect(wire.coins[0].revealed).toBe(false);
   });
 
   it('coins reflect the 4 SipStations (uncollected, drink tags A/A/B/B)', () => {
@@ -289,20 +362,25 @@ describe('V7.1 level-engine -- SIPPING phase', () => {
 
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- VOTING phase: doorway close consumption', () => {
-  it('on CORRECT door winning, transitions to GOAL_AVAILABLE', () => {
+  it('V7.5: on CORRECT vote on stage 0 of multi-stage, stays in VOTING + advances currentStage', () => {
+    // V7.5 changed U1.1 to a 4-stage level (was single-stage). The
+    // original "correct vote -> GOAL_AVAILABLE" assertion now applies
+    // only to the LAST stage; the intermediate-stages contract is
+    // separately covered in V7.5 multi-stage tests.
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
     advanceToVoting(k.state, room);
     var liveId = k.state.liveDoorwaysId;
-    // The class voted; the close lands on the room. d2 is the correct door.
+    // d2 is the correct door for U1.1 stage 0.
     landCloseDoorways(room, liveId, [
       { doorId: 'd1', count: 0 },
       { doorId: 'd2', count: 3 },
       { doorId: 'd3', count: 0 }
     ]);
     tick(k.state, 200, room);
-    expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
-    expect(k.state.liveDoorwaysId).toBeNull();
+    expect(k.state.phase).toBe(PHASE_VOTING);   // still voting -- next stage opened
+    expect(k.state.currentStage).toBe(1);
+    expect(k.state.liveDoorwaysId).not.toBe(liveId);   // new doorways round
   });
 
   it('on WRONG door winning, transitions to REFLECTION with reflectionText', () => {
@@ -320,7 +398,10 @@ describe('V7.1 level-engine -- VOTING phase: doorway close consumption', () => {
     expect(k.state.phase).toBe(PHASE_REFLECTION);
     expect(k.state.reflection.active).toBe(true);
     expect(k.state.reflection.doorId).toBe('d1');
-    expect(k.state.reflection.reflectionText).toMatch(/Notice the data/);
+    // V7.4-C reflection text rewrite: d1 now reads
+    // "You sipped A and B blind -- the data measured PREFERENCE,
+    //  not what's inside the cup."
+    expect(k.state.reflection.reflectionText).toMatch(/PREFERENCE/);
     expect(k.state.reflection.autoCloseAt).toBeGreaterThan(0);
   });
 
@@ -422,7 +503,11 @@ describe('V7.1 level-engine -- REFLECTION phase: auto-clear + re-vote', () => {
     expect(REFLECTION_DURATION_MS).toBe(8000);
   });
 
-  it('subsequent CORRECT vote after REFLECTION advances to GOAL_AVAILABLE', () => {
+  it('subsequent CORRECT vote after REFLECTION advances stage (was: -> GOAL_AVAILABLE in single-stage U1.1)', () => {
+    // V7.5: U1.1 is now 4-stage. The REFLECTION-then-revote flow now
+    // ends with a stage advance (still VOTING) rather than a direct
+    // jump to GOAL_AVAILABLE. The "drive all the way through" path is
+    // covered by advanceToGoalAvailable in tests below.
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
     advanceToVoting(k.state, room);
@@ -433,27 +518,27 @@ describe('V7.1 level-engine -- REFLECTION phase: auto-clear + re-vote', () => {
     expect(k.state.phase).toBe(PHASE_REFLECTION);
     k.state.reflection.autoCloseAt = Date.now() - 1;
     tick(k.state, 200, room);
-    // Now in VOTING with a re-opened doorways.
+    // Now in VOTING with a re-opened doorways (still stage 0).
     expect(k.state.phase).toBe(PHASE_VOTING);
+    expect(k.state.currentStage).toBe(0);
     var reopenId = k.state.liveDoorwaysId;
     landCloseDoorways(room, reopenId, [
       { doorId: 'd2', count: 4 }
     ]);
     tick(k.state, 200, room);
-    expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
+    // Correct vote advances to stage 1 (still VOTING).
+    expect(k.state.phase).toBe(PHASE_VOTING);
+    expect(k.state.currentStage).toBe(1);
   });
 });
 
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
   it('V7.2: applyInput {kind:"reach-goal"} in GOAL_AVAILABLE transitions to LEVEL_CLEARED', () => {
+    // V7.5: U1.1 has stages + key now, so drive all the way through.
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
-    advanceToVoting(k.state, room);
-    landCloseDoorways(room, k.state.liveDoorwaysId, [
-      { doorId: 'd2', count: 3 }
-    ]);
-    tick(k.state, 200, room);
+    advanceToGoalAvailable(k.state, room);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
     // Walk alice to Goal (chip 16, 7), then fire the client-driven reach.
     room.members.get('alice').pos = chipPos(16, 7, k.chipSize);
@@ -468,9 +553,7 @@ describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
   it('LEVEL_CLEARED is terminal across additional ticks (idempotent)', () => {
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
-    advanceToVoting(k.state, room);
-    landCloseDoorways(room, k.state.liveDoorwaysId, [{ doorId: 'd2', count: 1 }]);
-    tick(k.state, 200, room);
+    advanceToGoalAvailable(k.state, room);
     room.members.get('alice').pos = chipPos(16, 7, k.chipSize);
     tick(k.state, 200, room);
     applyInput(k.state, 'alice', { kind: 'reach-goal' });
@@ -484,9 +567,7 @@ describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
   it('V7.2: GOAL_AVAILABLE does NOT auto-advance on tick without reach-goal input', () => {
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
-    advanceToVoting(k.state, room);
-    landCloseDoorways(room, k.state.liveDoorwaysId, [{ doorId: 'd2', count: 1 }]);
-    tick(k.state, 200, room);
+    advanceToGoalAvailable(k.state, room);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
     // Even if alice walks onto the goal, tick alone won't advance --
     // applyInput must fire (mirrors the SIPPING auto-collect fix).
@@ -505,11 +586,13 @@ describe('V7.1 level-engine -- GOAL_AVAILABLE + LEVEL_CLEARED', () => {
   it('V7.2 anti-cheat: applyInput {kind:"reach-goal"} rejects far-away player', () => {
     var k = setupCola(['alice']);
     var room = makeRoom({ alice: chipPos(4, 4, k.chipSize) });
-    advanceToVoting(k.state, room);
-    landCloseDoorways(room, k.state.liveDoorwaysId, [{ doorId: 'd2', count: 1 }]);
+    advanceToGoalAvailable(k.state, room);
+    // Alice has just collected the key at chip (10, 4) -> level x=100.
+    // Goal at chip 16 -> x=160. |100-160| = 60 px, past 2 * OVERLAP_PX = 32.
+    // Reject. Move her further so the gap is unambiguous regardless of
+    // exact final position after the helper completes.
+    room.members.get('alice').pos = chipPos(4, 4, k.chipSize);
     tick(k.state, 200, room);
-    // Alice is still at chip (4, 4) -> level x=40. Goal at chip 16 -> x=160.
-    // |40-160| = 120 px, well past 2 * OVERLAP_PX = 32. Reject.
     expect(applyInput(k.state, 'alice', { kind: 'reach-goal' })).toBeNull();
     expect(k.state.goal.reached).toBe(false);
     expect(k.state.phase).toBe(PHASE_GOAL_AVAILABLE);
@@ -714,3 +797,199 @@ describe('V7.1 level-engine -- overlap math: chipSize=10, 320 CSS px wide', () =
     expect(k.state.coins[0].collected).toBe(true);
   });
 });
+
+// ----------------------------------------------------------------------
+// V7.5: multi-stage voting + KEY_HUNT phase + Key actor
+// ----------------------------------------------------------------------
+
+// Synthetic level fixture with a `stages` array + Key actor. Two stages
+// (smallest useful multi-stage shape), 2 doorways each, one correct
+// per stage. Plus a Key actor at chip (10, 4) for the KEY_HUNT phase.
+function setupTwoStageWithKey() {
+  return {
+    schema:    'v7-level-1',
+    levelKey:  'TEST.V75',
+    lessonKey: 'T.V75',
+    map: { width: 32, height: 8, chipSize: 10 },
+    actors: [
+      { type: 'PlayerSpawn', x: 4, y: 4 },
+      { type: 'Key',  id: 'k1', x: 10, y: 4 },
+      { type: 'Goal',         x: 16, y: 7 }
+    ],
+    stages: [
+      {
+        questionText: 'Stage 0 question?',
+        doorways: [
+          { id: 's0d1', x: 6,  y: 6, text: 'wrong',   correct: false, reflection: 'try again' },
+          { id: 's0d2', x: 16, y: 6, text: 'correct', correct: true                       }
+        ]
+      },
+      {
+        questionText: 'Stage 1 question?',
+        doorways: [
+          { id: 's1d1', x: 6,  y: 6, text: 'wrong',   correct: false, reflection: 'still wrong' },
+          { id: 's1d2', x: 16, y: 6, text: 'correct', correct: true                            }
+        ]
+      }
+    ]
+  };
+}
+
+// Helper: drive a VOTING phase to the correct winner via a doorway-close
+// event. Lets us test stage advancement without depending on real-time.
+function landClose(room, liveId, winnerDoorId) {
+  room.closedDoorways = { id: liveId, tally: [ { doorId: winnerDoorId, count: 1 } ] };
+}
+
+describe('V7.5 level-engine -- multi-stage + KEY_HUNT', () => {
+  it('createLevelState reads stages[] into state.stages + currentStage=0', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    expect(Array.isArray(st.stages)).toBe(true);
+    expect(st.stages.length).toBe(2);
+    expect(st.stagesTotal).toBe(2);
+    expect(st.currentStage).toBe(0);
+    expect(st.doorways).toBe(st.stages[0].doorways);   // points at current stage
+  });
+
+  it('backward compat: no stages[] in level def -> synthesizes one stage from actors[] QuestionDoors', () => {
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.LEGACY', lessonKey: 'T.L',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'QuestionDoor', id: 'd1', x: 6,  y: 6, text: 'wrong',   correct: false },
+        { type: 'QuestionDoor', id: 'd2', x: 16, y: 6, text: 'correct', correct: true  },
+        { type: 'Goal',                   x: 16, y: 7 }
+      ]
+    };
+    var st = createLevelState(levelDef, [{ username: 'alice' }]);
+    expect(st.stagesTotal).toBe(1);
+    expect(st.currentStage).toBe(0);
+    expect(st.stages[0].doorways.length).toBe(2);
+    expect(st.key).toBeNull();   // no Key actor -> no KEY_HUNT phase
+  });
+
+  it('Key actor present -> state.key populated; absent -> state.key is null', () => {
+    var withKey = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    expect(withKey.key).toEqual({ x: 10, y: 4, collected: false, collectedBy: null });
+    var withoutKey = createLevelState({
+      schema: 'v7-level-1', levelKey: 'NK', lessonKey: 'NK',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    }, [{ username: 'alice' }]);
+    expect(withoutKey.key).toBeNull();
+  });
+
+  it('correct vote on stage 0 of 2 stays in VOTING + advances currentStage to 1 + emits fresh openDoorways', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    st.phase = PHASE_VOTING;
+    st._phaseEntry = 1;
+    var firstSE = _buildOpenDoorwaysForSetup(st);
+    st.liveDoorwaysId = firstSE.id;
+    var room = makeRoom({ alice: chipPos(16, 6, 10) });
+    landClose(room, st.liveDoorwaysId, 's0d2');
+    tick(st, 200, room);
+    expect(st.phase).toBe(PHASE_VOTING);
+    expect(st.currentStage).toBe(1);
+    expect(st.doorways).toBe(st.stages[1].doorways);
+    expect(st._voteQuestion).toBe('Stage 1 question?');
+    expect(st.sideEffects && st.sideEffects.openDoorways).toBeTruthy();
+    expect(st.liveDoorwaysId).toBe(st.sideEffects.openDoorways.id);
+  });
+
+  it('correct vote on LAST stage WITH Key actor -> PHASE_KEY_HUNT', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    // Skip to the last stage already in VOTING.
+    st.phase = PHASE_VOTING;
+    st.currentStage = 1;
+    st.doorways = st.stages[1].doorways;
+    st._phaseEntry = 1;
+    var lastSE = _buildOpenDoorwaysForSetup(st);
+    st.liveDoorwaysId = lastSE.id;
+    var room = makeRoom({ alice: chipPos(16, 6, 10) });
+    landClose(room, st.liveDoorwaysId, 's1d2');
+    tick(st, 200, room);
+    expect(st.phase).toBe(PHASE_KEY_HUNT);
+    expect(st.key.collected).toBe(false);
+  });
+
+  it('correct vote on LAST stage WITHOUT Key actor -> PHASE_GOAL_AVAILABLE (backward compat)', () => {
+    var st = createLevelState({
+      schema: 'v7-level-1', levelKey: 'NK2', lessonKey: 'NK2',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    }, [{ username: 'alice' }]);
+    st.phase = PHASE_VOTING;
+    st._phaseEntry = 1;
+    var se = _buildOpenDoorwaysForSetup(st);
+    st.liveDoorwaysId = se.id;
+    var room = makeRoom({ alice: chipPos(16, 6, 10) });
+    landClose(room, st.liveDoorwaysId, 'd1');
+    tick(st, 200, room);
+    expect(st.phase).toBe(PHASE_GOAL_AVAILABLE);
+    expect(st.key).toBeNull();
+  });
+
+  it('applyInput {kind:"collect-key"} in KEY_HUNT flips state.key.collected + next tick -> GOAL_AVAILABLE', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    st.phase = PHASE_KEY_HUNT;
+    var room = makeRoom({ alice: chipPos(10, 4, 10) });
+    tick(st, 200, room);   // refresh alice's position to chip (10, 4)
+    applyInput(st, 'alice', { kind: 'collect-key' });
+    expect(st.key.collected).toBe(true);
+    expect(st.key.collectedBy).toBe('alice');
+    tick(st, 200, room);
+    expect(st.phase).toBe(PHASE_GOAL_AVAILABLE);
+  });
+
+  it('applyInput {kind:"collect-key"} no-ops outside KEY_HUNT phase', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    st.phase = PHASE_SIPPING;
+    expect(applyInput(st, 'alice', { kind: 'collect-key' })).toBeNull();
+    expect(st.key.collected).toBe(false);
+  });
+
+  it('V7.5 anti-cheat: applyInput {kind:"collect-key"} rejects far-away player', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    st.phase = PHASE_KEY_HUNT;
+    // Spawn alice at chip (4, 4) -> level x=40. Key at chip 10 -> x=100.
+    // |40 - 100| = 60 px, well past 2 * OVERLAP_PX = 32. Reject.
+    expect(applyInput(st, 'alice', { kind: 'collect-key' })).toBeNull();
+    expect(st.key.collected).toBe(false);
+  });
+
+  it('serialize wire shape includes stages metadata + key + goal.locked', () => {
+    var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
+    var wire = serialize(st);
+    expect(wire.currentStage).toBe(0);
+    expect(wire.stagesTotal).toBe(2);
+    expect(wire.voteQuestion).toBe('Stage 0 question?');
+    expect(wire.key).toEqual({ x: 10, y: 4, collected: false, collectedBy: null });
+    // Goal is locked because state.key && !state.key.collected.
+    expect(wire.goal.locked).toBe(true);
+    // After collect, goal unlocks.
+    st.key.collected = true;
+    var wire2 = serialize(st);
+    expect(wire2.goal.locked).toBe(false);
+    expect(wire2.key.collected).toBe(true);
+  });
+});
+
+// Tiny helper used by the V7.5 tests to fabricate an openDoorways
+// sideEffect's id without re-implementing _buildOpenDoorwaysSideEffect.
+// State must have a current-stage doorways pointer + a _phaseEntry.
+function _buildOpenDoorwaysForSetup(st) {
+  return {
+    id: 'level-' + st.levelKey + '-vote-' + st._phaseEntry,
+    question: st._voteQuestion,
+    options: st.doorways.map(function (d) { return { label: d.text, doorId: d.id }; })
+  };
+}

@@ -20,30 +20,110 @@
     { "type": "SipStation",    "id": "s4", "x": 28, "y":  2, "drink": "B", "hidden": true },
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
     { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "Goal", "x": 16, "y":  7 },
+    { "type": "Key",  "id": "k1", "x": 10, "y":  4 }
+  ],
+  "stages": [
     {
-      "type":       "QuestionDoor",
-      "id":         "d1",
-      "x":           6, "y":  6,
-      "text":       "Is Cup A Coke?",
-      "correct":    false,
-      "reflection": "You sipped A and B blind -- the data measured PREFERENCE, not what's inside the cup."
+      "questionText": "What question can sip-data answer?",
+      "doorways": [
+        {
+          "id":         "d1",
+          "x":           6, "y":  6,
+          "text":       "Is Cup A Coke?",
+          "correct":    false,
+          "reflection": "You sipped A and B blind -- the data measured PREFERENCE, not what's inside the cup."
+        },
+        {
+          "id":         "d2",
+          "x":          16, "y":  6,
+          "text":       "Can students tell A from B?",
+          "correct":    true
+        },
+        {
+          "id":         "d3",
+          "x":          26, "y":  6,
+          "text":       "Is Coke better than Pepsi?",
+          "correct":    false,
+          "reflection": "Statistics observes the pattern in your sips. 'Better' is a value judgment, not a measurement."
+        }
+      ]
     },
     {
-      "type":       "QuestionDoor",
-      "id":         "d2",
-      "x":          16, "y":  6,
-      "text":       "Can students tell A from B?",
-      "correct":    true
+      "questionText": "What did your blind sips actually measure?",
+      "doorways": [
+        {
+          "id":         "s1d1",
+          "x":           6, "y":  6,
+          "text":       "what's inside each cup",
+          "correct":    false,
+          "reflection": "The sip-data shows preferences -- it can't see ingredients."
+        },
+        {
+          "id":         "s1d2",
+          "x":          16, "y":  6,
+          "text":       "which cup you preferred",
+          "correct":    true
+        },
+        {
+          "id":         "s1d3",
+          "x":          26, "y":  6,
+          "text":       "whether Coke is better than Pepsi",
+          "correct":    false,
+          "reflection": "'Better' is a value judgment, not a measurement of the data."
+        }
+      ]
     },
     {
-      "type":       "QuestionDoor",
-      "id":         "d3",
-      "x":          26, "y":  6,
-      "text":       "Is Coke better than Pepsi?",
-      "correct":    false,
-      "reflection": "Statistics observes the pattern in your sips. 'Better' is a value judgment, not a measurement."
+      "questionText": "You sipped 4 mystery cups. The data tells you...",
+      "doorways": [
+        {
+          "id":         "s2d1",
+          "x":           6, "y":  6,
+          "text":       "the ingredients of each cup",
+          "correct":    false,
+          "reflection": "Blind sips have no view into the cup -- only what you preferred."
+        },
+        {
+          "id":         "s2d2",
+          "x":          16, "y":  6,
+          "text":       "the brand names",
+          "correct":    false,
+          "reflection": "The data is preferences, not labels. Brands aren't in the dataset."
+        },
+        {
+          "id":         "s2d3",
+          "x":          26, "y":  6,
+          "text":       "which cups you liked more",
+          "correct":    true
+        }
+      ]
     },
-    { "type": "Goal", "x": 16, "y":  7 }
+    {
+      "questionText": "Statistics observes _____ in data; it doesn't decide what's _____.",
+      "doorways": [
+        {
+          "id":         "s3d1",
+          "x":           6, "y":  6,
+          "text":       "patterns / true",
+          "correct":    true
+        },
+        {
+          "id":         "s3d2",
+          "x":          16, "y":  6,
+          "text":       "numbers / right",
+          "correct":    false,
+          "reflection": "Closer -- but 'numbers' is too narrow and 'right' implies judgment."
+        },
+        {
+          "id":         "s3d3",
+          "x":          26, "y":  6,
+          "text":       "outcomes / fair",
+          "correct":    false,
+          "reflection": "Statistics doesn't decide fairness -- that's a values question outside the data."
+        }
+      ]
+    }
   ],
   "reflection_room": {
     "map":     { "width": 16, "height": 8, "chipSize": 24 },

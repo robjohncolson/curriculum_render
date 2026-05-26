@@ -43,6 +43,7 @@ var PHASE_INIT            = 'INIT';
 var PHASE_SIPPING         = 'SIPPING';
 var PHASE_VOTING          = 'VOTING';
 var PHASE_REFLECTION      = 'REFLECTION';
+var PHASE_KEY_HUNT        = 'KEY_HUNT';        // V7.5: post-vote, pre-goal -- a single shared key is up for grabs
 var PHASE_GOAL_AVAILABLE  = 'GOAL_AVAILABLE';
 var PHASE_LEVEL_CLEARED   = 'LEVEL_CLEARED';
 
@@ -167,14 +168,17 @@ function createLevelState(levelDef, onlineStudents) {
     });
   }
 
-  // Doorways from QuestionDoor actors. The engine no longer manages
-  // switches/gates; it just records the level's question doors and
-  // hands them to the v3 P4 mechanism at the VOTING transition.
-  var doorways = [];
-  var doors    = _actorsOfType(levelDef.actors, 'QuestionDoor');
+  // Doorways from QuestionDoor actors -- legacy single-stage source.
+  // V7.5 multi-stage extension: if levelDef has a top-level `stages`
+  // array, each entry contributes its own doorways array + question
+  // text and the player must clear all stages in order to advance.
+  // Levels without a `stages` array (the other 79 in the s115 batch)
+  // are auto-wrapped into a synthetic single-stage from their actors[].
+  var actorDoorways = [];
+  var doors         = _actorsOfType(levelDef.actors, 'QuestionDoor');
   for (var d = 0; d < doors.length; d++) {
     var door = doors[d];
-    doorways.push({
+    actorDoorways.push({
       id:         door.id || ('door-' + d),
       x:          door.x,
       y:          door.y,
@@ -183,6 +187,41 @@ function createLevelState(levelDef, onlineStudents) {
       reflection: (typeof door.reflection === 'string') ? door.reflection : ''
     });
   }
+  var stages = [];
+  if (Array.isArray(levelDef.stages) && levelDef.stages.length > 0) {
+    for (var si = 0; si < levelDef.stages.length; si++) {
+      var rawStage = levelDef.stages[si];
+      var stageDoors = Array.isArray(rawStage.doorways) ? rawStage.doorways : [];
+      var normalized = [];
+      for (var sd = 0; sd < stageDoors.length; sd++) {
+        var rd = stageDoors[sd] || {};
+        normalized.push({
+          id:         rd.id || ('s' + si + 'd' + sd),
+          x:          (typeof rd.x === 'number') ? rd.x : 0,
+          y:          (typeof rd.y === 'number') ? rd.y : 0,
+          text:       (typeof rd.text === 'string') ? rd.text : '',
+          correct:    !!rd.correct,
+          reflection: (typeof rd.reflection === 'string') ? rd.reflection : ''
+        });
+      }
+      stages.push({
+        questionText: (typeof rawStage.questionText === 'string') ? rawStage.questionText : '',
+        doorways:     normalized
+      });
+    }
+  } else {
+    // Backward compat: synthesize a single stage from the actors-based
+    // QuestionDoors. No behavior change for the 79 non-staged levels.
+    stages.push({
+      questionText: (typeof levelDef.vote_question === 'string') ? levelDef.vote_question : '',
+      doorways:     actorDoorways
+    });
+  }
+  var currentStage = 0;
+  // state.doorways always points to the current stage's doorways so
+  // existing _buildOpenDoorwaysSideEffect / winnerDoor lookup logic
+  // continues to read the right set without per-call indexing.
+  var doorways = stages[0].doorways;
 
   // Goal: single Goal actor; fall back to first if multiple declared.
   var goalActors = _actorsOfType(levelDef.actors, 'Goal');
@@ -194,15 +233,30 @@ function createLevelState(levelDef, onlineStudents) {
     reachedBy: null
   };
 
+  // V7.5: optional single Key actor. If present, the engine inserts
+  // a KEY_HUNT phase between the last-stage correct vote and
+  // GOAL_AVAILABLE -- any player can collect the key, then the goal
+  // door unlocks. No Key actor in the level def -> phase machine
+  // skips KEY_HUNT entirely (backward compat with the other 79 levels).
+  var keyActors = _actorsOfType(levelDef.actors, 'Key');
+  var keyDef    = keyActors[0] || null;
+  var key       = keyDef ? {
+    x:         keyDef.x,
+    y:         keyDef.y,
+    collected: false,
+    collectedBy: null
+  } : null;
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
 
-  // Vote question shown above the doorways panel. Pulled from the
-  // level def if provided, else a sensible default.
-  var voteQuestion = (levelDef.vote_question && typeof levelDef.vote_question === 'string')
-    ? levelDef.vote_question
-    : 'Which question is the right one?';
+  // V7.5: vote question reflects the CURRENT stage's questionText, with
+  // a fallback chain to legacy levelDef.vote_question, then a default.
+  // Updated on each stage transition (see tick() VOTING branch).
+  var voteQuestion = (stages[0].questionText)
+    || ((typeof levelDef.vote_question === 'string') ? levelDef.vote_question : '')
+    || 'Which question is the right one?';
 
   return {
     levelKey:        levelDef.levelKey || '',
@@ -217,6 +271,19 @@ function createLevelState(levelDef, onlineStudents) {
     players:         players,
     coins:           coins,
     doorways:        doorways,
+    // V7.5: multi-stage voting -- engine cycles through stages[] in
+    // order, advancing on correct vote, looping in REFLECTION-then-revote
+    // on wrong vote (existing mechanic per-stage). currentStage indexes
+    // the active stage; state.doorways always points to its doorways
+    // array so existing _buildOpenDoorwaysSideEffect / winner-lookup
+    // logic continues working unchanged.
+    stages:          stages,
+    currentStage:    0,
+    stagesTotal:     stages.length,
+    // V7.5: optional single Key actor -- KEY_HUNT phase fires between
+    // the last-stage correct vote and GOAL_AVAILABLE. null if the
+    // level def has no Key actor (backward compat).
+    key:             key,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -249,8 +316,9 @@ function createLevelState(levelDef, onlineStudents) {
 // hit, the server stays authoritative.
 function applyInput(state, username, payload) {
   if (!state || !payload || typeof payload !== 'object') return null;
-  if (payload.kind === 'collect')    return _handleCoinCollect(state, username, payload);
-  if (payload.kind === 'reach-goal') return _handleReachGoal(state, username);
+  if (payload.kind === 'collect')     return _handleCoinCollect(state, username, payload);
+  if (payload.kind === 'reach-goal')  return _handleReachGoal(state, username);
+  if (payload.kind === 'collect-key') return _handleCollectKey(state, username);
   return null;
 }
 
@@ -303,6 +371,21 @@ function _handleReachGoal(state, username) {
   state.goal.reached   = true;
   state.goal.reachedBy = username;
   state.phase          = PHASE_LEVEL_CLEARED;
+  return state;
+}
+
+// V7.5 sprite-collide -- client-driven shared-key collect. Any player
+// in KEY_HUNT phase can grab the key by walking into it (X+Y jump
+// collision on the client; X anti-cheat here on the server). On
+// collect, state.key.collected flips true; the next tick promotes
+// phase to PHASE_GOAL_AVAILABLE and the client swaps the door visual
+// from locked to unlocked.
+function _handleCollectKey(state, username) {
+  if (state.phase !== PHASE_KEY_HUNT) return null;
+  if (!state.key || state.key.collected) return null;
+  if (!_playerNearActorX(state, username, state.key.x, OVERLAP_PX * 2)) return null;
+  state.key.collected   = true;
+  state.key.collectedBy = username;
   return state;
 }
 
@@ -472,13 +555,46 @@ function tick(state, deltaMs, room) {
       return state;
     }
     if (winnerDoor.correct) {
-      state.phase = PHASE_GOAL_AVAILABLE;
+      // V7.5: correct vote -- either advance to next stage, OR (last
+      // stage cleared) transition to KEY_HUNT if the level has a Key
+      // actor, else GOAL_AVAILABLE directly (backward compat with the
+      // other 79 levels that have no Key actor).
+      var nextStage = state.currentStage + 1;
+      if (nextStage < state.stagesTotal) {
+        // Advance to next stage: point doorways at the new stage's set,
+        // update vote question, emit a fresh openDoorways sideEffect.
+        state.currentStage   = nextStage;
+        state.doorways       = state.stages[nextStage].doorways;
+        state._voteQuestion  = state.stages[nextStage].questionText
+                            || state._voteQuestion
+                            || 'Which question is the right one?';
+        state._phaseEntry   += 1;
+        var nextStageSideEffect = _buildOpenDoorwaysSideEffect(state, state._phaseEntry);
+        state.liveDoorwaysId = nextStageSideEffect.id;
+        state.sideEffects    = { openDoorways: nextStageSideEffect };
+        // Stay in PHASE_VOTING for the new stage.
+      } else if (state.key) {
+        state.phase = PHASE_KEY_HUNT;
+      } else {
+        state.phase = PHASE_GOAL_AVAILABLE;
+      }
     } else {
       state.phase = PHASE_REFLECTION;
       state.reflection.active         = true;
       state.reflection.doorId         = winnerDoor.id;
       state.reflection.reflectionText = winnerDoor.reflection || '';
       state.reflection.autoCloseAt    = Date.now() + REFLECTION_DURATION_MS;
+    }
+    return state;
+  }
+
+  // ----- KEY_HUNT: wait for client-driven {kind:'collect-key'}. -----
+  // V7.5: shared single key, any player can collect via applyInput.
+  // _handleCollectKey flips state.key.collected true; we transition
+  // to GOAL_AVAILABLE here on the next tick after that flip.
+  if (state.phase === PHASE_KEY_HUNT) {
+    if (state.key && state.key.collected) {
+      state.phase = PHASE_GOAL_AVAILABLE;
     }
     return state;
   }
@@ -549,11 +665,17 @@ function serialize(state) {
       correct: !!d.correct
     };
   });
+  // V7.5: goal.locked tracks the key-gate state for the client. If the
+  // level has a Key actor, the door is LOCKED until state.key.collected
+  // flips true (which only happens in KEY_HUNT phase). If there's no
+  // Key actor, locked is false from t=0 (backward compat: the 79 other
+  // levels render the door as unlocked the moment GOAL_AVAILABLE hits).
   var goal = {
     x:         state.goal.x,
     y:         state.goal.y,
     reached:   !!state.goal.reached,
-    reachedBy: state.goal.reachedBy
+    reachedBy: state.goal.reachedBy,
+    locked:    !!(state.key && !state.key.collected)
   };
   var reflection = {
     active:         !!state.reflection.active,
@@ -561,6 +683,15 @@ function serialize(state) {
     reflectionText: state.reflection.reflectionText || '',
     autoCloseAt:    state.reflection.autoCloseAt || 0
   };
+  // V7.5: serialize key for the client's KeySprite to spawn on KEY_HUNT.
+  // null means the level has no Key actor (the KEY_HUNT phase will never
+  // fire for that level).
+  var key = state.key ? {
+    x:           state.key.x,
+    y:           state.key.y,
+    collected:   !!state.key.collected,
+    collectedBy: state.key.collectedBy
+  } : null;
   return {
     levelKey:        state.levelKey,
     lessonKey:       state.lessonKey,
@@ -572,8 +703,15 @@ function serialize(state) {
     coins:           coins,
     doorways:        doorways,
     goal:            goal,
+    key:             key,
     reflection:      reflection,
-    tally:           { sips: Object.assign({}, state.tally.sips) }
+    tally:           { sips: Object.assign({}, state.tally.sips) },
+    // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
+    // indicator). currentStage indexes which stage's doorways are live;
+    // voteQuestion echoes the current stage's prompt.
+    currentStage:    typeof state.currentStage === 'number' ? state.currentStage : 0,
+    stagesTotal:     typeof state.stagesTotal  === 'number' ? state.stagesTotal  : 1,
+    voteQuestion:    state._voteQuestion || ''
   };
 }
 
@@ -630,6 +768,7 @@ export {
   PHASE_SIPPING,
   PHASE_VOTING,
   PHASE_REFLECTION,
+  PHASE_KEY_HUNT,
   PHASE_GOAL_AVAILABLE,
   PHASE_LEVEL_CLEARED,
   REFLECTION_DURATION_MS
