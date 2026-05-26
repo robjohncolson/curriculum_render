@@ -139,7 +139,12 @@ function createLevelState(levelDef, onlineStudents) {
     var sp = spawns[i % spawns.length];
     players[u] = {
       x: sp.x * chipSize,
-      y: sp.y * chipSize
+      y: sp.y * chipSize,
+      // V7.8 per-player marks. Set on coin collect (sampledA/sampledB)
+      // and ChoicePad overlap (choice). _playerRowComplete returns
+      // true when all three are populated -- gates the SIPPING ->
+      // VOTING transition on ChoicePad levels via _isSippingComplete.
+      marks: { sampledA: false, sampledB: false, choice: null }
     };
   }
 
@@ -264,6 +269,25 @@ function createLevelState(levelDef, onlineStudents) {
     binds:     (typeof tallyDef.binds === 'string') ? tallyDef.binds : 'tally.sips'
   } : null;
 
+  // V7.8: optional ChoicePad actors. Mechanic-first replacement for
+  // V7.7 Tally threshold gating -- each player must overlap a
+  // ChoicePad (after sampling both A and B) to record a preference.
+  // Engine cascade in _isSippingComplete puts ChoicePad first
+  // (every player rowComplete), Tally-threshold second (V7.7), and
+  // all-coins-collected third (V7.5 legacy). Levels with no Tally,
+  // no ChoicePad fall through to legacy unchanged.
+  var choicePadActors = _actorsOfType(levelDef.actors, 'ChoicePad');
+  var choicePads      = [];
+  for (var cp = 0; cp < choicePadActors.length; cp++) {
+    var cpa = choicePadActors[cp];
+    choicePads.push({
+      id:    cpa.id || ('choicepad-' + cp),
+      x:     cpa.x,
+      y:     cpa.y,
+      value: (typeof cpa.value === 'string') ? cpa.value : 'A'
+    });
+  }
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
@@ -304,6 +328,9 @@ function createLevelState(levelDef, onlineStudents) {
     // V7.7: optional Tally actor -- threshold-gates SIPPING -> VOTING.
     // null if the level def has no Tally actor (backward compat).
     tallyConfig:     tallyConfig,
+    // V7.8: optional ChoicePad actors -- per-player preference recorders.
+    // Empty array for levels without ChoicePads (backward compat).
+    choicePads:      choicePads,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -336,10 +363,20 @@ function createLevelState(levelDef, onlineStudents) {
 // hit, the server stays authoritative.
 function applyInput(state, username, payload) {
   if (!state || !payload || typeof payload !== 'object') return null;
-  if (payload.kind === 'collect')     return _handleCoinCollect(state, username, payload);
-  if (payload.kind === 'reach-goal')  return _handleReachGoal(state, username);
-  if (payload.kind === 'collect-key') return _handleCollectKey(state, username);
+  if (payload.kind === 'collect')       return _handleCoinCollect(state, username, payload);
+  if (payload.kind === 'reach-goal')    return _handleReachGoal(state, username);
+  if (payload.kind === 'collect-key')   return _handleCollectKey(state, username);
+  if (payload.kind === 'record-choice') return _handleRecordChoice(state, username, payload);
   return null;
+}
+
+// V7.8: derived per-player predicate. A player's row is complete
+// when they've sampled BOTH A and B AND recorded a choice on a
+// ChoicePad. Used by _isSippingComplete (ChoicePad cascade) to
+// gate SIPPING -> VOTING when the level has ChoicePad actors.
+function _playerRowComplete(player) {
+  if (!player || !player.marks) return false;
+  return !!(player.marks.sampledA && player.marks.sampledB && player.marks.choice);
 }
 
 // Shared anti-cheat: is the claiming player within tolerance px of the
@@ -364,9 +401,28 @@ function _handleCoinCollect(state, username, payload) {
   for (var i = 0; i < state.coins.length; i++) {
     if (state.coins[i].id === payload.coinId) { coin = state.coins[i]; break; }
   }
-  if (!coin || coin.collected) return null;
+  if (!coin) return null;
   // Anti-cheat: 2 * OVERLAP_PX (covers client-side prediction latency).
   if (!_playerNearActorX(state, username, coin.x, OVERLAP_PX * 2)) return null;
+
+  var hasChoicePads = Array.isArray(state.choicePads) && state.choicePads.length > 0;
+  var player        = state.players && state.players[username];
+
+  // V7.8 ChoicePad cascade: in multiplayer ChoicePad levels the coin is
+  // shared (one SipStation per category) but every player must taste it
+  // for their own row to complete. So a player's per-letter mark is set
+  // EVEN IF the coin was already collected by someone else. The coin's
+  // collected flag remains one-shot for the tally bump + reveal animation
+  // (Alice gets the tally credit; Bob just gets the mark for his row).
+  if (coin.collected) {
+    if (hasChoicePads && player && player.marks) {
+      if (coin.drink === 'A') player.marks.sampledA = true;
+      if (coin.drink === 'B') player.marks.sampledB = true;
+      return state;
+    }
+    return null;  // legacy: already-collected coin is a hard no-op
+  }
+
   coin.collected = true;
   // V7.4: collect always reveals identity. Even non-hidden coins set
   // revealed=true here (it was already true from createLevelState), so
@@ -376,6 +432,15 @@ function _handleCoinCollect(state, username, payload) {
   coin.revealed = true;
   if (state.tally.sips[coin.drink] == null) state.tally.sips[coin.drink] = 0;
   state.tally.sips[coin.drink]++;
+  // V7.8: set the collecting player's per-letter sample mark on first
+  // collect too. Additive to the tally bump so V7.7 Tally cascade levels
+  // (U1.2 W/N coins) keep working unchanged. Non-A/B drinks (W, N, R,
+  // etc.) skip the mark set -- the Tally-threshold cascade still gates
+  // those levels via state.tally.sips.
+  if (player && player.marks) {
+    if (coin.drink === 'A') player.marks.sampledA = true;
+    if (coin.drink === 'B') player.marks.sampledB = true;
+  }
   return state;
 }
 
@@ -406,6 +471,33 @@ function _handleCollectKey(state, username) {
   if (!_playerNearActorX(state, username, state.key.x, OVERLAP_PX * 2)) return null;
   state.key.collected   = true;
   state.key.collectedBy = username;
+  return state;
+}
+
+// V7.8 mechanic-first -- client-driven per-player preference record.
+// Fires when the local player walks onto a ChoicePad pad with both
+// sampledA AND sampledB true. Server validates: SIPPING phase, pad
+// exists, player has both samples + no choice yet, near the pad
+// (X anti-cheat). On success, sets player.marks.choice = pad.value.
+// One-shot per player: a player who's already chosen cannot re-choose
+// by stepping on the other pad.
+function _handleRecordChoice(state, username, payload) {
+  if (state.phase !== PHASE_SIPPING) return null;
+  if (typeof payload.choicePadId !== 'string' || !payload.choicePadId) return null;
+  var player = state.players && state.players[username];
+  if (!player || !player.marks) return null;
+  if (!player.marks.sampledA || !player.marks.sampledB) return null;
+  if (player.marks.choice) return null;
+  var pad = null;
+  for (var i = 0; i < (state.choicePads || []).length; i++) {
+    if (state.choicePads[i].id === payload.choicePadId) {
+      pad = state.choicePads[i];
+      break;
+    }
+  }
+  if (!pad) return null;
+  if (!_playerNearActorX(state, username, pad.x, OVERLAP_PX * 2)) return null;
+  player.marks.choice = pad.value;
   return state;
 }
 
@@ -484,6 +576,19 @@ function _overlapsActor(player, actor, chipSize, state) {
 // Default (no Tally actor): the legacy "all coins collected" rule
 // stays in force (backward compat with the 78 non-Tally levels).
 function _isSippingComplete(state) {
+  // V7.8 ChoicePad cascade (mechanic-first). If the level has any
+  // ChoicePad actors, EVERY online player must have a complete row
+  // (sampledA + sampledB + choice). Empty-room safety: return false
+  // for 0 players so the gate doesn't auto-fire before any student
+  // joins. This cascade short-circuits before the V7.7 Tally check.
+  if (Array.isArray(state.choicePads) && state.choicePads.length > 0) {
+    var usernames = Object.keys(state.players || {});
+    if (usernames.length === 0) return false;
+    for (var p = 0; p < usernames.length; p++) {
+      if (!_playerRowComplete(state.players[usernames[p]])) return false;
+    }
+    return true;
+  }
   if (state.tallyConfig && state.tallyConfig.threshold) {
     var sips   = (state.tally && state.tally.sips) || {};
     var thresh = state.tallyConfig.threshold;
@@ -707,9 +812,18 @@ function serialize(state) {
   var players = {};
   Object.keys(state.players).forEach(function (u) {
     var p = state.players[u];
+    // V7.8: serialize per-player marks so the client TallyDisplay /
+    // ChoicePadSprite / cockpit can read sampledA / sampledB / choice.
+    // marks=null only for legacy state shapes that pre-date V7.8;
+    // _refreshPlayerPositions does not touch marks.
     players[u] = {
       x: p.x,
-      y: p.y
+      y: p.y,
+      marks: p.marks ? {
+        sampledA: !!p.marks.sampledA,
+        sampledB: !!p.marks.sampledB,
+        choice:   p.marks.choice || null
+      } : null
     };
   });
   var coins = state.coins.map(function (c) {
@@ -790,6 +904,12 @@ function serialize(state) {
     // progress render. Always emitted so the client doesn't have to
     // distinguish "no tally" from "tally not yet observed".
     tallyConfig:     tallyConfig,
+    // V7.8: serialize ChoicePad actors so the client can spawn
+    // ChoicePadSprites + know the per-pad value mapping. Always
+    // emitted as an array (empty for legacy levels with no ChoicePad).
+    choicePads:      (state.choicePads || []).map(function (p) {
+      return { id: p.id, x: p.x, y: p.y, value: p.value };
+    }),
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;
     // voteQuestion echoes the current stage's prompt.
@@ -821,7 +941,12 @@ function onMemberJoin(state, username, room) {
   var sy = (state.spawnY != null) ? state.spawnY : 4;
   state.players[username] = {
     x: sx * chipSize,
-    y: sy * chipSize
+    y: sy * chipSize,
+    // V7.8: fresh marks for the new joiner. The ChoicePad cascade
+    // in _isSippingComplete will flip back to false the moment this
+    // player lands -- the room waits for them to sip + choose like
+    // everyone else. Cooperative pedagogy by design.
+    marks: { sampledA: false, sampledB: false, choice: null }
   };
   return state;
 }

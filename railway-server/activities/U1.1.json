@@ -13,13 +13,13 @@
     "chipSize": 10
   },
   "actors": [
-    { "type": "Text",          "x":  4, "y":  0, "text": "Cola Mystery: 4 mystery cups. Sip each -- data reveals what kind. Then: what question CAN we answer with that data?" },
-    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "A", "hidden": true },
-    { "type": "SipStation",    "id": "s2", "x": 12, "y":  2, "drink": "A", "hidden": true },
-    { "type": "SipStation",    "id": "s3", "x": 20, "y":  2, "drink": "B", "hidden": true },
-    { "type": "SipStation",    "id": "s4", "x": 28, "y":  2, "drink": "B", "hidden": true },
+    { "type": "Text",          "x":  4, "y":  0, "text": "Cola Mystery: taste both cups, then walk to the pad of the one you preferred. Blind sips show preference, not brand." },
+    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "A" },
+    { "type": "SipStation",    "id": "s2", "x": 28, "y":  2, "drink": "B" },
+    { "type": "ChoicePad",     "id": "cp-A", "x":  8, "y":  4, "value": "A" },
+    { "type": "ChoicePad",     "id": "cp-B", "x": 24, "y":  4, "value": "B" },
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
-    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "TallyDisplay",  "x": 16, "y":  1, "binds": "tally.sips" },
     { "type": "Goal", "x": 16, "y":  7 },
     { "type": "Key",  "id": "k1", "x": 10, "y":  4 }
   ],

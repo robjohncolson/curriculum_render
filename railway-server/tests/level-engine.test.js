@@ -73,6 +73,10 @@ function landCloseDoorways(room, id, tally) {
 // V7.2 sprite-collide: collection is client-driven via applyInput, not
 // server-side auto-overlap. Walk the first player to each coin (so the
 // anti-cheat X-overlap passes) and fire a collect input for each.
+//
+// V7.8 ChoicePad: if the level has ChoicePad actors, EVERY player must
+// also record a choice for the SIPPING cascade to flip. Walk each
+// player to the first ChoicePad and record A.
 function advanceToVoting(state, room) {
   var keys = Object.keys(state.players);
   var firstPlayer = keys[0];
@@ -81,6 +85,27 @@ function advanceToVoting(state, room) {
     room.members.get(firstPlayer).pos = chipPos(coin.x, coin.y, state.chipSize);
     tick(state, 200, room);   // refresh state.players[firstPlayer].x = coin x
     applyInput(state, firstPlayer, { kind: 'collect', coinId: coin.id });
+  }
+  // V7.8: walk EACH player onto a ChoicePad so every player has rowComplete.
+  if (Array.isArray(state.choicePads) && state.choicePads.length > 0) {
+    var pad = state.choicePads[0];
+    for (var pi = 0; pi < keys.length; pi++) {
+      var u = keys[pi];
+      // Each player needs sampledA + sampledB for the choice to register.
+      // For multi-player rooms only the first player walked the coins
+      // above; walk the others through too.
+      if (u !== firstPlayer) {
+        for (var c2 = 0; c2 < state.coins.length; c2++) {
+          var coin2 = state.coins[c2];
+          room.members.get(u).pos = chipPos(coin2.x, coin2.y, state.chipSize);
+          tick(state, 200, room);
+          applyInput(state, u, { kind: 'collect', coinId: coin2.id });
+        }
+      }
+      room.members.get(u).pos = chipPos(pad.x, pad.y, state.chipSize);
+      tick(state, 200, room);
+      applyInput(state, u, { kind: 'record-choice', choicePadId: pad.id });
+    }
   }
   tick(state, 200, room);     // trigger SIPPING -> VOTING transition
   return state.sideEffects;
@@ -200,10 +225,28 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
     expect(st.coins.every(function (c) { return c.revealed === true; })).toBe(true);
   });
 
-  it('V7.4-C: U1.1 opts every SipStation into hidden=true (blind cola mystery)', () => {
-    var k = setupCola(['alice']);
-    expect(k.state.coins.every(function (c) { return c.hidden === true; })).toBe(true);
-    expect(k.state.coins.every(function (c) { return c.revealed === false; })).toBe(true);
+  it('V7.4: a level CAN opt every SipStation into hidden=true (blind-test mechanic)', () => {
+    // V7.8 note: U1.1 used to opt into this for the cola-blind-test feel,
+    // but the V7.8 mechanic-first rewrite drops hidden=true so kids can
+    // remember which cup they preferred when stepping on the ChoicePad.
+    // The V7.4 mechanic still exists in the engine; this fixture pins
+    // the path for any future level that wants it.
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.HIDDEN', lessonKey: 'T.HIDDEN',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'SipStation', id: 's1', x: 4,  y: 2, drink: 'A', hidden: true },
+        { type: 'SipStation', id: 's2', x: 12, y: 2, drink: 'A', hidden: true },
+        { type: 'SipStation', id: 's3', x: 20, y: 2, drink: 'B', hidden: true },
+        { type: 'SipStation', id: 's4', x: 28, y: 2, drink: 'B', hidden: true },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, text: '?', correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    };
+    var state = createLevelState(levelDef, [{ username: 'alice' }]);
+    expect(state.coins.every(function (c) { return c.hidden === true; })).toBe(true);
+    expect(state.coins.every(function (c) { return c.revealed === false; })).toBe(true);
   });
 
   it('V7.4: SipStation hidden=true makes coin.hidden=true and coin.revealed=false at start', () => {
@@ -246,22 +289,37 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
   });
 
   it('V7.4: serialize wire shape includes hidden + revealed per coin', () => {
-    // U1.1 opted into hidden via V7.4-C, so wire shape now has
-    // hidden=true / revealed=false at spawn for this level.
-    var k = setupCola(['alice']);
-    var wire = serialize(k.state);
+    // V7.8 note: U1.1 dropped its V7.4-C hidden opt-in for the mechanic-
+    // first rewrite, so we use a fixture level to pin the V7.4 wire shape.
+    var levelDef = {
+      schema: 'v7-level-1', levelKey: 'TEST.WIRE', lessonKey: 'T.WIRE',
+      map: { width: 32, height: 8, chipSize: 10 },
+      actors: [
+        { type: 'PlayerSpawn', x: 4, y: 4 },
+        { type: 'SipStation', id: 's1', x: 4, y: 2, drink: 'A', hidden: true },
+        { type: 'QuestionDoor', id: 'd1', x: 16, y: 6, text: '?', correct: true },
+        { type: 'Goal', x: 16, y: 7 }
+      ]
+    };
+    var state = createLevelState(levelDef, [{ username: 'alice' }]);
+    var wire = serialize(state);
     expect(wire.coins[0]).toHaveProperty('hidden');
     expect(wire.coins[0]).toHaveProperty('revealed');
     expect(wire.coins[0].hidden).toBe(true);
     expect(wire.coins[0].revealed).toBe(false);
   });
 
-  it('coins reflect the 4 SipStations (uncollected, drink tags A/A/B/B)', () => {
+  it('coins reflect the U1.1 SipStations (uncollected, drink tags A and B)', () => {
+    // V7.8 reshape: U1.1 has 2 visible SipStations (one A, one B) plus
+    // 2 ChoicePads -- the V7.5/V7.6 setup of 4 hidden A/A/B/B SipStations
+    // was dropped for the mechanic-first rewrite. Tests that need the
+    // legacy 4-coin pattern should use an inline fixture (see
+    // V7.4-C hidden test above).
     var k = setupCola(['alice']);
-    expect(k.state.coins.length).toBe(4);
+    expect(k.state.coins.length).toBe(2);
     expect(k.state.coins.every(function (c) { return c.collected === false; })).toBe(true);
     expect(k.state.coins[0].drink).toBe('A');
-    expect(k.state.coins[2].drink).toBe('B');
+    expect(k.state.coins[1].drink).toBe('B');
   });
 
   it('doorways reflect the 3 QuestionDoors with the correct .correct flags', () => {
@@ -721,10 +779,12 @@ describe('V7.1 level-engine -- applyInput + tick edge cases', () => {
 
   it('V7.2: applyInput {kind:"collect"} rejects far-away player as anti-cheat', () => {
     var k = setupCola(['alice']);
-    // Spawn alice at chip (4, 4) -> level x=40. s4 at chip 28 -> level x=280.
-    // |40 - 280| = 240 px, well past 2 * OVERLAP_PX = 32. Reject.
-    expect(applyInput(k.state, 'alice', { kind: 'collect', coinId: 's4' })).toBeNull();
-    expect(k.state.coins[3].collected).toBe(false);
+    // Spawn alice at chip (4, 4) -> level x=40. s2 (B coin) at chip 28 ->
+    // level x=280. |40 - 280| = 240 px, well past 2 * OVERLAP_PX = 32. Reject.
+    // V7.8 note: U1.1's 4 coins (s1-s4) collapsed to 2 (s1=A, s2=B) in the
+    // mechanic-first rewrite; the far-coin assertion still holds, just on s2.
+    expect(applyInput(k.state, 'alice', { kind: 'collect', coinId: 's2' })).toBeNull();
+    expect(k.state.coins[1].collected).toBe(false);
   });
 
   it('V7.2: applyInput {kind:"collect"} no-ops on unknown coinId', () => {
@@ -732,12 +792,17 @@ describe('V7.1 level-engine -- applyInput + tick edge cases', () => {
     expect(applyInput(k.state, 'alice', { kind: 'collect', coinId: 'nope' })).toBeNull();
   });
 
-  it('V7.2: applyInput {kind:"collect"} on already-collected coin is idempotent', () => {
+  it('V7.2: applyInput {kind:"collect"} on already-collected coin does not double-count tally', () => {
+    // V7.8 ChoicePad cascade: U1.1 now has ChoicePads, so a 2nd-collect
+    // on an already-taken coin SETS the player's per-letter mark but
+    // does NOT double-bump tally. Load-bearing invariant: tally stays
+    // accurate (Alice was the only "first" collector). Return value can
+    // be `state` (mark set) for ChoicePad levels OR null for legacy.
     var k = setupCola(['alice']);
     k.state.coins[0].collected = true;
     k.state.tally.sips.A = 1;
-    expect(applyInput(k.state, 'alice', { kind: 'collect', coinId: k.state.coins[0].id })).toBeNull();
-    expect(k.state.tally.sips.A).toBe(1);   // not double-counted
+    applyInput(k.state, 'alice', { kind: 'collect', coinId: k.state.coins[0].id });
+    expect(k.state.tally.sips.A).toBe(1);   // load-bearing: not double-counted
   });
 
   it('tick(null) is a no-op (returns the input)', () => {

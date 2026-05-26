@@ -49,21 +49,39 @@ function setPos(registry, section, username, x, y, canvasW) {
 // Chip-coord helper for U1.1 v7.1 (chipSize=10).
 function chipCoord(c) { return c * 10; }
 
-// Helper: collect all coins by warping students through each sip station.
+// Helper: drive every student through both SipStations + a ChoicePad
+// so the V7.8 ChoicePad cascade in _isSippingComplete flips and the
+// SIPPING -> VOTING transition fires.
+//
 // V7.2 sprite-collide: tick alone no longer auto-collects -- the client
 // must fire classroom_activity_value {kind:'collect',coinId}. Helper
-// signature now takes `bag` for the student WS reference.
+// signature takes `bag` for the student WS references.
+//
+// V7.8 ChoicePad rewrite: U1.1's 4 hidden SipStations (s1-s4) collapsed
+// to 2 visible SipStations (s1=A at chip 4, s2=B at chip 28) plus 2
+// ChoicePads (cp-A at chip 8, cp-B at chip 24). Every student now needs
+// to tease BOTH sips AND record a choice for the cascade to advance.
+// The per-player coin-collect fix in V7.8 _handleCoinCollect lets every
+// student set sampledA/sampledB even on a coin Alice already collected.
 function collectAllCoins(registry, section, bag) {
-  // 4 sip stations at chip x = 4,12,20,28 at chip y = 2 -- ids s1..s4.
-  var sipsChip = [[4, 2], [12, 2], [20, 2], [28, 2]];
-  var sws = bag.students[0].ws;
-  for (var i = 0; i < sipsChip.length; i++) {
-    setPos(registry, section, 'student1', chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
-    registry.activityTick(1000 + i * 200);   // refreshes state.players[*].pos
-    registry.activityValue(sws, { kind: 'collect', coinId: 's' + (i + 1) });
+  var sipsChip   = [[4, 2], [28, 2]];   // s1=A, s2=B
+  var sipIds     = ['s1', 's2'];
+  var t = 1000;
+  for (var st = 0; st < bag.students.length; st++) {
+    var u   = bag.students[st].username;
+    var sws = bag.students[st].ws;
+    for (var i = 0; i < sipsChip.length; i++) {
+      setPos(registry, section, u, chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
+      registry.activityTick(t); t += 200;
+      registry.activityValue(sws, { kind: 'collect', coinId: sipIds[i] });
+    }
+    // V7.8: walk the student onto cp-A (default choice = A) + record-choice.
+    setPos(registry, section, u, chipCoord(8), chipCoord(4));
+    registry.activityTick(t); t += 200;
+    registry.activityValue(sws, { kind: 'record-choice', choicePadId: 'cp-A' });
   }
   // One more tick so the SIPPING -> VOTING transition fires.
-  registry.activityTick(1000 + sipsChip.length * 200);
+  registry.activityTick(t);
 }
 
 // V7.5 helper: full-level drive from SIPPING all the way to
