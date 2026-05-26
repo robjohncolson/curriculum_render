@@ -406,6 +406,29 @@ function _refreshPlayerPositions(state, room) {
   }
 }
 
+// V7.6: substitute {N}/{TOTAL}/{PCT} placeholders in a reflection
+// string using the actual vote tally at REFLECTION-phase entry. Lets
+// the wrong-door pedagogy reference the class's lived data ("3 of 4
+// of you chose this -- but blind sips only measure preference..."),
+// not just static prose. Strings without placeholders pass through
+// unchanged so the 79 other levels keep their static reflections.
+function _substituteReflectionPlaceholders(template, winnerCount, tally) {
+  if (typeof template !== 'string' || template.length === 0) return '';
+  var total = 0;
+  if (Array.isArray(tally)) {
+    for (var i = 0; i < tally.length; i++) {
+      var c = tally[i] && tally[i].count;
+      if (typeof c === 'number' && c > 0) total += c;
+    }
+  }
+  var n   = (typeof winnerCount === 'number' && winnerCount > 0) ? winnerCount : 0;
+  var pct = total > 0 ? Math.round(100 * n / total) : 0;
+  return template
+    .replace(/\{N\}/g,     String(n))
+    .replace(/\{TOTAL\}/g, String(total))
+    .replace(/\{PCT\}/g,   String(pct));
+}
+
 // Internal: rescale a Player's sender-canvas X into LEVEL coord X so
 // the overlap test can compare against actor chip * chipSize. With
 // chipSize=10 and mapWidth=32 the level width = 320 px; if the sender
@@ -582,7 +605,9 @@ function tick(state, deltaMs, room) {
       state.phase = PHASE_REFLECTION;
       state.reflection.active         = true;
       state.reflection.doorId         = winnerDoor.id;
-      state.reflection.reflectionText = winnerDoor.reflection || '';
+      state.reflection.reflectionText = _substituteReflectionPlaceholders(
+        winnerDoor.reflection || '', winnerCount, tally
+      );
       state.reflection.autoCloseAt    = Date.now() + REFLECTION_DURATION_MS;
     }
     return state;
