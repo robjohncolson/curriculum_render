@@ -1848,7 +1848,36 @@ export function createClassroomRegistry() {
     var sockets = roomSockets(room, null);
     var broadcasts = [{ sockets: sockets, payload: payload }];
     _fanoutToMonitors(broadcasts);
+    // V7.5: auto-close when every online STUDENT has voted. Removes the
+    // teacher-cockpit-click requirement that left the U1.1 cola-mystery
+    // doorways stuck open even after all kids had stepped into a door.
+    // Counts only online students (online !== false). Teachers don't
+    // vote (this handler rejects role !== 'student' above), so they
+    // don't block the auto-close.
+    var doorwaysId = room.doorways.id;   // capture before _closeDoorwaysServerSide nulls room.doorways
+    if (_allOnlineStudentsHaveVoted(room)) {
+      var closeRes = _closeDoorwaysServerSide(room, entry.section, doorwaysId, now);
+      if (closeRes.broadcasts && closeRes.broadcasts.length > 0) {
+        broadcasts = broadcasts.concat(closeRes.broadcasts);
+      }
+    }
     return { broadcasts: broadcasts };
+  }
+
+  // V7.5 helper: every online student has a non-null doorVote.
+  // Returns false if there are 0 online students (no one to wait on,
+  // but also nothing to auto-close).
+  function _allOnlineStudentsHaveVoted(room) {
+    if (!room || !room.members) return false;
+    var onlineStudents = 0;
+    var votedStudents  = 0;
+    room.members.forEach(function (m) {
+      if (!m || m.role !== 'student') return;
+      if (m.online === false) return;
+      onlineStudents += 1;
+      if (m.doorVote != null) votedStudents += 1;
+    });
+    return onlineStudents > 0 && votedStudents >= onlineStudents;
   }
 
   // retractDoorwayVote(ws, id, now) -> { broadcasts }
@@ -1954,27 +1983,22 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
-  // closeDoorways(ws, id, now) -> { broadcasts }
-  // Teacher-only. Emits the final tally then clears room.doorways.
-  // Each member's doorVote is cleared.
-  function closeDoorways(ws, id, now) {
-    var entry = wsIndex.get(ws);
-    if (!entry) return { broadcasts: [] };
-    var room = classrooms.get(entry.section);
+  // _closeDoorwaysServerSide(room, section, id, now) -> { broadcasts }
+  //
+  // V7.5: server-side close (no teacher / ws gate). Used by:
+  //   - closeDoorways (teacher-driven cockpit click; gate stays in caller)
+  //   - castDoorwayVote's auto-close on all-online-students-voted
+  // Does the same thing in both cases: stash room.closedDoorways for
+  // the level engine's VOTING tick to consume, clear room.doorways +
+  // per-member doorVote/status, fan out the close broadcast.
+  function _closeDoorwaysServerSide(room, section, id, now) {
     if (!room || !room.doorways) return { broadcasts: [] };
     if (room.doorways.id !== id) return { broadcasts: [] };
-    var member = room.members.get(entry.username);
-    if (!member || member.role !== 'teacher') return { broadcasts: [] };
     var finalTally = room.doorways.options.map(function(o) { return { doorId: o.doorId, count: o.count }; });
     var closedId = room.doorways.id;
     var closedQuestion = room.doorways.question;
     var closedOptions = room.doorways.options.map(function(o) { return { label: o.label, doorId: o.doorId }; });
     room.doorways = null;
-    // 2026-05-25 V7.1 BUILD Unit A: stash the closed event on the room
-    // so the level-engine's VOTING-phase tick can detect it + transition
-    // to GOAL_AVAILABLE or REFLECTION. Cleared by activityTick after the
-    // engine consumes it (one-shot). Pre-V7.1 code paths ignore this
-    // field; it's only read by the level plugin's onTick.
     room.closedDoorways = {
       id:       closedId,
       question: closedQuestion,
@@ -1987,7 +2011,7 @@ export function createClassroomRegistry() {
     });
     var payload = {
       type:     'classroom_close_doorways',
-      section:  entry.section,
+      section:  section,
       id:       closedId,
       question: closedQuestion,
       options:  closedOptions,
@@ -1997,6 +2021,21 @@ export function createClassroomRegistry() {
     var broadcasts = [{ sockets: sockets, payload: payload }];
     _fanoutToMonitors(broadcasts);
     return { broadcasts: broadcasts };
+  }
+
+  // closeDoorways(ws, id, now) -> { broadcasts }
+  // Teacher-only manual cockpit close. Gate stays here so teachers can
+  // still force-close a vote early; auto-close (V7.5) lives in
+  // castDoorwayVote when all online students have voted.
+  function closeDoorways(ws, id, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room || !room.doorways) return { broadcasts: [] };
+    if (room.doorways.id !== id) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    return _closeDoorwaysServerSide(room, entry.section, id, now);
   }
 
   // -------------------------------------------------------------------------

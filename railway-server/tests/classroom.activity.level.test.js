@@ -50,13 +50,60 @@ function setPos(registry, section, username, x, y, canvasW) {
 function chipCoord(c) { return c * 10; }
 
 // Helper: collect all coins by warping students through each sip station.
-function collectAllCoins(registry, section) {
-  var room = registry._getRoom(section);
-  // 4 sip stations at chip x = 4,12,20,28 at chip y = 2.
+// V7.2 sprite-collide: tick alone no longer auto-collects -- the client
+// must fire classroom_activity_value {kind:'collect',coinId}. Helper
+// signature now takes `bag` for the student WS reference.
+function collectAllCoins(registry, section, bag) {
+  // 4 sip stations at chip x = 4,12,20,28 at chip y = 2 -- ids s1..s4.
   var sipsChip = [[4, 2], [12, 2], [20, 2], [28, 2]];
+  var sws = bag.students[0].ws;
   for (var i = 0; i < sipsChip.length; i++) {
     setPos(registry, section, 'student1', chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
-    registry.activityTick(1000 + i * 200);
+    registry.activityTick(1000 + i * 200);   // refreshes state.players[*].pos
+    registry.activityValue(sws, { kind: 'collect', coinId: 's' + (i + 1) });
+  }
+  // One more tick so the SIPPING -> VOTING transition fires.
+  registry.activityTick(1000 + sipsChip.length * 200);
+}
+
+// V7.5 helper: full-level drive from SIPPING all the way to
+// GOAL_AVAILABLE. Walks all 4 stages of U1.1, votes correctly each
+// time (auto-close fires when all online students vote), collects
+// the key. Caller passes `bag` so we know the student WS handles.
+function advanceFullLevel(registry, section, bag) {
+  collectAllCoins(registry, section, bag);
+  // Drive through every voting stage. Each stage's openDoorways
+  // includes the doorways for THAT stage in their original chip order:
+  //   stage 0: d1, d2 (correct), d3
+  //   stage 1: s1d1, s1d2 (correct), s1d3
+  //   stage 2: s2d1, s2d2, s2d3 (correct)
+  //   stage 3: s3d1 (correct), s3d2, s3d3
+  var correctPerStage = ['d2', 's1d2', 's2d3', 's3d1'];
+  for (var s = 0; s < correctPerStage.length; s++) {
+    var room = registry._getRoom(section);
+    if (!room || !room.doorways) break;   // out of stages
+    var doorwaysId = room.doorways.id;
+    var winnerDoorId = correctPerStage[s];
+    // All online students vote for the winning door. Auto-close fires
+    // on the second vote; the loop drains both students per stage.
+    for (var st = 0; st < bag.students.length; st++) {
+      registry.castDoorwayVote(bag.students[st].ws, doorwaysId, winnerDoorId, 2000 + s * 100 + st);
+    }
+    // Consume the close on the activity tick (advances to next stage,
+    // KEY_HUNT, or GOAL_AVAILABLE depending on stage index).
+    registry.activityTick(2050 + s * 100);
+  }
+  // U1.1 has a Key actor, so after the last stage we're in KEY_HUNT.
+  // Walk student1 onto the key + fire collect-key.
+  var roomAfter = registry._getRoom(section);
+  if (roomAfter && roomAfter.activity && roomAfter.activity.state && roomAfter.activity.state.phase === 'KEY_HUNT') {
+    var key = roomAfter.activity.state.key;
+    if (key) {
+      setPos(registry, section, 'student1', chipCoord(key.x), chipCoord(key.y));
+      registry.activityTick(3000);
+      registry.activityValue(bag.students[0].ws, { kind: 'collect-key' });
+      registry.activityTick(3100);
+    }
   }
 }
 
@@ -126,7 +173,9 @@ describe('V7.1 level plugin -- startActivity', () => {
     expect(startPayload.activity.level).toBeDefined();
     expect(startPayload.activity.level.schema).toBe('v7-level-1');
     expect(Array.isArray(startPayload.activity.level.actors)).toBe(true);
-    expect(startPayload.activity.level.actors.length).toBeGreaterThanOrEqual(10);
+    // V7.5-C migrated 3 QuestionDoors out of actors[] (into stages[])
+    // and added 1 Key actor. Net -2 -> floor is now 9.
+    expect(startPayload.activity.level.actors.length).toBeGreaterThanOrEqual(9);
   });
 
   it('classroom_activity_state from a tick excludes the LevelDef (state only)', () => {
@@ -205,12 +254,9 @@ describe('V7.1 level plugin -- SIPPING -> VOTING wraps openDoorways', () => {
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
     var room = registry._getRoom('P1');
     expect(room.doorways).toBeNull();
-    // Walk student1 through all 4 sip stations, ticking each time.
-    var sipsChip = [[4, 2], [12, 2], [20, 2], [28, 2]];
-    for (var i = 0; i < sipsChip.length; i++) {
-      setPos(registry, 'P1', 'student1', chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
-      registry.activityTick(1100 + i * 200);
-    }
+    // V7.2 sprite-collide: tick alone doesn't auto-collect; the client
+    // must fire classroom_activity_value {kind:'collect',coinId}.
+    collectAllCoins(registry, 'P1', bag);
     // VOTING transitioned and the server-driven openDoorways fired.
     expect(room.activity.state.phase).toBe('VOTING');
     expect(room.doorways).toBeTruthy();
@@ -221,16 +267,16 @@ describe('V7.1 level plugin -- SIPPING -> VOTING wraps openDoorways', () => {
   it('opens with options matching the level def doorways (d1/d2/d3)', () => {
     var bag = seedRoom(registry, 'P1', 2);
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
-    collectAllCoins(registry, 'P1');
+    collectAllCoins(registry, 'P1', bag);
     var room = registry._getRoom('P1');
     var doorIds = room.doorways.options.map(function (o) { return o.doorId; });
-    expect(doorIds).toEqual(['d1', 'd2', 'd3']);
+    expect(doorIds).toEqual(['d1', 'd2', 'd3']);   // stage 0 doorways
   });
 
   it('classroom_activity_state from the wrapping tick reflects phase=VOTING', () => {
     var bag = seedRoom(registry, 'P1', 2);
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
-    collectAllCoins(registry, 'P1');
+    collectAllCoins(registry, 'P1', bag);
     var lateTick = registry.activityTick(3000);
     var stateBc = lateTick.broadcasts.find(function (b) {
       return b.payload.type === 'classroom_activity_state';
@@ -247,34 +293,51 @@ describe('V7.1 level plugin -- closeDoorways feeds back to the engine', () => {
     registry = createClassroomRegistry();
   });
 
-  it('correct-door vote advances to GOAL_AVAILABLE on the next tick', () => {
+  it('V7.5: correct-vote on stage 0 advances currentStage; full-level drive ends in GOAL_AVAILABLE', () => {
+    // V7.5: U1.1 is multi-stage now. Single correct vote advances to
+    // stage 1 (still VOTING). Use advanceFullLevel to drive all 4
+    // stages + collect the key + reach GOAL_AVAILABLE.
     var bag = seedRoom(registry, 'P1', 2);
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
-    collectAllCoins(registry, 'P1');
-    // Students vote: d2 is the correct door.
+    advanceFullLevel(registry, 'P1', bag);
+    var room = registry._getRoom('P1');
+    expect(room.activity.state.phase).toBe('GOAL_AVAILABLE');
+    expect(room.activity.state.key.collected).toBe(true);
+  });
+
+  it('V7.5 auto-close: 2nd student vote triggers close even without teacher click', () => {
+    // V7.5 castDoorwayVote auto-closes when all online students have
+    // voted. Verifies closedDoorways is populated WITHOUT calling
+    // registry.closeDoorways (teacher path).
+    var bag = seedRoom(registry, 'P1', 2);
+    registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
+    collectAllCoins(registry, 'P1', bag);
     var room = registry._getRoom('P1');
     var doorwaysId = room.doorways.id;
     registry.castDoorwayVote(bag.students[0].ws, doorwaysId, 'd2', 2000);
+    // After 1 of 2 votes: doorways still open, closedDoorways unset
+    // (toBeFalsy covers both `null` and `undefined` since the room is
+    // initialized without the field; it only gets set on close).
+    expect(room.doorways).toBeTruthy();
+    expect(room.closedDoorways).toBeFalsy();
     registry.castDoorwayVote(bag.students[1].ws, doorwaysId, 'd2', 2001);
-    registry.closeDoorways(bag.teacherWs, doorwaysId, 2010);
-    // closedDoorways is stashed on the room; the next activityTick consumes it.
+    // After 2 of 2 votes: auto-close fires.
+    expect(room.doorways).toBeNull();
     expect(room.closedDoorways).toBeTruthy();
-    registry.activityTick(2100);
-    expect(room.activity.state.phase).toBe('GOAL_AVAILABLE');
-    // The wrapper cleared room.closedDoorways after consumption.
-    expect(room.closedDoorways).toBeNull();
+    expect(room.closedDoorways.id).toBe(doorwaysId);
   });
 
   it('wrong-door vote transitions to REFLECTION on the next tick', () => {
     var bag = seedRoom(registry, 'P1', 2);
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
-    collectAllCoins(registry, 'P1');
+    collectAllCoins(registry, 'P1', bag);
     var room = registry._getRoom('P1');
     var doorwaysId = room.doorways.id;
-    // d1 is wrong.
+    // d1 is wrong on stage 0. Auto-close fires after vote #2; manual
+    // closeDoorways call is no longer needed (kept off to exercise the
+    // auto-close path).
     registry.castDoorwayVote(bag.students[0].ws, doorwaysId, 'd1', 2000);
     registry.castDoorwayVote(bag.students[1].ws, doorwaysId, 'd1', 2001);
-    registry.closeDoorways(bag.teacherWs, doorwaysId, 2010);
     registry.activityTick(2100);
     expect(room.activity.state.phase).toBe('REFLECTION');
     expect(room.activity.state.reflection.active).toBe(true);
@@ -293,16 +356,17 @@ describe('V7.1 level plugin -- override-gate routing', () => {
   it('on level success, override-gate fires with lessonKey from the level def', () => {
     var bag = seedRoom(registry, 'P1', 2);
     registry.startActivity(bag.teacherWs, 'level', { levelKey: 'U1.1' }, 1000);
-    collectAllCoins(registry, 'P1');
+    // V7.5: drive all 4 voting stages + collect the key + reach
+    // GOAL_AVAILABLE in one helper call.
+    advanceFullLevel(registry, 'P1', bag);
     var room = registry._getRoom('P1');
-    var doorwaysId = room.doorways.id;
-    // Vote correct door.
-    registry.castDoorwayVote(bag.students[0].ws, doorwaysId, 'd2', 2000);
-    registry.closeDoorways(bag.teacherWs, doorwaysId, 2010);
-    registry.activityTick(2100);
-    // Now in GOAL_AVAILABLE. Walk student1 to Goal (chip 16, 7) on a 320 canvas.
+    expect(room.activity.state.phase).toBe('GOAL_AVAILABLE');
+    // Walk student1 to Goal (chip 16, 7) on a 320 canvas + fire
+    // client-driven reach-goal.
     setPos(registry, 'P1', 'student1', chipCoord(16), chipCoord(7));
-    var tickRes = registry.activityTick(2300);
+    registry.activityTick(3300);
+    registry.activityValue(bag.students[0].ws, { kind: 'reach-goal' });
+    var tickRes = registry.activityTick(3400);
     var successBc = tickRes.broadcasts.find(function (b) {
       return b.payload.type === 'classroom_activity_success';
     });
