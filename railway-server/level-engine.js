@@ -247,6 +247,23 @@ function createLevelState(levelDef, onlineStudents) {
     collectedBy: null
   } : null;
 
+  // V7.7: optional Tally actor. Threshold-gates the SIPPING -> VOTING
+  // transition on a per-category sip count (e.g. require >= 3 W-sips
+  // AND >= 3 N-sips before voting opens). Levels WITHOUT a Tally
+  // actor fall back to the legacy "all coins collected" rule
+  // (backward compat with the 78 other levels in the s115 batch).
+  // `threshold` is a { categoryKey: minCount } map; `binds` is
+  // reserved for future tally sources (only 'tally.sips' is supported
+  // in V7.7 -- other values are accepted but ignored).
+  var tallyActors = _actorsOfType(levelDef.actors, 'Tally');
+  var tallyDef    = tallyActors[0] || null;
+  var tallyConfig = tallyDef ? {
+    threshold: (tallyDef.threshold && typeof tallyDef.threshold === 'object')
+      ? Object.assign({}, tallyDef.threshold)
+      : null,
+    binds:     (typeof tallyDef.binds === 'string') ? tallyDef.binds : 'tally.sips'
+  } : null;
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
@@ -284,6 +301,9 @@ function createLevelState(levelDef, onlineStudents) {
     // the last-stage correct vote and GOAL_AVAILABLE. null if the
     // level def has no Key actor (backward compat).
     key:             key,
+    // V7.7: optional Tally actor -- threshold-gates SIPPING -> VOTING.
+    // null if the level def has no Tally actor (backward compat).
+    tallyConfig:     tallyConfig,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -452,10 +472,35 @@ function _overlapsActor(player, actor, chipSize, state) {
   return Math.abs(playerLevelX - ax) <= OVERLAP_PX;
 }
 
-// Internal: check the SIPPING -> VOTING precondition. Default is
-// "all coins collected"; if the level overrode `sipping_complete`
-// future-shape we can wire it in here (V7.2+, not V7.1).
+// Internal: check the SIPPING -> VOTING precondition.
+//
+// V7.7: if the level has a Tally actor with `threshold`, the rule
+// becomes "every threshold key meets its min count" (e.g. >= 3 W-sips
+// AND >= 3 N-sips). Levels can scatter more coins than the threshold
+// requires; students need only meet the per-category minima, not
+// collect everything. This makes the data-collection beat a deliberate
+// per-category sampling exercise rather than a sweep.
+//
+// Default (no Tally actor): the legacy "all coins collected" rule
+// stays in force (backward compat with the 78 non-Tally levels).
 function _isSippingComplete(state) {
+  if (state.tallyConfig && state.tallyConfig.threshold) {
+    var sips   = (state.tally && state.tally.sips) || {};
+    var thresh = state.tallyConfig.threshold;
+    var keys   = Object.keys(thresh);
+    // Empty {} threshold = "Tally actor present but no gate keys".
+    // Treat as opt-out (fall through to legacy all-coins-collected rule)
+    // rather than instant-pass, otherwise SIPPING would auto-complete
+    // on first tick with zero sips collected.
+    if (keys.length > 0) {
+      for (var k = 0; k < keys.length; k++) {
+        var need = thresh[keys[k]];
+        var have = (typeof sips[keys[k]] === 'number') ? sips[keys[k]] : 0;
+        if (have < need) return false;
+      }
+      return true;
+    }
+  }
   if (!state.coins || state.coins.length === 0) return true;
   for (var i = 0; i < state.coins.length; i++) {
     if (!state.coins[i].collected) return false;
@@ -717,6 +762,16 @@ function serialize(state) {
     collected:   !!state.key.collected,
     collectedBy: state.key.collectedBy
   } : null;
+  // V7.7: serialize tallyConfig so the client TallyDisplay can render
+  // threshold progress (e.g. "Sips - A: 2/3  B: 1/3"). null for levels
+  // without a Tally actor; the client falls back to the legacy no-slash
+  // render in that case.
+  var tallyConfig = state.tallyConfig ? {
+    threshold: state.tallyConfig.threshold
+      ? Object.assign({}, state.tallyConfig.threshold)
+      : null,
+    binds:     state.tallyConfig.binds || 'tally.sips'
+  } : null;
   return {
     levelKey:        state.levelKey,
     lessonKey:       state.lessonKey,
@@ -731,6 +786,10 @@ function serialize(state) {
     key:             key,
     reflection:      reflection,
     tally:           { sips: Object.assign({}, state.tally.sips) },
+    // V7.7: tallyConfig (or null) -- drives the client's threshold
+    // progress render. Always emitted so the client doesn't have to
+    // distinguish "no tally" from "tally not yet observed".
+    tallyConfig:     tallyConfig,
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;
     // voteQuestion echoes the current stage's prompt.

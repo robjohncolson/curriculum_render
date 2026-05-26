@@ -13,42 +13,127 @@
     "chipSize": 10
   },
   "actors": [
-    { "type": "Text",          "x":  4, "y":  0, "text": "Sip each cup. Each carries a value of the variable 'Dominant Hand'." },
-    { "type": "SipStation",    "id": "s1", "x":  4, "y":  2, "drink": "Right" },
-    { "type": "SipStation",    "id": "s2", "x": 11, "y":  2, "drink": "Left" },
-    { "type": "SipStation",    "id": "s3", "x": 18, "y":  2, "drink": "Right" },
-    { "type": "SipStation",    "id": "s4", "x": 25, "y":  2, "drink": "Right" },
+    { "type": "Text",          "x":  4, "y":  0, "text": "Sip W cups (word-typed) and N cups (numerical). Need 3 of each before voting." },
+    { "type": "SipStation",    "id": "w1", "x":  2, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "w2", "x":  8, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "w3", "x": 14, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "w4", "x": 28, "y":  2, "drink": "W" },
+    { "type": "SipStation",    "id": "n1", "x":  5, "y":  5, "drink": "N" },
+    { "type": "SipStation",    "id": "n2", "x": 12, "y":  5, "drink": "N" },
+    { "type": "SipStation",    "id": "n3", "x": 22, "y":  5, "drink": "N" },
+    { "type": "SipStation",    "id": "n4", "x": 30, "y":  5, "drink": "N" },
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
-    { "type": "TallyDisplay",  "x": 16, "y":  4, "binds": "tally.sips" },
+    { "type": "Tally",         "x": 16, "y":  1, "threshold": { "W": 3, "N": 3 } },
+    { "type": "TallyDisplay",  "x": 16, "y":  1, "binds": "tally.sips" },
+    { "type": "Key",           "id": "k1", "x": 10, "y":  4 },
+    { "type": "Goal",          "x": 16, "y":  7 }
+  ],
+  "stages": [
     {
-      "type":       "QuestionDoor",
-      "id":         "d1",
-      "x":           6, "y":  7,
-      "text":       "This is a Categorical Variable",
-      "correct":    true
+      "questionText": "What KIND of thing does each cup carry?",
+      "doorways": [
+        {
+          "id":         "s0d1",
+          "x":           6, "y":  6,
+          "text":       "data values measured on individuals",
+          "correct":    true
+        },
+        {
+          "id":         "s0d2",
+          "x":          16, "y":  6,
+          "text":       "the names of the individuals themselves",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) reached for the names -- but a cup's VALUE is the measurement, not the unit it was measured on."
+        },
+        {
+          "id":         "s0d3",
+          "x":          26, "y":  6,
+          "text":       "experimental conditions",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) thought conditions -- those come later, in Unit 3 experimental design. Here the cups carry observed values."
+        }
+      ]
     },
     {
-      "type":       "QuestionDoor",
-      "id":         "d2",
-      "x":          16, "y":  7,
-      "text":       "This is a Quantitative Variable",
-      "correct":    false,
-      "reflection": "Quantitative means numerical measurements or counts. 'Right' and 'Left' are category labels, not numbers."
+      "questionText": "The cups labeled W carry...",
+      "doorways": [
+        {
+          "id":         "s1d1",
+          "x":           6, "y":  6,
+          "text":       "categorical (word-typed) variables",
+          "correct":    true
+        },
+        {
+          "id":         "s1d2",
+          "x":          16, "y":  6,
+          "text":       "numerical variables that happen to be words",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) blurred the line -- but numerical means you can do arithmetic on it. Word labels like 'red' or 'tall' cannot be averaged."
+        },
+        {
+          "id":         "s1d3",
+          "x":          26, "y":  6,
+          "text":       "names of individuals",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) picked names -- names are LABELS for the units, not the measured variables themselves."
+        }
+      ]
     },
     {
-      "type":       "QuestionDoor",
-      "id":         "d3",
-      "x":          26, "y":  7,
-      "text":       "This is not a variable at all",
-      "correct":    false,
-      "reflection": "A variable is any characteristic that changes from one individual to another. Dominant hand changes from person to person, so it IS a variable."
+      "questionText": "The cups labeled N carry...",
+      "doorways": [
+        {
+          "id":         "s2d1",
+          "x":           6, "y":  6,
+          "text":       "quantitative (numerical) variables",
+          "correct":    true
+        },
+        {
+          "id":         "s2d2",
+          "x":          16, "y":  6,
+          "text":       "rankings",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) chose rankings -- rankings are ordinal but still qualitative. Quantitative values support arithmetic; rankings do not."
+        },
+        {
+          "id":         "s2d3",
+          "x":          26, "y":  6,
+          "text":       "categorical variables",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) said categorical -- numbers CAN be categorical if used as codes (jersey #), but here the N cups carry measurements."
+        }
+      ]
     },
-    { "type": "Goal", "x": 16, "y":  7 }
+    {
+      "questionText": "An individual is...",
+      "doorways": [
+        {
+          "id":         "s3d1",
+          "x":           6, "y":  6,
+          "text":       "the unit on which the variables are measured",
+          "correct":    true
+        },
+        {
+          "id":         "s3d2",
+          "x":          16, "y":  6,
+          "text":       "a single measurement",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) picked a measurement -- that's a VALUE of a variable, not the individual it was measured on."
+        },
+        {
+          "id":         "s3d3",
+          "x":          26, "y":  6,
+          "text":       "the dataset",
+          "correct":    false,
+          "reflection": "{N} of {TOTAL} of you ({PCT}%) chose the dataset -- but the dataset is the COLLECTION of all individuals. One individual is one unit in that collection."
+        }
+      ]
+    }
   ],
   "reflection_room": {
-    "map":     { "width": 16, "height": 8, "chipSize": 10 },
+    "map":     { "width": 16, "height": 8, "chipSize": 24 },
     "actors":  [
-      { "type": "Text",       "x": 8, "y": 2, "text": "[reflection text shown by renderer]" },
+      { "type": "Text",       "x": 8, "y": 2, "text": "[Reflection text placeholder -- filled at runtime from the chosen door's `reflection` field]" },
       { "type": "ReturnWarp", "x": 8, "y": 6 }
     ]
   },
