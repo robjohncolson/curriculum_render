@@ -29,15 +29,35 @@ import {
   REFLECTION_DURATION_MS
 } from '../level-engine.js';
 
+// V7.9: module-level state cache so makeRoom can auto-derive canvasW
+// matching the loaded level's levelPxWidth (= mapWidth * chipSize).
+// Per V7.9 wire convention, the client broadcasts canvasW = levelW so
+// the server-side anti-cheat rescale becomes identity. setupCola
+// stashes its loaded state here; makeRoom defaults canvasW from it.
+var _currentLevelState = null;
+
 // Stub room shape: only .members.get(u).pos / .canvasW + .closedDoorways
 // is read by the engine. Helpers build the minimal shape.
+//
+// V7.9: when canvasW is not passed, default to the current level's
+// levelPxWidth so widened levels (e.g. U1.1 at map.width=48) work
+// without per-call canvasW updates. Falls back to 320 if no level
+// state has been loaded yet.
 function makeRoom(playerPositions, canvasW) {
+  var resolvedCanvasW;
+  if (typeof canvasW === 'number') {
+    resolvedCanvasW = canvasW;
+  } else if (_currentLevelState && _currentLevelState.mapWidth && _currentLevelState.chipSize) {
+    resolvedCanvasW = _currentLevelState.mapWidth * _currentLevelState.chipSize;
+  } else {
+    resolvedCanvasW = 320;
+  }
   var members = new Map();
   Object.keys(playerPositions).forEach(function (u) {
     members.set(u, {
       username: u,
       online:   true,
-      canvasW:  (typeof canvasW === 'number') ? canvasW : 320,
+      canvasW:  resolvedCanvasW,
       pos:      playerPositions[u]
     });
   });
@@ -49,12 +69,16 @@ function chipPos(cx, cy, chipSize) {
   return { x: cx * chipSize, y: cy * chipSize, state: 'idle', vx: 0 };
 }
 
-// Helper: full level setup with N students at the spawn coord.
+// Helper: full level setup with N students at the spawn coord. Stashes
+// the loaded state in _currentLevelState so makeRoom can auto-derive
+// canvasW = levelPxWidth (V7.9 wire convention).
 function setupCola(studentNames) {
   _clearCache();
+  _currentLevelState = null;
   var def = loadLevel('U1.1');
   var online = (studentNames || []).map(function (n) { return { username: n }; });
   var state  = createLevelState(def, online);
+  _currentLevelState = state;
   return { def: def, state: state, chipSize: state.chipSize };
 }
 
@@ -164,7 +188,7 @@ function advanceToGoalAvailable(state, room) {
 
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- loadLevel', () => {
-  beforeEach(() => { _clearCache(); });
+  beforeEach(() => { _clearCache(); _currentLevelState = null; });
 
   it('loadLevel("U1.1") returns a valid LevelDef with chipSize=10', () => {
     var def = loadLevel('U1.1');
@@ -189,10 +213,13 @@ describe('V7.1 level-engine -- loadLevel', () => {
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- createLevelState initial shape', () => {
   it('starts in SIPPING phase with chipSize 10 and the expected shape', () => {
+    // V7.9: U1.1 widened from map.width=32 to map.width=48 to give the
+    // new side-scroll engine something to scroll on. Zones 2-5 actors
+    // land in V7.10+ to fill the new chip 32-47 space.
     var k = setupCola(['alice', 'bob']);
     expect(k.state.phase).toBe(PHASE_SIPPING);
     expect(k.state.chipSize).toBe(10);
-    expect(k.state.mapWidth).toBe(32);
+    expect(k.state.mapWidth).toBe(48);
     expect(k.state.mapHeight).toBe(8);
     expect(k.state.liveDoorwaysId).toBeNull();
     expect(k.state.sideEffects).toBeNull();
@@ -677,9 +704,10 @@ describe('V7.1 level-engine -- serialize wire shape', () => {
     var k = setupCola(['alice']);
     var wire = serialize(k.state);
     expect(wire.phase).toBe(PHASE_SIPPING);
-    expect(wire.mapWidth).toBe(32);
+    expect(wire.mapWidth).toBe(48);   // V7.9 widened U1.1
     expect(wire.mapHeight).toBe(8);
     expect(wire.chipSize).toBe(10);
+    expect(wire.levelPxWidth).toBe(480);   // V7.9 derived field = 48 * 10
     expect(Array.isArray(wire.doorways)).toBe(true);
     expect(wire.doorways[0].id).toBe('d1');
     expect(wire.doorways[1].correct).toBe(true);
@@ -907,6 +935,13 @@ function landClose(room, liveId, winnerDoorId) {
 }
 
 describe('V7.5 level-engine -- multi-stage + KEY_HUNT', () => {
+  // V7.9: clear _currentLevelState so makeRoom defaults canvasW to 320
+  // (the legacy width these inline fixtures use). Without this, a prior
+  // test using setupCola (which sets _currentLevelState to U1.1 width=48)
+  // would leak its width into this describe's makeRoom defaults and
+  // break the anti-cheat rescale math.
+  beforeEach(() => { _currentLevelState = null; });
+
   it('createLevelState reads stages[] into state.stages + currentStage=0', () => {
     var st = createLevelState(setupTwoStageWithKey(), [{ username: 'alice' }]);
     expect(Array.isArray(st.stages)).toBe(true);

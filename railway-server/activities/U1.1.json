@@ -8,7 +8,7 @@
   "ek":         ["VAR-1.A.1"],
   "duration":   180,
   "map": {
-    "width":    32,
+    "width":    48,
     "height":   8,
     "chipSize": 10
   },
@@ -21,7 +21,8 @@
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
     { "type": "TallyDisplay",  "x": 16, "y":  1, "binds": "tally.sips" },
     { "type": "Goal", "x": 16, "y":  7 },
-    { "type": "Key",  "id": "k1", "x": 10, "y":  4 }
+    { "type": "Key",  "id": "k1", "x": 10, "y":  4 },
+    { "type": "Text",          "x": 34, "y":  0, "text": "Beyond Zone 1 -- more zones coming in V7.10+" }
   ],
   "stages": [
     {

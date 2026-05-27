@@ -892,6 +892,13 @@ function serialize(state) {
     chipSize:        state.chipSize,
     mapWidth:        state.mapWidth,
     mapHeight:       state.mapHeight,
+    // V7.9: derived field. mapWidth * chipSize = level pixel width.
+    // The client uses this for the camera clamp upper bound + as the
+    // canvasW value to broadcast in classroom_pos (so server anti-cheat
+    // rescale becomes identity for side-scroll levels). Always emitted.
+    levelPxWidth:    (typeof state.mapWidth === 'number' && typeof state.chipSize === 'number')
+      ? state.mapWidth * state.chipSize
+      : 320,
     phase:           state.phase,
     players:         players,
     coins:           coins,

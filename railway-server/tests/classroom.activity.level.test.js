@@ -34,16 +34,29 @@ function seedRoom(registry, section, studentCount) {
   return { teacherWs: teacherWs, students: students };
 }
 
-// Helper: directly mutate a member's pos for an activity tick. V7.1
-// chipSize is 10 so the U1.1 level pixel space is 320 px wide. Default
-// canvasW=320 means rescaling is identity.
+// Helper: directly mutate a member's pos for an activity tick.
+//
+// V7.9: default canvasW now derives from the active level's
+// levelPxWidth (mapWidth * chipSize) so the server-side anti-cheat
+// rescale becomes identity for both single-screen (32) and widened
+// (48+) levels. Fall back to 320 if no activity is loaded yet.
+// Callers can still pass an explicit canvasW to override.
 function setPos(registry, section, username, x, y, canvasW) {
   var room = registry._getRoom(section);
   if (!room) throw new Error('setPos: no room ' + section);
   var m = room.members.get(username);
   if (!m) throw new Error('setPos: no member ' + username);
   m.pos = { x: x, y: y, state: 'idle', vx: 0 };
-  m.canvasW = (typeof canvasW === 'number') ? canvasW : 320;
+  if (typeof canvasW === 'number') {
+    m.canvasW = canvasW;
+  } else {
+    var act = room.activity;
+    if (act && act.state && act.state.mapWidth && act.state.chipSize) {
+      m.canvasW = act.state.mapWidth * act.state.chipSize;
+    } else {
+      m.canvasW = 320;
+    }
+  }
 }
 
 // Chip-coord helper for U1.1 v7.1 (chipSize=10).
