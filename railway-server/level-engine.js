@@ -444,6 +444,18 @@ function createLevelState(levelDef, onlineStudents) {
     goal:            goal,
     tally:           { sips: { A: 0, B: 0 } },
     _voteQuestion:   voteQuestion,
+    // V7.15 shared camera: server-emitted camera.x tracks the leftmost
+    // student (teachers naturally excluded because they're not in
+    // state.players). Forward-only ratchet (camera doesn't retreat).
+    // Replaces V7.9.0 per-client local-follow camera; all clients
+    // render with state.activity.state.camera.x as the single source
+    // of truth. Pico-Park forced-teamwork pedagogy: nobody can
+    // disappear off-screen-right because the camera won't follow the
+    // leader past the slowest player's vicinity.
+    camera: {
+      x:             0,
+      viewportFloor: 640    // matches V7.12 #classroom-board-mount max-width CSS cap
+    },
     // sideEffects is cleared each tick by the wrapper after consumption.
     sideEffects:     null
   };
@@ -526,6 +538,14 @@ function _handleCoinCollect(state, username, payload) {
   if (state.phase !== PHASE_SIPPING) return null;
   if (typeof payload.coinId !== 'string' || !payload.coinId) return null;
   if (!Array.isArray(state.coins)) return null;
+  // V7.15 spectator gate: only registered STUDENTS can collect. Teachers
+  // (and any non-state.players user) are absent from state.players because
+  // classroom.js startActivity filters online students only. The
+  // _playerNearActorX anti-cheat used to pass-through on `!player`, which
+  // let teachers/spectators silently bump the global tally + flip coin.
+  // collected. V7.15 makes the spectator-gate explicit.
+  var player = state.players && state.players[username];
+  if (!player) return null;
   var coin = null;
   for (var i = 0; i < state.coins.length; i++) {
     if (state.coins[i].id === payload.coinId) { coin = state.coins[i]; break; }
@@ -535,7 +555,6 @@ function _handleCoinCollect(state, username, payload) {
   if (!_playerNearActorX(state, username, coin.x, OVERLAP_PX * 2)) return null;
 
   var hasChoicePads = Array.isArray(state.choicePads) && state.choicePads.length > 0;
-  var player        = state.players && state.players[username];
 
   // V7.13 auto-choice helper. When the collecting player has both A and
   // B sampled, the drink they JUST collected becomes their recorded
@@ -609,6 +628,8 @@ function _handleCoinCollect(state, username, payload) {
 // state.goal.reached + transition to PHASE_LEVEL_CLEARED.
 function _handleReachGoal(state, username) {
   if (state.phase !== PHASE_GOAL_AVAILABLE) return null;
+  // V7.15 spectator gate.
+  if (!state.players || !state.players[username]) return null;
   if (!state.goal || state.goal.reached) return null;
   if (!_playerNearActorX(state, username, state.goal.x, OVERLAP_PX * 2)) return null;
   state.goal.reached   = true;
@@ -625,6 +646,8 @@ function _handleReachGoal(state, username) {
 // from locked to unlocked.
 function _handleCollectKey(state, username) {
   if (state.phase !== PHASE_KEY_HUNT) return null;
+  // V7.15 spectator gate.
+  if (!state.players || !state.players[username]) return null;
   if (!state.key || state.key.collected) return null;
   if (!_playerNearActorX(state, username, state.key.x, OVERLAP_PX * 2)) return null;
   state.key.collected   = true;
@@ -639,6 +662,8 @@ function _handleCollectKey(state, username) {
 // walk-through is a no-op -- the gate just lets the player pass.
 function _handleWalkThroughGate(state, username, payload) {
   if (state.phase !== PHASE_SIPPING && state.phase !== PHASE_VOTING) return null;
+  // V7.15 spectator gate.
+  if (!state.players || !state.players[username]) return null;
   if (typeof payload.gateId !== 'string') return null;
   var gate = null;
   for (var i = 0; i < (state.gates || []).length; i++) {
@@ -665,6 +690,8 @@ function _handleWalkThroughGate(state, username, payload) {
 // serialized) so we can later tell which wrong-question doors kids
 // reached for most. Open gate / unknown gate / no gate => no-op.
 function _handleAttemptGate(state, username, payload) {
+  // V7.15 spectator gate.
+  if (!state.players || !state.players[username]) return null;
   if (typeof payload.gateId !== 'string') return null;
   var gate = null;
   for (var i = 0; i < (state.gates || []).length; i++) {
@@ -686,6 +713,8 @@ function _handleAttemptGate(state, username, payload) {
 function _handleRecordChoice(state, username, payload) {
   if (state.phase !== PHASE_SIPPING) return null;
   if (typeof payload.choicePadId !== 'string' || !payload.choicePadId) return null;
+  // V7.15 spectator gate. Already covered by `!player` below but
+  // explicit for symmetry with the other 4 handlers.
   var player = state.players && state.players[username];
   if (!player || !player.marks) return null;
   if (!player.marks.sampledA || !player.marks.sampledB) return null;
@@ -827,6 +856,34 @@ function tick(state, deltaMs, room) {
 
   // Pull latest positions from the live room before checking overlaps.
   _refreshPlayerPositions(state, room);
+
+  // V7.15 shared-camera per-tick update. Find the leftmost ONLINE
+  // student's x; camera target = max(0, leftmost.x - 100). Forward-
+  // only ratchet (camera doesn't retreat once advanced). Teachers
+  // naturally excluded because state.players only contains students
+  // (classroom.js startActivity filters online + role==='student'
+  // before passing to createLevelState).
+  if (state.camera && room && room.members) {
+    var leftmostX = null;
+    var camKeys = Object.keys(state.players || {});
+    for (var cki = 0; cki < camKeys.length; cki++) {
+      var cu = camKeys[cki];
+      var cp = state.players[cu];
+      if (!cp || typeof cp.x !== 'number') continue;
+      var cm = room.members.get(cu);
+      if (!cm || cm.online === false) continue;
+      if (leftmostX === null || cp.x < leftmostX) leftmostX = cp.x;
+    }
+    if (leftmostX !== null) {
+      var camVw      = state.camera.viewportFloor || 640;
+      var camLevelPx = (state.mapWidth || 32) * (state.chipSize || 10);
+      var camMax     = Math.max(0, camLevelPx - camVw);
+      // Leader sits ~100 px from the left edge of the viewport.
+      var camTarget  = Math.max(0, Math.min(camMax, leftmostX - 100));
+      // Forward-only: camera never retreats once advanced.
+      state.camera.x = Math.max(state.camera.x || 0, camTarget);
+    }
+  }
 
   // V7.10: per-tick gate evaluator. Closed gates re-check their
   // predicate; opened gates stay opened (one-way). Runs BEFORE phase
@@ -1217,6 +1274,14 @@ function serialize(state) {
       y:          state.goalPad.y,
       presenceMs: state.goalPad.presenceMs || 0,
       triggerMs:  state.goalPad.triggerMs || 1500
+    } : null,
+    // V7.15 shared camera: server-emitted x is the single source of
+    // truth for client camera positioning. All clients render with
+    // _camera.x = wire.camera.x (no local follow logic). Always
+    // emitted (defaults populated in createLevelState).
+    camera:          state.camera ? {
+      x:             state.camera.x || 0,
+      viewportFloor: state.camera.viewportFloor || 640
     } : null,
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;
