@@ -24,8 +24,10 @@
     { "type": "Gate", "id": "g-brand",   "x": 64, "y": 6, "label": "Open if Cup A is Coke", "predicate": "always_false" },
     { "type": "Gate", "id": "g-better",  "x": 76, "y": 6, "label": "Open if Coke is better than Pepsi", "predicate": "always_false" },
     { "type": "Gate", "id": "g-data",    "x": 88, "y": 6, "label": "Open if data show which cup this class chose more", "predicate": "tally_nonzero" },
-    { "type": "Key",  "id": "k1", "x": 92, "y":  4 },
-    { "type": "Goal", "x": 94, "y":  7 }
+    { "type": "ContextSlot", "id": "cs-q", "x": 89, "y": 5, "label": "QUESTION: Which cup did students prefer?" },
+    { "type": "ContextSlot", "id": "cs-v", "x": 91, "y": 5, "label": "VARIABLE: Blind sip choice (A or B)" },
+    { "type": "ContextSlot", "id": "cs-c", "x": 93, "y": 5, "label": "CONTEXT: This class, this trial, mystery cups" },
+    { "type": "GoalPad", "x": 95, "y": 7, "triggerMs": 1500 }
   ],
   "reflection_room": {
     "map":     { "width": 16, "height": 8, "chipSize": 24 },
@@ -35,8 +37,8 @@
     ]
   },
   "completion": {
-    "kind": "gate-walkthrough-and-key-and-goal",
-    "rule": "walk through the open data-answerable Gate, collect the Key, walk onto the Goal"
+    "kind": "contextslots-lit-and-goalpad-presence",
+    "rule": "light all 3 context slots, then ALL online players stand on the GoalPad together for 1.5 seconds"
   },
   "min_students": 2
 }

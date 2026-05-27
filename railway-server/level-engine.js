@@ -336,6 +336,42 @@ function createLevelState(levelDef, onlineStudents) {
     });
   }
 
+  // V7.14 Zone 5: optional ContextSlot actors. Light green when ANY
+  // player walks within OVERLAP_PX of x; one-way (never re-darkens).
+  // Per-tick eval in tick() during KEY_HUNT or GOAL_AVAILABLE phase
+  // (not during SIPPING/VOTING). Pedagogy: 3 slots labeled with claim
+  // components (QUESTION / VARIABLE / CONTEXT for Topic 1.1) that
+  // students walk past = read = acknowledge.
+  var slotActors = _actorsOfType(levelDef.actors, 'ContextSlot');
+  var contextSlots = [];
+  for (var ksi = 0; ksi < slotActors.length; ksi++) {
+    var ksa = slotActors[ksi];
+    contextSlots.push({
+      id:    ksa.id || ('slot-' + ksi),
+      x:     ksa.x,
+      y:     ksa.y,
+      label: (typeof ksa.label === 'string') ? ksa.label : '',
+      lit:   false
+    });
+  }
+
+  // V7.14 Zone 5: optional GoalPad actor. Replaces V7.5 legacy Goal
+  // for mechanic-first levels. Whole-class presence pad: LEVEL_CLEARED
+  // fires when ALL online players are within OVERLAP_PX of x for
+  // sustained `triggerMs` ms. Resets to 0 if anyone steps off.
+  // Requires all ContextSlots (if any) lit before activating.
+  // Backward compat: levels with V7.5 Goal actor (no GoalPad) keep
+  // single-player touch semantics unchanged.
+  var padActors = _actorsOfType(levelDef.actors, 'GoalPad');
+  var padDef    = padActors[0] || null;
+  var goalPad   = padDef ? {
+    id:         padDef.id || 'goal-pad',
+    x:          padDef.x,
+    y:          padDef.y,
+    presenceMs: 0,
+    triggerMs:  (typeof padDef.triggerMs === 'number' && padDef.triggerMs > 0) ? padDef.triggerMs : 1500
+  } : null;
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
@@ -387,6 +423,13 @@ function createLevelState(levelDef, onlineStudents) {
     // V7.11 Zone 3: optional TallyChute actors. Pure visualization; the
     // client reads state.tally.sips[label] per chute to render its stack.
     tallyChutes:     tallyChutes,
+    // V7.14 Zone 5: optional ContextSlot actors (per-tick lit eval) +
+    // GoalPad actor (whole-class presence timer). Together they replace
+    // the V7.5 Key + Goal endgame for mechanic-first levels (U1.1 V7.14+).
+    // Legacy levels keep V7.5 Key + Goal -- contextSlots = [] + goalPad
+    // = null for them (backward compat).
+    contextSlots:    contextSlots,
+    goalPad:         goalPad,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -604,7 +647,14 @@ function _handleWalkThroughGate(state, username, payload) {
   if (!gate || !gate.opened) return null;
   if (!_playerNearActorX(state, username, gate.x, OVERLAP_PX * 2)) return null;
   if (gate.predicate === 'tally_nonzero') {
-    state.phase = state.key ? PHASE_KEY_HUNT : PHASE_GOAL_AVAILABLE;
+    // V7.14: levels with a GoalPad skip KEY_HUNT entirely -- the whole-
+    // class presence pad replaces the legacy Key + Goal endgame. Legacy
+    // levels (Key + Goal, no GoalPad) keep the V7.5 KEY_HUNT path.
+    if (state.goalPad) {
+      state.phase = PHASE_GOAL_AVAILABLE;
+    } else {
+      state.phase = state.key ? PHASE_KEY_HUNT : PHASE_GOAL_AVAILABLE;
+    }
     return state;
   }
   return null;   // non-advance gate: just walking through, no phase change
@@ -788,6 +838,54 @@ function tick(state, deltaMs, room) {
       if (g2.opened) continue;
       var ev = _PREDICATE_EVALUATORS[g2.predicate] || _PREDICATE_EVALUATORS.always_false;
       if (ev(state)) g2.opened = true;
+    }
+  }
+
+  // V7.14 Zone 5: per-tick ContextSlot lit evaluator. Any player within
+  // OVERLAP_PX of a slot's x lights it one-way. Runs ONLY in KEY_HUNT
+  // or GOAL_AVAILABLE phase -- students shouldn't accidentally light
+  // slots while still doing Zone 1 collection.
+  if (Array.isArray(state.contextSlots) && state.contextSlots.length > 0
+      && (state.phase === PHASE_KEY_HUNT || state.phase === PHASE_GOAL_AVAILABLE)) {
+    for (var ksi2 = 0; ksi2 < state.contextSlots.length; ksi2++) {
+      var slot2 = state.contextSlots[ksi2];
+      if (slot2.lit) continue;
+      var usernamesCS = Object.keys(state.players || {});
+      for (var ucs = 0; ucs < usernamesCS.length; ucs++) {
+        if (_playerNearActorX(state, usernamesCS[ucs], slot2.x, OVERLAP_PX)) {
+          slot2.lit = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // V7.14 Zone 5: per-tick GoalPad presence accumulator. Only fires in
+  // GOAL_AVAILABLE phase + when all ContextSlots (if any) are lit. ALL
+  // online players must be within OVERLAP_PX * 2 of goalPad.x for the
+  // presence timer to accumulate; ANYONE stepping off resets it. When
+  // presenceMs >= triggerMs, phase -> LEVEL_CLEARED.
+  if (state.goalPad && state.phase === PHASE_GOAL_AVAILABLE) {
+    var allSlotsLit = (state.contextSlots || []).every(function (s) { return s.lit; });
+    if (allSlotsLit) {
+      var usernamesGP = Object.keys(state.players || {});
+      var allPresent  = usernamesGP.length > 0;
+      for (var ugp = 0; ugp < usernamesGP.length; ugp++) {
+        if (!_playerNearActorX(state, usernamesGP[ugp], state.goalPad.x, OVERLAP_PX * 2)) {
+          allPresent = false;
+          break;
+        }
+      }
+      if (allPresent) {
+        state.goalPad.presenceMs += (deltaMs || 0);
+        if (state.goalPad.presenceMs >= state.goalPad.triggerMs) {
+          state.phase = PHASE_LEVEL_CLEARED;
+        }
+      } else {
+        state.goalPad.presenceMs = 0;
+      }
+    } else {
+      state.goalPad.presenceMs = 0;   // pad dormant until slots lit
     }
   }
 
@@ -1106,6 +1204,20 @@ function serialize(state) {
     tallyChutes:     (state.tallyChutes || []).map(function (c) {
       return { id: c.id, x: c.x, y: c.y, label: c.label };
     }),
+    // V7.14 Zone 5: serialize ContextSlots + GoalPad. Slots carry
+    // lit state (one-way; flipped per-tick on player overlap).
+    // GoalPad carries presence accumulator + trigger threshold so
+    // the client can render a fill-progress ring.
+    contextSlots:    (state.contextSlots || []).map(function (s) {
+      return { id: s.id, x: s.x, y: s.y, label: s.label, lit: !!s.lit };
+    }),
+    goalPad:         state.goalPad ? {
+      id:         state.goalPad.id,
+      x:          state.goalPad.x,
+      y:          state.goalPad.y,
+      presenceMs: state.goalPad.presenceMs || 0,
+      triggerMs:  state.goalPad.triggerMs || 1500
+    } : null,
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;
     // voteQuestion echoes the current stage's prompt.
