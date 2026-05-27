@@ -319,6 +319,23 @@ function createLevelState(levelDef, onlineStudents) {
     });
   }
 
+  // V7.11 Zone 3: optional TallyChute actors. Pure visualization --
+  // each chute renders a vertical stack of blocks reading
+  // state.tally.sips[label] on the client; no engine state machine
+  // change. Empty array for legacy levels (the 78 + U1.2 + U1.1 pre-
+  // V7.11 -- all backward-compat).
+  var chuteActors = _actorsOfType(levelDef.actors, 'TallyChute');
+  var tallyChutes = [];
+  for (var tci = 0; tci < chuteActors.length; tci++) {
+    var tca = chuteActors[tci];
+    tallyChutes.push({
+      id:    tca.id || ('chute-' + tci),
+      x:     tca.x,
+      y:     tca.y,
+      label: (typeof tca.label === 'string') ? tca.label : 'A'
+    });
+  }
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
@@ -367,6 +384,9 @@ function createLevelState(levelDef, onlineStudents) {
     // voting cascade unchanged). Levels WITH Gates short-circuit VOTING
     // entry; progression via walk-through-gate input on the advance gate.
     gates:           gates,
+    // V7.11 Zone 3: optional TallyChute actors. Pure visualization; the
+    // client reads state.tally.sips[label] per chute to render its stack.
+    tallyChutes:     tallyChutes,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -1050,6 +1070,12 @@ function serialize(state) {
     // server-only analytics; NOT serialized.
     gates:           (state.gates || []).map(function (g) {
       return { id: g.id, x: g.x, y: g.y, label: g.label, predicate: g.predicate, opened: !!g.opened };
+    }),
+    // V7.11: serialize TallyChute actors so the client can spawn
+    // TallyChuteSprites. The chutes themselves carry no count -- the
+    // existing state.tally.sips[label] is the source of truth.
+    tallyChutes:     (state.tallyChutes || []).map(function (c) {
+      return { id: c.id, x: c.x, y: c.y, label: c.label };
     }),
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;

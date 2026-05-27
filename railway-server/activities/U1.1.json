@@ -21,6 +21,8 @@
     { "type": "PlayerSpawn",   "x":  4, "y":  4 },
     { "type": "TallyDisplay",  "x": 16, "y":  1, "binds": "tally.sips" },
     { "type": "Gate", "id": "g-scanner", "x": 30, "y": 3, "label": "A SIP? B SIP? CHOICE RECORDED?", "predicate": "every_player_row_complete" },
+    { "type": "TallyChute", "id": "tc-A", "x": 32, "y": 5, "label": "A" },
+    { "type": "TallyChute", "id": "tc-B", "x": 34, "y": 5, "label": "B" },
     { "type": "Gate", "id": "g-brand",   "x": 36, "y": 6, "label": "Open if Cup A is Coke", "predicate": "always_false" },
     { "type": "Gate", "id": "g-better",  "x": 40, "y": 6, "label": "Open if Coke is better than Pepsi", "predicate": "always_false" },
     { "type": "Gate", "id": "g-data",    "x": 44, "y": 6, "label": "Open if data show which cup this class chose more", "predicate": "tally_nonzero" },
