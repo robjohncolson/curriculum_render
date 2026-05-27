@@ -9,7 +9,67 @@ import {
   __ACTIVITY_LESSON_MAP,
   __ACTIVITY_TICK_MS
 } from '../classroom.js';
-import { _clearCache } from '../level-engine.js';
+import { _clearCache, _injectLevelDef } from '../level-engine.js';
+
+// V7.10: synthetic V7.5-shape Cola fixture. The actual U1.1.json has
+// moved to V7.10 Gate shape (no stages[], Gates replace voting); this
+// fixture preserves the V7.5 voting path the registry-level tests were
+// written for. Injected via _injectLevelDef in beforeEach so
+// loadLevel('U1.1') in registry.startActivity returns this synthetic def.
+function _buildLegacyColaDef() {
+  return {
+    schema:    'v7-level-1',
+    levelKey:  'U1.1',
+    lessonKey: '1.1',
+    duration:  180,
+    map: { width: 32, height: 8, chipSize: 10 },
+    actors: [
+      { type: 'Text', x: 4, y: 0, text: 'Cola Mystery (synthetic V7.5 fixture)' },
+      { type: 'PlayerSpawn', x: 4, y: 4 },
+      { type: 'SipStation',  id: 's1', x:  4, y: 2, drink: 'A', hidden: true },
+      { type: 'SipStation',  id: 's2', x: 12, y: 2, drink: 'A', hidden: true },
+      { type: 'SipStation',  id: 's3', x: 20, y: 2, drink: 'B', hidden: true },
+      { type: 'SipStation',  id: 's4', x: 28, y: 2, drink: 'B', hidden: true },
+      { type: 'TallyDisplay', x: 16, y: 4, binds: 'tally.sips' },
+      { type: 'Goal', x: 16, y: 7 },
+      { type: 'Key',  id: 'k1', x: 10, y: 4 }
+    ],
+    stages: [
+      {
+        questionText: 'Which question can data answer?',
+        doorways: [
+          { id: 'd1', x:  6, y: 6, text: 'Wrong A',  correct: false, reflection: 'Wrong d1' },
+          { id: 'd2', x: 16, y: 6, text: 'Correct',  correct: true },
+          { id: 'd3', x: 26, y: 6, text: 'Wrong B',  correct: false, reflection: 'Wrong d3' }
+        ]
+      },
+      {
+        questionText: 'Stage 1',
+        doorways: [
+          { id: 's1d1', x:  6, y: 6, text: 'A', correct: false, reflection: 'Wrong s1d1' },
+          { id: 's1d2', x: 16, y: 6, text: 'B', correct: true },
+          { id: 's1d3', x: 26, y: 6, text: 'C', correct: false, reflection: 'Wrong s1d3' }
+        ]
+      },
+      {
+        questionText: 'Stage 2',
+        doorways: [
+          { id: 's2d1', x:  6, y: 6, text: 'A', correct: false, reflection: 'Wrong s2d1' },
+          { id: 's2d2', x: 16, y: 6, text: 'B', correct: false, reflection: 'Wrong s2d2' },
+          { id: 's2d3', x: 26, y: 6, text: 'C', correct: true }
+        ]
+      },
+      {
+        questionText: 'Stage 3',
+        doorways: [
+          { id: 's3d1', x:  6, y: 6, text: 'A', correct: true },
+          { id: 's3d2', x: 16, y: 6, text: 'B', correct: false, reflection: 'Wrong s3d2' },
+          { id: 's3d3', x: 26, y: 6, text: 'C', correct: false, reflection: 'Wrong s3d3' }
+        ]
+      }
+    ]
+  };
+}
 
 // Stub ws object. readyState 1 == WebSocket.OPEN.
 function makeWs() {
@@ -62,39 +122,28 @@ function setPos(registry, section, username, x, y, canvasW) {
 // Chip-coord helper for U1.1 v7.1 (chipSize=10).
 function chipCoord(c) { return c * 10; }
 
-// Helper: drive every student through both SipStations + a ChoicePad
-// so the V7.8 ChoicePad cascade in _isSippingComplete flips and the
-// SIPPING -> VOTING transition fires.
+// Helper: drive student1 through all 4 hidden SipStations so the
+// V7.5 legacy "all coins collected" cascade in _isSippingComplete
+// flips and SIPPING -> VOTING transition fires.
 //
-// V7.2 sprite-collide: tick alone no longer auto-collects -- the client
-// must fire classroom_activity_value {kind:'collect',coinId}. Helper
-// signature takes `bag` for the student WS references.
+// V7.10: the registry-level tests inject a synthetic V7.5-shape Cola
+// fixture (4 hidden SipStations s1-s4 A/A/B/B, NO ChoicePads, NO
+// Gates) so this helper drives the legacy voting path. The actual
+// U1.1.json on disk now has V7.10 Gate shape; the V7.10-specific
+// Gate tests live in level-engine-gate.test.js.
 //
-// V7.8 ChoicePad rewrite: U1.1's 4 hidden SipStations (s1-s4) collapsed
-// to 2 visible SipStations (s1=A at chip 4, s2=B at chip 28) plus 2
-// ChoicePads (cp-A at chip 8, cp-B at chip 24). Every student now needs
-// to tease BOTH sips AND record a choice for the cascade to advance.
-// The per-player coin-collect fix in V7.8 _handleCoinCollect lets every
-// student set sampledA/sampledB even on a coin Alice already collected.
+// V7.2 sprite-collide: tick alone no longer auto-collects -- the
+// client must fire classroom_activity_value {kind:'collect',coinId}.
 function collectAllCoins(registry, section, bag) {
-  var sipsChip   = [[4, 2], [28, 2]];   // s1=A, s2=B
-  var sipIds     = ['s1', 's2'];
-  var t = 1000;
-  for (var st = 0; st < bag.students.length; st++) {
-    var u   = bag.students[st].username;
-    var sws = bag.students[st].ws;
-    for (var i = 0; i < sipsChip.length; i++) {
-      setPos(registry, section, u, chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
-      registry.activityTick(t); t += 200;
-      registry.activityValue(sws, { kind: 'collect', coinId: sipIds[i] });
-    }
-    // V7.8: walk the student onto cp-A (default choice = A) + record-choice.
-    setPos(registry, section, u, chipCoord(8), chipCoord(4));
-    registry.activityTick(t); t += 200;
-    registry.activityValue(sws, { kind: 'record-choice', choicePadId: 'cp-A' });
+  var sipsChip = [[4, 2], [12, 2], [20, 2], [28, 2]];   // s1..s4
+  var sws = bag.students[0].ws;
+  for (var i = 0; i < sipsChip.length; i++) {
+    setPos(registry, section, 'student1', chipCoord(sipsChip[i][0]), chipCoord(sipsChip[i][1]));
+    registry.activityTick(1000 + i * 200);
+    registry.activityValue(sws, { kind: 'collect', coinId: 's' + (i + 1) });
   }
   // One more tick so the SIPPING -> VOTING transition fires.
-  registry.activityTick(t);
+  registry.activityTick(1000 + sipsChip.length * 200);
 }
 
 // V7.5 helper: full-level drive from SIPPING all the way to
@@ -163,6 +212,7 @@ describe('V7.1 level plugin -- startActivity', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -237,6 +287,7 @@ describe('V7.1 level plugin -- mutex with other modes', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -277,6 +328,7 @@ describe('V7.1 level plugin -- SIPPING -> VOTING wraps openDoorways', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -321,6 +373,7 @@ describe('V7.1 level plugin -- closeDoorways feeds back to the engine', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -381,6 +434,7 @@ describe('V7.1 level plugin -- override-gate routing', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -412,6 +466,7 @@ describe('V7.1 level plugin -- member lifecycle during live level', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -445,6 +500,7 @@ describe('V7.1 level plugin -- serializeForBoard public shape', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 
@@ -488,6 +544,7 @@ describe('V7.1 level plugin -- monitor fanout', () => {
   var registry;
   beforeEach(() => {
     _clearCache();
+    _injectLevelDef('U1.1', _buildLegacyColaDef());
     registry = createClassroomRegistry();
   });
 

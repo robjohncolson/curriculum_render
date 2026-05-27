@@ -69,13 +69,76 @@ function chipPos(cx, cy, chipSize) {
   return { x: cx * chipSize, y: cy * chipSize, state: 'idle', vx: 0 };
 }
 
+// V7.10: synthetic V7.5-shape Cola Mystery fixture. Pre-V7.10 setupCola
+// loaded U1.1.json from disk; V7.10 deleted U1.1's stages[] + added 4
+// Gates + moved Key+Goal, breaking ~20 tests written against the V7.5
+// shape. Decoupling: setupCola now builds a synthetic in-memory level
+// def mirroring the V7.5/V7.6 U1.1 shape so those tests test the
+// engine path they were written for, not U1.1.json's evolving content.
+//
+// Tests that need to verify ACTUAL U1.1.json content (V7.10 Gate
+// shape) load it directly via loadLevel('U1.1') -- see the V7.10
+// gate-specific tests in level-engine-gate.test.js.
+function _buildLegacyColaDef() {
+  return {
+    schema:    'v7-level-1',
+    levelKey:  'U1.1',
+    lessonKey: '1.1',
+    map: { width: 32, height: 8, chipSize: 10 },
+    actors: [
+      { type: 'PlayerSpawn', x: 4, y: 4 },
+      { type: 'SipStation',  id: 's1', x:  4, y: 2, drink: 'A', hidden: true },
+      { type: 'SipStation',  id: 's2', x: 12, y: 2, drink: 'A', hidden: true },
+      { type: 'SipStation',  id: 's3', x: 20, y: 2, drink: 'B', hidden: true },
+      { type: 'SipStation',  id: 's4', x: 28, y: 2, drink: 'B', hidden: true },
+      { type: 'TallyDisplay', x: 16, y: 4, binds: 'tally.sips' },
+      { type: 'Goal', x: 16, y: 7 },
+      { type: 'Key',  id: 'k1', x: 10, y: 4 }
+    ],
+    stages: [
+      {
+        questionText: 'Which question can data answer?',
+        doorways: [
+          { id: 'd1', x:  6, y: 6, text: 'Is Cup A Coke?',          correct: false, reflection: 'Wrong d1' },
+          { id: 'd2', x: 16, y: 6, text: 'Which cup did you prefer?', correct: true },
+          { id: 'd3', x: 26, y: 6, text: 'Is Coke better?',         correct: false, reflection: 'Wrong d3' }
+        ]
+      },
+      {
+        questionText: 'Stage 1',
+        doorways: [
+          { id: 's1d1', x:  6, y: 6, text: 'A', correct: false, reflection: 'Wrong s1d1' },
+          { id: 's1d2', x: 16, y: 6, text: 'B', correct: true },
+          { id: 's1d3', x: 26, y: 6, text: 'C', correct: false, reflection: 'Wrong s1d3' }
+        ]
+      },
+      {
+        questionText: 'Stage 2',
+        doorways: [
+          { id: 's2d1', x:  6, y: 6, text: 'A', correct: false, reflection: 'Wrong s2d1' },
+          { id: 's2d2', x: 16, y: 6, text: 'B', correct: false, reflection: 'Wrong s2d2' },
+          { id: 's2d3', x: 26, y: 6, text: 'C', correct: true }
+        ]
+      },
+      {
+        questionText: 'Stage 3',
+        doorways: [
+          { id: 's3d1', x:  6, y: 6, text: 'A', correct: true },
+          { id: 's3d2', x: 16, y: 6, text: 'B', correct: false, reflection: 'Wrong s3d2' },
+          { id: 's3d3', x: 26, y: 6, text: 'C', correct: false, reflection: 'Wrong s3d3' }
+        ]
+      }
+    ]
+  };
+}
+
 // Helper: full level setup with N students at the spawn coord. Stashes
 // the loaded state in _currentLevelState so makeRoom can auto-derive
 // canvasW = levelPxWidth (V7.9 wire convention).
 function setupCola(studentNames) {
   _clearCache();
   _currentLevelState = null;
-  var def = loadLevel('U1.1');
+  var def = _buildLegacyColaDef();
   var online = (studentNames || []).map(function (n) { return { username: n }; });
   var state  = createLevelState(def, online);
   _currentLevelState = state;
@@ -213,13 +276,15 @@ describe('V7.1 level-engine -- loadLevel', () => {
 // ----------------------------------------------------------------------
 describe('V7.1 level-engine -- createLevelState initial shape', () => {
   it('starts in SIPPING phase with chipSize 10 and the expected shape', () => {
-    // V7.9: U1.1 widened from map.width=32 to map.width=48 to give the
-    // new side-scroll engine something to scroll on. Zones 2-5 actors
-    // land in V7.10+ to fill the new chip 32-47 space.
+    // V7.10: setupCola now uses a synthetic V7.5-shape fixture (32 chips
+    // wide, 4 hidden SipStations, 4-stage voting) so the V7.5/V7.6
+    // tests test the path they were written for. Actual U1.1.json has
+    // moved on to V7.10 Gate shape (48 chips, no stages[]) -- see
+    // level-engine-gate.test.js for U1.1.json shape pins.
     var k = setupCola(['alice', 'bob']);
     expect(k.state.phase).toBe(PHASE_SIPPING);
     expect(k.state.chipSize).toBe(10);
-    expect(k.state.mapWidth).toBe(48);
+    expect(k.state.mapWidth).toBe(32);
     expect(k.state.mapHeight).toBe(8);
     expect(k.state.liveDoorwaysId).toBeNull();
     expect(k.state.sideEffects).toBeNull();
@@ -336,17 +401,15 @@ describe('V7.1 level-engine -- createLevelState initial shape', () => {
     expect(wire.coins[0].revealed).toBe(false);
   });
 
-  it('coins reflect the U1.1 SipStations (uncollected, drink tags A and B)', () => {
-    // V7.8 reshape: U1.1 has 2 visible SipStations (one A, one B) plus
-    // 2 ChoicePads -- the V7.5/V7.6 setup of 4 hidden A/A/B/B SipStations
-    // was dropped for the mechanic-first rewrite. Tests that need the
-    // legacy 4-coin pattern should use an inline fixture (see
-    // V7.4-C hidden test above).
+  it('coins reflect the synthetic Cola SipStations (uncollected, drink tags A/A/B/B)', () => {
+    // V7.10: setupCola uses synthetic V7.5 fixture with 4 hidden SipStations
+    // (A/A/B/B at chips 4/12/20/28). Actual U1.1.json now has 2 visible
+    // SipStations + 2 ChoicePads (V7.8 mechanic-first shape).
     var k = setupCola(['alice']);
-    expect(k.state.coins.length).toBe(2);
+    expect(k.state.coins.length).toBe(4);
     expect(k.state.coins.every(function (c) { return c.collected === false; })).toBe(true);
     expect(k.state.coins[0].drink).toBe('A');
-    expect(k.state.coins[1].drink).toBe('B');
+    expect(k.state.coins[2].drink).toBe('B');
   });
 
   it('doorways reflect the 3 QuestionDoors with the correct .correct flags', () => {
@@ -483,10 +546,11 @@ describe('V7.1 level-engine -- VOTING phase: doorway close consumption', () => {
     expect(k.state.phase).toBe(PHASE_REFLECTION);
     expect(k.state.reflection.active).toBe(true);
     expect(k.state.reflection.doorId).toBe('d1');
-    // V7.4-C reflection text rewrite: d1 now reads
-    // "You sipped A and B blind -- the data measured PREFERENCE,
-    //  not what's inside the cup."
-    expect(k.state.reflection.reflectionText).toMatch(/PREFERENCE/);
+    // V7.10: synthetic Cola fixture's d1 reflection = 'Wrong d1'.
+    // (Actual U1.1.json's V7.5 reflection text moved with the V7.10 Gate
+    // rewrite; the engine's substitute-placeholders path is exercised
+    // by the dedicated V7.6 reflection tests below.)
+    expect(k.state.reflection.reflectionText).toMatch(/Wrong d1/);
     expect(k.state.reflection.autoCloseAt).toBeGreaterThan(0);
   });
 
@@ -704,10 +768,10 @@ describe('V7.1 level-engine -- serialize wire shape', () => {
     var k = setupCola(['alice']);
     var wire = serialize(k.state);
     expect(wire.phase).toBe(PHASE_SIPPING);
-    expect(wire.mapWidth).toBe(48);   // V7.9 widened U1.1
+    expect(wire.mapWidth).toBe(32);            // synthetic V7.5 fixture
     expect(wire.mapHeight).toBe(8);
     expect(wire.chipSize).toBe(10);
-    expect(wire.levelPxWidth).toBe(480);   // V7.9 derived field = 48 * 10
+    expect(wire.levelPxWidth).toBe(320);       // V7.9 derived field
     expect(Array.isArray(wire.doorways)).toBe(true);
     expect(wire.doorways[0].id).toBe('d1');
     expect(wire.doorways[1].correct).toBe(true);

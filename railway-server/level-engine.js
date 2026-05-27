@@ -83,6 +83,14 @@ function _clearCache() {
   _levelCache.clear();
 }
 
+// V7.10 test-only: inject a level def into the cache so loadLevel(key)
+// returns it without disk access. Lets registry-level tests use a
+// synthetic V7.5-shape Cola fixture even though the actual U1.1.json
+// on disk has moved to V7.10 Gate shape. Production never calls this.
+function _injectLevelDef(lessonKey, def) {
+  _levelCache.set(lessonKey, def);
+}
+
 // Internal: extract actors of a given type from a level's actors array.
 function _actorsOfType(actors, type) {
   if (!Array.isArray(actors)) return [];
@@ -288,6 +296,29 @@ function createLevelState(levelDef, onlineStudents) {
     });
   }
 
+  // V7.10: optional Gate actors. Physical blockers with per-instance
+  // predicates from a hard-coded whitelist (NEVER raw eval). When a
+  // gate's predicate evaluates true, gate.opened flips one-way (never
+  // re-closes). Levels with Gate actors SHORT-CIRCUIT the V7.5 VOTING
+  // phase entry -- progression is driven by walking through the open
+  // advance gate (predicate 'tally_nonzero' for V7.10's U1.1 Zone 4
+  // Door 3). Backward compat: levels without Gate actors keep the
+  // V7.5 voting cascade unchanged (78 legacy levels + U1.2).
+  var gateActors = _actorsOfType(levelDef.actors, 'Gate');
+  var gates      = [];
+  for (var gi = 0; gi < gateActors.length; gi++) {
+    var ga = gateActors[gi];
+    gates.push({
+      id:        ga.id || ('gate-' + gi),
+      x:         ga.x,
+      y:         ga.y,
+      label:     (typeof ga.label === 'string') ? ga.label : '',
+      predicate: (typeof ga.predicate === 'string') ? ga.predicate : 'always_false',
+      opened:    false,
+      attempts:  0    // server-only analytics; not serialized
+    });
+  }
+
   // Canonical spawn coord for late-spawn placement.
   var spawnX = spawns[0].x;
   var spawnY = spawns[0].y;
@@ -331,6 +362,11 @@ function createLevelState(levelDef, onlineStudents) {
     // V7.8: optional ChoicePad actors -- per-player preference recorders.
     // Empty array for levels without ChoicePads (backward compat).
     choicePads:      choicePads,
+    // V7.10: optional Gate actors -- physical predicate-gated blockers.
+    // Empty array for levels without Gates (78 legacy + U1.2 keep V7.5
+    // voting cascade unchanged). Levels WITH Gates short-circuit VOTING
+    // entry; progression via walk-through-gate input on the advance gate.
+    gates:           gates,
     // Bumped every time the engine emits a fresh openDoorways
     // sideEffect so the wrapper can synthesize stable, unique ids.
     _phaseEntry:     0,
@@ -363,12 +399,42 @@ function createLevelState(levelDef, onlineStudents) {
 // hit, the server stays authoritative.
 function applyInput(state, username, payload) {
   if (!state || !payload || typeof payload !== 'object') return null;
-  if (payload.kind === 'collect')       return _handleCoinCollect(state, username, payload);
-  if (payload.kind === 'reach-goal')    return _handleReachGoal(state, username);
-  if (payload.kind === 'collect-key')   return _handleCollectKey(state, username);
-  if (payload.kind === 'record-choice') return _handleRecordChoice(state, username, payload);
+  if (payload.kind === 'collect')           return _handleCoinCollect(state, username, payload);
+  if (payload.kind === 'reach-goal')        return _handleReachGoal(state, username);
+  if (payload.kind === 'collect-key')       return _handleCollectKey(state, username);
+  if (payload.kind === 'record-choice')     return _handleRecordChoice(state, username, payload);
+  if (payload.kind === 'walk-through-gate') return _handleWalkThroughGate(state, username, payload);
+  if (payload.kind === 'attempt-gate')      return _handleAttemptGate(state, username, payload);
   return null;
 }
+
+// V7.10 predicate whitelist. Hard-coded evaluators -- NEVER raw eval
+// a level def string. Unknown predicate name falls through to
+// always_false (safe default; gate stays closed forever).
+//
+// Predicate semantics:
+//   always_false                  -- perma-locked (Zone 4 wrong-question doors)
+//   every_player_row_complete     -- Zone 2 row scanner; every online player needs marks
+//   tally_nonzero                 -- Zone 4 advance door; class has recorded any rows
+var _PREDICATE_EVALUATORS = {
+  'always_false': function (state) { return false; },
+  'every_player_row_complete': function (state) {
+    var usernames = Object.keys(state.players || {});
+    if (usernames.length === 0) return false;
+    for (var u = 0; u < usernames.length; u++) {
+      if (!_playerRowComplete(state.players[usernames[u]])) return false;
+    }
+    return true;
+  },
+  'tally_nonzero': function (state) {
+    var sips = (state.tally && state.tally.sips) || {};
+    var keys = Object.keys(sips);
+    for (var k = 0; k < keys.length; k++) {
+      if (typeof sips[keys[k]] === 'number' && sips[keys[k]] > 0) return true;
+    }
+    return false;
+  }
+};
 
 // V7.8: derived per-player predicate. A player's row is complete
 // when they've sampled BOTH A and B AND recorded a choice on a
@@ -471,6 +537,43 @@ function _handleCollectKey(state, username) {
   if (!_playerNearActorX(state, username, state.key.x, OVERLAP_PX * 2)) return null;
   state.key.collected   = true;
   state.key.collectedBy = username;
+  return state;
+}
+
+// V7.10 mechanic-first -- client-driven walk-through of an OPEN gate.
+// On the advance gate (tally_nonzero predicate in V7.10), transitions
+// phase to KEY_HUNT (if level has Key actor) or GOAL_AVAILABLE (no
+// Key -- backward compat). On non-advance gates (row scanner), the
+// walk-through is a no-op -- the gate just lets the player pass.
+function _handleWalkThroughGate(state, username, payload) {
+  if (state.phase !== PHASE_SIPPING && state.phase !== PHASE_VOTING) return null;
+  if (typeof payload.gateId !== 'string') return null;
+  var gate = null;
+  for (var i = 0; i < (state.gates || []).length; i++) {
+    if (state.gates[i].id === payload.gateId) { gate = state.gates[i]; break; }
+  }
+  if (!gate || !gate.opened) return null;
+  if (!_playerNearActorX(state, username, gate.x, OVERLAP_PX * 2)) return null;
+  if (gate.predicate === 'tally_nonzero') {
+    state.phase = state.key ? PHASE_KEY_HUNT : PHASE_GOAL_AVAILABLE;
+    return state;
+  }
+  return null;   // non-advance gate: just walking through, no phase change
+}
+
+// V7.10 analytics-only -- client-driven attempt to walk through a
+// CLOSED gate. Bumps gate.attempts (server-only field, never
+// serialized) so we can later tell which wrong-question doors kids
+// reached for most. Open gate / unknown gate / no gate => no-op.
+function _handleAttemptGate(state, username, payload) {
+  if (typeof payload.gateId !== 'string') return null;
+  var gate = null;
+  for (var i = 0; i < (state.gates || []).length; i++) {
+    if (state.gates[i].id === payload.gateId) { gate = state.gates[i]; break; }
+  }
+  if (!gate) return null;
+  if (gate.opened) return null;
+  gate.attempts = (gate.attempts || 0) + 1;
   return state;
 }
 
@@ -626,6 +729,19 @@ function tick(state, deltaMs, room) {
   // Pull latest positions from the live room before checking overlaps.
   _refreshPlayerPositions(state, room);
 
+  // V7.10: per-tick gate evaluator. Closed gates re-check their
+  // predicate; opened gates stay opened (one-way). Runs BEFORE phase
+  // logic so the SIPPING -> ... cascade can see fresh gate state.
+  // No-op for levels without Gate actors (state.gates is [] then).
+  if (Array.isArray(state.gates) && state.gates.length > 0) {
+    for (var gi2 = 0; gi2 < state.gates.length; gi2++) {
+      var g2 = state.gates[gi2];
+      if (g2.opened) continue;
+      var ev = _PREDICATE_EVALUATORS[g2.predicate] || _PREDICATE_EVALUATORS.always_false;
+      if (ev(state)) g2.opened = true;
+    }
+  }
+
   var chipSize = state.chipSize;
 
   // ----- LEVEL_CLEARED is terminal; nothing to do. -----
@@ -667,6 +783,16 @@ function tick(state, deltaMs, room) {
   // with a server-side X-overlap anti-cheat). The tick loop only needs
   // to check the SIPPING -> VOTING transition.
   if (state.phase === PHASE_SIPPING) {
+    // V7.10: Gate levels SHORT-CIRCUIT the SIPPING -> VOTING entry.
+    // The cascade is gate-driven: per-tick predicate eval opens gates;
+    // walking through the advance gate (tally_nonzero in V7.10) fires
+    // walk-through-gate, which jumps phase to KEY_HUNT directly. We
+    // stay in SIPPING until that input arrives. Marks still set on
+    // coin collect + record-choice the V7.8 way; only the phase
+    // exit changes.
+    if (Array.isArray(state.gates) && state.gates.length > 0) {
+      return state;
+    }
     if (_isSippingComplete(state)) {
       state.phase = PHASE_VOTING;
       state._phaseEntry += 1;
@@ -917,6 +1043,14 @@ function serialize(state) {
     choicePads:      (state.choicePads || []).map(function (p) {
       return { id: p.id, x: p.x, y: p.y, value: p.value };
     }),
+    // V7.10: serialize Gate actors so the client can spawn GateSprites,
+    // know each gate's predicate (for visual variant + walk-through
+    // semantics), and track opened state per tick. Always emitted as
+    // an array (empty for legacy levels with no Gate). `attempts` is
+    // server-only analytics; NOT serialized.
+    gates:           (state.gates || []).map(function (g) {
+      return { id: g.id, x: g.x, y: g.y, label: g.label, predicate: g.predicate, opened: !!g.opened };
+    }),
     // V7.5: multi-stage observability for the client (e.g. "Stage 2 of 4"
     // indicator). currentStage indexes which stage's doorways are live;
     // voteQuestion echoes the current stage's prompt.
@@ -967,7 +1101,8 @@ export default {
   serialize:        serialize,
   onMemberLeave:    onMemberLeave,
   onMemberJoin:     onMemberJoin,
-  _clearCache:      _clearCache
+  _clearCache:      _clearCache,
+  _injectLevelDef:  _injectLevelDef
 };
 
 export {
@@ -980,6 +1115,7 @@ export {
   onMemberLeave,
   onMemberJoin,
   _clearCache,
+  _injectLevelDef,
   PHASE_INIT,
   PHASE_SIPPING,
   PHASE_VOTING,
