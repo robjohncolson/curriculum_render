@@ -118,6 +118,70 @@ describe('V7.8 ChoicePad actor -- createLevelState', function () {
   });
 });
 
+describe('V7.13 _handleCoinCollect -- auto-choice on second sip', function () {
+  beforeEach(function () { _clearCache(); });
+
+  it('sets marks.choice to the SECOND drink sipped (no ChoicePad needed)', function () {
+    var def = makeChoicePadLevel();
+    // Remove ChoicePads -- V7.13 doesn't need them; SipStations auto-record.
+    def.actors = def.actors.filter(function (a) { return a.type !== 'ChoicePad'; });
+    var state = createLevelState(def, [{ username: 'alice' }]);
+    var room = makeRoom({ alice: chipPos(4, 4, state.chipSize) });
+    collectCoin(state, room, 'alice', 'sa');
+    expect(state.players.alice.marks.choice).toBeNull();   // only A so far
+    collectCoin(state, room, 'alice', 'sb');
+    expect(state.players.alice.marks.choice).toBe('B');     // second sip wins
+  });
+
+  it('updates marks.choice when player re-overlaps the OTHER SipStation', function () {
+    var def = makeChoicePadLevel();
+    def.actors = def.actors.filter(function (a) { return a.type !== 'ChoicePad'; });
+    // V7.13 needs a Gate in the level so SIPPING doesn't auto-advance
+    // to VOTING after both sips (which would block subsequent re-overlap
+    // record-choice updates -- _handleCoinCollect returns null outside
+    // SIPPING phase). Real U1.1 V7.10+ has Gates; the test mirrors that.
+    def.actors.push({ type: 'Gate', id: 'g-scanner', x: 16, y: 3, label: 'scanner', predicate: 'every_player_row_complete' });
+    var state = createLevelState(def, [{ username: 'alice' }]);
+    var room = makeRoom({ alice: chipPos(4, 4, state.chipSize) });
+    collectCoin(state, room, 'alice', 'sa');
+    collectCoin(state, room, 'alice', 'sb');
+    expect(state.players.alice.marks.choice).toBe('B');
+    // Walk back to A -- re-overlap "collect" updates choice to A.
+    // V7.13 path: coin.collected = true (one-shot global) but per-player
+    // marks update on every overlap.
+    collectCoin(state, room, 'alice', 'sa');
+    expect(state.players.alice.marks.choice).toBe('A');
+  });
+
+  it('does NOT set choice until BOTH samples are done', function () {
+    var def = makeChoicePadLevel();
+    def.actors = def.actors.filter(function (a) { return a.type !== 'ChoicePad'; });
+    var state = createLevelState(def, [{ username: 'alice' }]);
+    var room = makeRoom({ alice: chipPos(4, 4, state.chipSize) });
+    collectCoin(state, room, 'alice', 'sa');
+    // Re-overlap sa: still only A sampled, choice stays null.
+    collectCoin(state, room, 'alice', 'sa');
+    expect(state.players.alice.marks.choice).toBeNull();
+  });
+
+  it('non-A/B drinks (e.g. W in U1.2 Tally levels) do NOT set choice', function () {
+    var def = makeChoicePadLevel();
+    def.actors = def.actors.filter(function (a) { return a.type !== 'ChoicePad' && a.type !== 'SipStation'; });
+    def.actors.push({ type: 'SipStation', id: 'sw', x: 4, y: 2, drink: 'W' });
+    def.actors.push({ type: 'SipStation', id: 'sn', x: 8, y: 2, drink: 'N' });
+    var state = createLevelState(def, [{ username: 'alice' }]);
+    var room = makeRoom({ alice: chipPos(4, 4, state.chipSize) });
+    collectCoin(state, room, 'alice', 'sw');
+    collectCoin(state, room, 'alice', 'sn');
+    // sampledA/sampledB stay false (only triggered by A/B drinks); choice
+    // therefore never gets set. Tally-cascade levels (U1.2) keep V7.7
+    // threshold semantics; ChoicePad-style auto-choice is A/B-only.
+    expect(state.players.alice.marks.sampledA).toBe(false);
+    expect(state.players.alice.marks.sampledB).toBe(false);
+    expect(state.players.alice.marks.choice).toBeNull();
+  });
+});
+
 describe('V7.8 _handleCoinCollect -- per-player mark side effect', function () {
   beforeEach(function () { _clearCache(); });
 

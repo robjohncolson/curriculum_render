@@ -494,19 +494,47 @@ function _handleCoinCollect(state, username, payload) {
   var hasChoicePads = Array.isArray(state.choicePads) && state.choicePads.length > 0;
   var player        = state.players && state.players[username];
 
+  // V7.13 auto-choice helper. When the collecting player has both A and
+  // B sampled, the drink they JUST collected becomes their recorded
+  // preference. Re-overlapping the OTHER SipStation later updates the
+  // choice (kids can change their mind by walking back). This removes
+  // the need for separate ChoicePad actors -- the act of sipping IS
+  // the recording. Hermes V7.11 feedback called out ChoicePad as the
+  // last voting-feel mechanic in U1.1; V7.13 eliminates it.
+  //
+  // GATED by hasChoicePads: ChoicePad levels (V7.8 mechanic) keep their
+  // explicit-pad-overlap behavior -- the record-choice input is the
+  // authoritative trigger for choice. Levels WITHOUT ChoicePads (V7.13
+  // U1.1, post-ChoicePad-drop) get the auto-choice. The two mechanics
+  // are mutually exclusive per level to avoid choice-set races.
+  function _maybeSetChoice(p, drink) {
+    if (hasChoicePads) return;                       // V7.8 mechanic owns choice
+    if (!p || !p.marks) return;
+    if (drink !== 'A' && drink !== 'B') return;     // categorical-only
+    if (p.marks.sampledA && p.marks.sampledB) {
+      p.marks.choice = drink;
+    }
+  }
+
   // V7.8 ChoicePad cascade: in multiplayer ChoicePad levels the coin is
   // shared (one SipStation per category) but every player must taste it
   // for their own row to complete. So a player's per-letter mark is set
   // EVEN IF the coin was already collected by someone else. The coin's
   // collected flag remains one-shot for the tally bump + reveal animation
   // (Alice gets the tally credit; Bob just gets the mark for his row).
+  //
+  // V7.13 extends: per-player marks update even on already-collected
+  // coins REGARDLESS of ChoicePad presence (was V7.8-gated). The
+  // auto-choice (above) makes re-overlap a way to update preference
+  // post-first-sip-pair.
   if (coin.collected) {
-    if (hasChoicePads && player && player.marks) {
+    if (player && player.marks) {
       if (coin.drink === 'A') player.marks.sampledA = true;
       if (coin.drink === 'B') player.marks.sampledB = true;
+      _maybeSetChoice(player, coin.drink);
       return state;
     }
-    return null;  // legacy: already-collected coin is a hard no-op
+    return null;  // legacy: already-collected coin is a hard no-op when no marks
   }
 
   coin.collected = true;
@@ -526,6 +554,7 @@ function _handleCoinCollect(state, username, payload) {
   if (player && player.marks) {
     if (coin.drink === 'A') player.marks.sampledA = true;
     if (coin.drink === 'B') player.marks.sampledB = true;
+    _maybeSetChoice(player, coin.drink);   // V7.13 auto-choice
   }
   return state;
 }
