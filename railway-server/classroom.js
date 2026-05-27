@@ -2059,13 +2059,32 @@ export function createClassroomRegistry() {
 
   // startActivity(ws, type, opts, now) -> { broadcasts }
   // Teacher-only. opts: { durationMs?, target?, tolerance? } -- plugin may use or ignore.
+  // V7.15.1 dev-test username whitelist. Lets specific test accounts
+  // bypass the teacher-role check on startActivity for autonomous
+  // CDP-driven playtest (the V7.15 dev-start hook in fa Desk sends
+  // classroom_activity_start when ?dev=1&devActivity=<key> is on the
+  // URL). Production users with non-whitelisted usernames are
+  // unaffected -- the standard role gate still applies. Updates to
+  // this set should match the test-account list in
+  // C:\Users\rober\.claude\test-credentials.json.
+  var _DEV_TEST_USERNAMES = new Set([
+    'olive_whale',
+    'papaya_beaver'
+  ]);
+
   function startActivity(ws, type, opts, now) {
     var entry = wsIndex.get(ws);
     if (!entry) return { broadcasts: [] };
     var room = classrooms.get(entry.section);
     if (!room) return { broadcasts: [] };
     var member = room.members.get(entry.username);
-    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    // V7.15.1: teacher gate OR dev-test username whitelist. Production
+    // students still blocked; only the explicit test accounts can fire
+    // startActivity from a non-teacher session.
+    var isDevTester = entry.username && _DEV_TEST_USERNAMES.has(entry.username);
+    if (!member || (member.role !== 'teacher' && !isDevTester)) {
+      return { broadcasts: [] };
+    }
     // Mutex: gate armed, poll open, doorways open, or activity live all reject.
     if (room.gate && room.gate.armed) return { broadcasts: [] };
     if (room.poll || room.doorways || room.activity) return { broadcasts: [] };
