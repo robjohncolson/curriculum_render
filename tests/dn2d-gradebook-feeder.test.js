@@ -99,9 +99,41 @@ function fnBody(src, name) {
   throw new Error('unbalanced: ' + name);
 }
 
-describe('DN2d — feeder in saveAnswerWithTracking', () => {
+/** Slice `window.NAME = (async )?function (...) {...}` to its matching brace. */
+function fnBodyAssigned(src, name) {
+  const re = new RegExp('window\\.' + name + '\\s*=\\s*(?:async\\s+)?function\\s*\\(');
+  const m = re.exec(src);
+  if (!m) throw new Error('not found: window.' + name);
+  let i = src.indexOf('(', m.index);
+  let paren = 0;
+  for (; i < src.length; i++) {
+    if (src[i] === '(') paren++;
+    else if (src[i] === ')') { paren--; if (paren === 0) { i++; break; } }
+  }
+  let depth = 0;
+  for (let j = src.indexOf('{', i); j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}') { depth--; if (depth === 0) return src.slice(m.index, j + 1); }
+  }
+  throw new Error('unbalanced: window.' + name);
+}
+
+// THE anti-false-green: the prior version only checked the feeder block was
+// INSIDE saveAnswerWithTracking -- a function that is never called. This asserts
+// the feeder is reached from the LIVE submit path.
+describe('DN2d — feeder wired into the LIVE submit path', () => {
+  it('window.submitAnswer calls recordToGradebookLedger(questionId, value)', () => {
+    const body = fnBodyAssigned(html, 'submitAnswer');
+    expect(body).toMatch(/recordToGradebookLedger\s*\(\s*questionId\s*,\s*value\s*\)/);
+  });
+  it('recordToGradebookLedger is a top-level function (callable from submitAnswer)', () => {
+    expect(html).toMatch(/function\s+recordToGradebookLedger\s*\(/);
+  });
+});
+
+describe('DN2d — feeder body (recordToGradebookLedger)', () => {
   let body;
-  beforeAll(() => { body = fnBody(html, 'saveAnswerWithTracking'); });
+  beforeAll(() => { body = fnBody(html, 'recordToGradebookLedger'); });
 
   it('calls window.gradebookClient.record, guarded', () => {
     expect(body).toMatch(/window\.gradebookClient\s*&&\s*window\.gradebookClient\.record/);
@@ -131,8 +163,8 @@ describe('DN2d — feeder in saveAnswerWithTracking', () => {
 
 /** Extract the DN2d feeder try-block and wrap it as a callable. */
 function makeFeeder() {
-  const body = fnBody(html, 'saveAnswerWithTracking');
-  const start = body.indexOf('try {', body.indexOf('DN2d'));
+  const body = fnBody(html, 'recordToGradebookLedger');
+  const start = body.indexOf('try {');
   const endMarker = "} catch (_) { /* never block cr's submit */ }";
   const end = body.indexOf(endMarker) + endMarker.length;
   const snippet = body.slice(start, end);
@@ -173,8 +205,8 @@ describe('DN2d runtime — feeder source/itemId/unit derivation', () => {
   });
 
   it('absent gradebookClient → no throw, no call', () => {
-    const body = fnBody(html, 'saveAnswerWithTracking');
-    const start = body.indexOf('try {', body.indexOf('DN2d'));
+    const body = fnBody(html, 'recordToGradebookLedger');
+    const start = body.indexOf('try {');
     const endMarker = "} catch (_) { /* never block cr's submit */ }";
     const snippet = body.slice(start, body.indexOf(endMarker) + endMarker.length);
     const sandbox = { window: {} };           // no gradebookClient

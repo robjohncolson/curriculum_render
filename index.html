@@ -7177,6 +7177,11 @@ function renderLessonSelector(unitInfo) {
             // Save to both classData and IDB
             saveClassData();
 
+            // DN2d gradebook ledger feeder -- wired into the LIVE submit path
+            // (s123 P1: this was orphaned in the never-called saveAnswerWithTracking,
+            // so quiz/PC grades never reached the ledger).
+            recordToGradebookLedger(questionId, value);
+
             // Also save to answers_username format for localStorage compatibility
             try {
                 const userAnswersKey = `answers_${currentUsername}`;
@@ -10888,6 +10893,28 @@ Respond with JSON:
             };
         }
 
+        // Gradebook ledger feeder (DN2d). Fire-and-forget, no-ops without a
+        // roster token; questionId IS the manifest item_id. source by id shape,
+        // matching the work-manifest classifier. Wrapped so it can NEVER
+        // throw/block cr's submit path. Called from the LIVE submitAnswer path
+        // (s123 P1 fix -- previously this only lived inside the never-called
+        // saveAnswerWithTracking, so quiz/PC grades never reached the ledger).
+        function recordToGradebookLedger(questionId, answer) {
+            try {
+                if (window.gradebookClient && window.gradebookClient.record && questionId) {
+                    var gbSrc = /^U\d+-PC-/.test(questionId) ? 'pc' : 'curriculum_quiz';
+                    var gbU = /^U(\d+)-/.exec(questionId);
+                    window.gradebookClient.record({
+                        source: gbSrc,
+                        itemId: questionId,
+                        unit: gbU ? ('U' + gbU[1]) : undefined,
+                        response: answer,
+                        attempt: 1
+                    });
+                }
+            } catch (_) { /* never block cr's submit */ }
+        }
+
         // Enhanced answer saving that tracks progress
         function saveAnswerWithTracking(questionId, answer, options = {}) {
             if (!currentUsername) return;
@@ -10915,19 +10942,7 @@ Respond with JSON:
             // roster token; questionId IS the manifest item_id (proven 817/817).
             // source by id shape, matching the work-manifest classifier exactly.
             // Wrapped so it can NEVER throw/block cr's submit path.
-            try {
-                if (window.gradebookClient && window.gradebookClient.record && questionId) {
-                    var gbSrc = /^U\d+-PC-/.test(questionId) ? 'pc' : 'curriculum_quiz';
-                    var gbU = /^U(\d+)-/.exec(questionId);
-                    window.gradebookClient.record({
-                        source: gbSrc,
-                        itemId: questionId,
-                        unit: gbU ? ('U' + gbU[1]) : undefined,
-                        response: answer,
-                        attempt: 1
-                    });
-                }
-            } catch (_) { /* never block cr's submit */ }
+            recordToGradebookLedger(questionId, answer);
         }
 
 
