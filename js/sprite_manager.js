@@ -28,6 +28,18 @@ class SpriteManager {
       this.updateOnlinePeers(users);
     });
   }
+  // True if `username` is the current (signed-in) user. Case/whitespace-robust:
+  // roster usernames are lowercase (apple_monkey) but cr normalizes
+  // currentUsername to Title_Case (Apple_Monkey), so an exact !== match would let
+  // SELF slip through and render as a phantom "peer" sprite. Compare normalized
+  // (trim + lowercase) forms so case can never matter.
+  _isSelf(username) {
+    const norm = (n) => String(n == null ? '' : n).trim().toLowerCase();
+    let current = window.currentUsername || '';
+    try { current = current || localStorage.getItem('consensusUsername') || ''; }
+    catch (e) { /* localStorage may be blocked */ }
+    return norm(username) === norm(current);
+  }
   ensurePeerSprite(username) {
     if (this.peerSprites.has(username)) return this.peerSprites.get(username);
     const y = this.engine.groundY - this.spriteSheet.frameHeight * this.peerScale;
@@ -41,15 +53,8 @@ class SpriteManager {
   }
   preloadPeers(usernames = []) {
     if (!Array.isArray(usernames) || usernames.length === 0) return;
-    let current = window.currentUsername || '';
-    try {
-      current = current || localStorage.getItem('consensusUsername') || '';
-    } catch (e) {
-      // localStorage may be blocked
-    }
-    current = current.trim();
     usernames
-      .filter((u) => u && u !== current)
+      .filter((u) => u && !this._isSelf(u))
       .forEach((u) => this.ensurePeerSprite(u));
   }
   getKnownPeerUsernames() {
@@ -79,14 +84,7 @@ class SpriteManager {
     this.updateOnlinePeers(online);
   }
   updateOnlinePeers(onlineUsernames) {
-    let current = window.currentUsername || '';
-    try {
-      current = current || localStorage.getItem('consensusUsername') || '';
-    } catch (e) {
-      // localStorage may be blocked
-    }
-    current = current.trim();
-    const desired = new Set((onlineUsernames || []).filter((u) => u && u !== current));
+    const desired = new Set((onlineUsernames || []).filter((u) => u && !this._isSelf(u)));
 
     // Add missing peers
     desired.forEach((u) => {
@@ -148,6 +146,7 @@ class SpriteManager {
   }
   handlePeerAnswer(username, isCorrect) {
     if (!this.isTurboActive) return; // Changed from window.turboModeActive
+    if (this._isSelf(username)) return; // never render self as a peer (self-echo guard)
     const peerSprite = this.ensurePeerSprite(username);
     if (isCorrect) {
       peerSprite.celebrate();
