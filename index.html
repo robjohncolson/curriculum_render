@@ -10541,9 +10541,10 @@ Respond with JSON:
                 if (fabMain) fabMain.classList.remove('active');
             }
 
-            // Show the welcome/user selection screen
-            if (typeof showWelcomeScreen === 'function') {
-                showWelcomeScreen();
+            // Hard cutover: "switch user" = sign in as a different roster account.
+            // (The legacy manual/dropdown welcome is retired.)
+            if (typeof showRosterSignIn === 'function') {
+                showRosterSignIn();
             }
         }
 

@@ -94,54 +94,31 @@ window.normalizeUsername = normalizeUsername;
  * Now async to support IndexedDB storage
  */
 async function promptUsername() {
-    // Wait for storage to be ready
-    const storage = await waitForStorage();
+    // Wait for storage to be ready (acceptUsername also awaits it; harmless).
+    await waitForStorage();
 
-    // Try to get username from IDB first, fall back to localStorage
-    let savedUsername = await storage.getMeta('username');
+    // ROSTER-ONLY identity (hard cutover, 2026-06): the roster account is the
+    // SINGLE source of truth, shared cross-app via the apstats_roster.v1 key.
+    // curriculum_render and the Roadmap are the SAME ORIGIN
+    // (robjohncolson.github.io), so a Desk sign-in is already visible here.
+    // If a roster session exists, adopt its username automatically; otherwise
+    // require roster sign-in. The legacy manual / random / dropdown
+    // consensusUsername onboarding is retired (this year's ad-hoc usernames are
+    // deprecated -- the roster name is now the only identity).
+    const roster = (window.rosterClient && typeof window.rosterClient.current === 'function')
+        ? window.rosterClient.current()
+        : null;
 
-    // Fallback: check localStorage directly (for pre-migration users)
-    if (!savedUsername) {
-        try {
-            savedUsername = localStorage.getItem('consensusUsername');
-            // If found in localStorage but not IDB, migrate it
-            if (savedUsername && savedUsername !== 'null') {
-                await storage.setMeta('username', savedUsername);
-            }
-        } catch (e) {
-            // localStorage may be blocked by tracking prevention
-            console.log('localStorage fallback unavailable');
-        }
+    if (roster && roster.username) {
+        // acceptUsername sets currentUsername + consensusUsername + IDB meta and
+        // boots the session (initClassData / progress / smartSync / persistence).
+        // It overwrites any stale local consensusUsername with the authoritative
+        // roster username, so the displayed identity always matches the Roadmap.
+        await acceptUsername(roster.username);
+        return;
     }
 
-    if (savedUsername && savedUsername !== 'null') {
-        // Normalize saved username to Title_Case (fixes legacy lowercase usernames)
-        currentUsername = normalizeUsername(savedUsername);
-
-        // If normalization changed the username, update storage
-        if (currentUsername !== savedUsername) {
-            console.log(`📝 Normalized username: ${savedUsername} → ${currentUsername}`);
-            await storage.setMeta('username', currentUsername);
-            try {
-                localStorage.setItem('consensusUsername', currentUsername);
-            } catch (e) { /* ignore */ }
-        }
-
-        await initClassData();
-        initializeProgressTracking(); // Initialize progress tracking for returning user
-        showUsernameWelcome();
-        initializeFromEmbeddedData(); // Initialize from embedded data
-        updateCurrentUsernameDisplay();
-
-        // Request persistent storage after user gesture (returning user)
-        if (storage.requestPersistence) {
-            storage.requestPersistence().then(granted => {
-                if (granted) console.log('Persistent storage granted');
-            });
-        }
-    } else {
-        showUsernamePrompt();
-    }
+    showRosterSignIn();
 }
 
 /**
@@ -149,14 +126,92 @@ async function promptUsername() {
  * Kept for backward compatibility, but redirects to new flow
  */
 function showUsernamePrompt() {
-    showWelcomeScreen();
+    // Hard cutover: the only way in is the roster sign-in.
+    showRosterSignIn();
 }
+
+// ROSTER-ONLY entry screen: sign in with the roster account (same credentials
+// as the Roadmap). On success, acceptUsername adopts the roster username as the
+// single cr identity. Replaces the retired manual/random/dropdown welcome.
+window.showRosterSignIn = function showRosterSignIn() {
+    const container = document.getElementById('questionsContainer');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="welcome-wizard">
+            <div class="welcome-header">
+                <h1>📊 AP Statistics Consensus Quiz</h1>
+                <p class="subtitle">Sign in with your class account</p>
+            </div>
+            <div class="welcome-message">
+                <p>Use the <strong>same username and password</strong> you use on the Roadmap.</p>
+            </div>
+            <div class="roster-signin-entry" style="max-width:340px;margin:0 auto;text-align:left">
+                <label for="rs-username" style="display:block;font-weight:600;margin-bottom:2px">Username</label>
+                <input id="rs-username" type="text" autocomplete="username" autocapitalize="none"
+                       autocorrect="off" spellcheck="false"
+                       style="width:100%;padding:10px;margin:0 0 12px;font-size:16px;box-sizing:border-box" />
+                <label for="rs-password" style="display:block;font-weight:600;margin-bottom:2px">Password</label>
+                <input id="rs-password" type="password" autocomplete="current-password"
+                       style="width:100%;padding:10px;margin:0 0 14px;font-size:16px;box-sizing:border-box" />
+                <button id="rs-submit" class="action-button primary extra-large" style="width:100%">Sign in</button>
+                <p id="rs-error" role="alert" style="color:#c0392b;min-height:1.2em;margin:8px 0 0"></p>
+            </div>
+        </div>
+    `;
+
+    const userEl = document.getElementById('rs-username');
+    const passEl = document.getElementById('rs-password');
+    const btnEl = document.getElementById('rs-submit');
+    const errEl = document.getElementById('rs-error');
+
+    async function submit() {
+        const username = (userEl && userEl.value || '').trim();
+        // Password intentionally NOT trimmed -- edge whitespace can be valid.
+        const password = (passEl && passEl.value || '');
+        if (!username || !password) {
+            if (errEl) errEl.textContent = 'Enter both your username and password.';
+            return;
+        }
+        if (!(window.rosterClient && typeof window.rosterClient.signIn === 'function')) {
+            if (errEl) errEl.textContent = 'Sign-in is unavailable right now. Please refresh and try again.';
+            return;
+        }
+        if (btnEl) btnEl.disabled = true;
+        if (errEl) errEl.textContent = 'Signing in…';
+        let result;
+        try {
+            result = await window.rosterClient.signIn(username, password);
+        } catch (e) {
+            result = { ok: false, error: (e && e.message) || 'Network error' };
+        }
+        if (!result || !result.ok) {
+            if (errEl) errEl.textContent = (result && result.error) || 'Sign-in failed.';
+            if (btnEl) btnEl.disabled = false;
+            return;
+        }
+        // The roster identity IS the cr identity (hard cutover). acceptUsername
+        // sets currentUsername + consensusUsername + IDB meta and boots the
+        // session, transitioning out of this sign-in screen into the quiz.
+        await acceptUsername(result.username || username);
+    }
+
+    if (btnEl) btnEl.addEventListener('click', submit);
+    if (passEl) passEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    if (userEl) userEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && passEl) passEl.focus(); });
+    if (userEl) { try { userEl.focus(); } catch (_) {} }
+};
 
 /**
  * NEW: Simplified welcome screen with student dropdown
  * Fetches student list from Supabase and shows a dropdown to select name
  */
 async function showWelcomeScreen() {
+    // Hard cutover (2026-06): the manual welcome / student-picker / random-
+    // username onboarding is RETIRED. Any legacy caller routes to the roster
+    // sign-in so a non-roster identity can never be minted. (The dead manual
+    // flow below is kept to avoid a large, risky deletion; it is unreachable.)
+    if (typeof showRosterSignIn === 'function') return showRosterSignIn();
+
     const questionsContainer = document.getElementById('questionsContainer');
 
     // Show loading state while fetching students
