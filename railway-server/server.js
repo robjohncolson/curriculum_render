@@ -334,9 +334,14 @@ if (process.env.DEEPSEEK_API_KEY) {
     // mode = R1-style reasoning, the stronger grader for E/P/I + defensibility.
     apiKey: process.env.DEEPSEEK_API_KEY,
     model: 'deepseek-v4-flash',
-    thinking: true,
+    // thinking mode DISABLED: live-tested v4-flash thinking returned a response
+    // the grading JSON parser couldn't read (bogus "I / Unable to determine
+    // score"); non-thinking v4-flash returns clean JSON. v4-flash (non-thinking)
+    // is still strong + now framework-aware + pinned. Revisit R1-style thinking
+    // later with proper reasoning_content handling. (callAI's thinking block
+    // stays dormant — only fires when a provider sets thinking:true.)
     primary: true,            // pinned as the preferred grader (Groq = failover)
-    timeoutMs: 60000,         // thinking mode is slower — allow more time
+    timeoutMs: 30000,
     maxRPM: 25,
     minDelayMs: 2500
   });
