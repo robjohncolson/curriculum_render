@@ -1194,6 +1194,121 @@ app.post('/api/ai/chat', async (req, res) => {
 });
 
 // ============================
+// GRADE COACH ("Why so low?") — Do Now helper
+// ============================
+// Free-form coaching grounded in a deterministic grade breakdown the CLIENT
+// computes. The v3 grade engine is deterministic and its output is already
+// cached on the Desk, so the FACTS (current grade, the two tracks, the
+// bottleneck, the next task, the low lessons) are handed in — the AI only
+// PHRASES and PRIORITIZES them, it never invents tasks. Mirrors /api/ai/chat:
+// reuses callAI (skipJsonFormat + rawResponse) through the grading queue, so it
+// gets the same DeepSeek-primary / Groq-failover + rate limiting for free.
+const COACH_SYSTEM_PROMPT = `You are a warm, direct AP Statistics teacher helping a student understand their class grade and exactly what to do to raise it.
+
+The student clicked a "Why so low?" helper, so they are already a little discouraged and want a clear path forward — NOT a Socratic quiz. Be direct, specific, and encouraging.
+
+You will be given the student's REAL grade breakdown as FACTS. Follow these rules strictly:
+- Use ONLY the facts provided. NEVER invent assignments, scores, topics, or tasks. If a fact is not provided, do not assert it.
+- Name the single biggest bottleneck FIRST (the track or item dragging the grade down), then give 2-3 concrete next actions drawn only from the outstanding work in the facts.
+- How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
+- Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
+- Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. No markdown headers; short sentences or a tight bullet list.
+- End with one encouraging sentence naming the fastest realistic win.`;
+
+// Turn the client-computed breakdown into a readable, defensive facts block.
+function buildCoachFacts(ctx) {
+  const lines = [];
+  const num = (v) => (typeof v === 'number' && isFinite(v)) ? (Math.round(v * 10) / 10) : null;
+  const pct = (v) => { const n = num(v); return n == null ? 'not yet attempted' : n + '%'; };
+  lines.push('Quarter: ' + (ctx.quarter || 'current') + '.');
+  const g = num(ctx.grade);
+  const c = num(ctx.ceiling);
+  lines.push('Current quarter grade: ' + (g == null ? 'not yet computed' : g + '%') +
+    (c != null ? ' (could reach about ' + c + '% if all due work is completed).' : '.'));
+  lines.push('PC (Progress-Check mastery) track: ' + pct(ctx.pcAvg) +
+    '. Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  if (num(ctx.pcAvg) != null && num(ctx.pcAvg) < 40) lines.push('NOTE: the PC track is below the 40% gate, which is penalizing the grade.');
+  if (num(ctx.workAvg) != null && num(ctx.workAvg) < 40) lines.push('NOTE: the Work track is below the 40% gate, which is penalizing the grade.');
+  if (typeof ctx.lessonsGraded === 'number' && typeof ctx.lessonsTotal === 'number') {
+    lines.push('Lessons graded so far: ' + ctx.lessonsGraded + ' of ' +
+      (typeof ctx.lessonsDue === 'number' ? ctx.lessonsDue + ' due (' + ctx.lessonsTotal + ' total this quarter)' : ctx.lessonsTotal + ' this quarter') +
+      '. Un-attempted due lessons count as 0.');
+  }
+  if (ctx.nextTask && ctx.nextTask.unit) {
+    lines.push('The earliest unfinished assignment is: Unit ' + ctx.nextTask.unit +
+      (ctx.nextTask.lesson ? ', Topic ' + ctx.nextTask.lesson : '') +
+      (ctx.nextTask.activity ? ' — ' + ctx.nextTask.activity : '') + '.');
+  }
+  if (Array.isArray(ctx.weakLessons) && ctx.weakLessons.length) {
+    lines.push('Specific lessons with low or missing scores:');
+    ctx.weakLessons.slice(0, 6).forEach((w) => {
+      if (!w || w.lesson == null) return;
+      const parts = [];
+      parts.push(num(w.quiz) == null ? 'quiz not attempted' : 'quiz ' + Math.round(w.quiz) + '%');
+      if (num(w.worksheet) != null) parts.push('worksheet ' + Math.round(w.worksheet) + '%');
+      if (num(w.work) != null) parts.push('FRQ/work ' + Math.round(w.work) + '%');
+      lines.push('- Topic ' + w.lesson + ': ' + parts.join(', ') + '.');
+    });
+  }
+  return lines.join('\n');
+}
+
+app.post('/api/ai/coach', async (req, res) => {
+  try {
+    const { context, message, history = [] } = req.body || {};
+
+    if (!context || typeof context !== 'object') {
+      return res.status(400).json({ error: 'context is required' });
+    }
+    if (!AI_AVAILABLE) {
+      return res.status(503).json({ error: 'AI service not configured' });
+    }
+
+    const userMsg = (typeof message === 'string' && message.trim())
+      ? message.trim().slice(0, 1000)
+      : 'Why is my grade so low, and what should I do to raise it?';
+
+    // Facts go in the SYSTEM message so they ground EVERY turn (the client
+    // doesn't have to re-send them on follow-ups). The messages array is just
+    // the conversation: prior turns + the new question.
+    const systemMessage = COACH_SYSTEM_PROMPT +
+      '\n\n=== THIS STUDENT\'S REAL GRADE FACTS (use only these) ===\n' + buildCoachFacts(context);
+
+    const chatHistory = [
+      ...(Array.isArray(history) ? history.slice(-8) : []).map(h => ({
+        role: h && h.role === 'assistant' ? 'assistant' : 'user',
+        content: String((h && h.content) || '').slice(0, 1200)
+      })),
+      { role: 'user', content: userMsg }
+    ];
+
+    console.log(`📊 Grade coach: "${userMsg.substring(0, 50)}..."`);
+
+    const result = await gradingQueue.add((provider) => callAI(null, provider, {
+      systemMessage,
+      messages: chatHistory,
+      temperature: 0.5,
+      maxTokens: 500,
+      skipJsonFormat: true,
+      rawResponse: true
+    }));
+
+    const coaching = result.content || 'I could not generate a response right now.';
+    console.log(`✅ Grade coach response [${result._provider}] (${coaching.length} chars)`);
+
+    res.json({
+      response: coaching,
+      _provider: result._provider,
+      _model: result._model
+    });
+
+  } catch (error) {
+    console.error('Grade coach error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================
 // IDENTITY CLAIM RESOLUTION
 // ============================
 
