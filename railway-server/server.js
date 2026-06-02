@@ -330,9 +330,13 @@ if (process.env.DEEPSEEK_API_KEY) {
   AI_PROVIDERS.push({
     name: 'deepseek',
     apiUrl: 'https://api.deepseek.com/chat/completions',
+    // 'deepseek-chat' is deprecated (removed 2026-07-24). v4-flash + thinking
+    // mode = R1-style reasoning, the stronger grader for E/P/I + defensibility.
     apiKey: process.env.DEEPSEEK_API_KEY,
-    model: 'deepseek-chat',
-    timeoutMs: 30000,
+    model: 'deepseek-v4-flash',
+    thinking: true,
+    primary: true,            // pinned as the preferred grader (Groq = failover)
+    timeoutMs: 60000,         // thinking mode is slower — allow more time
     maxRPM: 25,
     minDelayMs: 2500
   });
@@ -354,9 +358,22 @@ for (const p of AI_PROVIDERS) {
 }
 let nextProviderIndex = 0;
 
-// Pick next provider via round-robin, skipping any that are at their RPM limit
+// Pick next provider. A provider flagged `primary` (DeepSeek) is PINNED as the
+// preferred grader and used whenever it's under its RPM limit; the others are
+// failover. Falls back to round-robin when there's no primary / it's at limit.
 function pickProvider() {
   if (AI_PROVIDERS.length === 0) return null;
+  const underLimit = (provider) => {
+    const stats = providerStats.get(provider.name);
+    const now = Date.now();
+    if (now - stats.minuteStart > 60000) {
+      stats.requestsThisMinute = 0;
+      stats.minuteStart = now;
+    }
+    return stats.requestsThisMinute < provider.maxRPM;
+  };
+  const primary = AI_PROVIDERS.find(p => p.primary);
+  if (primary && underLimit(primary)) return primary;
   const startIndex = nextProviderIndex;
   for (let i = 0; i < AI_PROVIDERS.length; i++) {
     const idx = (startIndex + i) % AI_PROVIDERS.length;
@@ -528,8 +545,11 @@ app.post('/api/ai/grade', async (req, res) => {
       return res.status(503).json({ error: 'No AI providers configured' });
     }
 
-    // Build the prompt
-    const gradingPrompt = prompt || buildDefaultGradingPrompt(scenario, answers, aiPromptTemplate);
+    // Build the prompt. Prepend the unit framework so the inline grade is
+    // framework-aware too (the appeal prompt already injects it via line ~899).
+    const _gradeFw = getFrameworkForQuestion(scenario.questionId);
+    const _gradeFwCtx = _gradeFw ? buildFrameworkContext(_gradeFw) : '';
+    const gradingPrompt = _gradeFwCtx + (prompt || buildDefaultGradingPrompt(scenario, answers, aiPromptTemplate));
 
     const queuePos = gradingQueue.getQueueLength();
     console.log(`🤖 AI grading queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
@@ -572,7 +592,8 @@ async function callAI(prompt, provider, opts = {}) {
 
   const systemMessage = opts.systemMessage || 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.';
   const temperature = opts.temperature ?? 0.1;
-  const maxTokens = opts.maxTokens ?? 1500;
+  // Thinking mode emits reasoning tokens before the answer — give it more room.
+  const maxTokens = opts.maxTokens ?? (provider.thinking ? 4000 : 1500);
 
   try {
     const body = {
@@ -584,8 +605,15 @@ async function callAI(prompt, provider, opts = {}) {
       temperature,
       max_tokens: maxTokens
     };
-    // Groq supports response_format; DeepSeek does too for chat model
-    if (!opts.skipJsonFormat) {
+    // DeepSeek v4 thinking mode (R1-style reasoning) — stronger grading judgment.
+    if (provider.thinking) {
+      body.thinking = { type: 'enabled' };
+      body.reasoning_effort = 'high';
+    }
+    // response_format=json_object hint. Skip it under thinking mode (the
+    // reasoning model returns prose + JSON; extractAndParseJSON handles it,
+    // and json_object can conflict with thinking on some providers).
+    if (!opts.skipJsonFormat && !provider.thinking) {
       body.response_format = { type: 'json_object' };
     }
 
@@ -927,6 +955,8 @@ BE FAIR but also ACCURATE. When evaluating:
 - Connect your feedback to the specific concepts from this lesson (e.g., simulation, relative frequency, law of large numbers)
 - For FRQ: Does the student's reasoning align with what the lesson covers? Partial credit is appropriate.
 - Is the student's explanation logically sound?
+
+Reserve P (Partial) for GENUINE partial statistical understanding — a relevant correct concept, or the right method with one wrong step. Do NOT award P for mere effort, for restating the question, or for a plausible-sounding but statistically UNSOUND argument; score those I. Partial credit must reflect partial mastery, not engagement.
 
 CRITICAL RULE FOR MULTIPLE CHOICE: If the student selected the WRONG answer, the maximum possible score is P (Partially correct). A wrong MCQ answer CANNOT receive E (Essentially correct), regardless of how sophisticated the reasoning sounds. MCQs have definitive correct answers - choosing wrong means the student did NOT demonstrate mastery.
 
