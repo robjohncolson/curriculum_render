@@ -1209,7 +1209,7 @@ The student clicked a "Why so low?" helper, so they are already a little discour
 
 You will be given the student's REAL grade breakdown as FACTS. Follow these rules strictly:
 - Use ONLY the facts provided. NEVER invent assignments, scores, topics, or tasks. If a fact is not provided, do not assert it.
-- Name the single biggest bottleneck FIRST (the track or item dragging the grade down), then give 2-3 concrete next actions drawn only from the outstanding work in the facts.
+- Name the single biggest bottleneck FIRST, then give 2-3 concrete next actions drawn only from the outstanding work in the facts. The biggest bottleneck is the LOWEST-scoring component in the facts (the facts may flag a "BIGGEST WIN" item, or it is the lowest % among the listed lessons) — lead with THAT specific item (e.g. "your Topic 1.2 worksheet at 1%"), NOT the earliest-unfinished lesson. A lesson that is already at a decent score is not the priority even if it appears first in a list.
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
 - Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
 - If a worksheet or quiz shows 0% (or far lower than the student expects) and they say they DID it, it most likely was not recorded yet — work only counts once each answer is CHECKED/submitted while signed in (typing answers in is not enough). In that case, gently tell them to re-open it signed in and check/submit their answers so it records, rather than implying they did no work.
@@ -1235,13 +1235,22 @@ function buildCoachFacts(ctx) {
       (typeof ctx.lessonsDue === 'number' ? ctx.lessonsDue + ' due (' + ctx.lessonsTotal + ' total this quarter)' : ctx.lessonsTotal + ' this quarter') +
       '. Un-attempted due lessons count as 0.');
   }
-  if (ctx.nextTask && ctx.nextTask.unit) {
+  // The single biggest grade opportunity — the lowest-scoring component. The AI
+  // should LEAD with this, not the earliest-unfinished lesson.
+  if (ctx.biggestWin && ctx.biggestWin.lesson != null && typeof num(ctx.biggestWin.score) === 'number') {
+    lines.push('BIGGEST WIN (lead with this): the Topic ' + ctx.biggestWin.lesson + ' ' +
+      (ctx.biggestWin.label || 'work') + ' is at ' + Math.round(ctx.biggestWin.score) +
+      '% — it is the lowest-scoring item, so fixing it raises the grade the most.');
+  }
+  // Only mention the earliest-incomplete task when there is no low-scoring
+  // component to fix first (otherwise it competes with the biggest win).
+  if (!ctx.biggestWin && ctx.nextTask && ctx.nextTask.unit) {
     lines.push('The earliest unfinished assignment is: Unit ' + String(ctx.nextTask.unit).replace(/^[Uu]/, '') +
       (ctx.nextTask.lesson ? ', Topic ' + ctx.nextTask.lesson : '') +
       (ctx.nextTask.activity ? ' — ' + ctx.nextTask.activity : '') + '.');
   }
   if (Array.isArray(ctx.weakLessons) && ctx.weakLessons.length) {
-    lines.push('Specific lessons with low or missing scores:');
+    lines.push('Specific lessons with low or missing scores (worst first):');
     ctx.weakLessons.slice(0, 6).forEach((w) => {
       if (!w || w.lesson == null) return;
       const parts = [];

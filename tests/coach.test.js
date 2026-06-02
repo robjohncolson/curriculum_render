@@ -149,3 +149,19 @@ describe('Coach facts: no-quiz topics + unit label + unrecorded-work coaching', 
     expect(systemPrompt).toMatch(/CHECKED\/submitted while signed in/);
   });
 });
+
+describe('Coach facts: prioritize the lowest-scoring component (biggest win)', () => {
+  it('surfaces a BIGGEST WIN line from ctx.biggestWin', () => {
+    expect(serverCode).toMatch(/BIGGEST WIN \(lead with this\)/);
+    expect(serverCode).toMatch(/ctx\.biggestWin/);
+  });
+
+  it('suppresses the earliest-unfinished line when a biggest win exists', () => {
+    expect(serverCode).toMatch(/!ctx\.biggestWin && ctx\.nextTask/);
+  });
+
+  it('the prompt tells the AI to lead with the lowest-scoring component, not earliest-unfinished', () => {
+    expect(systemPrompt).toMatch(/LOWEST-scoring component/);
+    expect(systemPrompt).toMatch(/NOT the earliest-unfinished/);
+  });
+});
