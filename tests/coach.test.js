@@ -134,3 +134,18 @@ describe('Coach endpoint configuration', () => {
     expect(coachBlock).toMatch(/history\.slice\(-8\)/);
   });
 });
+
+describe('Coach facts: no-quiz topics + unit label + unrecorded-work coaching', () => {
+  it('only mentions a quiz when one exists (quizTotal > 0)', () => {
+    expect(serverCode).toMatch(/w\.quizTotal\s*>\s*0/);
+  });
+
+  it('strips the leading U from the unit label (no "Unit U1")', () => {
+    expect(serverCode).toMatch(/replace\(\/\^\[Uu\]\/,/);
+  });
+
+  it('coaches that unrecorded work shows 0% (check/submit while signed in)', () => {
+    expect(systemPrompt).toMatch(/not recorded yet/);
+    expect(systemPrompt).toMatch(/CHECKED\/submitted while signed in/);
+  });
+});

@@ -1212,6 +1212,7 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - Name the single biggest bottleneck FIRST (the track or item dragging the grade down), then give 2-3 concrete next actions drawn only from the outstanding work in the facts.
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
 - Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
+- If a worksheet or quiz shows 0% (or far lower than the student expects) and they say they DID it, it most likely was not recorded yet — work only counts once each answer is CHECKED/submitted while signed in (typing answers in is not enough). In that case, gently tell them to re-open it signed in and check/submit their answers so it records, rather than implying they did no work.
 - Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. No markdown headers; short sentences or a tight bullet list.
 - End with one encouraging sentence naming the fastest realistic win.`;
 
@@ -1235,7 +1236,7 @@ function buildCoachFacts(ctx) {
       '. Un-attempted due lessons count as 0.');
   }
   if (ctx.nextTask && ctx.nextTask.unit) {
-    lines.push('The earliest unfinished assignment is: Unit ' + ctx.nextTask.unit +
+    lines.push('The earliest unfinished assignment is: Unit ' + String(ctx.nextTask.unit).replace(/^[Uu]/, '') +
       (ctx.nextTask.lesson ? ', Topic ' + ctx.nextTask.lesson : '') +
       (ctx.nextTask.activity ? ' — ' + ctx.nextTask.activity : '') + '.');
   }
@@ -1244,9 +1245,11 @@ function buildCoachFacts(ctx) {
     ctx.weakLessons.slice(0, 6).forEach((w) => {
       if (!w || w.lesson == null) return;
       const parts = [];
-      parts.push(num(w.quiz) == null ? 'quiz not attempted' : 'quiz ' + Math.round(w.quiz) + '%');
+      // Only mention the quiz when one exists (quizTotal > 0) — X.1 openers have none.
+      if (w.quizTotal > 0) parts.push(num(w.quiz) == null ? 'quiz not attempted' : 'quiz ' + Math.round(w.quiz) + '%');
       if (num(w.worksheet) != null) parts.push('worksheet ' + Math.round(w.worksheet) + '%');
       if (num(w.work) != null) parts.push('FRQ/work ' + Math.round(w.work) + '%');
+      if (!parts.length && num(w.grade) != null) parts.push('grade ' + Math.round(w.grade) + '%');
       lines.push('- Topic ' + w.lesson + ': ' + parts.join(', ') + '.');
     });
   }
