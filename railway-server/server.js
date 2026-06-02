@@ -610,10 +610,13 @@ async function callAI(prompt, provider, opts = {}) {
       body.thinking = { type: 'enabled' };
       body.reasoning_effort = 'high';
     }
-    // response_format=json_object hint. Skip it under thinking mode (the
-    // reasoning model returns prose + JSON; extractAndParseJSON handles it,
-    // and json_object can conflict with thinking on some providers).
-    if (!opts.skipJsonFormat && !provider.thinking) {
+    // response_format=json_object → constrain the answer to clean JSON. Kept ON
+    // even under thinking mode: DeepSeek v4 puts the reasoning in
+    // reasoning_content and the JSON answer in content, so json_object yields a
+    // parseable {score}. (If a provider ever rejects json_object+thinking, callAI
+    // throws and the queue fails over to the alternate provider — grading still
+    // completes; better than the un-parseable prose we got without it.)
+    if (!opts.skipJsonFormat) {
       body.response_format = { type: 'json_object' };
     }
 
