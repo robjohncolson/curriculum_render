@@ -334,11 +334,16 @@ if (process.env.DEEPSEEK_API_KEY) {
     // mode = R1-style reasoning, the stronger grader for E/P/I + defensibility.
     apiKey: process.env.DEEPSEEK_API_KEY,
     model: 'deepseek-v4-flash',
-    thinking: true,           // R1-style reasoning (the earlier "bogus I" was a
-                              // bad TEST prompt, not thinking; re-verified with a
-                              // proper E/P/I prompt). json_object stays ON.
+    // thinking mode left OFF: live-tested with a PROPER E/P/I prompt, v4-flash
+    // thinking TRUNCATED the answer (reasoning ate the token budget → feedback
+    // cut off to "The student", score unreliable). Non-thinking v4-flash returns
+    // full, correct grading (verified: score P + full feedback + MCQ cap). The
+    // grader is still upgraded vs the old Llama round-robin via the v4 model +
+    // framework-in-prompt + tighter-P + pin. To revisit thinking: handle
+    // reasoning_content separately + a much larger max_tokens. (callAI thinking
+    // infra stays dormant — only fires when a provider sets thinking:true.)
     primary: true,            // pinned as the preferred grader (Groq = failover)
-    timeoutMs: 60000,         // thinking mode is slower — allow more time
+    timeoutMs: 30000,
     maxRPM: 25,
     minDelayMs: 2500
   });
