@@ -9869,6 +9869,20 @@ Respond with JSON:
             const answer = userAnswer?.value || userAnswer;
             const previousResult = window.gradingResults[questionId];
 
+            // Per-item appeal cap (teacher decision: 3/item). Soft deterrent —
+            // the AI's strict defensibility judgment is the primary brake and the
+            // quiz_exception ledger row is the audit trail.
+            const _qaKey = 'apstats_quiz_appeals_' + (currentUsername || 'anon');
+            let _qaCounts = {};
+            try { _qaCounts = JSON.parse(localStorage.getItem(_qaKey) || '{}'); } catch (_) { _qaCounts = {}; }
+            if ((Number(_qaCounts[questionId]) || 0) >= 3) {
+                const fbCap = document.getElementById(`grading-feedback-${questionId}`);
+                if (fbCap) fbCap.innerHTML = `<div class="grading-feedback"><span class="grading-text">You've used all 3 appeals for this question.</span></div>`;
+                const afCap = document.getElementById(`appeal-form-${questionId}`);
+                if (afCap) afCap.style.display = 'none';
+                return;
+            }
+
             // Show loading state
             const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
             if (feedbackContainer) {
@@ -9903,8 +9917,22 @@ Respond with JSON:
                         ...result
                     };
 
+                    // Count this appeal toward the per-item cap (3/item).
+                    try {
+                        _qaCounts[questionId] = (Number(_qaCounts[questionId]) || 0) + 1;
+                        localStorage.setItem(_qaKey, JSON.stringify(_qaCounts));
+                    } catch (_) {}
+
                     // Display appeal result
                     displayAppealResult(questionId, result, previousResult);
+
+                    // Quiz AI-exception: a strictly-granted exception (the AI
+                    // judged the QUESTION itself defensible) flips this item to
+                    // correct in the gradebook. The visible score stays capped;
+                    // this is the separate gradebook gate. Fire-and-forget.
+                    if (result.exceptionGranted === true && typeof recordQuizException === 'function') {
+                        recordQuizException(questionId, answer);
+                    }
                 } else {
                     throw new Error(result.error || 'Appeal failed');
                 }
@@ -9938,7 +9966,13 @@ Respond with JSON:
             const upgraded = result.upgraded || result.appealGranted;
 
             let upgradeMessage = '';
-            if (upgraded) {
+            if (result.exceptionGranted) {
+                upgradeMessage = `
+                    <div class="appeal-upgrade-notice">
+                        ✓ <strong>Exception granted.</strong> The AI judged this question defensible — the item now counts as correct in your grade.
+                    </div>
+                `;
+            } else if (upgraded) {
                 upgradeMessage = `
                     <div class="appeal-upgrade-notice">
                         🎉 <strong>Appeal Granted!</strong> Your score was upgraded from ${previousResult?.score || 'I'} to ${result.score}.
@@ -10914,6 +10948,28 @@ Respond with JSON:
                     });
                 }
             } catch (_) { /* never block cr's submit */ }
+        }
+
+        // AI-granted quiz exception → flips a wrong quiz item to correct in the
+        // gradebook. Distinct '#exc' item id is REQUIRED (the engine's
+        // latestPerItem dedupes by item_id, so it must not collide with the quiz
+        // row); the grade engine ORs source='quiz_exception' rows into the item's
+        // correctness. Fire-and-forget, no-ops without a roster token.
+        // (questionId is always 'U#-...' and never contains '#'; re-recording the
+        // same item is idempotent — latestPerItem keeps one '#exc' row per item.)
+        function recordQuizException(questionId, response) {
+            try {
+                if (window.gradebookClient && window.gradebookClient.record && questionId) {
+                    var gbU = /^U(\d+)-/.exec(questionId);
+                    window.gradebookClient.record({
+                        source: 'quiz_exception',
+                        itemId: questionId + '#exc',
+                        unit: gbU ? ('U' + gbU[1]) : undefined,
+                        response: response,
+                        attempt: 1
+                    });
+                }
+            } catch (_) { /* never block cr's flow */ }
         }
 
         // Enhanced answer saving that tracks progress

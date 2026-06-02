@@ -241,12 +241,15 @@ class GradingEngineTest {
             };
         }
 
-        // Simulate successful appeal for testing
+        // Simulate successful appeal for testing. Mirrors the real engine's
+        // exceptionGranted pass-through (the strict gradebook-exception gate the
+        // server returns); _mockExceptionGranted lets a test exercise a grant.
         return {
             success: true,
             score: previousResult?.score || 'I',
             feedback: 'Appeal processed.',
             appealGranted: false,
+            exceptionGranted: this._mockExceptionGranted === true,
             upgraded: false,
             previousScore: previousResult?.score,
             _appealProcessed: true
@@ -525,6 +528,21 @@ describe('GradingEngine', () => {
             expect(result.success).toBe(true);
             expect(result._appealProcessed).toBe(true);
             expect(result.previousScore).toBe('P');
+        });
+
+        it('defaults exceptionGranted to false (no exception unless the AI grants it)', async () => {
+            const result = await engine.submitAppeal('B', 'my reasoning', { score: 'I' }, { questionId: 'U1-L2-Q01' });
+            expect(result.exceptionGranted).toBe(false);
+        });
+
+        it('passes a granted exception through (the gradebook-flip signal)', async () => {
+            const e = new GradingEngineTest({});
+            e._mockExceptionGranted = true;  // server judged the question defensible
+            const result = await e.submitAppeal('B', 'the question is ambiguous', { score: 'I' }, { questionId: 'U1-L2-Q01' });
+            expect(result.exceptionGranted).toBe(true);
+            // The visible score is NOT auto-upgraded by an exception — it's a
+            // separate gradebook gate. (Wrong-MCQ score stays capped server-side.)
+            expect(result.score).toBe('I');
         });
     });
 

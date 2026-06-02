@@ -483,6 +483,11 @@ class GradingEngine {
         score: result.score,
         feedback: result.feedback || '',
         appealGranted: result.appealGranted || upgraded,
+        // Strict gradebook-exception gate: the AI sets exceptionGranted=true ONLY
+        // when the QUESTION itself is genuinely defensible/ambiguous (not merely
+        // good reasoning). Distinct from a score upgrade — a wrong MCQ's score
+        // stays capped at P, but a granted exception still counts the item correct.
+        exceptionGranted: result.exceptionGranted === true,
         appealResponse: result.appealResponse || result.feedback,
         upgraded,
         previousScore: previousResult?.score,

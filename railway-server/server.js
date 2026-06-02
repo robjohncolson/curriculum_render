@@ -721,6 +721,13 @@ function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
       missing: parsed.missing || []
     };
     if (parsed.suggestion) result.suggestion = parsed.suggestion;
+    // Appeal-specific fields (present only on /api/ai/appeal responses). Carry
+    // them through — the rebuild above used to DROP them, so appealGranted has
+    // always been lost and the new exceptionGranted (gradebook exception gate)
+    // would be too. Coerced to strict booleans; absent on normal grading.
+    if ('appealGranted' in parsed) result.appealGranted = parsed.appealGranted === true;
+    if ('exceptionGranted' in parsed) result.exceptionGranted = parsed.exceptionGranted === true;
+    if (parsed.appealResponse) result.appealResponse = parsed.appealResponse;
     return result;
   }
 
@@ -736,6 +743,12 @@ function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
         _fieldId: key
       };
       if (value.suggestion) result.suggestion = value.suggestion;
+      // Appeal fields live at the TOP level even when the AI wraps the score in
+      // a field — preserve them here too (defensive; appeals normally use the
+      // direct-format branch above).
+      if ('appealGranted' in parsed) result.appealGranted = parsed.appealGranted === true;
+      if ('exceptionGranted' in parsed) result.exceptionGranted = parsed.exceptionGranted === true;
+      if (parsed.appealResponse) result.appealResponse = parsed.appealResponse;
       return result;
     }
   }
@@ -839,6 +852,11 @@ app.post('/api/ai/appeal', async (req, res) => {
       result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
       result._scoreCapped = true;
     }
+    // NOTE: result.exceptionGranted is INTENTIONALLY left untouched by the cap.
+    // The visible score and the gradebook exception are independent gates — a
+    // wrong MCQ's score stays capped at P, but exceptionGranted (set only when
+    // the AI judges the QUESTION itself defensible) still lets the gradebook
+    // count the item correct. See QUIZ_AI_EXCEPTION_BUILD.md.
 
     // Metadata is already set by callAI; add appeal-specific fields
     result._gradingMode = 'ai-appeal';
@@ -914,6 +932,8 @@ CRITICAL RULE FOR MULTIPLE CHOICE: If the student selected the WRONG answer, the
 
 You may UPGRADE the score if the appeal shows genuine understanding, but you CANNOT upgrade a wrong MCQ answer to E. You should NOT downgrade.
 
+EXCEPTION (separate from the score): In rare cases the QUESTION ITSELF is genuinely ambiguous, has more than one defensible correct answer, or the student's chosen answer is valid under a reasonable reading of the question as written. ONLY in those cases set "exceptionGranted": true — this lets the gradebook count the item correct despite the capped score. Set "exceptionGranted": false whenever the question is unambiguous and the student simply chose a wrong answer, EVEN IF their explanation shows strong conceptual understanding. This is a HIGH BAR about the QUESTION's defensibility, NOT the student's effort or understanding. When in doubt, set it false.
+
 IMPORTANT: In your response to the student:
 - Do NOT use framework codes, learning objective IDs (like "UNC-2.A"), or numbered references
 - Do NOT mention "essential knowledge" or "learning objectives"
@@ -925,6 +945,7 @@ Respond with ONLY valid JSON:
   "score": "E" or "P" or "I",
   "feedback": "Explanation connecting their answer to the lesson's key concepts",
   "appealGranted": true or false,
+  "exceptionGranted": true or false,
   "appealResponse": "Direct message to student in plain language explaining how their reasoning does or doesn't demonstrate understanding"
 }`;
 }
