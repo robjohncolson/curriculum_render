@@ -9926,12 +9926,17 @@ Respond with JSON:
                     // Display appeal result
                     displayAppealResult(questionId, result, previousResult);
 
-                    // Quiz AI-exception: a strictly-granted exception (the AI
-                    // judged the QUESTION itself defensible) flips this item to
-                    // correct in the gradebook. The visible score stays capped;
-                    // this is the separate gradebook gate. Fire-and-forget.
-                    if (result.exceptionGranted === true && typeof recordQuizException === 'function') {
-                        recordQuizException(questionId, answer);
+                    // Quiz partial credit: record what this AI review earned —
+                    // a defensible-question exception (or E) = full (1), P = 2/3,
+                    // I (engaged the review) = 1/3. The grade engine credits the
+                    // item = max(answer-key, this). The visible score stays capped
+                    // (wrong MCQ ≠ E); this is the separate gradebook gate.
+                    if (typeof recordQuizReview === 'function') {
+                        var _credit = result.exceptionGranted === true ? 1
+                                    : result.score === 'P' ? (2 / 3)
+                                    : result.score === 'I' ? (1 / 3)
+                                    : 0;
+                        recordQuizReview(questionId, answer, _credit);
                     }
                 } else {
                     throw new Error(result.error || 'Appeal failed');
@@ -9969,13 +9974,25 @@ Respond with JSON:
             if (result.exceptionGranted) {
                 upgradeMessage = `
                     <div class="appeal-upgrade-notice">
-                        ✓ <strong>Exception granted.</strong> The AI judged this question defensible — the item now counts as correct in your grade.
+                        ✓ <strong>Exception granted.</strong> The AI judged this question defensible — <strong>full credit</strong> on this item.
                     </div>
                 `;
             } else if (upgraded) {
                 upgradeMessage = `
                     <div class="appeal-upgrade-notice">
                         🎉 <strong>Appeal Granted!</strong> Your score was upgraded from ${previousResult?.score || 'I'} to ${result.score}.
+                    </div>
+                `;
+            } else if (result.score === 'P') {
+                upgradeMessage = `
+                    <div class="appeal-upgrade-notice">
+                        🔶 <strong>Partial credit (2/3).</strong> Your answer wasn't fully correct, but the AI recognized partial understanding — that counts toward your grade.
+                    </div>
+                `;
+            } else if (result.score === 'I') {
+                upgradeMessage = `
+                    <div class="appeal-denied-notice">
+                        The AI kept this at I, but working through the review earns <strong>1/3 credit</strong> toward your grade.
                     </div>
                 `;
             } else {
@@ -10950,22 +10967,25 @@ Respond with JSON:
             } catch (_) { /* never block cr's submit */ }
         }
 
-        // AI-granted quiz exception → flips a wrong quiz item to correct in the
-        // gradebook. Distinct '#exc' item id is REQUIRED (the engine's
-        // latestPerItem dedupes by item_id, so it must not collide with the quiz
-        // row); the grade engine ORs source='quiz_exception' rows into the item's
-        // correctness. Fire-and-forget, no-ops without a roster token.
-        // (questionId is always 'U#-...' and never contains '#'; re-recording the
-        // same item is idempotent — latestPerItem keeps one '#exc' row per item.)
-        function recordQuizException(questionId, response) {
+        // AI-review partial credit → records the credit the student earned on a
+        // quiz item from an AI review/appeal: E (or a defensible-question
+        // exception) = 1, P = 2/3, I (engaged the review) = 1/3. The grade engine
+        // credits the base item = max(answer-key, this credit). Distinct '#rev'
+        // item id is REQUIRED (latestPerItem dedupes by item_id, so it must not
+        // collide with the quiz row). Fire-and-forget, no-ops without a roster
+        // token. (questionId is always 'U#-...', no '#'; re-recording is
+        // idempotent — latestPerItem keeps one '#rev' row per item.)
+        function recordQuizReview(questionId, response, credit) {
             try {
-                if (window.gradebookClient && window.gradebookClient.record && questionId) {
+                if (window.gradebookClient && window.gradebookClient.record && questionId
+                    && typeof credit === 'number' && credit > 0) {
                     var gbU = /^U(\d+)-/.exec(questionId);
                     window.gradebookClient.record({
-                        source: 'quiz_exception',
-                        itemId: questionId + '#exc',
+                        source: 'quiz_review',
+                        itemId: questionId + '#rev',
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: response,
+                        score: credit,
                         attempt: 1
                     });
                 }
