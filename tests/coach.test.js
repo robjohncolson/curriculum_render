@@ -165,3 +165,32 @@ describe('Coach facts: prioritize the lowest-scoring component (biggest win)', (
     expect(systemPrompt).toMatch(/NOT the earliest-unfinished/);
   });
 });
+
+describe('Coach: Blooket make-up awareness', () => {
+  it('the prompt explains the Blooket flashcard make-up (80%)', () => {
+    expect(systemPrompt).toMatch(/Blooket/);
+    expect(systemPrompt).toMatch(/flashcards/);
+    expect(systemPrompt).toMatch(/80%/);
+    expect(systemPrompt).toMatch(/make it up|make-up/i);
+  });
+
+  it('the prompt forbids inventing a Blooket for a lesson that has none', () => {
+    expect(systemPrompt).toMatch(/never invent a Blooket/i);
+  });
+
+  it('buildCoachFacts surfaces the Work-track breakdown (incl. the Blooket sub-track)', () => {
+    expect(serverCode).toMatch(/Work track breakdown/);
+    expect(serverCode).toMatch(/ctx\.workTracks/);
+  });
+
+  it('buildCoachFacts lists undone Blookets as make-up opportunities', () => {
+    expect(serverCode).toMatch(/ctx\.blooket/);
+    expect(serverCode).toMatch(/make each up to 80%/);
+    expect(serverCode).toMatch(/b\.todo/);
+  });
+
+  it('a weak-lesson line includes Blooket only when the lesson has one', () => {
+    expect(serverCode).toMatch(/w\.hasBlooket/);
+    expect(serverCode).toMatch(/Blooket not done/);
+  });
+});

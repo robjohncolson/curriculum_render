@@ -1211,6 +1211,7 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - Use ONLY the facts provided. NEVER invent assignments, scores, topics, or tasks. If a fact is not provided, do not assert it.
 - Name the single biggest bottleneck FIRST, then give 2-3 concrete next actions drawn only from the outstanding work in the facts. The biggest bottleneck is the LOWEST-scoring component in the facts (the facts may flag a "BIGGEST WIN" item, or it is the lowest % among the listed lessons) — lead with THAT specific item (e.g. "your Topic 1.2 worksheet at 1%"), NOT the earliest-unfinished lesson. A lesson that is already at a decent score is not the priority even if it appears first in a list.
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
+- Blooket is part of the Work track. A Blooket that has not been played counts as 0, BUT a student can MAKE IT UP to 80% by completing that lesson's flashcards on the Desk (a passed flashcard set = 80%). When the facts list undone Blookets ("Blooket make-up"), tell the student they can quickly lift their Work track by doing those flashcards. Only mention Blooket make-ups that appear in the facts — never invent a Blooket for a lesson that does not have one.
 - Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
 - If a worksheet or quiz shows 0% (or far lower than the student expects) and they say they DID it, it most likely was not recorded yet — work only counts once each answer is CHECKED/submitted while signed in (typing answers in is not enough). In that case, gently tell them to re-open it signed in and check/submit their answers so it records, rather than implying they did no work.
 - Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. No markdown headers; short sentences or a tight bullet list.
@@ -1228,8 +1229,32 @@ function buildCoachFacts(ctx) {
     (c != null ? ' (could reach about ' + c + '% if all due work is completed).' : '.'));
   lines.push('PC (Progress-Check mastery) track: ' + pct(ctx.pcAvg) +
     '. Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  // Work-track breakdown so the coach can see what's INSIDE the Work track —
+  // especially the Blooket sub-track, which the student can't see elsewhere.
+  if (ctx.workTracks && typeof ctx.workTracks === 'object') {
+    const wt = ctx.workTracks;
+    const wparts = [];
+    if (num(wt.lessons) != null) wparts.push('worksheets ' + num(wt.lessons) + '%');
+    if (num(wt.quizzes) != null) wparts.push('quizzes ' + num(wt.quizzes) + '%');
+    if (num(wt.blooket) != null) wparts.push('Blooket ' + num(wt.blooket) + '%');
+    if (wparts.length) lines.push('Work track breakdown: ' + wparts.join(', ') + '.');
+  }
   if (num(ctx.pcAvg) != null && num(ctx.pcAvg) < 40) lines.push('NOTE: the PC track is below the 40% gate, which is penalizing the grade.');
   if (num(ctx.workAvg) != null && num(ctx.workAvg) < 40) lines.push('NOTE: the Work track is below the 40% gate, which is penalizing the grade.');
+  // Blooket make-up: undone Blookets can each be made up to 80% via the Desk
+  // flashcards — usually the fastest Work-track lift. Only the topics listed here
+  // exist; the AI must not invent a Blooket for any other lesson.
+  if (ctx.blooket && typeof ctx.blooket === 'object' && ctx.blooket.due > 0) {
+    const b = ctx.blooket;
+    let bl = 'Blooket: ' + (b.done || 0) + ' of ' + b.due + ' done';
+    if (num(b.track) != null) bl += ' (Blooket sub-track ' + num(b.track) + '%)';
+    bl += '.';
+    if (Array.isArray(b.todo) && b.todo.length) {
+      bl += ' NOT YET DONE — make each up to 80% with the Desk flashcards: Topic ' +
+        b.todo.slice(0, 6).join(', Topic ') + '.';
+    }
+    lines.push(bl);
+  }
   if (typeof ctx.lessonsGraded === 'number' && typeof ctx.lessonsTotal === 'number') {
     lines.push('Lessons graded so far: ' + ctx.lessonsGraded + ' of ' +
       (typeof ctx.lessonsDue === 'number' ? ctx.lessonsDue + ' due (' + ctx.lessonsTotal + ' total this quarter)' : ctx.lessonsTotal + ' this quarter') +
@@ -1258,6 +1283,8 @@ function buildCoachFacts(ctx) {
       if (w.quizTotal > 0) parts.push(num(w.quiz) == null ? 'quiz not attempted' : 'quiz ' + Math.round(w.quiz) + '%');
       if (num(w.worksheet) != null) parts.push('worksheet ' + Math.round(w.worksheet) + '%');
       if (num(w.work) != null) parts.push('FRQ/work ' + Math.round(w.work) + '%');
+      // Mention Blooket only when the lesson actually has one (never invent it).
+      if (w.hasBlooket) parts.push(num(w.blooket) == null ? 'Blooket not done' : 'Blooket ' + Math.round(w.blooket) + '%');
       if (!parts.length && num(w.grade) != null) parts.push('grade ' + Math.round(w.grade) + '%');
       lines.push('- Topic ' + w.lesson + ': ' + parts.join(', ') + '.');
     });
