@@ -19,6 +19,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1wEbNmDM4KBUWvvoRoQIgIYKYWxG3x6Cv/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a089df893e4e9542dfc81db",
+                title: "u1l1blooket"
+            }
+        ],
     },
     {
         id: "1-2",
@@ -30,6 +36,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1cJ3a5DSlZ0w3vta901HVyADfQ-qKVQcD/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a08a5ec93e4e9542dfc82d6",
+                title: "u1l2blooket"
+            }
+        ],
     },
     {
         id: "1-3",
@@ -39,6 +51,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/5umo3jmlhy?sui=33,1",
                 altUrl: "https://drive.google.com/file/d/1F9_jLryrjHyXUN21eZmNHrTIGATBhhDw/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a08aa2b93e4e9542dfc8365",
+                title: "u1l3blooket"
             }
         ],
     },
@@ -56,6 +74,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1Hp7GWdTzjPQNvcAnnrrt_QYXV27gCEHh/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a08ae0554234f801d61cea6",
+                title: "u1l4blooket"
+            }
+        ],
     },
     {
         id: "1-5",
@@ -67,6 +91,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1jlopxNducZRaqXtU9c2NvXxq_tGK90ue/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a08b14254234f801d61cf15",
+                title: "u1l5blooket"
+            }
+        ],
     },
     {
         id: "1-6",
@@ -76,6 +106,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/q0wwgrkzqb?sui=33,1",
                 altUrl: "https://drive.google.com/file/d/1oWGqzk4meQ6HuXE-mTDHMStp-qOGDUZJ/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a08b8e854234f801d61d014",
+                title: "u1l6blooket"
             }
         ],
     },
@@ -484,6 +520,12 @@ const ALL_UNITS_DATA = [
             url: "https://apclassroom.collegeboard.org/d/tndkb7he2i?sui=33,3",
             altUrl: "https://drive.google.com/file/d/1o3YuZt7Kai5qovHysWo4vaXlHp3WXtc9/view?usp=drive_link"
           }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/6a092ead753b45cd2933d677",
+                title: "u3l4blooket"
+            }
         ],
         pdfs: [
           { url: "pdf/u3l4_worksheet.pdf", label: "Follow-Along Worksheet" }
@@ -1352,6 +1394,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1kw-NYDqOcOUP8zvAsSuzIfuQ9KXow99C/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69b6cdd37e3edc6f469fe78d",
+                title: "u8l1blooket"
+            }
+        ],
       },
       {
         id: "8-2",
@@ -1369,6 +1417,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/z0hykwj3ge?sui=33,8",
                 altUrl: "https://drive.google.com/file/d/1FMDpI5aNP3UoB4YppkX3ba7llfvfhLba/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69b783b70641400d44478430",
+                title: "u8l2blooket"
             }
         ],
       },
@@ -1390,6 +1444,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1tqgSvs4IHjltdUWtH7WmyqbPWGCMMoXb/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69b81f452209798f94f22801",
+                title: "u8l3blooket"
+            }
+        ],
       },
       {
         id: "8-4",
@@ -1399,6 +1459,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/hmyh34raqt?sui=33,8",
                 altUrl: "https://drive.google.com/file/d/16dgP2zYBVUN2qzFlGRXKZ5aqErJv8FyQ/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c098310774a12931de3d19",
+                title: "u8l4blooket"
             }
         ],
       },
@@ -1414,6 +1480,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/kqfcpu28su?sui=33,8",
                 altUrl: "https://drive.google.com/file/d/1YHP2ipcZ5Vj35OVgZBYwExUjfU-yB2q1/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c0a4560774a12931de3f76",
+                title: "u8l5blooket"
             }
         ],
       },
@@ -1433,6 +1505,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/1ea6gxau2t?sui=33,8",
                 altUrl: "https://drive.google.com/file/d/1v9ENpspNX7MSsuE50ZXoQyizuGOJ35sp/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c35c8f0774a12931df155c",
+                title: "u8l6blooket"
             }
         ],
       },
@@ -1471,6 +1549,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1aMPs1uK5H7dvYoVaGh2TQLkdJGBAjoPd/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c3da020e37da3c048cccf4",
+                title: "u9l1blooket"
+            }
+        ],
       },
       {
         id: "9-2",
@@ -1490,6 +1574,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1UkOJyY-qEovCHQANK5jtZhzNNpa4iHbK/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c3e33a0e37da3c048cd1ab",
+                title: "u9l2blooket"
+            }
+        ],
       },
       {
         id: "9-3",
@@ -1505,6 +1595,12 @@ const ALL_UNITS_DATA = [
                 altUrl: "https://drive.google.com/file/d/1GqvcUy_AJRnTgDORWQkAVHSWjKpRxTaT/view?usp=drive_link"
             }
         ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c3f1c846f993a1257e896d",
+                title: "u9l3blooket"
+            }
+        ],
       },
       {
         id: "9-4",
@@ -1518,6 +1614,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/mqvjasjnfa?sui=33,9",
                 altUrl: "https://drive.google.com/file/d/1EBPBsC-oJXGaxn7jp1Q92IWetvaPNl1M/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c550b73930eb3d0972b753",
+                title: "u9l4blooket"
             }
         ],
       },
@@ -1537,6 +1639,12 @@ const ALL_UNITS_DATA = [
             {
                 url: "https://apclassroom.collegeboard.org/d/mwl7ag5ipr?sui=33,9",
                 altUrl: "https://drive.google.com/file/d/1h5OJH_mC6MUqmKbW_K-Xqx7IN3bjOscz/view?usp=drive_link"
+            }
+        ],
+        blookets: [
+            {
+                url: "https://dashboard.blooket.com/set/69c550daa37834f1b9c642d8",
+                title: "u9l5blooket"
             }
         ],
       },
