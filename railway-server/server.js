@@ -8,9 +8,11 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 import { createClassroomRegistry } from './classroom.js';
+import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt } from './receipts.js';
 
 // Load environment variables
 dotenv.config();
+initReceipts();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +62,11 @@ function normalizeTimestamp(timestamp) {
   return timestamp;
 }
 
+function receiptUsernameFromBody(body) {
+  return body?.username || body?.studentUsername || body?.user ||
+    body?.scenario?.username || body?.scenario?.studentUsername || body?.scenario?.user || '';
+}
+
 // ============================
 // REST API ENDPOINTS
 // ============================
@@ -72,6 +79,10 @@ app.get('/health', (req, res) => {
     cache: isCacheValid(cache.lastUpdate) ? 'warm' : 'cold',
     timestamp: new Date().toISOString()
   });
+});
+
+app.get('/api/receipts/issuer', (req, res) => {
+  res.json(getReceiptIssuer());
 });
 
 // Get all peer data with optional delta
@@ -245,11 +256,21 @@ app.post('/api/submit-answer', async (req, res) => {
 
     broadcastToClients(update);
 
-    res.json({
+    const response = {
       success: true,
       timestamp: normalizedTimestamp,
       broadcast: wsClients.size
+    };
+
+    const receipt = issueReceipt({
+      type: 'answer',
+      username,
+      questionId: question_id,
+      answerValue: answer_value
     });
+    if (receipt) response.receipt = receipt;
+
+    res.json(response);
 
   } catch (error) {
     console.error('Error submitting answer:', error);
@@ -295,11 +316,25 @@ app.post('/api/batch-submit', async (req, res) => {
 
     broadcastToClients(update);
 
-    res.json({
+    const response = {
       success: true,
       count: normalizedAnswers.length,
       broadcast: wsClients.size
+    };
+
+    const receipts = {};
+    normalizedAnswers.forEach((answer) => {
+      const receipt = issueReceipt({
+        type: 'answer',
+        username: answer.username,
+        questionId: answer.question_id,
+        answerValue: answer.answer_value
+      });
+      if (receipt) receipts[answer.question_id] = receipt;
     });
+    if (Object.keys(receipts).length > 0) response.receipts = receipts;
+
+    res.json(response);
 
   } catch (error) {
     console.error('Error batch submitting:', error);
@@ -566,22 +601,19 @@ app.post('/api/ai/grade', async (req, res) => {
 
     // CRITICAL: Server-side enforcement of MCQ grading rules
     // Wrong MCQ answers CANNOT receive E, regardless of what AI says
-    const isMCQ = scenario.questionType === 'multiple-choice';
-    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
-    const isCorrect = scenario.correctAnswer
-      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
-      : null;
-
-    if (isMCQ && isCorrect === false && result.score === 'E') {
-      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
-      result.score = 'P';
-      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
-      result._scoreCapped = true;
-    }
+    applyWrongMcqCap(result, scenario, answers);
 
     // Metadata is already set by callAI; add grading-specific fields
     result._gradingMode = 'ai';
     result._serverGraded = true;
+    const receipt = issueReceipt({
+      type: 'verdict',
+      username: receiptUsernameFromBody(req.body),
+      questionId: scenario.questionId,
+      score: result.score,
+      answerValue: answers.answer || Object.values(answers)[0] || ''
+    });
+    if (receipt) result.receipt = receipt;
 
     console.log(`✅ AI grading complete [${result._provider}]: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
 
@@ -1057,18 +1089,7 @@ app.post('/api/ai/appeal', async (req, res) => {
 
     // CRITICAL: Server-side enforcement of MCQ grading rules
     // Wrong MCQ answers CANNOT receive E, regardless of what AI says
-    const isMCQ = scenario.questionType === 'multiple-choice';
-    const studentAnswer = answers.answer || Object.values(answers)[0] || '';
-    const isCorrect = scenario.correctAnswer
-      ? studentAnswer.toString().toLowerCase().trim() === scenario.correctAnswer.toString().toLowerCase().trim()
-      : null;
-
-    if (isMCQ && isCorrect === false && result.score === 'E') {
-      console.log(`⚠️ MCQ enforcement: Capping wrong answer from E to P for ${scenario.questionId}`);
-      result.score = 'P';
-      result.feedback = (result.feedback || '') + ' [Note: Maximum score for incorrect MCQ answers is P]';
-      result._scoreCapped = true;
-    }
+    applyWrongMcqCap(result, scenario, answers);
     // NOTE: result.exceptionGranted is INTENTIONALLY left untouched by the cap.
     // The visible score and the gradebook exception are independent gates — a
     // wrong MCQ's score stays capped at P, but exceptionGranted (set only when
@@ -1079,6 +1100,14 @@ app.post('/api/ai/appeal', async (req, res) => {
     result._gradingMode = 'ai-appeal';
     result._serverGraded = true;
     result._appealProcessed = true;
+    const receipt = issueReceipt({
+      type: 'verdict',
+      username: receiptUsernameFromBody(req.body),
+      questionId: scenario.questionId,
+      score: result.score,
+      answerValue: answers.answer || Object.values(answers)[0] || ''
+    });
+    if (receipt) result.receipt = receipt;
 
     console.log(`✅ AI appeal complete [${result._provider}]: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
 

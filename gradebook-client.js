@@ -14,6 +14,32 @@
 (function () {
   'use strict';
 
+  // ── Receipt capture (RECEIPTS_BUILD.md / receipt-system-spec v1.1) ──────────
+  // Stores signed receipts from /ledger/record responses in localStorage
+  // 'desk_receipts_v1': newest-first array of {id, compact, src, i, sc, ts},
+  // capped at 500. Shared-origin: the Desk's "My Receipts" view reads this key.
+  // Best-effort — must never break record()'s fire-and-forget contract.
+  var RECEIPTS_KEY = 'desk_receipts_v1';
+  var RECEIPTS_CAP = 500;
+  function _captureReceipt(receipt, source, itemId, score) {
+    try {
+      if (!receipt || !receipt.receiptId || !receipt.compact) return;
+      var list = [];
+      try { list = JSON.parse(localStorage.getItem(RECEIPTS_KEY) || '[]'); } catch (_) { list = []; }
+      if (!Array.isArray(list)) list = [];
+      list.unshift({
+        id: receipt.receiptId,
+        compact: receipt.compact,
+        src: source,
+        i: itemId,
+        sc: (typeof score === 'number') ? score : undefined,
+        ts: Date.now()
+      });
+      if (list.length > RECEIPTS_CAP) list.length = RECEIPTS_CAP;
+      localStorage.setItem(RECEIPTS_KEY, JSON.stringify(list));
+    } catch (_) { /* receipts are best-effort; never block or throw from record() */ }
+  }
+
   window.gradebookClient = {
 
     // Fire-and-forget ledger write.
@@ -77,7 +103,8 @@
         var data = await res.json();
 
         if (data && data.ok) {
-          return { ok: true, ledgerId: data.ledgerId };
+          _captureReceipt(data.receipt, source, itemId, opts.score);
+          return { ok: true, ledgerId: data.ledgerId, receipt: data.receipt || null };
         }
 
         // Server returned ok:false (e.g. 400/401) — treat as network failure

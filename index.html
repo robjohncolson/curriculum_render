@@ -9329,6 +9329,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        username: currentUsername,
                         scenario: {
                             questionId,
                             topic: question.prompt?.substring(0, 200) || 'AP Statistics',
@@ -9611,6 +9612,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
+                            username: currentUsername,
                             scenario: {
                                 questionId,
                                 topic: question.prompt?.substring(0, 200) || 'AP Statistics',
@@ -9901,6 +9903,7 @@ Respond with JSON:
             try {
                 const context = {
                     questionId,
+                    username: currentUsername,
                     topic: question.prompt?.substring(0, 200) || 'AP Statistics',
                     prompt: question.prompt,
                     questionType: questionType,

@@ -452,6 +452,7 @@ class GradingEngine {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          username: context.username || '',
           scenario: {
             questionId: context.questionId,
             topic: context.topic || 'AP Statistics',
