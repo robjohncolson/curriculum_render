@@ -74,6 +74,29 @@ stop verifying.
 3. **Client push.** GitHub Pages auto-deploys `verify.html` + the Desk on push.
    Push pubkey changes to `verify.html` BEFORE students hit new receipts.
 
+## Deploy coordination — auth foundation + sealed transcripts
+
+The sid-binding and the sealed-transcript system add cross-service coupling.
+Deploy in this order:
+
+1. **Shared `ROSTER_TOKEN_SECRET` on BOTH Railway services.** The quiz server now
+   verifies the roster session token (to sign the verified `sid`) using the SAME
+   HMAC secret the roster server issues tokens with. Set the identical
+   `ROSTER_TOKEN_SECRET` on `curriculumrender-production` AND `roster-production-12c1`.
+   If they differ, every quiz receipt silently stops issuing — watch
+   `GET /health.rosterAuth` (must be `true` on both).
+2. **The `quiz_review` fix is a coordinated deploy.** The quiz server now signs a
+   review-grant and the roster server *requires* it for `quiz_review`/`quiz_exception`
+   writes. Push the client (GitHub Pages) AND redeploy BOTH Railway services
+   **together**. Until a student's browser loads the new client, their appeals send no
+   grant and the roster server returns `400 review grant required` — they just reload.
+   The roster verifier pins the quiz public key `yFByWH5a…`; if you rotate the quiz
+   issuer key, also set `REVIEW_GRANT_PUBKEY` on the roster service to the new pubkey.
+3. **Migration 0018** (receipt persistence) must be applied before the transcript
+   back-fill persists receipts — already applied 2026-06-12.
+4. **Verifier:** `verify.html` carries the production issuer keys and the transcript
+   mode; pushing it to GitHub Pages is all that's needed (no server dependency).
+
 ## Health check
 
 After any redeploy, confirm issuance is live (an unset env var silently disables
