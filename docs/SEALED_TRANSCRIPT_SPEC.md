@@ -83,6 +83,34 @@ short-lived signed "credit grant" the client relays and the roster-server verifi
 `mountLedger` then **rejects any client-supplied `score` for `source==='quiz_review'`.**
 Must preserve `#rev` idempotency (`latestPerItem` dedupe).
 
+**The review-grant contract (cross-repo).** The quiz server signs a short-lived
+*credit capability* with its **Ed25519 issuer key** (same key as quiz receipts);
+the client relays it; the roster server verifies it with the hardcoded quiz pubkey
+and uses the granted credit. Asymmetric, no shared secret, no server-to-server call.
+
+```
+grant payload (flat, signed exactly like a receipt — same canonicalize/sign):
+  { v:1, t:'review-grant', sid, item:'<qid>#rev', credit:<number 0..1>, exp:<ms>, ts, n }
+grant compact = base64url(canonicalBytes) + "." + base64url(sig)
+```
+
+- **Quiz server** `/api/ai/appeal`: after the post-cap verdict, compute
+  `credit = exceptionGranted ? 1 : score==='P' ? 2/3 : score==='I' ? 1/3 : 0`,
+  issue the grant (`exp = ts + 5min`, only when `sid` is verified), return it as
+  `reviewGrant` in the response. `issueReviewGrant()` in `receipts.js`, never-throw.
+- **Client** (`index.html`): delete the client-side `_credit` computation;
+  `recordQuizReview` sends `{ source:'quiz_review', itemId, response, grant:<compact> }`
+  with **no `score`**. `gradebook-client.js` `record()` passes an optional `grant` through.
+- **Roster server** `/ledger/record`, for `source ∈ {quiz_review, quiz_exception}`:
+  **require** `grant`; verify Ed25519 against the hardcoded quiz pubkey
+  `yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4`; assert `t==='review-grant'`,
+  `grant.sid === verifyToken(token)`, `grant.item === itemId`, `grant.exp > now`.
+  Use `grant.credit` as the row score; **ignore any client `score`**. Missing/invalid/
+  expired/mismatched → `400 {ok:false,error:'review grant required'}`.
+- **Back-compat:** cached old clients (no grant) are rejected → client surfaces
+  "reload to appeal". **Deploy:** push the client and redeploy BOTH services together.
+  Rotating the quiz key requires updating the hardcoded pubkey in the roster verifier.
+
 ### Layer-1 phasing
 
 - **P0 (ship together, prerequisite for any transcript):** 1A sid-binding + 1C quiz_review fix.
