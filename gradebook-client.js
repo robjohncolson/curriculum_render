@@ -116,6 +116,62 @@
         console.warn('gradebook-client: record failed —', err && err.message);
         return { ok: false, reason: 'network' };
       }
+    },
+
+    // ── WALLET_BUILD.md Task B — fetchReceipts() ────────────────────────────
+    // Read-only self-fetch of this student's DURABLE signed receipts (persisted
+    // server-side, migration 0018). Returns an array of {id, compact, src, i,
+    // sc, ts} for rows that carry a receipt_compact, newest first. Merged with
+    // the local desk_receipts_v1 cache (deduped by id) so the receipt history
+    // survives a browser-storage wipe or a device switch.
+    //
+    // NEVER throws. Resolves to [] on any failure (offline, signed-out,
+    // pre-migration server with no receipt columns).
+    fetchReceipts: async function () {
+      try {
+        var token = null;
+        var sid = null;
+        try {
+          if (window.rosterClient && typeof window.rosterClient.token === 'function') {
+            token = window.rosterClient.token();
+          }
+          if (window.rosterClient && typeof window.rosterClient.studentId === 'function') {
+            sid = window.rosterClient.studentId();
+          }
+        } catch (_) {
+          return [];
+        }
+        if (!token || !sid) return [];
+
+        var baseUrl = window.ROSTER_SERVICE_URL || null;
+        if (!baseUrl) return [];
+
+        var url = baseUrl + '/ledger/student/' + encodeURIComponent(sid);
+        var res = await fetch(url, {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res || !res.ok) return [];
+        var data = await res.json();
+        if (!data || !data.ok || !Array.isArray(data.rows)) return [];
+
+        var out = [];
+        for (var i = 0; i < data.rows.length; i++) {
+          var r = data.rows[i];
+          if (!r || !r.receipt_compact) continue;
+          out.push({
+            id: r.receipt_id || null,
+            compact: r.receipt_compact,
+            src: r.source,
+            i: r.item_id,
+            sc: (typeof r.score === 'number') ? r.score : undefined,
+            ts: r.recorded_at ? Date.parse(r.recorded_at) : undefined
+          });
+        }
+        return out;
+      } catch (_) {
+        return [];
+      }
     }
 
   };
