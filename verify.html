@@ -164,14 +164,14 @@
 </footer>
 
 <script>
-// ===== issuer registry (base64url raw 32B keys). Verification tries each key
-// and reports which issuer signed. Production keys first (real receipts);
-// the TEST keys are kept last so the Self-test button's frozen vectors verify. =====
+// ===== issuer registry (base64url raw 32B keys). Verification tries production
+// keys by default and reports which issuer signed. For key rotation, append new
+// production keys here and never remove old trusted keys; see KEY_MANAGEMENT_RUNBOOK.md. =====
 const ISSUERS = [
-    { name: 'Quiz Server', pubkey: 'yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4' },   // production
-    { name: 'The Desk',    pubkey: 'DRfEbaWByfatxMq26iHrw4wxt4MIpypZlbB3GeBFSO4' },   // production
-    { name: 'Quiz Server (test key)', pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow' },
-    { name: 'The Desk (test key)',    pubkey: 'sj9NUx5jBO-KTI58WKjQwEr22i7f8fiv--KH4z95JCc' }
+    { name: 'Quiz Server', pubkey: 'yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4', kind: 'quiz' },
+    { name: 'The Desk',    pubkey: 'DRfEbaWByfatxMq26iHrw4wxt4MIpypZlbB3GeBFSO4', kind: 'desk' },
+    { name: 'Quiz Server (TEST)', pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow', kind: 'quiz', test: true },
+    { name: 'The Desk (TEST)',    pubkey: 'sj9NUx5jBO-KTI58WKjQwEr22i7f8fiv--KH4z95JCc', kind: 'desk', test: true }
 ];
 
 const TEST_VECTOR = 'eyJhaCI6IjNhMWYwYzliMmQ0ZTVmNjAiLCJuIjoiYTFiMmMzZDQiLCJxIjoiVTQtTDMtUTAxIiwicyI6IkUiLCJ0IjoidmVyZGljdCIsInRzIjoxNzgxMjM0NTY3ODkwLCJ1IjoiQXBwbGVfTW9ua2V5IiwidiI6MX0.fxr2OUgg98CHgo8zrNkqT5DAdxa7emYOlN82z1elKBorO8HqUH0K4Z7AH-FDr7EeLPGF6Xeg2FT-dEOMlxuPCw';
@@ -199,7 +199,20 @@ function importIssuerKey(pubkey) {
     return keyCache.get(pubkey);
 }
 
-async function verifyReceipt(compact) {
+function hasTestModeFlag() {
+    const query = new URLSearchParams(location.search);
+    const hashQuery = location.hash.includes('?')
+        ? location.hash.slice(location.hash.indexOf('?') + 1)
+        : location.hash.replace(/^#/, '');
+    const hash = new URLSearchParams(hashQuery);
+    return query.get('test') === '1' || hash.get('test') === '1';
+}
+
+function issuersForRun(includeTestKeys) {
+    return ISSUERS.filter(issuer => includeTestKeys || !issuer.test);
+}
+
+async function verifyReceipt(compact, options = {}) {
     const parts = compact.trim().split('.');
     if (parts.length !== 2) throw new Error('Not a receipt: expected two dot-separated parts.');
     const payloadBytes = b64urlToBytes(parts[0]);
@@ -210,7 +223,7 @@ async function verifyReceipt(compact) {
     if (payload.v !== 1) throw new Error('Unknown receipt version: ' + payload.v);
 
     let issuer = null;
-    for (const candidate of ISSUERS) {
+    for (const candidate of issuersForRun(!!options.includeTestKeys)) {
         const key = await importIssuerKey(candidate.pubkey);
         if (await crypto.subtle.verify({ name: 'Ed25519' }, key, sigBytes, payloadBytes)) {
             issuer = candidate;
@@ -238,6 +251,29 @@ function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function receiptLabel(payload) {
+    if (payload.t === 'ledger') return 'GRADEBOOK RECORD';
+    if (payload.t === 'verdict') return 'QUIZ VERDICT';
+    if (payload.t === 'answer') return 'QUIZ ANSWER';
+    return String(payload.t || 'UNKNOWN').toUpperCase();
+}
+
+function receiptExplainer(payload) {
+    if (payload.t === 'answer') {
+        return 'Proves the class server received and recorded this submission at the time shown.';
+    }
+    if (payload.t === 'verdict') {
+        return 'Proves the server recorded this E/P/I result. The score may be AI- or self-reported &mdash; see your gradebook for the official grade.';
+    }
+    if (payload.t === 'ledger') {
+        const base = 'Proves the gradebook recorded this item for this student at the time shown.';
+        return payload.e === 'self' || payload.e === 'self-reported' || payload.src === 'self'
+            ? base + ' Note: score is self-reported.'
+            : base;
+    }
+    return 'Proves this event was signed by the listed issuer at the time shown.';
+}
+
 function show(ok, payload, receiptId, errMsg, issuer) {
     stage.classList.add('show');
     facts.classList.remove('show');
@@ -259,7 +295,9 @@ function show(ok, payload, receiptId, errMsg, issuer) {
         let rows;
         if (payload.t === 'ledger') {
             rows = [
-                ['Type', 'Gradebook record'],
+                ['Receipt type', `<strong>${receiptLabel(payload)}</strong>`],
+                ['Signing issuer', issuer ? `<strong>${esc(issuer.name)}</strong>` : '—'],
+                ['What it proves', receiptExplainer(payload)],
                 ['Student', payload.u ? esc(payload.u) : '—'],
                 ['Student ID', payload.sid ? esc(String(payload.sid).slice(0, 8)) + '…' : '—'],
                 ['Source', esc(payload.src)],
@@ -272,14 +310,15 @@ function show(ok, payload, receiptId, errMsg, issuer) {
         } else {
             const isVerdict = payload.t === 'verdict';
             rows = [
-                ['Type', isVerdict ? 'Grade verdict' : 'Answer received'],
-                ['Student', esc(payload.u)],
+                ['Receipt type', `<strong>${receiptLabel(payload)}</strong>`],
+                ['Signing issuer', issuer ? `<strong>${esc(issuer.name)}</strong>` : '—'],
+                ['What it proves', receiptExplainer(payload)],
+                ['Claimed name', `claimed: ${esc(payload.u)} (name not identity-verified)`],
                 ['Question', esc(payload.q)],
             ];
             if (isVerdict) rows.push(['Score', `<span class="score-${esc(payload.s)}">${esc(payload.s)}</span>`]);
         }
         rows.push(
-            ['Signed by', issuer ? esc(issuer.name) : '—'],
             ['Server time', fmtTime(payload.ts)],
             ['Answer hash', esc(payload.ah)],
             ['Receipt ID', receiptId ? receiptId.slice(0, 12) + '…' : '—'],
@@ -292,14 +331,16 @@ function show(ok, payload, receiptId, errMsg, issuer) {
     }
 }
 
-async function run(compact) {
+async function run(compact, options = {}) {
     if (!compact || !compact.trim()) return;
     if (!window.crypto || !window.crypto.subtle) {
         show(false, null, null, 'This browser does not support Web Crypto — try an updated Chrome, Edge, Firefox, or Safari.');
         return;
     }
     try {
-        const { ok, issuer, payload, receiptId } = await verifyReceipt(compact);
+        const { ok, issuer, payload, receiptId } = await verifyReceipt(compact, {
+            includeTestKeys: !!options.includeTestKeys || hasTestModeFlag()
+        });
         show(ok, payload, receiptId, null, issuer);
     } catch (e) {
         if (/Ed25519|algorithm/i.test(String(e)) && !(e instanceof Error && e.message.startsWith('Not a receipt'))) {
@@ -317,10 +358,13 @@ document.getElementById('selfTestBtn').addEventListener('click', () => {
     const vec = selfTestToggle ? TEST_VECTOR_LEDGER : TEST_VECTOR;
     selfTestToggle = !selfTestToggle;
     document.getElementById('receiptIn').value = vec;
-    run(vec);
+    run(vec, { includeTestKeys: true });
 });
 document.getElementById('keyTag').textContent =
     ISSUERS.map(i => `${i.name} ${i.pubkey.slice(0, 8)}…`).join(' · ');
+
+document.getElementById('keyTag').textContent =
+    issuersForRun(hasTestModeFlag()).map(i => `${i.name} ${i.pubkey.slice(0, 8)}...`).join(' / ');
 
 // QR deep-link: verify.html#r=<compact>
 (function () {
