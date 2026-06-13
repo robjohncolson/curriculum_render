@@ -301,6 +301,40 @@ review.
 5. **Layer 1 P1** — worksheet `worksheet-key.json` recompute + `g` provenance (can land parallel to 3/4; tightens honesty of `sc`).
 6. **Layer 1 P2 + anti-replay nonce** — `timingSafeEqual`, CORS lockdown, server-persist; optional freshness challenge.
 
+## 7. Backlog — upcoming tasks (not yet built)
+
+Tracked here so they aren't lost. Build order is a suggestion, not a dependency chain.
+
+- **§1B — worksheet server-side recompute.** The last client-supplied-score path:
+  bundle a `worksheet-key.json`, recompute `WS-*` blank scores in `mountLedger` using
+  the shipped `normalizeWorksheetGrades` semantics, keep AI as upgrade-only. Tightens
+  honesty of `sc` for worksheets (currently labeled `g:'self'`).
+- **Backfill A1 — sign the original work time on backfilled receipts.** The transcript
+  back-fill (D2) and any bulk backfill currently sign `ts = Date.now()`. Add an optional
+  `ts` to `issueLedgerReceipt` and pass the row's `recorded_at`, so a backfilled receipt
+  attests *when the work was actually done*, not when it was sealed.
+- **Backfill A2 — proactive bulk backfill of receiptless ledger rows.** A one-time
+  `scripts/backfill-receipts.mjs` (or a teacher-gated admin endpoint) that walks every
+  roster student, finds `item_ledger` rows with `receipt_compact IS NULL`, and signs +
+  persists a receipt for each (using A1's original-time fix). Effect: every student's
+  *already-done* work shows up in the wallet immediately, not only when a transcript is
+  exported. ~1 day; depends on A1 for correct timestamps.
+- **Backfill B — ingest non-ledger historical work.** Work that never reached
+  `item_ledger` (direct browser→Supabase `answers` writes, LAN/offline submissions,
+  pre-feeder work) has nothing to backfill from. Needs an ingestion job that reads the
+  `answers` table (and any other sources), maps each to a ledger item, and inserts the
+  ledger rows so they become receiptable. **Gated on identity reconciliation:** `answers`
+  is keyed by the legacy Fruit_Animal username, not `student_id`, so this must run after
+  / alongside the orphan/identity-claim mapping. Bigger; data-quality sensitive.
+- **Anti-replay freshness.** Optional server "as-of challenge" nonce so a teacher can
+  demand a transcript minted within a window, beyond the signed `asOf` (phase 2).
+- **Print/QR summary.** Optional one-page printable summary + a QR of the manifest
+  (Tier-A report-card receipt) from the wallet export.
+- **Independent grade recompute in the verifier.** Bundle the answer-key + grade engine
+  into `verify.html` so it re-derives the grade and checks it against the signed `g`
+  (currently the verifier trusts the signed `g`; `artHash`/`cfgHash`/`codeHash` already
+  let it *detect* drift).
+
 ## 6. Decisions — RESOLVED 2026-06-13
 
 - **D1 — `g` = live v3 `quarterGrade`** (1-dp float; the number the wallet shows). Freeze type = 1-dp float; source = `computeGrade` quarterGrade for the current quarter (`gq`).
