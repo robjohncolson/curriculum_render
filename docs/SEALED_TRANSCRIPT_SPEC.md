@@ -273,8 +273,8 @@ review.
 5. **Layer 1 P1** — worksheet `worksheet-key.json` recompute + `g` provenance (can land parallel to 3/4; tightens honesty of `sc`).
 6. **Layer 1 P2 + anti-replay nonce** — `timingSafeEqual`, CORS lockdown, server-persist; optional freshness challenge.
 
-## 6. Decisions required before build
+## 6. Decisions — RESOLVED 2026-06-13
 
-- **D1 — which grade is `g`?** Live **v3 `quarterGrade`** (1-dp float, what the wallet shows — recommended) vs the Schoology report-card estimate. Freeze type = 1-dp float either way.
-- **D2 — completeness scope?** Back-fill-at-issuance for a literally-complete ledger seal (recommended) vs seal-the-subset + "receipted work only" label.
-- **D3 — contract version for quiz `sid`?** Bump `v` vs additive-optional `sid` with `verify.html` accepting both old (no-sid) and new receipts (recommended: additive, don't invalidate prior receipts).
+- **D1 — `g` = live v3 `quarterGrade`** (1-dp float; the number the wallet shows). Freeze type = 1-dp float; source = `computeGrade` quarterGrade for the current quarter (`gq`).
+- **D2 — back-fill at issuance.** `GET /transcript` issues+persists a receipt for any ledger row lacking `receipt_compact` so the seal is literally complete over **all ledger rows**. Verdict wording stays "sealed receipted work — N items"; unreceipted non-ledger writes (direct-Supabase/LAN) remain an explicit out-of-scope ingestion gap.
+- **D3 — additive-optional `sid`.** No `v` bump. Quiz `answer`/`verdict` payloads gain an optional `sid`; `verify.html` verifies any valid signature regardless, and old receipts (no `sid`) stay valid. `u` is retained as display-only.
