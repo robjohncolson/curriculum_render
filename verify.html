@@ -164,10 +164,14 @@
 </footer>
 
 <script>
-// ===== issuer registry (base64url raw 32B keys). TEST keys — replace alongside js/receipt_config.js =====
+// ===== issuer registry (base64url raw 32B keys). Verification tries each key
+// and reports which issuer signed. Production keys first (real receipts);
+// the TEST keys are kept last so the Self-test button's frozen vectors verify. =====
 const ISSUERS = [
-    { name: 'Quiz Server', pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow' },
-    { name: 'The Desk',    pubkey: 'sj9NUx5jBO-KTI58WKjQwEr22i7f8fiv--KH4z95JCc' }
+    { name: 'Quiz Server', pubkey: 'yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4' },   // production
+    { name: 'The Desk',    pubkey: 'DRfEbaWByfatxMq26iHrw4wxt4MIpypZlbB3GeBFSO4' },   // production
+    { name: 'Quiz Server (test key)', pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow' },
+    { name: 'The Desk (test key)',    pubkey: 'sj9NUx5jBO-KTI58WKjQwEr22i7f8fiv--KH4z95JCc' }
 ];
 
 const TEST_VECTOR = 'eyJhaCI6IjNhMWYwYzliMmQ0ZTVmNjAiLCJuIjoiYTFiMmMzZDQiLCJxIjoiVTQtTDMtUTAxIiwicyI6IkUiLCJ0IjoidmVyZGljdCIsInRzIjoxNzgxMjM0NTY3ODkwLCJ1IjoiQXBwbGVfTW9ua2V5IiwidiI6MX0.fxr2OUgg98CHgo8zrNkqT5DAdxa7emYOlN82z1elKBorO8HqUH0K4Z7AH-FDr7EeLPGF6Xeg2FT-dEOMlxuPCw';

@@ -10,6 +10,6 @@
 window.RECEIPT_CONFIG = {
     v: 1,
     alg: 'Ed25519',
-    pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow', // TEST KEY — replace for production
+    pubkey: 'yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4', // production quiz-server issuer
     verifyUrl: 'https://robjohncolson.github.io/curriculum_render/verify.html'
 };
