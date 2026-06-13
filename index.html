@@ -8466,6 +8466,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 // Grade the answer
                 const result = await engine.gradeAnswer(answer, rule, context);
+                captureQuizVerdictReceipt(result.receipt, questionId);
 
                 // Store result for potential appeals
                 window.gradingResults[questionId] = {
@@ -9156,6 +9157,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 // Grade the combined answer
                 const result = await engine.gradeAnswer(combinedAnswer, rule, context);
+                captureQuizVerdictReceipt(result.receipt, questionId);
 
                 // Store result for potential appeals
                 window.gradingResults[questionId] = {
@@ -9193,6 +9195,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
         // Store grading results for appeals
         window.gradingResults = {};
+
+        function captureQuizVerdictReceipt(receipt, questionId) {
+            try {
+                if (window.gradebookClient && typeof window.gradebookClient.captureQuizReceipt === 'function') {
+                    window.gradebookClient.captureQuizReceipt(receipt, questionId);
+                }
+            } catch (_) {
+                // Quiz receipt capture is best-effort and must never affect grading.
+            }
+        }
 
         // Grade MCQ answer after submission (for wrong/partial answers)
         async function gradeMCQAnswer(questionId, answer, isCorrect) {
@@ -9349,6 +9361,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
 
                 const result = await response.json();
+                captureQuizVerdictReceipt(result.receipt, questionId);
                 result._aiGraded = true;
                 result._provider = 'groq';
                 result._model = 'llama-3.3-70b (Groq)';
@@ -9634,6 +9647,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     if (!response.ok) {
                         throw new Error(result.error || 'AI grading failed');
                     }
+                    captureQuizVerdictReceipt(result.receipt, questionId);
                 }
 
                 // Build standardized result
@@ -9914,6 +9928,8 @@ Respond with JSON:
                 const result = await engine.submitAppeal(answer, appealText, previousResult, context);
 
                 if (result.success) {
+                    captureQuizVerdictReceipt(result.receipt, questionId);
+
                     // Update stored result
                     window.gradingResults[questionId] = {
                         ...window.gradingResults[questionId],

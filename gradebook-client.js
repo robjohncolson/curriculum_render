@@ -27,8 +27,10 @@
       var list = [];
       try { list = JSON.parse(localStorage.getItem(RECEIPTS_KEY) || '[]'); } catch (_) { list = []; }
       if (!Array.isArray(list)) list = [];
+      var id = receipt.receiptId;
+      list = list.filter(function (row) { return !row || row.id !== id; });
       list.unshift({
-        id: receipt.receiptId,
+        id: id,
         compact: receipt.compact,
         src: source,
         i: itemId,
@@ -119,6 +121,10 @@
     },
 
     // ── WALLET_BUILD.md Task B — fetchReceipts() ────────────────────────────
+    captureQuizReceipt: function (receipt, questionId) {
+      _captureReceipt(receipt, 'quiz_verdict', questionId);
+    },
+
     // Read-only self-fetch of this student's DURABLE signed receipts (persisted
     // server-side, migration 0018). Returns an array of {id, compact, src, i,
     // sc, ts} for rows that carry a receipt_compact, newest first. Merged with

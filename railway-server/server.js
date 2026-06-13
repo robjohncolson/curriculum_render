@@ -73,10 +73,15 @@ function receiptUsernameFromBody(body) {
 
 // Health check
 app.get('/health', (req, res) => {
+  const receiptIssuer = getReceiptIssuer();
   res.json({
     status: 'healthy',
     connections: wsClients.size,
     cache: isCacheValid(cache.lastUpdate) ? 'warm' : 'cold',
+    receipts: {
+      enabled: receiptIssuer.enabled === true,
+      pubkey: receiptIssuer.pubkey || null
+    },
     timestamp: new Date().toISOString()
   });
 });

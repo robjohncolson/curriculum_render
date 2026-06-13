@@ -103,7 +103,12 @@ export function issueReceipt({ type, username, questionId, score, answerValue })
     const { receiptId, compact } = signPayload(issuer.privateKey, payload);
     return { receiptId, compact };
   } catch (err) {
-    console.error('Receipt issuance failed:', err.message);
+    console.warn('Receipt issuance failed:', {
+      type,
+      questionId,
+      usernameProvided: !!username,
+      error: err && err.message
+    });
     return null;
   }
 }
