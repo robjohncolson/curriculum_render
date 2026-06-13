@@ -93,6 +93,7 @@
           skill:    opts.skill,
           response: response,
           score:    opts.score,
+          grant:    opts.grant,
           attempt:  opts.attempt
         };
 

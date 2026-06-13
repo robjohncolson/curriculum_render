@@ -117,6 +117,34 @@ export function issueReceipt({ type, username, sid, questionId, score, answerVal
   }
 }
 
+export function issueReviewGrant({ sid, item, credit, exp }) {
+  if (!issuer.enabled) return null;
+  if (!sid || !item) return null;
+
+  try {
+    const payload = {
+      v: 1,
+      t: 'review-grant',
+      sid,
+      item,
+      credit,
+      exp,
+      ts: Date.now(),
+      n: crypto.randomBytes(4).toString('hex')
+    };
+
+    const { compact } = signPayload(issuer.privateKey, payload);
+    return { compact };
+  } catch (err) {
+    console.warn('Review grant issuance failed:', {
+      sidProvided: !!sid,
+      item,
+      error: err && err.message
+    });
+    return null;
+  }
+}
+
 export function applyWrongMcqCap(result, scenario, answers) {
   const isMCQ = scenario?.questionType === 'multiple-choice';
   const studentAnswer = answers?.answer || Object.values(answers || {})[0] || '';

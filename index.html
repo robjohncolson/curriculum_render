@@ -9957,11 +9957,7 @@ Respond with JSON:
                     // item = max(answer-key, this). The visible score stays capped
                     // (wrong MCQ ≠ E); this is the separate gradebook gate.
                     if (typeof recordQuizReview === 'function') {
-                        var _credit = result.exceptionGranted === true ? 1
-                                    : result.score === 'P' ? (2 / 3)
-                                    : result.score === 'I' ? (1 / 3)
-                                    : 0;
-                        recordQuizReview(questionId, answer, _credit);
+                        recordQuizReview(questionId, answer, result.reviewGrant);
                     }
                 } else {
                     throw new Error(result.error || 'Appeal failed');
@@ -11000,17 +10996,17 @@ Respond with JSON:
         // collide with the quiz row). Fire-and-forget, no-ops without a roster
         // token. (questionId is always 'U#-...', no '#'; re-recording is
         // idempotent — latestPerItem keeps one '#rev' row per item.)
-        function recordQuizReview(questionId, response, credit) {
+        function recordQuizReview(questionId, response, reviewGrant) {
             try {
                 if (window.gradebookClient && window.gradebookClient.record && questionId
-                    && typeof credit === 'number' && credit > 0) {
+                    && reviewGrant) {
                     var gbU = /^U(\d+)-/.exec(questionId);
                     window.gradebookClient.record({
                         source: 'quiz_review',
                         itemId: questionId + '#rev',
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: response,
-                        score: credit,
+                        grant: reviewGrant,
                         attempt: 1
                     });
                 }

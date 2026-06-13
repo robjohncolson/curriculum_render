@@ -492,6 +492,10 @@ class GradingEngine {
         appealResponse: result.appealResponse || result.feedback,
         upgraded,
         previousScore: previousResult?.score,
+        // Server-signed review-grant capability (SEALED_TRANSCRIPT_SPEC 1C): the
+        // quiz server computes the quiz_review credit and signs it; the client
+        // must relay this to /ledger/record instead of a client-chosen score.
+        reviewGrant: result.reviewGrant || null,
         _provider: result._provider,
         _model: result._model,
         _appealProcessed: true

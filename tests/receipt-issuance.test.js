@@ -5,6 +5,7 @@ import {
   getReceiptIssuer,
   initReceipts,
   issueReceipt,
+  issueReviewGrant,
   receiptInternals
 } from '../railway-server/receipts.js';
 
@@ -162,5 +163,29 @@ describe('signed receipt issuance', () => {
     expect(decoded.payload.sid).toBe('00000000-0000-4000-8000-000000000000');
     expect(decoded.payload.u).toBe('Apple_Monkey');
     expect(decoded.payload.g).toBe('ai');
+  });
+
+  it('issues review grants that verify and carry sid, item, and credit', () => {
+    process.env.RECEIPT_ISSUER_PRIVATE_KEY = TEST_PRIVATE_KEY;
+    initReceipts();
+    vi.spyOn(Date, 'now').mockReturnValue(1781234567890);
+
+    const grant = issueReviewGrant({
+      sid: '00000000-0000-4000-8000-000000000000',
+      item: 'U4-L3-Q01#rev',
+      credit: 2 / 3,
+      exp: 1781234867890
+    });
+    const decoded = decodeCompact(grant.compact);
+    const publicKey = crypto.createPublicKey({
+      key: { kty: 'OKP', crv: 'Ed25519', x: TEST_PUBLIC_KEY },
+      format: 'jwk'
+    });
+
+    expect(crypto.verify(null, decoded.bytes, publicKey, decoded.sig)).toBe(true);
+    expect(decoded.payload.t).toBe('review-grant');
+    expect(decoded.payload.sid).toBe('00000000-0000-4000-8000-000000000000');
+    expect(decoded.payload.item).toBe('U4-L3-Q01#rev');
+    expect(decoded.payload.credit).toBe(2 / 3);
   });
 });

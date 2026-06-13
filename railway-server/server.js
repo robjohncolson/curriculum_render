@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 import { createClassroomRegistry } from './classroom.js';
-import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt } from './receipts.js';
+import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 
 // Load environment variables
@@ -1124,6 +1124,18 @@ app.post('/api/ai/appeal', async (req, res) => {
     result._serverGraded = true;
     result._appealProcessed = true;
     if (sid) {
+      const credit = result.exceptionGranted === true ? 1
+        : result.score === 'P' ? (2 / 3)
+        : result.score === 'I' ? (1 / 3)
+        : 0;
+      const reviewGrant = issueReviewGrant({
+        sid,
+        item: scenario.questionId + '#rev',
+        credit,
+        exp: Date.now() + 300000
+      });
+      if (reviewGrant) result.reviewGrant = reviewGrant.compact;
+
       const receipt = issueReceipt({
         type: 'verdict',
         username: receiptUsernameFromBody(req.body),
