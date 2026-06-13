@@ -143,4 +143,24 @@ describe('signed receipt issuance', () => {
     expect(decoded.payload.ts).toBe(1781234567890);
     expect(crypto.verify(null, decoded.bytes, publicKey, decoded.sig)).toBe(true);
   });
+
+  it('adds verified sid and AI provenance to signed verdict payloads', () => {
+    process.env.RECEIPT_ISSUER_PRIVATE_KEY = TEST_PRIVATE_KEY;
+    initReceipts();
+    vi.spyOn(Date, 'now').mockReturnValue(1781234567890);
+
+    const receipt = issueReceipt({
+      type: 'verdict',
+      username: 'Apple_Monkey',
+      sid: '00000000-0000-4000-8000-000000000000',
+      questionId: 'U4-L3-Q01',
+      score: 'E',
+      answerValue: 'A'
+    });
+    const decoded = decodeCompact(receipt.compact);
+
+    expect(decoded.payload.sid).toBe('00000000-0000-4000-8000-000000000000');
+    expect(decoded.payload.u).toBe('Apple_Monkey');
+    expect(decoded.payload.g).toBe('ai');
+  });
 });

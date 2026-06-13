@@ -29,14 +29,19 @@ MUST reproduce its output byte-for-byte.
 | `v` | number | Contract version, always `1` |
 | `t` | string | `"answer"` (server received+stored an answer) or `"verdict"` (server-side grade verdict) |
 | `u` | string | Username exactly as written to the answers table |
+| `sid` | string | Optional authenticated roster `student_id` uuid when the quiz server verified a roster token. Authoritative identity for new authenticated receipts; old no-`sid` receipts stay valid |
 | `q` | string | Question ID (e.g. `U4-L3-Q01`) |
 | `s` | string | Verdict receipts only: final score `"E"`/`"P"`/`"I"` **after** all enforcement caps. OMITTED on `answer` receipts |
+| `g` | string | Verdict receipts only: optional grader provenance. AI-issued quiz verdict receipts use `"ai"` |
 | `ah` | string | First 16 hex chars of SHA-256 of the answer value string (binds receipt to content without leaking the answer into the QR) |
 | `ts` | number | **Server** timestamp ms (`Date.now()` on Railway — never the client's timestamp) |
 | `n` | string | 8 hex chars of server randomness (`crypto.randomBytes(4).toString('hex')`) so identical resubmissions get distinct receipts |
 
 **Canonical form:** `JSON.stringify` of the payload with keys sorted alphabetically,
 no whitespace, only fields present (so `answer` receipts have no `s` key), UTF-8.
+The optional `sid` field is additive in v1; verifiers accept any valid signature over
+the fields present, so legacy no-`sid` receipts remain valid and extra signed fields do
+not change the signature rule.
 
 **receiptId:** SHA-256 hex of the canonical bytes (display convention: first 12 chars, txid-style).
 

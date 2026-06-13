@@ -9339,7 +9339,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                 const response = await fetch(`${serverUrl}/api/ai/grade`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (window.rosterClient?.token?.() || '')
+                    },
                     body: JSON.stringify({
                         username: currentUsername,
                         scenario: {
@@ -9514,7 +9517,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
                     const submitResponse = await fetch(`${serverUrl}/grade`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + (window.rosterClient?.token?.() || '')
+                        },
                         body: JSON.stringify({
                             prompt: prompt,  // Legacy fallback
                             question_id: questionId,

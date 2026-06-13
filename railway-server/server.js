@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 import { createClassroomRegistry } from './classroom.js';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt } from './receipts.js';
+import { verifyToken } from './token.js';
 
 // Load environment variables
 dotenv.config();
@@ -67,6 +68,13 @@ function receiptUsernameFromBody(body) {
     body?.scenario?.username || body?.scenario?.studentUsername || body?.scenario?.user || '';
 }
 
+function sidFromRequest(req) {
+  const auth = req.get('authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  const token = match ? match[1].trim() : req.body?.rosterToken;
+  return verifyToken(token) || null;
+}
+
 // ============================
 // REST API ENDPOINTS
 // ============================
@@ -82,6 +90,7 @@ app.get('/health', (req, res) => {
       enabled: receiptIssuer.enabled === true,
       pubkey: receiptIssuer.pubkey || null
     },
+    rosterAuth: !!process.env.ROSTER_TOKEN_SECRET,
     timestamp: new Date().toISOString()
   });
 });
@@ -219,6 +228,7 @@ app.get('/api/question-stats/:questionId', async (req, res) => {
 app.post('/api/submit-answer', async (req, res) => {
   try {
     const { username, question_id, answer_value, timestamp } = req.body;
+    const sid = sidFromRequest(req);
 
     // Normalize timestamp
     const normalizedTimestamp = normalizeTimestamp(timestamp || Date.now());
@@ -267,13 +277,16 @@ app.post('/api/submit-answer', async (req, res) => {
       broadcast: wsClients.size
     };
 
-    const receipt = issueReceipt({
-      type: 'answer',
-      username,
-      questionId: question_id,
-      answerValue: answer_value
-    });
-    if (receipt) response.receipt = receipt;
+    if (sid) {
+      const receipt = issueReceipt({
+        type: 'answer',
+        username,
+        sid,
+        questionId: question_id,
+        answerValue: answer_value
+      });
+      if (receipt) response.receipt = receipt;
+    }
 
     res.json(response);
 
@@ -583,6 +596,7 @@ app.get('/api/ai/status', (req, res) => {
 app.post('/api/ai/grade', async (req, res) => {
   try {
     const { scenario, answers, prompt, aiPromptTemplate } = req.body;
+    const sid = sidFromRequest(req);
 
     if (!scenario || !answers) {
       return res.status(400).json({ error: 'Missing scenario or answers' });
@@ -611,14 +625,17 @@ app.post('/api/ai/grade', async (req, res) => {
     // Metadata is already set by callAI; add grading-specific fields
     result._gradingMode = 'ai';
     result._serverGraded = true;
-    const receipt = issueReceipt({
-      type: 'verdict',
-      username: receiptUsernameFromBody(req.body),
-      questionId: scenario.questionId,
-      score: result.score,
-      answerValue: answers.answer || Object.values(answers)[0] || ''
-    });
-    if (receipt) result.receipt = receipt;
+    if (sid) {
+      const receipt = issueReceipt({
+        type: 'verdict',
+        username: receiptUsernameFromBody(req.body),
+        sid,
+        questionId: scenario.questionId,
+        score: result.score,
+        answerValue: answers.answer || Object.values(answers)[0] || ''
+      });
+      if (receipt) result.receipt = receipt;
+    }
 
     console.log(`✅ AI grading complete [${result._provider}]: score=${result.score || 'unknown'}${result._scoreCapped ? ' (capped)' : ''}`);
 
@@ -1072,6 +1089,7 @@ Respond in JSON format:
 app.post('/api/ai/appeal', async (req, res) => {
   try {
     const { scenario, answers, appealText, previousResults } = req.body;
+    const sid = sidFromRequest(req);
 
     if (!scenario || !answers || !appealText) {
       return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
@@ -1105,14 +1123,17 @@ app.post('/api/ai/appeal', async (req, res) => {
     result._gradingMode = 'ai-appeal';
     result._serverGraded = true;
     result._appealProcessed = true;
-    const receipt = issueReceipt({
-      type: 'verdict',
-      username: receiptUsernameFromBody(req.body),
-      questionId: scenario.questionId,
-      score: result.score,
-      answerValue: answers.answer || Object.values(answers)[0] || ''
-    });
-    if (receipt) result.receipt = receipt;
+    if (sid) {
+      const receipt = issueReceipt({
+        type: 'verdict',
+        username: receiptUsernameFromBody(req.body),
+        sid,
+        questionId: scenario.questionId,
+        score: result.score,
+        answerValue: answers.answer || Object.values(answers)[0] || ''
+      });
+      if (receipt) result.receipt = receipt;
+    }
 
     console.log(`✅ AI appeal complete [${result._provider}]: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);
 

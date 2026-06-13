@@ -81,7 +81,7 @@ export function getReceiptIssuer() {
   };
 }
 
-export function issueReceipt({ type, username, questionId, score, answerValue }) {
+export function issueReceipt({ type, username, sid, questionId, score, answerValue }) {
   if (!issuer.enabled) return null;
   // A receipt that doesn't name a student proves nothing — don't issue one.
   if (!username || !questionId) return null;
@@ -98,7 +98,11 @@ export function issueReceipt({ type, username, questionId, score, answerValue })
       n: crypto.randomBytes(4).toString('hex')
     };
 
-    if (type === 'verdict') payload.s = score;
+    if (sid) payload.sid = sid;
+    if (type === 'verdict') {
+      payload.s = score;
+      payload.g = 'ai';
+    }
 
     const { receiptId, compact } = signPayload(issuer.privateKey, payload);
     return { receiptId, compact };
