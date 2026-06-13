@@ -66,6 +66,30 @@
     }
     textarea:focus { border-color: var(--accent); }
     .row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .mode-toggle {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+        background: #0b1220; border: 1px solid #334155; border-radius: 12px;
+        padding: 5px; margin-bottom: 14px;
+    }
+    .mode-toggle button {
+        border-radius: 8px; padding: 10px 12px; font-size: .92rem;
+        background: transparent; color: var(--muted); border: 0;
+    }
+    .mode-toggle button.active {
+        background: var(--accent); color: #0b1220; font-weight: 800;
+    }
+    .transcript-tools { display: none; margin-bottom: 12px; }
+    .transcript-tools.show { display: block; }
+    .dropzone {
+        border: 1px dashed #475569; border-radius: 12px; padding: 18px;
+        background: rgba(11,18,32,.7); color: var(--muted); text-align: center;
+        cursor: pointer; transition: border-color .2s, color .2s, background .2s;
+    }
+    .dropzone.drag {
+        border-color: var(--accent); color: var(--ink); background: rgba(129,140,248,.08);
+    }
+    .dropzone input { display: none; }
+    .dropzone strong { color: var(--ink); }
     button {
         background: var(--accent); color: #0b1220; font-weight: 700;
         border: 0; border-radius: 10px; padding: 12px 22px;
@@ -127,6 +151,22 @@
     .facts .score-E { color: var(--good); font-weight: 700; }
     .facts .score-P { color: #fbbf24; font-weight: 700; }
     .facts .score-I { color: var(--bad); font-weight: 700; }
+    .breakdown, .receipt-list {
+        margin-top: 18px; width: 100%; max-width: 520px;
+        border: 1px solid #334155; border-radius: 10px; overflow: hidden;
+        background: rgba(11,18,32,.45);
+    }
+    .breakdown-row, .receipt-row {
+        display: grid; grid-template-columns: 44px 1fr auto; gap: 10px;
+        align-items: center; padding: 10px 12px; border-top: 1px solid #334155;
+        font-size: .92rem;
+    }
+    .breakdown-row:first-child, .receipt-row:first-child { border-top: 0; }
+    .component-icon { text-align: center; font-weight: 800; color: var(--accent); }
+    .component-count { color: var(--muted); font-family: ui-monospace, Consolas, monospace; }
+    details.receipt-list summary { cursor: pointer; padding: 12px; color: var(--ink); font-weight: 700; }
+    .receipt-row { grid-template-columns: 1fr auto; font-family: ui-monospace, Consolas, monospace; }
+    .receipt-row .bad { color: var(--bad); }
     #reason { margin-top: 18px; color: var(--bad); font-size: .95rem; max-width: 520px; text-align: center; }
 
     footer { margin-top: auto; padding-top: 36px; color: #475569; font-size: .78rem; text-align: center; z-index: 1; }
@@ -142,6 +182,17 @@
     No account. No database. Just math.</p>
 
     <div class="panel" id="inputPanel">
+        <div class="mode-toggle" aria-label="Verifier mode">
+            <button id="receiptModeBtn" class="active" type="button">Verify receipt</button>
+            <button id="transcriptModeBtn" type="button">Verify transcript</button>
+        </div>
+        <div class="transcript-tools" id="transcriptTools">
+            <label class="dropzone" id="dropzone">
+                <input id="transcriptFile" type="file" accept=".json,application/json">
+                <strong>Choose a transcript JSON file</strong><br>
+                or drop it here
+            </label>
+        </div>
         <textarea id="receiptIn" placeholder="Paste a receipt here (the long code under the QR), or open a receipt QR link…" spellcheck="false"></textarea>
         <div class="row">
             <button id="verifyBtn">Verify</button>
@@ -239,6 +290,14 @@ const stage = document.getElementById('stage');
 const seal = document.getElementById('seal');
 const facts = document.getElementById('facts');
 const reasonEl = document.getElementById('reason');
+const inputPanel = document.getElementById('inputPanel');
+const receiptIn = document.getElementById('receiptIn');
+const receiptModeBtn = document.getElementById('receiptModeBtn');
+const transcriptModeBtn = document.getElementById('transcriptModeBtn');
+const transcriptTools = document.getElementById('transcriptTools');
+const transcriptFile = document.getElementById('transcriptFile');
+const dropzone = document.getElementById('dropzone');
+let verifyMode = 'receipt';
 
 function fmtTime(ms) {
     return new Date(ms).toLocaleString(undefined, {
@@ -249,6 +308,20 @@ function fmtTime(ms) {
 
 function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function sha256HexText(s) {
+    return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+}
+
+function parseTranscriptText(text) {
+    let doc;
+    try { doc = JSON.parse(text); }
+    catch { throw new Error('Transcript file is not valid JSON.'); }
+    if (!doc || doc.format !== 'ap-stats-sealed-transcript') {
+        throw new Error('Not a sealed transcript JSON file.');
+    }
+    return doc;
 }
 
 function receiptLabel(payload) {
@@ -275,6 +348,7 @@ function receiptExplainer(payload) {
 }
 
 function show(ok, payload, receiptId, errMsg, issuer) {
+    document.querySelectorAll('.breakdown, .receipt-list').forEach(el => el.remove());
     stage.classList.add('show');
     facts.classList.remove('show');
     reasonEl.textContent = '';
@@ -286,8 +360,8 @@ function show(ok, payload, receiptId, errMsg, issuer) {
     void seal.offsetWidth; // restart animation
     seal.classList.add('stamp');
     if (!ok) {
-        document.getElementById('inputPanel').classList.add('shake');
-        setTimeout(() => document.getElementById('inputPanel').classList.remove('shake'), 450);
+        inputPanel.classList.add('shake');
+        setTimeout(() => inputPanel.classList.remove('shake'), 450);
         reasonEl.textContent = errMsg || 'This receipt was NOT signed by any known class issuer key (or was altered after signing).';
     }
     facts.innerHTML = '';
@@ -331,6 +405,116 @@ function show(ok, payload, receiptId, errMsg, issuer) {
     }
 }
 
+function sourceIcon(src) {
+    const s = String(src || 'unknown').toLowerCase();
+    if (s.includes('quiz')) return 'QZ';
+    if (s.includes('worksheet')) return 'WS';
+    if (s.includes('blooket')) return 'BL';
+    if (s.includes('reflection') || s.includes('self')) return 'RF';
+    return 'RC';
+}
+
+function showTranscript(result) {
+    const ok = result.ok;
+    document.querySelectorAll('.breakdown, .receipt-list').forEach(el => el.remove());
+    stage.classList.add('show');
+    facts.classList.remove('show');
+    reasonEl.textContent = '';
+    seal.className = 'seal ' + (ok ? 'ok' : 'fail');
+    document.getElementById('sealWord').textContent = ok ? 'SEALED TRANSCRIPT' : 'INVALID';
+    document.getElementById('sealSub').textContent = ok ? 'ED25519 · THE DESK' : 'TRANSCRIPT FAILED';
+    void seal.offsetWidth;
+    seal.classList.add('stamp');
+    if (!ok) {
+        inputPanel.classList.add('shake');
+        setTimeout(() => inputPanel.classList.remove('shake'), 450);
+        reasonEl.textContent = result.reason || 'This transcript is incomplete, altered, or not signed by a production issuer.';
+    }
+
+    facts.innerHTML = '';
+    if (result.manifest) {
+        const p = result.manifest.payload || {};
+        const student = `${p.u ? esc(p.u) : '—'} (${p.sid ? esc(String(p.sid).slice(0, 8)) + '…' : 'no sid'})`;
+        const grade = typeof p.g === 'number' ? `${esc(p.g)}% (${esc(p.gq || '—')})` : `— (${esc(p.gq || '—')})`;
+        const rows = [
+            ['Verdict', ok ? `✓ Sealed transcript — ${result.members.length} items, complete, untampered` : `FAIL — ${esc(result.reason || 'invalid transcript')}`],
+            ['Student', student],
+            ['Grade', grade],
+            ['Sealed date', p.asOf ? fmtTime(p.asOf) : '—'],
+            ['Manifest issuer', result.manifest.issuer ? esc(result.manifest.issuer.name) : '—'],
+            ['Completeness root', esc(p.root || '—')],
+        ];
+        for (const [k, v] of rows) {
+            facts.insertAdjacentHTML('beforeend', `<dt>${k}</dt><dd>${v}</dd>`);
+        }
+
+        const groups = new Map();
+        for (const member of result.members) {
+            const src = member.payload ? String(member.payload.src || member.payload.t || 'unknown') : 'invalid';
+            groups.set(src, (groups.get(src) || 0) + 1);
+        }
+        const breakdown = document.createElement('div');
+        breakdown.className = 'breakdown';
+        for (const [src, count] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+            breakdown.insertAdjacentHTML('beforeend',
+                `<div class="breakdown-row"><span class="component-icon">${sourceIcon(src)}</span><span>${esc(src)}</span><span class="component-count">${count}</span></div>`);
+        }
+        facts.insertAdjacentElement('afterend', breakdown);
+
+        const list = document.createElement('details');
+        list.className = 'receipt-list';
+        list.innerHTML = `<summary>Show all ${result.members.length} receipts</summary>`;
+        result.members.forEach((m, i) => {
+            const label = m.payload ? `${m.payload.src || m.payload.t || 'receipt'} ${m.payload.i || m.payload.q || ''}`.trim() : 'unreadable receipt';
+            list.insertAdjacentHTML('beforeend',
+                `<div class="receipt-row"><span class="${m.ok ? '' : 'bad'}">${esc(String(i + 1).padStart(3, '0'))} ${esc(label)}</span><span>${m.receiptId ? esc(m.receiptId.slice(0, 12)) + '…' : 'invalid'}</span></div>`);
+        });
+        breakdown.insertAdjacentElement('afterend', list);
+        window._lastReceiptId = result.manifest.receiptId;
+    }
+    requestAnimationFrame(() => facts.classList.add('show'));
+}
+
+async function verifyTranscript(doc) {
+    if (!doc || doc.format !== 'ap-stats-sealed-transcript') throw new Error('Not a sealed transcript JSON file.');
+    if (typeof doc.manifest !== 'string' || !doc.manifest.trim()) throw new Error('Transcript manifest is missing.');
+    if (!Array.isArray(doc.receipts)) throw new Error('Transcript receipts must be an array.');
+
+    const manifest = await verifyReceipt(doc.manifest, { includeTestKeys: false });
+    if (!manifest.ok) return { ok: false, reason: 'Manifest signature invalid or not signed by a production issuer.', manifest, members: [] };
+    if (manifest.issuer && manifest.issuer.test) return { ok: false, reason: 'Manifest was signed by a TEST issuer, not a production issuer.', manifest, members: [] };
+    if (!manifest.issuer || manifest.issuer.kind !== 'desk') return { ok: false, reason: 'Manifest was not signed by The Desk production issuer.', manifest, members: [] };
+    if (!manifest.payload || manifest.payload.t !== 'transcript') return { ok: false, reason: 'Manifest is signed, but is not a transcript manifest.', manifest, members: [] };
+
+    const members = [];
+    for (const compact of doc.receipts) {
+        if (typeof compact !== 'string') {
+            members.push({ ok: false, issuer: null, payload: null, receiptId: null });
+            continue;
+        }
+        try {
+            members.push(await verifyReceipt(compact, { includeTestKeys: false }));
+        } catch {
+            members.push({ ok: false, issuer: null, payload: null, receiptId: null });
+        }
+    }
+    if (members.some(m => !m.ok)) return { ok: false, reason: 'One or more member receipt signatures are invalid.', manifest, members };
+
+    const ids = members.map(m => m.receiptId).sort();
+    const root = await sha256HexText(ids.join('\n'));
+    const countMatches = members.length === manifest.payload.cnt;
+    const rootMatches = root === manifest.payload.root;
+    const uniqueMatches = new Set(ids).size === manifest.payload.cnt;
+    if (!rootMatches && !countMatches) return { ok: false, reason: 'INCOMPLETE / TAMPERED: completeness root and receipt count mismatch.', manifest, members };
+    if (!rootMatches) return { ok: false, reason: 'INCOMPLETE / TAMPERED: completeness root mismatch.', manifest, members };
+    if (!countMatches) return { ok: false, reason: 'INCOMPLETE / TAMPERED: receipt count mismatch.', manifest, members };
+    if (!uniqueMatches) return { ok: false, reason: 'INCOMPLETE / TAMPERED: duplicate receipt IDs in transcript.', manifest, members };
+    if (members.some(m => !m.payload || m.payload.sid !== manifest.payload.sid)) {
+        return { ok: false, reason: 'Foreign member receipt: at least one receipt belongs to a different student.', manifest, members };
+    }
+    return { ok: true, reason: '', manifest, members };
+}
+
 async function run(compact, options = {}) {
     if (!compact || !compact.trim()) return;
     if (!window.crypto || !window.crypto.subtle) {
@@ -351,13 +535,44 @@ async function run(compact, options = {}) {
     }
 }
 
-document.getElementById('verifyBtn').addEventListener('click', () =>
-    run(document.getElementById('receiptIn').value));
+async function runTranscriptText(text) {
+    if (!text || !text.trim()) return;
+    if (!window.crypto || !window.crypto.subtle) {
+        show(false, null, null, 'This browser does not support Web Crypto — try an updated Chrome, Edge, Firefox, or Safari.');
+        return;
+    }
+    try {
+        showTranscript(await verifyTranscript(parseTranscriptText(text)));
+    } catch (e) {
+        showTranscript({ ok: false, reason: e.message, manifest: null, members: [] });
+    }
+}
+
+function setMode(mode) {
+    verifyMode = mode;
+    receiptModeBtn.classList.toggle('active', mode === 'receipt');
+    transcriptModeBtn.classList.toggle('active', mode === 'transcript');
+    transcriptTools.classList.toggle('show', mode === 'transcript');
+    receiptIn.placeholder = mode === 'transcript'
+        ? 'Paste the raw sealed transcript JSON here...'
+        : 'Paste a receipt here (the long code under the QR), or open a receipt QR link…';
+}
+
+receiptModeBtn.addEventListener('click', () => setMode('receipt'));
+transcriptModeBtn.addEventListener('click', () => setMode('transcript'));
+
+document.getElementById('verifyBtn').addEventListener('click', () => {
+    const text = receiptIn.value;
+    const looksLikeTranscript = /^\s*\{/.test(text) && text.includes('"format"') && text.includes('ap-stats-sealed-transcript');
+    if (verifyMode === 'transcript' || looksLikeTranscript) runTranscriptText(text);
+    else run(text);
+});
 let selfTestToggle = false;
 document.getElementById('selfTestBtn').addEventListener('click', () => {
     const vec = selfTestToggle ? TEST_VECTOR_LEDGER : TEST_VECTOR;
     selfTestToggle = !selfTestToggle;
-    document.getElementById('receiptIn').value = vec;
+    setMode('receipt');
+    receiptIn.value = vec;
     run(vec, { includeTestKeys: true });
 });
 document.getElementById('keyTag').textContent =
@@ -371,10 +586,34 @@ document.getElementById('keyTag').textContent =
     const m = location.hash.match(/[#&]r=([^&]+)/);
     if (m) {
         const compact = decodeURIComponent(m[1]);
-        document.getElementById('receiptIn').value = compact;
+        receiptIn.value = compact;
         run(compact);
     }
 })();
+
+transcriptFile.addEventListener('change', async () => {
+    const file = transcriptFile.files && transcriptFile.files[0];
+    if (!file) return;
+    const text = await file.text();
+    setMode('transcript');
+    receiptIn.value = text;
+    runTranscriptText(text);
+});
+dropzone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+});
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', async e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    const text = await file.text();
+    setMode('transcript');
+    receiptIn.value = text;
+    runTranscriptText(text);
+});
 
 // ===== hidden: tap the seal five times =====
 (function () {
