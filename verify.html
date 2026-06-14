@@ -379,7 +379,19 @@ function show(ok, payload, receiptId, errMsg, issuer) {
     facts.innerHTML = '';
     if (payload) {
         let rows;
-        if (payload.t === 'ledger') {
+        if (payload.t === 'transcript') {
+            rows = [
+                ['Receipt type', '<strong>GRADEBOOK SUMMARY (report card)</strong>'],
+                ['Signing issuer', issuer ? `<strong>${esc(issuer.name)}</strong>` : '—'],
+                ['What it proves', 'A report-card receipt — proves the class server\'s recorded grade for this student at the time shown. The full item-by-item transcript is verified separately (drag the .json into Verify transcript).'],
+                ['Student', payload.u ? esc(payload.u) : '—'],
+                ['Student ID', payload.sid ? esc(String(payload.sid).slice(0, 8)) + '…' : '—'],
+                ['Grade', `${esc(payload.g)}% (${esc(payload.gq)})`],
+                ['Items sealed', esc(payload.cnt)],
+                ['Completeness root', payload.root ? esc(String(payload.root).slice(0, 16)) + '…' : '—'],
+                ['Sealed', fmtTime(payload.asOf || payload.ts)],
+            ];
+        } else if (payload.t === 'ledger') {
             rows = [
                 ['Receipt type', `<strong>${receiptLabel(payload)}</strong>`],
                 ['Signing issuer', issuer ? `<strong>${esc(issuer.name)}</strong>` : '—'],
@@ -404,11 +416,13 @@ function show(ok, payload, receiptId, errMsg, issuer) {
             ];
             if (isVerdict) rows.push(['Score', `<span class="score-${esc(payload.s)}">${esc(payload.s)}</span>`]);
         }
-        rows.push(
-            ['Server time', fmtTime(payload.ts)],
-            ['Answer hash', esc(payload.ah)],
-            ['Receipt ID', receiptId ? receiptId.slice(0, 12) + '…' : '—'],
-        );
+        if (payload.t !== 'transcript') {
+            rows.push(
+                ['Server time', fmtTime(payload.ts)],
+                ['Answer hash', esc(payload.ah)],
+                ['Receipt ID', receiptId ? receiptId.slice(0, 12) + '…' : '—'],
+            );
+        }
         for (const [k, v] of rows) {
             facts.insertAdjacentHTML('beforeend', `<dt>${k}</dt><dd>${v}</dd>`);
         }
