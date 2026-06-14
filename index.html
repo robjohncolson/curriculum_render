@@ -1016,6 +1016,8 @@
             // "Guest" = a typed/random name (e.g. "player1651") with no real name,
             // no answers, and not even Fruit_Animal-shaped. These are the "who is this?" avatars.
             isGuest(username) {
+                // Signed-out "Guest_…" identities are always guests, regardless of work done.
+                if (/^guest_/i.test(String(username || '').trim())) return true;
                 return !this.realName(username) && this.answerCount(username) === 0 && !this.looksLikePseudonym(username);
             },
             displayLabel(username) {

@@ -1658,6 +1658,25 @@ app.post('/api/roster/assign', async (req, res) => {
   }
 });
 
+// Return all answers for one username (case-insensitive) — powers the guest
+// "download my work" backup and roster migration. Read-only.
+app.get('/api/user-answers/:username', async (req, res) => {
+  try {
+    const username = (req.params.username || '').trim();
+    if (!username) return res.status(400).json({ error: 'username required' });
+    const { data, error } = await supabase
+      .from('answers')
+      .select('username, question_id, answer_value, timestamp, updated_at')
+      .ilike('username', username);
+    if (error) throw error;
+    const rows = (data || []).filter(r => (r.username || '').toLowerCase() === username.toLowerCase());
+    res.json({ username, count: rows.length, answers: rows });
+  } catch (error) {
+    console.error('Error fetching user answers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get orphaned usernames (usernames with answers but no user record)
 app.get('/api/identity-claims/orphans', async (req, res) => {
   try {
