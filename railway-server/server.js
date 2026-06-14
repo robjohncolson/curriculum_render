@@ -1677,6 +1677,42 @@ app.get('/api/user-answers/:username', async (req, res) => {
   }
 });
 
+// Reconcile a guest's work into a roster student (teacher QR-scanner flow):
+// re-key the guest's answers onto the target username; target wins on collision.
+// Optional ROSTER_ADMIN_TOKEN gate (passed as adminToken).
+app.post('/api/guest/reconcile', async (req, res) => {
+  try {
+    if (process.env.ROSTER_ADMIN_TOKEN && req.body?.adminToken !== process.env.ROSTER_ADMIN_TOKEN) {
+      return res.status(403).json({ error: 'Not authorized to reconcile' });
+    }
+    const guest = (req.body?.guestUsername || '').trim();
+    const target = (req.body?.targetUsername || '').trim();
+    if (!guest || !target) return res.status(400).json({ error: 'guestUsername and targetUsername required' });
+    if (guest.toLowerCase() === target.toLowerCase()) return res.status(400).json({ error: 'guest and target are the same' });
+
+    // Drop guest rows for questions the target already answered, then re-key the rest.
+    const { data: tRows, error: tErr } = await supabase.from('answers').select('question_id').eq('username', target);
+    if (tErr) throw tErr;
+    const targetSet = new Set((tRows || []).map(r => r.question_id));
+    const { data: gRows, error: gErr } = await supabase.from('answers').select('question_id').eq('username', guest);
+    if (gErr) throw gErr;
+    const collisions = (gRows || []).map(r => r.question_id).filter(q => targetSet.has(q));
+    let deleted = 0;
+    for (const q of collisions) {
+      const { error } = await supabase.from('answers').delete().eq('username', guest).eq('question_id', q);
+      if (!error) deleted++;
+    }
+    const { data: moved, error: upErr } = await supabase
+      .from('answers').update({ username: target }).eq('username', guest).select('question_id');
+    if (upErr) throw upErr;
+    cache.lastUpdate = 0;
+    res.json({ success: true, guest, target, moved: (moved || []).length, deleted });
+  } catch (error) {
+    console.error('Error reconciling guest:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get orphaned usernames (usernames with answers but no user record)
 app.get('/api/identity-claims/orphans', async (req, res) => {
   try {
