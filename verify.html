@@ -642,6 +642,98 @@ document.getElementById('keyTag').textContent =
 document.getElementById('keyTag').textContent =
     issuersForRun(hasTestModeFlag()).map(i => `${i.name} ${i.pubkey.slice(0, 8)}...`).join(' / ');
 
+// ── Session commit (proto-git) verification ──
+// A commit QR carries { v, m: manifest, r: [receipts] }. Verify the manifest
+// signature, every member receipt, recompute the root over the receipt ids, and
+// confirm it matches — same guarantees as the sealed transcript, scoped to one
+// QR-sized session chunk. The `prev` field links it into the commit chain.
+async function verifyCommitDoc(doc) {
+    if (!doc || typeof doc.m !== 'string' || !doc.m.trim()) throw new Error('Commit manifest is missing.');
+    if (!Array.isArray(doc.r)) throw new Error('Commit receipts must be an array.');
+    const manifest = await verifyReceipt(doc.m, { includeTestKeys: false });
+    if (!manifest.ok) return { ok: false, reason: 'Commit manifest signature invalid or not signed by a production issuer.', manifest, members: [] };
+    if (manifest.issuer && manifest.issuer.test) return { ok: false, reason: 'Commit was signed by a TEST issuer, not a production issuer.', manifest, members: [] };
+    if (manifest.payload.t !== 'commit') return { ok: false, reason: 'Manifest is signed, but is not a commit.', manifest, members: [] };
+    const members = [];
+    for (const compact of doc.r) {
+        try { members.push(await verifyReceipt(compact, { includeTestKeys: false })); }
+        catch { members.push({ ok: false, payload: null, receiptId: null }); }
+    }
+    if (members.some(m => !m.ok)) return { ok: false, reason: 'One or more answers in this commit failed signature verification.', manifest, members };
+    const ids = members.map(m => m.receiptId);
+    if (new Set(ids).size !== ids.length) return { ok: false, reason: 'Commit contains duplicate receipts.', manifest, members };
+    const root = await sha256HexText(ids.slice().sort().join('\n'));
+    if (root !== manifest.payload.root) return { ok: false, reason: 'Commit root does not match its receipts — altered or incomplete.', manifest, members };
+    if (manifest.payload.cnt !== members.length) return { ok: false, reason: 'Commit count does not match the receipts.', manifest, members };
+    const sid = manifest.payload.sid;
+    if (members.some(m => m.payload && m.payload.sid && m.payload.sid !== sid)) return { ok: false, reason: 'Commit mixes receipts from different students.', manifest, members };
+    return { ok: true, reason: null, manifest, members };
+}
+
+function showCommit(result) {
+    const ok = result.ok;
+    document.querySelectorAll('.breakdown, .receipt-list').forEach(el => el.remove());
+    stage.classList.add('show');
+    facts.classList.remove('show');
+    reasonEl.textContent = '';
+    seal.className = 'seal ' + (ok ? 'ok' : 'fail');
+    document.getElementById('sealWord').textContent = ok ? 'SIGNED COMMIT' : 'INVALID';
+    document.getElementById('sealSub').textContent = ok ? 'ED25519 · THE DESK' : 'COMMIT FAILED';
+    void seal.offsetWidth;
+    seal.classList.add('stamp');
+    if (!ok) {
+        inputPanel.classList.add('shake');
+        setTimeout(() => inputPanel.classList.remove('shake'), 450);
+        reasonEl.textContent = result.reason || 'This commit is altered, incomplete, or not signed by a production issuer.';
+    }
+    facts.innerHTML = '';
+    if (result.manifest) {
+        const p = result.manifest.payload || {};
+        const student = `${p.u ? esc(p.u) : '—'} (${p.sid ? esc(String(p.sid).slice(0, 8)) + '…' : 'no sid'})`;
+        const rows = [
+            ['Verdict', ok ? `✓ Signed session commit — ${result.members.length} item${result.members.length === 1 ? '' : 's'}, untampered` : `FAIL — ${esc(result.reason || 'invalid commit')}`],
+            ['Receipt type', '<strong>SESSION COMMIT (proto-git)</strong>'],
+            ['Student', student],
+            ['Commit #', esc(p.seq != null ? p.seq : '—')],
+            ['Answers in commit', esc(p.cnt != null ? p.cnt : result.members.length)],
+            ['Session window', (p.from ? fmtTime(p.from) : '—') + ' – ' + (p.to ? fmtTime(p.to) : '—')],
+            ['Chain link (prev)', p.prev ? esc(String(p.prev).slice(0, 16)) + '…' : 'genesis (first commit)'],
+            ['Commit root', p.root ? esc(String(p.root).slice(0, 16)) + '…' : '—'],
+            ['Issuer', result.manifest.issuer ? esc(result.manifest.issuer.name) : '—'],
+            ['Sealed', p.ts ? fmtTime(p.ts) : '—'],
+        ];
+        for (const [k, v] of rows) facts.insertAdjacentHTML('beforeend', `<dt>${k}</dt><dd>${v}</dd>`);
+        const list = document.createElement('details');
+        list.className = 'receipt-list';
+        list.innerHTML = `<summary>Show all ${result.members.length} answers in this commit</summary>`;
+        result.members.forEach((m, i) => {
+            const label = m.payload ? `${m.payload.src || m.payload.t || 'receipt'} ${m.payload.i || m.payload.q || ''}`.trim() : 'unreadable receipt';
+            list.insertAdjacentHTML('beforeend',
+                `<div class="receipt-row"><span class="${m.ok ? '' : 'bad'}">${esc(String(i + 1).padStart(3, '0'))} ${esc(label)}</span><span>${m.receiptId ? esc(m.receiptId.slice(0, 12)) + '…' : 'invalid'}</span></div>`);
+        });
+        facts.insertAdjacentElement('afterend', list);
+    }
+    requestAnimationFrame(() => facts.classList.add('show'));
+}
+
+async function runCommitDeep(b64) {
+    if (!window.crypto || !window.crypto.subtle) {
+        show(false, null, null, 'This browser does not support Web Crypto — try an updated Chrome, Edge, Firefox, or Safari.');
+        return;
+    }
+    let doc;
+    try {
+        let s = String(b64).replace(/-/g, '+').replace(/_/g, '/');
+        while (s.length % 4) s += '=';
+        doc = JSON.parse(decodeURIComponent(escape(atob(s))));
+    } catch (e) {
+        showCommit({ ok: false, reason: 'Commit QR payload is not readable.', manifest: null, members: [] });
+        return;
+    }
+    try { showCommit(await verifyCommitDoc(doc)); }
+    catch (e) { showCommit({ ok: false, reason: e.message, manifest: null, members: [] }); }
+}
+
 // QR deep-link: verify.html#r=<compact>
 (function () {
     const m = location.hash.match(/[#&]r=([^&]+)/);
@@ -650,6 +742,12 @@ document.getElementById('keyTag').textContent =
         receiptIn.value = compact;
         run(compact);
     }
+})();
+
+// QR deep-link: verify.html#commit=<base64url({m,r})>
+(function () {
+    const m = location.hash.match(/[#&]commit=([^&]+)/);
+    if (m) runCommitDeep(m[1]);
 })();
 
 transcriptFile.addEventListener('change', async () => {
