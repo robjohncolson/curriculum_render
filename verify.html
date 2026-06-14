@@ -178,6 +178,59 @@
     footer { margin-top: auto; padding-top: 36px; color: #475569; font-size: .78rem; text-align: center; z-index: 1; }
     footer code { color: #64748b; }
     #rain { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+    /* ───────── UI polish ───────── */
+    h1 {
+        background: linear-gradient(92deg, #c7d2fe, #a7f3d0 58%, #fbcfe8);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        font-weight: 800;
+    }
+    .sub { line-height: 1.5; }
+    .panel { box-shadow: 0 20px 55px rgba(0,0,0,.38); }
+
+    /* a verdict glyph stamped inside the seal + a crisper embossed ring */
+    .seal { gap: 0; position: relative; }
+    .seal::before { font-size: 2.5rem; line-height: 1; margin-bottom: 2px; font-weight: 400; opacity: .92; }
+    .seal.ok::before  { content: '✓'; }
+    .seal.fail::before { content: '✕'; }
+    .seal.ok  { box-shadow: 0 0 55px rgba(52,211,153,.28), inset 0 0 0 2px rgba(52,211,153,.18), inset 0 0 26px rgba(52,211,153,.14); }
+    .seal.fail { box-shadow: 0 0 55px rgba(248,113,113,.24), inset 0 0 0 2px rgba(248,113,113,.18), inset 0 0 26px rgba(248,113,113,.12); }
+    .seal .big { font-size: 1.05rem; }
+    .seal .small { margin-top: 5px; }
+
+    /* facts: scannable rows with quiet dividers + uppercase labels */
+    .facts { grid-template-columns: 144px 1fr; gap: 0; max-width: 540px; }
+    .facts dt, .facts dd { padding: 9px 6px; border-bottom: 1px solid rgba(148,163,184,.14); align-self: start; }
+    .facts dt {
+        text-transform: uppercase; letter-spacing: .06em; font-size: .72rem;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; padding-top: 11px;
+    }
+    .facts dd { font-size: .9rem; }
+    /* the first row is the verdict — read it as a banner, not monospace data */
+    .facts dt:first-of-type, .facts dd:first-of-type { border-bottom: 1px solid rgba(148,163,184,.3); }
+    .facts dd:first-of-type {
+        color: var(--ink); font-weight: 600;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* failure reason reads as a soft alert pill (hidden when empty) */
+    #reason {
+        background: rgba(248,113,113,.10); border: 1px solid rgba(248,113,113,.34);
+        border-radius: 10px; padding: 10px 14px;
+    }
+    #reason:empty { display: none; }
+
+    details.receipt-list summary { transition: color .15s; }
+    details.receipt-list summary:hover { color: var(--accent); }
+
+    @media (max-width: 540px) {
+        .facts { grid-template-columns: 1fr; }
+        .facts dt { text-align: left; border-bottom: 0; padding: 8px 6px 0; }
+        .facts dd { padding-top: 2px; }
+        .facts dt:first-of-type { border-bottom: 0; }
+        .seal { width: 140px; height: 140px; }
+        .seal::before { font-size: 2.1rem; }
+    }
 </style>
 </head>
 <body>
