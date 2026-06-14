@@ -305,20 +305,17 @@ review.
 
 Tracked here so they aren't lost. Build order is a suggestion, not a dependency chain.
 
-- **§1B — worksheet server-side recompute.** The last client-supplied-score path:
-  bundle a `worksheet-key.json`, recompute `WS-*` blank scores in `mountLedger` using
-  the shipped `normalizeWorksheetGrades` semantics, keep AI as upgrade-only. Tightens
-  honesty of `sc` for worksheets (currently labeled `g:'self'`).
-- **Backfill A1 — sign the original work time on backfilled receipts.** The transcript
-  back-fill (D2) and any bulk backfill currently sign `ts = Date.now()`. Add an optional
-  `ts` to `issueLedgerReceipt` and pass the row's `recorded_at`, so a backfilled receipt
-  attests *when the work was actually done*, not when it was sealed.
-- **Backfill A2 — proactive bulk backfill of receiptless ledger rows.** A one-time
-  `scripts/backfill-receipts.mjs` (or a teacher-gated admin endpoint) that walks every
-  roster student, finds `item_ledger` rows with `receipt_compact IS NULL`, and signs +
-  persists a receipt for each (using A1's original-time fix). Effect: every student's
-  *already-done* work shows up in the wallet immediately, not only when a transcript is
-  exported. ~1 day; depends on A1 for correct timestamps.
+- **✅ §1B — worksheet server-side recompute (DONE 2026-06-14).** `build-worksheet-key.mjs`
+  harvests WS blank answers (2293 across 68 worksheets) into a bundled
+  `worksheet-key.json`; `/ledger/record` recomputes `source=worksheet` scores via the
+  exact client `checkAnswer` semantics and signs `g:'key'`; keyless items stay
+  `g:'self'` (never wrongly lowered). The last client-supplied-score path is closed.
+- **✅ Backfill A1 — original work time on backfilled receipts (DONE 2026-06-14).**
+  `issueLedgerReceipt` takes an optional `ts`; the transcript back-fill signs each
+  backfilled receipt with the row's `recorded_at`.
+- **✅ Backfill A2 — bulk backfill (DONE 2026-06-14).** `backfill.js`
+  `backfillStudentReceipts` (shared with the transcript endpoint) + teacher-gated
+  `POST /class/backfill-receipts` (per-section, idempotent).
 - **Backfill B — ingest non-ledger historical work.** Work that never reached
   `item_ledger` (direct browser→Supabase `answers` writes, LAN/offline submissions,
   pre-feeder work) has nothing to backfill from. Needs an ingestion job that reads the
