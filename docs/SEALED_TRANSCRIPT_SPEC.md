@@ -316,21 +316,27 @@ Tracked here so they aren't lost. Build order is a suggestion, not a dependency 
 - **✅ Backfill A2 — bulk backfill (DONE 2026-06-14).** `backfill.js`
   `backfillStudentReceipts` (shared with the transcript endpoint) + teacher-gated
   `POST /class/backfill-receipts` (per-section, idempotent).
-- **Backfill B — ingest non-ledger historical work.** Work that never reached
-  `item_ledger` (direct browser→Supabase `answers` writes, LAN/offline submissions,
-  pre-feeder work) has nothing to backfill from. Needs an ingestion job that reads the
-  `answers` table (and any other sources), maps each to a ledger item, and inserts the
-  ledger rows so they become receiptable. **Gated on identity reconciliation:** `answers`
-  is keyed by the legacy Fruit_Animal username, not `student_id`, so this must run after
-  / alongside the orphan/identity-claim mapping. Bigger; data-quality sensitive.
-- **Anti-replay freshness.** Optional server "as-of challenge" nonce so a teacher can
-  demand a transcript minted within a window, beyond the signed `asOf` (phase 2).
-- **Print/QR summary.** Optional one-page printable summary + a QR of the manifest
-  (Tier-A report-card receipt) from the wallet export.
-- **Independent grade recompute in the verifier.** Bundle the answer-key + grade engine
-  into `verify.html` so it re-derives the grade and checks it against the signed `g`
-  (currently the verifier trusts the signed `g`; `artHash`/`cfgHash`/`codeHash` already
-  let it *detect* drift).
+- **🟡 Backfill B — ingest non-ledger historical work (DRY-RUN TOOL DONE 2026-06-14; `--apply` not yet run).**
+  `scripts/ingest-answers-to-ledger.mjs` reports scope (maps via `roster_alias`→
+  `login_username`, classifies ids, skips ledger-existing) and only writes with
+  `--apply`. The legacy-username→`student_id` mapping is best-effort and the
+  `--apply` insert is a teacher decision after reviewing a dry run. Remaining:
+  improve the mapping coverage (most `answers` usernames are unmapped without a
+  populated alias table) before any apply.
+- **✅ Anti-replay freshness advisory (DONE 2026-06-14).** verify.html shows an amber
+  advisory when a valid transcript is >14 days old or older than a previously-imported
+  one (`desk_verifier_seen`); advisory-only, crypto verdict unchanged.
+- **✅ Print/QR summary (DONE 2026-06-14).** Wallet "Print summary" → printable grade
+  page + a QR of `verify.html#r=<manifest>`; verify.html renders that manifest as a
+  "GRADEBOOK SUMMARY (report card)".
+- **⛔ Independent grade recompute in the verifier — DEFERRED (not worth the cost).**
+  Would require porting the ~52KB grade engine + artifacts into the static verifier.
+  The manifest's `artHash`/`cfgHash`/`codeHash` already give the verifier *drift
+  detection*; it trusts the cryptographically-signed `g`. Left as a large future item.
+
+**Open after this session:** only Backfill-B's `--apply` (gated on improving the
+legacy-username→`student_id` mapping) and the deferred independent grade recompute.
+Everything else in the spec is built, tested, and committed.
 
 ## 6. Decisions — RESOLVED 2026-06-13
 
