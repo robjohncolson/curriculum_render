@@ -7,15 +7,39 @@ class PlayerSprite {
     this.vy = 0;
     this.speed = 200;
     this.scale = 0.5;
-    // Get hue from localStorage with fallback (async IDB load happens later)
+    // Hue source of truth = the shared cross-app roster session
+    // (rosterClient.current().spriteHue) -- the SAME value the Desk's Live
+    // Classroom board renders -- so the avatar color stays consistent across
+    // apps and devices on any plain load, with NO re-sign-in. roster-client.js
+    // loads before this file and the session persists across refreshes, so the
+    // hue is available synchronously here when signed in. The picker still
+    // writes localStorage/IDB locally; we fall back to those only when there is
+    // no roster session hue (signed out, or hue never picked).
     this.hue = 0;
+    var rosterHue = null;
     try {
-      this.hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+      var rc = (typeof window !== 'undefined' && window.rosterClient &&
+                typeof window.rosterClient.current === 'function')
+        ? window.rosterClient.current() : null;
+      if (rc && typeof rc.spriteHue === 'number') { rosterHue = rc.spriteHue; }
     } catch (e) {
-      // localStorage may be blocked
+      // rosterClient may be unavailable
     }
-    // Also try to load from IDB asynchronously
-    this._loadHueFromIDB();
+    if (rosterHue !== null) {
+      this.hue = rosterHue;
+      // Converge the device-local stores so the async IDB load below can't
+      // clobber the roster value -- and so a later sign-out keeps a sane pick.
+      try { localStorage.setItem('spriteColorHue', String(rosterHue)); } catch (e) {}
+      this._saveHueToIDB(rosterHue);
+    } else {
+      try {
+        this.hue = parseInt(localStorage.getItem('spriteColorHue') || '0', 10);
+      } catch (e) {
+        // localStorage may be blocked
+      }
+      // Async IDB load only when there is no roster session hue to honor.
+      this._loadHueFromIDB();
+    }
     // Start with idle frame
     this.baseFrameIndex = 0; // Primary idle frame
     this.frameIndex = 0;
