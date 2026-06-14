@@ -63,6 +63,20 @@ function normalizeTimestamp(timestamp) {
   return timestamp;
 }
 
+// Canonicalize usernames to Title_Case so the same student can't fork into
+// case-variant orphans (e.g. 'date_tiger' from a worksheet vs 'Date_Tiger' from
+// the main app). Idempotent for already-normalized names. Mirrors the client
+// normalizeUsername in js/auth.js. This is the single chokepoint for every write.
+function normalizeUsername(username) {
+  if (!username || typeof username !== 'string') return username;
+  return username
+    .trim()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('_');
+}
+
 function receiptUsernameFromBody(body) {
   return body?.username || body?.studentUsername || body?.user ||
     body?.scenario?.username || body?.scenario?.studentUsername || body?.scenario?.user || '';
@@ -227,7 +241,8 @@ app.get('/api/question-stats/:questionId', async (req, res) => {
 // Submit answer (proxies to Supabase and broadcasts via WebSocket)
 app.post('/api/submit-answer', async (req, res) => {
   try {
-    const { username, question_id, answer_value, timestamp } = req.body;
+    const { username: rawUsername, question_id, answer_value, timestamp } = req.body;
+    const username = normalizeUsername(rawUsername);
     const sid = sidFromRequest(req);
 
     // Normalize timestamp
@@ -307,7 +322,7 @@ app.post('/api/batch-submit', async (req, res) => {
 
     // Normalize all timestamps
     const normalizedAnswers = answers.map(answer => ({
-      username: answer.username,
+      username: normalizeUsername(answer.username),
       question_id: answer.question_id,
       answer_value: answer.answer_value,
       timestamp: normalizeTimestamp(answer.timestamp || Date.now())
@@ -1612,6 +1627,33 @@ app.get('/api/students', async (req, res) => {
 
   } catch (error) {
     console.error('Error getting students:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Assign / update the real name behind a username (roster seeding for identity
+// traceability). Username is normalized so the roster can't case-fork either.
+// Optional hardening: set ROSTER_ADMIN_TOKEN in the env and pass it as `adminToken`;
+// when that env var is unset the endpoint is open (for first-run seeding).
+app.post('/api/roster/assign', async (req, res) => {
+  try {
+    if (process.env.ROSTER_ADMIN_TOKEN && req.body?.adminToken !== process.env.ROSTER_ADMIN_TOKEN) {
+      return res.status(403).json({ error: 'Not authorized to edit the roster' });
+    }
+    const username = normalizeUsername(req.body?.username);
+    const realName = (req.body?.real_name || '').toString().trim();
+    if (!username || !realName) {
+      return res.status(400).json({ error: 'username and real_name are required' });
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .upsert([{ username, real_name: realName, user_type: 'student' }], { onConflict: 'username' })
+      .select('username, real_name, user_type');
+
+    if (error) throw error;
+    res.json({ success: true, student: (data && data[0]) || { username, real_name: realName } });
+  } catch (error) {
+    console.error('Error assigning roster name:', error);
     res.status(500).json({ error: error.message });
   }
 });

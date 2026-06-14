@@ -850,10 +850,19 @@
             });
         }
 
+        // Canonicalize to Title_Case so worksheet answers can't fork into case-variant
+        // orphans (e.g. 'date_tiger' vs 'Date_Tiger'). Mirrors js/auth.js normalizeUsername;
+        // the Railway server normalizes too, so this mainly keeps the local display consistent.
+        function normalizeUsername(name) {
+            if (!name || typeof name !== 'string') return name;
+            return name.trim().split(/[_\s]+/).filter(Boolean)
+                .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join('_');
+        }
         function getUsername() {
             const usernameField = document.getElementById('worksheetUsername');
             const nameField = document.getElementById('studentName');
-            const username = (usernameField?.value || '').trim();
+            const username = normalizeUsername((usernameField?.value || '').trim());
+            if (usernameField && username) usernameField.value = username;
             if (username) {
                 // Remember locally to reduce friction
                 try {

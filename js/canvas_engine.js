@@ -8,6 +8,7 @@ class CanvasEngine {
     this.labelFont = '12px Arial';
     this.labelColor = '#FFFFFF';
     this.labelGoldColor = '#FFD700';
+    this.labelGuestColor = '#F4A0A0'; // unverified "guest" names (not a known student)
     this.labelYOffset = 6;
     this.resize = this.resize.bind(this);
     this.resize();
@@ -72,7 +73,7 @@ class CanvasEngine {
       if (!entity.getLabelSpec) return;
       const spec = entity.getLabelSpec();
       if (!spec) return;
-      this.ctx.fillStyle = spec.isGold ? this.labelGoldColor : this.labelColor;
+      this.ctx.fillStyle = spec.isGold ? this.labelGoldColor : (spec.isGuest ? this.labelGuestColor : this.labelColor);
       this.ctx.fillText(spec.text, spec.x, spec.y - this.labelYOffset);
     });
     this.ctx.restore();

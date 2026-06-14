@@ -145,11 +145,22 @@ class PeerSprite {
   getLabelSpec() {
     const centerX = this.x + this.size.width / 2;
     const topY = this.y;
+    // Resolve the pseudonym to a real name when the roster knows it, and flag
+    // unverified "guest" names so any avatar is traceable to a real student.
+    let text = this.username;
+    let isGuest = false;
+    try {
+      if (typeof window !== 'undefined') {
+        if (typeof window.resolvePeerLabel === 'function') text = window.resolvePeerLabel(this.username) || this.username;
+        if (typeof window.isGuestUsername === 'function') isGuest = !!window.isGuestUsername(this.username);
+      }
+    } catch (e) { /* fall back to raw username */ }
     return {
-      text: this.username,
+      text,
       x: centerX,
       y: topY,
-      isGold: (this.goldTimer > 0 && !this.deferGoldUntilSuspended)
+      isGold: (this.goldTimer > 0 && !this.deferGoldUntilSuspended),
+      isGuest
     };
   }
 }

@@ -141,6 +141,10 @@
                 <span class="fab-item-icon">👤</span>
                 <span class="fab-item-label">User</span>
             </button>
+            <button class="fab-item who-online-button" onclick="toggleWhoOnlinePanel()" title="Who's online">
+                <span class="fab-item-icon">👥</span>
+                <span class="fab-item-label">Online</span>
+            </button>
             <button class="fab-item sprite-config-toggle" onclick="showSpriteConfigModal()" title="Sprite settings">
                 <span class="fab-item-icon">🎮</span>
                 <span class="fab-item-label">Sprite</span>
@@ -968,6 +972,161 @@
 
         // Expose for use in auth.js
         window.fetchStudentList = fetchStudentList;
+
+        // ============================================================
+        // ROSTER IDENTITY — trace any avatar to a real student.
+        // Maps Fruit_Animal pseudonyms -> real names (users table) and flags
+        // unverified "guest" names (e.g. "player1651"). Powers avatar labels
+        // (js/entities/peer_sprite.js getLabelSpec) + the Who's Online panel.
+        // ============================================================
+        window.RosterIdentity = {
+            map: {},            // lowercased username -> real_name
+            loadedAt: 0,
+            async refresh(force = false) {
+                if (!force && this.loadedAt && (Date.now() - this.loadedAt) < 30000) return this.map;
+                try {
+                    const list = (typeof fetchStudentList === 'function') ? await fetchStudentList(force) : [];
+                    const m = {};
+                    (list || []).forEach(s => {
+                        if (s && s.username) m[String(s.username).trim().toLowerCase()] = (s.real_name || '').trim();
+                    });
+                    this.map = m;
+                    this.loadedAt = Date.now();
+                    if (whoOnlinePanelOpen()) renderWhoOnlinePanel();
+                } catch (e) { /* keep stale map */ }
+                return this.map;
+            },
+            realName(username) {
+                if (!username) return '';
+                return this.map[String(username).trim().toLowerCase()] || '';
+            },
+            answerCount(username) {
+                try {
+                    const users = (window.classData && window.classData.users) || {};
+                    const key = Object.keys(users).find(k => String(k).trim().toLowerCase() === String(username).trim().toLowerCase());
+                    if (key && users[key] && users[key].answers) return Object.keys(users[key].answers).length;
+                } catch (e) {}
+                return 0;
+            },
+            // A name that follows the Fruit_Animal shape is a recognized pseudonym
+            // even if we don't yet have its real name or any answers cached.
+            looksLikePseudonym(username) {
+                return /^[A-Za-z]+_[A-Za-z]+$/.test(String(username || '').trim());
+            },
+            // "Guest" = a typed/random name (e.g. "player1651") with no real name,
+            // no answers, and not even Fruit_Animal-shaped. These are the "who is this?" avatars.
+            isGuest(username) {
+                return !this.realName(username) && this.answerCount(username) === 0 && !this.looksLikePseudonym(username);
+            },
+            displayLabel(username) {
+                const real = this.realName(username);
+                if (real) return real;
+                return this.isGuest(username) ? (username + ' ❓') : username;
+            }
+        };
+        window.resolvePeerLabel = (u) => { try { return window.RosterIdentity.displayLabel(u); } catch (e) { return u; } };
+        window.isGuestUsername = (u) => { try { return window.RosterIdentity.isGuest(u); } catch (e) { return false; } };
+
+        // Teacher mode unlocks roster editing. Add ?teacher=1 to the URL once; it sticks.
+        function isTeacherMode() {
+            try {
+                if (new URLSearchParams(location.search).has('teacher')) localStorage.setItem('cr_teacher', '1');
+                return localStorage.getItem('cr_teacher') === '1';
+            } catch (e) { return false; }
+        }
+
+        // ---- Who's Online panel ----------------------------------------------
+        function _rEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function _rId(s){ return String(s).replace(/[^a-zA-Z0-9_-]/g,'_'); }
+        function _rJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+        function whoOnlinePanelOpen(){ const p = document.getElementById('whoOnlinePanel'); return !!(p && p.style.display !== 'none'); }
+        function ensureWhoOnlinePanel(){
+            let p = document.getElementById('whoOnlinePanel');
+            if (p) return p;
+            p = document.createElement('div');
+            p.id = 'whoOnlinePanel';
+            p.style.cssText = 'position:fixed;top:64px;right:12px;z-index:9999;width:300px;max-height:70vh;overflow:auto;'
+                + 'background:var(--card-bg,#fff);color:var(--text-color,#222);border:1px solid rgba(0,0,0,.15);'
+                + 'border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:12px;display:none;font-size:14px';
+            p.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+                + '<strong style="font-size:15px">👥 Who’s Online</strong>'
+                + '<button onclick="toggleWhoOnlinePanel()" aria-label="Close" style="border:none;background:none;font-size:18px;cursor:pointer;line-height:1">×</button>'
+                + '</div><div id="whoOnlineList"></div>'
+                + '<div id="whoOnlineHint" style="margin-top:8px;font-size:12px;opacity:.7"></div>';
+            document.body.appendChild(p);
+            return p;
+        }
+        window.toggleWhoOnlinePanel = function(){
+            const p = ensureWhoOnlinePanel();
+            if (p.style.display === 'none') {
+                p.style.display = 'block';
+                window.RosterIdentity.refresh(true);
+                renderWhoOnlinePanel();
+            } else {
+                p.style.display = 'none';
+            }
+        };
+        function renderWhoOnlinePanel(){
+            const listEl = document.getElementById('whoOnlineList');
+            if (!listEl) return;
+            const me = (window.currentUsername || '').trim().toLowerCase();
+            const online = Array.from((window.onlineUsers || [])).filter(u => u && String(u).trim().toLowerCase() !== me);
+            const R = window.RosterIdentity;
+            online.sort((a, b) => R.displayLabel(a).localeCompare(R.displayLabel(b)));
+            const teacher = isTeacherMode();
+            if (online.length === 0) {
+                listEl.innerHTML = '<div style="opacity:.7;padding:6px 0">No other students online right now.</div>';
+            } else {
+                listEl.innerHTML = online.map(u => {
+                    const real = R.realName(u);
+                    const count = R.answerCount(u);
+                    const guest = R.isGuest(u);
+                    let badge, title;
+                    if (real) {
+                        badge = '<span style="color:#1a7f37;white-space:nowrap">✓ ' + count + ' ans</span>';
+                        title = '<strong>' + _rEsc(real) + '</strong> <span style="opacity:.6">(' + _rEsc(u) + ')</span>';
+                    } else if (guest) {
+                        badge = '<span style="color:#c0392b;white-space:nowrap">❓ guest</span>';
+                        title = '<strong>' + _rEsc(u) + '</strong>';
+                    } else {
+                        badge = '<span style="color:#b8860b;white-space:nowrap">✓ ' + count + ' ans · unnamed</span>';
+                        title = '<strong>' + _rEsc(u) + '</strong>';
+                    }
+                    const assign = teacher
+                        ? '<div style="margin-top:4px;display:flex;gap:4px">'
+                          + '<input id="rn_' + _rId(u) + '" placeholder="real name" value="' + _rEsc(real) + '" '
+                          + 'style="flex:1;min-width:0;padding:4px;font-size:12px;border:1px solid #ccc;border-radius:6px" />'
+                          + '<button onclick="assignRealName(\'' + _rJs(u) + '\')" style="padding:4px 8px;font-size:12px;cursor:pointer">Save</button></div>'
+                        : '';
+                    return '<div style="padding:6px 0;border-bottom:1px solid rgba(0,0,0,.06)">'
+                        + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">'
+                        + '<span>' + title + '</span>' + badge + '</div>' + assign + '</div>';
+                }).join('');
+            }
+            const hint = document.getElementById('whoOnlineHint');
+            if (hint) hint.textContent = teacher
+                ? 'Teacher mode: type a real name and Save to label an avatar.'
+                : 'Tip: add ?teacher=1 to the URL to assign real names.';
+        }
+        window.assignRealName = async function(username){
+            const input = document.getElementById('rn_' + _rId(username));
+            const realName = input ? input.value.trim() : '';
+            if (!realName) { alert('Enter a real name first.'); return; }
+            const base = window.RAILWAY_SERVER_URL || '';
+            try {
+                const res = await fetch(base + '/api/roster/assign', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, real_name: realName })
+                });
+                const out = await res.json();
+                if (!res.ok || !out.success) throw new Error(out.error || 'Save failed');
+                await window.RosterIdentity.refresh(true);
+                renderWhoOnlinePanel();
+            } catch (e) { alert('Could not save name: ' + e.message); }
+        };
+        // Keep the panel live and the roster fresh as presence / connection changes.
+        window.addEventListener('presenceChanged', () => { if (whoOnlinePanelOpen()) renderWhoOnlinePanel(); });
+        window.addEventListener('turboModeChanged', (e) => { if (e && e.detail && e.detail.enabled) window.RosterIdentity.refresh(true); });
 
         // Push answer to Supabase (single-answer path)
         // Added timestamp conflict detection to match batch sync behavior
@@ -2615,9 +2774,22 @@
         }
 
         // Smart sync - only sync new or updated answers (current user only)
+        let _smartSyncPromise = null;
+        // Re-run restore/sync the instant turbo mode connects. Covers the race where the
+        // student logs in BEFORE Supabase finishes connecting: the login-time smartSync
+        // bails at the turbo guard below, so without this the cloud restore never fires.
+        window.addEventListener('turboModeChanged', (e) => {
+            if (e && e.detail && e.detail.enabled) {
+                const u = (window.currentUsername || safeGetItem('consensusUsername') || '').trim();
+                if (u) { smartSyncWithSupabase(); }
+            }
+        });
         async function smartSyncWithSupabase() {
             if (!turboModeActive || !supabaseClient) return false;
-
+            // De-dupe overlapping runs (the turbo-connect listener and initializeTurboMode
+            // can fire together) so the restore confirm() can never pop up twice.
+            if (_smartSyncPromise) return _smartSyncPromise;
+            _smartSyncPromise = (async () => {
             try {
                 console.log('🔄 Starting smart sync with Supabase...');
 
@@ -2653,11 +2825,17 @@
                     console.log('🆕 No local answers detected - checking Supabase for existing data...');
                     updateSyncState({ status: 'syncing', message: 'Checking cloud...' });
 
-                    // Fetch user's answers from Supabase
-                    const { data: cloudAnswers, error: fetchError } = await supabaseClient
+                    // Fetch user's answers from Supabase. Case-insensitive so legacy or
+                    // worksheet rows saved under a different casing (e.g. 'date_tiger' vs
+                    // 'Date_Tiger') are still found. ilike treats '_' as a wildcard, so we
+                    // re-filter to an exact case-insensitive match client-side.
+                    const { data: cloudAnswersRaw, error: fetchError } = await supabaseClient
                         .from('answers')
-                        .select('question_id, answer_value, timestamp')
-                        .eq('username', currentUser);
+                        .select('username, question_id, answer_value, timestamp')
+                        .ilike('username', currentUser);
+                    const cloudAnswers = (cloudAnswersRaw || []).filter(
+                        r => (r.username || '').toLowerCase() === currentUser.toLowerCase()
+                    );
 
                     if (fetchError) {
                         console.warn('Failed to fetch from Supabase:', fetchError);
@@ -2800,19 +2978,25 @@
                     }
                 }
 
-                // Fetch only the current user's existing rows from Supabase (lightweight projection)
-                const { data: supabaseData, error } = await supabaseClient
+                // Fetch only the current user's existing rows from Supabase (lightweight projection).
+                // Case-insensitive so rows under a legacy casing are recognized and not re-uploaded
+                // as duplicates under the normalized name.
+                const { data: supabaseDataRaw, error } = await supabaseClient
                     .from('answers')
                     .select('username,question_id,timestamp')
-                    .eq('username', currentUser);
+                    .ilike('username', currentUser);
 
                 if (error) throw error;
 
-                // Create a map of existing Supabase data for quick lookup
+                const supabaseData = (supabaseDataRaw || []).filter(
+                    r => (r.username || '').toLowerCase() === currentUser.toLowerCase()
+                );
+
+                // Map existing rows by question_id (a user has at most one row per question,
+                // regardless of casing) so the new/update/skip diff is casing-proof.
                 const supabaseMap = {};
                 (supabaseData || []).forEach(answer => {
-                    const key = `${answer.username}_${answer.question_id}`;
-                    supabaseMap[key] = answer;
+                    supabaseMap[answer.question_id] = answer;
                 });
 
                 let newCount = 0;
@@ -2831,8 +3015,7 @@
                         timestamp = new Date(timestamp).getTime();
                     }
 
-                    const key = `${currentUser}_${questionId}`;
-                    const existingAnswer = supabaseMap[key];
+                    const existingAnswer = supabaseMap[questionId];
 
                     if (!existingAnswer) {
                         if (await pushAnswerToSupabase(currentUser, questionId, value, timestamp)) {
@@ -2866,6 +3049,8 @@
                 updateSyncState({ status: 'error', message: error.message });
                 return false;
             }
+            })().finally(() => { _smartSyncPromise = null; });
+            return _smartSyncPromise;
         }
 
 // --- START: NEW Real-Time Update Handling System ---
