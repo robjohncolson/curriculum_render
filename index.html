@@ -282,6 +282,27 @@
                         try { updateCurrentUsernameDisplay(); } catch (_) {}
                     }
                 }
+                // U3 hue sync: the quiz avatar hue lives in device-local
+                // storage (localStorage 'spriteColorHue' + IDB), so a color
+                // picked on one device never appeared on another -- or in the
+                // Desk's Live Classroom board, which reads roster.sprite_hue.
+                // Hydrate the local hue from the roster on sign-in so every
+                // surface converges on the picked color. Roster wins only when
+                // it carries a numeric hue; a null roster hue leaves the local
+                // pick untouched. Guarded -- sign-in must never break on this.
+                try {
+                    if (result && typeof result.spriteHue === 'number') {
+                        // Seed localStorage first so a sprite constructed later
+                        // reads the roster hue; setHue (when the sprite already
+                        // exists) also writes localStorage + IDB and the running
+                        // canvas repaints the new color immediately.
+                        try { localStorage.setItem('spriteColorHue', String(result.spriteHue)); } catch (_) {}
+                        if (typeof playerSprite !== 'undefined' && playerSprite &&
+                            typeof playerSprite.setHue === 'function') {
+                            playerSprite.setHue(result.spriteHue);
+                        }
+                    }
+                } catch (_) {}
                 refreshRosterStatus();
                 if (err) err.textContent = '';
                 window.closeRosterSignInModal();

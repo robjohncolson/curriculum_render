@@ -221,3 +221,48 @@ describe('U3 -- runtime: local save is NOT affected by roster errors', () => {
         expect(ctx.store.get('spriteColorHue')).toBe('180');
     });
 });
+
+// ---------------------------------------------------------------------------
+// 3. Sign-in hydrates the avatar hue FROM the roster (the read-back half).
+//    saveSpriteConfig (above) only WROTE sprite_hue to the roster; the quiz
+//    still read its hue solely from device-local localStorage/IDB and never
+//    the roster, so a hue picked on one device (or shown on the Desk's Live
+//    Classroom board, which reads roster.sprite_hue) never appeared in the
+//    quiz on another device. These pins guard the sign-in hydration path.
+// ---------------------------------------------------------------------------
+
+describe('U3 -- sign-in hydrates avatar hue from roster (structural)', () => {
+    // The sign-in success handler is an anonymous arrow, so slice the source
+    // region from the signIn() call to the modal close and assert on it --
+    // this also proves the hydration lives on the SIGN-IN path, not in the
+    // picker (saveSpriteConfig).
+    function signInRegion(src) {
+        const start = src.indexOf('rosterClient.signIn(');
+        const end   = src.indexOf('closeRosterSignInModal', start);
+        if (start < 0 || end < 0) throw new Error('sign-in region not found');
+        return src.slice(start, end);
+    }
+
+    let region;
+    beforeAll(() => { region = signInRegion(html); });
+
+    it('reads spriteHue off the signIn result', () => {
+        expect(region).toMatch(/result\.spriteHue/);
+    });
+
+    it('hydrates only when spriteHue is numeric (roster wins; null leaves the local pick)', () => {
+        expect(region).toMatch(/typeof\s+result\.spriteHue\s*===\s*'number'/);
+    });
+
+    it('applies the roster hue to the live sprite via playerSprite.setHue', () => {
+        expect(region).toMatch(/playerSprite\.setHue\s*\(\s*result\.spriteHue/);
+    });
+
+    it("seeds localStorage 'spriteColorHue' so a later-constructed sprite reads it", () => {
+        expect(region).toMatch(/localStorage\.setItem\(\s*'spriteColorHue'\s*,\s*String\(result\.spriteHue\)/);
+    });
+
+    it('guards the hydration in try/catch so sign-in never breaks on it', () => {
+        expect(region).toMatch(/try\s*\{[\s\S]*result\.spriteHue[\s\S]*\}\s*catch/);
+    });
+});
