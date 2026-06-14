@@ -1250,6 +1250,9 @@
             const nameField = document.getElementById('studentName');
             const username = normalizeUsername((usernameField?.value || '').trim());
             if (usernameField && username) usernameField.value = username;
+            // Announce identity for live presence so a student on this worksheet
+            // shows up in the "Online Now" feed (railway_client reads this global).
+            try { if (username) window.currentUsername = username; } catch (e) {}
             if (username) {
                 try {
                     localStorage.setItem(LOCAL_USER_KEY, JSON.stringify({
