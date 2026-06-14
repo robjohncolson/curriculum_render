@@ -151,6 +151,12 @@
     .facts .score-E { color: var(--good); font-weight: 700; }
     .facts .score-P { color: #fbbf24; font-weight: 700; }
     .facts .score-I { color: var(--bad); font-weight: 700; }
+    .facts .advisory {
+        color: #fbbf24;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+        font-weight: 700;
+        word-break: normal;
+    }
     .breakdown, .receipt-list {
         margin-top: 18px; width: 100%; max-width: 520px;
         border: 1px solid #334155; border-radius: 10px; overflow: hidden;
@@ -306,6 +312,12 @@ function fmtTime(ms) {
     });
 }
 
+function fmtDate(ms) {
+    return new Date(ms).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric'
+    });
+}
+
 function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -414,6 +426,36 @@ function sourceIcon(src) {
     return 'RC';
 }
 
+const TRANSCRIPT_STALE_MS = 14 * 24 * 60 * 60 * 1000;
+const TRANSCRIPT_SEEN_KEY = 'desk_verifier_seen';
+
+function transcriptFreshnessAdvisories(payload) {
+    const advisories = [];
+    const asOf = Number(payload && payload.asOf);
+    const sid = payload && payload.sid ? String(payload.sid) : '';
+
+    if (Number.isFinite(asOf) && asOf > 0 && Date.now() - asOf > TRANSCRIPT_STALE_MS) {
+        const days = Math.floor((Date.now() - asOf) / (24 * 60 * 60 * 1000));
+        advisories.push(`Sealed ${days} days ago (${esc(fmtDate(asOf))}) &mdash; ask for a fresh export if you need the current grade.`);
+    }
+
+    try {
+        if (Number.isFinite(asOf) && asOf > 0 && sid && window.localStorage) {
+            const seen = JSON.parse(localStorage.getItem(TRANSCRIPT_SEEN_KEY) || '{}');
+            const previous = Number(seen[sid]);
+            if (Number.isFinite(previous) && asOf < previous) {
+                advisories.push(`You previously imported a NEWER sealed transcript for this student (dated ${esc(fmtDate(previous))}). This one is older.`);
+            }
+            seen[sid] = Number.isFinite(previous) ? Math.max(previous, asOf) : asOf;
+            localStorage.setItem(TRANSCRIPT_SEEN_KEY, JSON.stringify(seen));
+        }
+    } catch {
+        // Freshness memory is advisory only; storage failures must not affect verdicts.
+    }
+
+    return advisories;
+}
+
 function showTranscript(result) {
     const ok = result.ok;
     document.querySelectorAll('.breakdown, .receipt-list').forEach(el => el.remove());
@@ -444,6 +486,11 @@ function showTranscript(result) {
             ['Manifest issuer', result.manifest.issuer ? esc(result.manifest.issuer.name) : '—'],
             ['Completeness root', esc(p.root || '—')],
         ];
+        if (ok) {
+            for (const advisory of transcriptFreshnessAdvisories(p)) {
+                rows.push(['STALENESS ADVISORY', `<span class="advisory">${advisory}</span>`]);
+            }
+        }
         for (const [k, v] of rows) {
             facts.insertAdjacentHTML('beforeend', `<dt>${k}</dt><dd>${v}</dd>`);
         }
