@@ -689,7 +689,7 @@ function showCommit(result) {
         const p = result.manifest.payload || {};
         const student = `${p.u ? esc(p.u) : '—'} (${p.sid ? esc(String(p.sid).slice(0, 8)) + '…' : 'no sid'})`;
         const rows = [
-            ['Verdict', ok ? `✓ Signed session commit — ${result.members.length} item${result.members.length === 1 ? '' : 's'}, untampered` : `FAIL — ${esc(result.reason || 'invalid commit')}`],
+            ['Verdict', (function () { const n = result.members.length || (p.cnt != null ? p.cnt : 0); return ok ? `✓ Signed session commit — ${n} item${n === 1 ? '' : 's'}` + (result.members.length ? ', untampered' : ' (manifest verified)') : `FAIL — ${esc(result.reason || 'invalid commit')}`; })()],
             ['Receipt type', '<strong>SESSION COMMIT (proto-git)</strong>'],
             ['Student', student],
             ['Commit #', esc(p.seq != null ? p.seq : '—')],
@@ -701,27 +701,49 @@ function showCommit(result) {
             ['Sealed', p.ts ? fmtTime(p.ts) : '—'],
         ];
         for (const [k, v] of rows) facts.insertAdjacentHTML('beforeend', `<dt>${k}</dt><dd>${v}</dd>`);
-        const list = document.createElement('details');
-        list.className = 'receipt-list';
-        list.innerHTML = `<summary>Show all ${result.members.length} answers in this commit</summary>`;
-        result.members.forEach((m, i) => {
-            const label = m.payload ? `${m.payload.src || m.payload.t || 'receipt'} ${m.payload.i || m.payload.q || ''}`.trim() : 'unreadable receipt';
-            list.insertAdjacentHTML('beforeend',
-                `<div class="receipt-row"><span class="${m.ok ? '' : 'bad'}">${esc(String(i + 1).padStart(3, '0'))} ${esc(label)}</span><span>${m.receiptId ? esc(m.receiptId.slice(0, 12)) + '…' : 'invalid'}</span></div>`);
-        });
-        facts.insertAdjacentElement('afterend', list);
+        if (result.members.length) {
+            const list = document.createElement('details');
+            list.className = 'receipt-list';
+            list.innerHTML = `<summary>Show all ${result.members.length} answers in this commit</summary>`;
+            result.members.forEach((m, i) => {
+                const label = m.payload ? `${m.payload.src || m.payload.t || 'receipt'} ${m.payload.i || m.payload.q || ''}`.trim() : 'unreadable receipt';
+                list.insertAdjacentHTML('beforeend',
+                    `<div class="receipt-row"><span class="${m.ok ? '' : 'bad'}">${esc(String(i + 1).padStart(3, '0'))} ${esc(label)}</span><span>${m.receiptId ? esc(m.receiptId.slice(0, 12)) + '…' : 'invalid'}</span></div>`);
+            });
+            facts.insertAdjacentElement('afterend', list);
+        }
     }
     requestAnimationFrame(() => facts.classList.add('show'));
 }
 
-async function runCommitDeep(b64) {
+// A signed commit manifest on its own (payload.sig) — the small, scannable QR
+// form. Its signed `root` already cryptographically commits to all its receipts,
+// so the signature alone proves the Desk attested to this session commit.
+async function verifyCommitManifestOnly(compact) {
+    const manifest = await verifyReceipt(compact, { includeTestKeys: false });
+    if (!manifest.ok) return { ok: false, reason: 'Commit manifest signature invalid or not signed by a production issuer.', manifest, members: [] };
+    if (manifest.issuer && manifest.issuer.test) return { ok: false, reason: 'Commit was signed by a TEST issuer, not a production issuer.', manifest, members: [] };
+    if (manifest.payload.t !== 'commit') return { ok: false, reason: 'Signed, but not a commit manifest.', manifest, members: [] };
+    return { ok: true, reason: null, manifest, members: [] };
+}
+
+async function runCommitDeep(raw) {
     if (!window.crypto || !window.crypto.subtle) {
         show(false, null, null, 'This browser does not support Web Crypto — try an updated Chrome, Edge, Firefox, or Safari.');
         return;
     }
+    const v = String(raw || '').trim();
+    // Manifest-only QR: a bare compact receipt (payload.sig). base64url has no '.',
+    // so a single dot reliably distinguishes it from the self-contained JSON form.
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(v)) {
+        try { showCommit(await verifyCommitManifestOnly(v)); }
+        catch (e) { showCommit({ ok: false, reason: e.message, manifest: null, members: [] }); }
+        return;
+    }
+    // Self-contained QR/link: base64url(JSON { m, r }) — manifest + every receipt.
     let doc;
     try {
-        let s = String(b64).replace(/-/g, '+').replace(/_/g, '/');
+        let s = v.replace(/-/g, '+').replace(/_/g, '/');
         while (s.length % 4) s += '=';
         doc = JSON.parse(decodeURIComponent(escape(atob(s))));
     } catch (e) {
