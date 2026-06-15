@@ -67,6 +67,12 @@
   </div>
   <div id="status"></div>
   <div id="rosterStatus" class="muted" style="margin-top:6px"></div>
+  <div id="signin-box" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+    <label for="si-user" style="margin-top:0">Teacher sign-in — enables the live gradebook cross-check on this device (one-time; stays signed in here)</label>
+    <div class="row"><input id="si-user" placeholder="teacher username" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username"></div>
+    <div class="row" style="margin-top:6px"><input id="si-pass" type="password" placeholder="password" autocomplete="current-password" style="flex:1"><button id="si-btn" class="primary">Sign in</button></div>
+    <div id="si-status" class="muted" style="margin-top:6px"></div>
+  </div>
 </div>
 
 <div id="result"></div>
@@ -87,6 +93,7 @@
   var scanBtn    = document.getElementById('scanBtn');
   var stopBtn    = document.getElementById('stopBtn');
   var html5Qr    = null;
+  var _lastTranscript = null;   // last verified transcript payload — re-checked after sign-in
 
   function setStatus(msg, isErr) { statusEl.textContent = msg || ''; statusEl.className = isErr ? 'err' : ''; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]; }); }
@@ -99,9 +106,42 @@
 
   function refreshRosterStatus() {
     var c = currentUser();
-    if (c && c.role === 'teacher') rosterEl.innerHTML = 'Signed in as <strong>' + esc(c.username || 'teacher') + '</strong> — gradebook cross-check enabled.';
-    else if (c) rosterEl.textContent = 'Signed in as a student — verification works, but the gradebook cross-check is teacher-only.';
-    else rosterEl.textContent = 'Not signed in — verification still works; sign in as a teacher (on the Desk) for the gradebook cross-check.';
+    var box = document.getElementById('signin-box');
+    var isT = !!(c && c.role === 'teacher');
+    if (isT) rosterEl.innerHTML = 'Signed in as <strong>' + esc(c.username || 'teacher') + '</strong> — gradebook cross-check enabled.';
+    else if (c) rosterEl.textContent = 'Signed in as a student — verification works; sign in below as a teacher for the gradebook cross-check.';
+    else rosterEl.textContent = 'Not signed in — verification still works. Sign in below as a teacher to also cross-check against your live gradebook.';
+    if (box) box.style.display = isT ? 'none' : 'block';
+  }
+
+  // Sign in as a teacher right here (one-time per device); the roster session
+  // persists in localStorage so the cross-check works on every later scan.
+  async function doTeacherSignIn() {
+    var uEl = document.getElementById('si-user'), pEl = document.getElementById('si-pass');
+    var sEl = document.getElementById('si-status'), btn = document.getElementById('si-btn');
+    var u = (uEl && uEl.value || '').trim(), p = (pEl && pEl.value) || '';
+    if (!u || !p) { if (sEl) sEl.textContent = 'Enter your username and password.'; return; }
+    if (!(window.rosterClient && typeof rosterClient.signIn === 'function')) {
+      if (sEl) sEl.textContent = 'Sign-in unavailable (roster client not loaded).'; return;
+    }
+    btn.disabled = true; if (sEl) sEl.textContent = 'Signing in…';
+    try {
+      var res = await rosterClient.signIn(u, p);
+      if (!res || !res.ok) { if (sEl) sEl.textContent = (res && res.error) || 'Sign-in failed.'; btn.disabled = false; return; }
+      if (!isTeacher()) {
+        if (sEl) sEl.textContent = 'Signed in, but this account isn’t a teacher — the cross-check is teacher-only.';
+        refreshRosterStatus(); btn.disabled = false; return;
+      }
+      if (pEl) pEl.value = '';
+      if (sEl) sEl.textContent = '';
+      refreshRosterStatus();
+      // Re-run the cross-check for the last-verified transcript, if still on screen.
+      if (_lastTranscript && document.getElementById('crosscheck')) crossCheck(_lastTranscript);
+      btn.disabled = false;
+    } catch (e) {
+      if (sEl) sEl.textContent = 'Sign-in error: ' + ((e && e.message) || 'network');
+      btn.disabled = false;
+    }
   }
 
   // ── verify + render ──────────────────────────────────────────────────────
@@ -175,7 +215,7 @@
     html += '<p class="muted" style="margin-bottom:0"><a href="' + esc(fullVerifierLink(compact)) + '" target="_blank" rel="noopener">Open in full verifier</a></p>';
     html += '</div>';
     resultEl.innerHTML = html;
-    if (ok && p.t === 'transcript' && p.sid) crossCheck(p);
+    if (ok && p.t === 'transcript' && p.sid) { _lastTranscript = p; crossCheck(p); }
   }
 
   // ── teacher-only gradebook cross-check ───────────────────────────────────
@@ -184,7 +224,7 @@
     if (!box) return;
     var token = teacherToken();
     if (!token || !isTeacher()) {
-      box.innerHTML = '<p class="muted">Sign in as a teacher (on the Desk) to compare this against your live gradebook.</p>';
+      box.innerHTML = '<p class="muted">Sign in as a teacher (in the panel above) to compare this against your live gradebook.</p>';
       return;
     }
     var base = window.ROSTER_SERVICE_URL;
@@ -265,6 +305,11 @@
   document.getElementById('manualText').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { var v = (this.value || '').trim(); if (v) handleText(v); }
   });
+
+  document.getElementById('si-btn').addEventListener('click', doTeacherSignIn);
+  document.getElementById('si-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doTeacherSignIn(); });
+  // Pre-fill the teacher username from the QR bridge (?u=…) — a username is not a secret.
+  try { var _u = new URLSearchParams(location.search).get('u'); if (_u) { var _el = document.getElementById('si-user'); if (_el) _el.value = _u; } } catch (_) {}
 
   if (!hasLib()) setStatus('Note: the live scanner library did not load. You can still paste a receipt / verify link, or reload.', true);
   refreshRosterStatus();

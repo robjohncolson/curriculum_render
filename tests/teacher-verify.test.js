@@ -51,3 +51,27 @@ describe('teacher-verify.html — scan-to-verify + gradebook cross-check', () =>
     expect(HTML).toContain('[#&]r=');
   });
 });
+
+describe('teacher-verify.html — on-device teacher sign-in (mobile cross-check)', () => {
+  it('has a teacher sign-in form (username + password)', () => {
+    expect(HTML).toContain('id="signin-box"');
+    expect(HTML).toContain('id="si-user"');
+    expect(HTML).toMatch(/id="si-pass"[^>]*type="password"/);
+    expect(HTML).toContain('id="si-btn"');
+  });
+
+  it('signs in via rosterClient.signIn and re-runs the cross-check', () => {
+    expect(HTML).toMatch(/function doTeacherSignIn/);
+    expect(HTML).toContain('rosterClient.signIn(u, p)');
+    expect(HTML).toMatch(/_lastTranscript[\s\S]{0,80}crossCheck\(_lastTranscript\)/);
+  });
+
+  it('pre-fills the username from the ?u= QR bridge, and never accepts a token via URL', () => {
+    expect(HTML).toMatch(/URLSearchParams\(location\.search\)\.get\('u'\)/);
+    expect(HTML).not.toMatch(/\.get\('token'\)/);
+  });
+
+  it('shows the sign-in form only when not a signed-in teacher', () => {
+    expect(HTML).toMatch(/box\.style\.display = isT \? 'none' : 'block'/);
+  });
+});
