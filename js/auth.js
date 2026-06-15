@@ -208,6 +208,11 @@ window.showRosterSignIn = function showRosterSignIn() {
     if (guestEl) guestEl.addEventListener('click', async (e) => {
         e.preventDefault();
         if (typeof getGuestIdentity === 'function') {
+            // Becoming a guest drops any lingering roster session, so the guest
+            // alias isn't shadowed by a previous sign-in (e.g. date_tiger) — which
+            // rosterClient.current() would otherwise keep returning everywhere.
+            try { if (window.rosterClient && rosterClient.signOut) rosterClient.signOut(); } catch (_) {}
+            try { localStorage.removeItem('apstats_roster.v1'); } catch (_) {}
             await acceptUsername(getGuestIdentity());
         } else if (errEl) {
             errEl.textContent = 'Guest mode is unavailable right now. Please refresh and try again.';
