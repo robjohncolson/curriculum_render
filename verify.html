@@ -273,76 +273,19 @@
     Contract: docs/receipt-system-spec.md · A receipt proves the class server recorded this event — nothing more, nothing less.
 </footer>
 
+<!-- Shared Ed25519 verification core — also loaded by teacher-verify.html so the
+     security-critical crypto lives in exactly one file. -->
+<script src="receipt-verify.js"></script>
 <script>
-// ===== issuer registry (base64url raw 32B keys). Verification tries production
-// keys by default and reports which issuer signed. For key rotation, append new
-// production keys here and never remove old trusted keys; see KEY_MANAGEMENT_RUNBOOK.md. =====
-const ISSUERS = [
-    { name: 'Quiz Server', pubkey: 'yFByWH5a7OwhF2KOD3SLd1BE4MlHEN_JDtDaMwW-Eg4', kind: 'quiz' },
-    { name: 'The Desk',    pubkey: 'DRfEbaWByfatxMq26iHrw4wxt4MIpypZlbB3GeBFSO4', kind: 'desk' },
-    { name: 'Quiz Server (TEST)', pubkey: 'ysLRAoc-rg-N2VTE2IR9s6Z1QT--9X64Qg3Px-6rUow', kind: 'quiz', test: true },
-    { name: 'The Desk (TEST)',    pubkey: 'sj9NUx5jBO-KTI58WKjQwEr22i7f8fiv--KH4z95JCc', kind: 'desk', test: true }
-];
+// ISSUERS + the Ed25519 verify core (b64urlToBytes/hex/importIssuerKey/
+// hasTestModeFlag/issuersForRun/verifyReceipt/sha256HexText) now live in
+// receipt-verify.js, loaded above, and are referenced here as globals. The
+// TEST_VECTORs below stay — they drive this page's self-test button.
 
 const TEST_VECTOR = 'eyJhaCI6IjNhMWYwYzliMmQ0ZTVmNjAiLCJuIjoiYTFiMmMzZDQiLCJxIjoiVTQtTDMtUTAxIiwicyI6IkUiLCJ0IjoidmVyZGljdCIsInRzIjoxNzgxMjM0NTY3ODkwLCJ1IjoiQXBwbGVfTW9ua2V5IiwidiI6MX0.fxr2OUgg98CHgo8zrNkqT5DAdxa7emYOlN82z1elKBorO8HqUH0K4Z7AH-FDr7EeLPGF6Xeg2FT-dEOMlxuPCw';
 const TEST_VECTOR_LEDGER = 'eyJhIjoxLCJhaCI6IjNhMWYwYzliMmQ0ZTVmNjAiLCJlIjoicHJhY3RpY2UiLCJpIjoiV1MtVTRMMy1RMiIsIm4iOiJhMWIyYzNkNCIsInNjIjowLjUsInNpZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMCIsInNyYyI6IndvcmtzaGVldCIsInQiOiJsZWRnZXIiLCJ0cyI6MTc4MTIzNDU2Nzg5MCwidSI6IkFwcGxlX01vbmtleSIsInYiOjF9.h2UL76wqlGpAOtUKLrCT0_XZidjYYf_ToVEujCB4ge9WrEaXgUUs4mNhHUf6JPJxorOhVw03DDaTVYZE2k7WCw';
 
-function b64urlToBytes(s) {
-    s = s.replace(/-/g, '+').replace(/_/g, '/');
-    while (s.length % 4) s += '=';
-    const bin = atob(s);
-    const out = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
-}
-function hex(buf) {
-    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-const keyCache = new Map();
-function importIssuerKey(pubkey) {
-    if (!keyCache.has(pubkey)) {
-        keyCache.set(pubkey, crypto.subtle.importKey(
-            'raw', b64urlToBytes(pubkey), { name: 'Ed25519' }, false, ['verify']
-        ));
-    }
-    return keyCache.get(pubkey);
-}
-
-function hasTestModeFlag() {
-    const query = new URLSearchParams(location.search);
-    const hashQuery = location.hash.includes('?')
-        ? location.hash.slice(location.hash.indexOf('?') + 1)
-        : location.hash.replace(/^#/, '');
-    const hash = new URLSearchParams(hashQuery);
-    return query.get('test') === '1' || hash.get('test') === '1';
-}
-
-function issuersForRun(includeTestKeys) {
-    return ISSUERS.filter(issuer => includeTestKeys || !issuer.test);
-}
-
-async function verifyReceipt(compact, options = {}) {
-    const parts = compact.trim().split('.');
-    if (parts.length !== 2) throw new Error('Not a receipt: expected two dot-separated parts.');
-    const payloadBytes = b64urlToBytes(parts[0]);
-    const sigBytes = b64urlToBytes(parts[1]);
-    let payload;
-    try { payload = JSON.parse(new TextDecoder().decode(payloadBytes)); }
-    catch { throw new Error('Receipt payload is not valid JSON.'); }
-    if (payload.v !== 1) throw new Error('Unknown receipt version: ' + payload.v);
-
-    let issuer = null;
-    for (const candidate of issuersForRun(!!options.includeTestKeys)) {
-        const key = await importIssuerKey(candidate.pubkey);
-        if (await crypto.subtle.verify({ name: 'Ed25519' }, key, sigBytes, payloadBytes)) {
-            issuer = candidate;
-            break;
-        }
-    }
-    const receiptId = hex(await crypto.subtle.digest('SHA-256', payloadBytes));
-    return { ok: !!issuer, issuer, payload, receiptId };
-}
+// (verify core moved to receipt-verify.js)
 
 // ===== UI =====
 const stage = document.getElementById('stage');
@@ -373,10 +316,6 @@ function fmtDate(ms) {
 
 function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-async function sha256HexText(s) {
-    return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
 }
 
 function parseTranscriptText(text) {
@@ -433,7 +372,13 @@ function show(ok, payload, receiptId, errMsg, issuer) {
     if (payload) {
         let rows;
         if (payload.t === 'transcript') {
-            rows = [
+            rows = [];
+            // Parent-friendly lead, only when the signature actually verified —
+            // a warm plain-language headline above the technical facts.
+            if (ok) {
+                rows.push(['Verified', `✅ <strong>${payload.u ? esc(payload.u) : 'This student'}</strong>'s AP Statistics progress — signed by the class server, genuine and unaltered.`]);
+            }
+            rows.push(
                 ['Receipt type', '<strong>GRADEBOOK SUMMARY (report card)</strong>'],
                 ['Signing issuer', issuer ? `<strong>${esc(issuer.name)}</strong>` : '—'],
                 ['What it proves', 'A report-card receipt — proves the class server\'s recorded grade for this student at the time shown. The full item-by-item transcript is verified separately (drag the .json into Verify transcript).'],
@@ -442,8 +387,8 @@ function show(ok, payload, receiptId, errMsg, issuer) {
                 ['Grade', `${esc(payload.g)}% (${esc(payload.gq)})`],
                 ['Items sealed', esc(payload.cnt)],
                 ['Completeness root', payload.root ? esc(String(payload.root).slice(0, 16)) + '…' : '—'],
-                ['Sealed', fmtTime(payload.asOf || payload.ts)],
-            ];
+                ['Sealed', fmtTime(payload.asOf || payload.ts)]
+            );
         } else if (payload.t === 'ledger') {
             rows = [
                 ['Receipt type', `<strong>${receiptLabel(payload)}</strong>`],

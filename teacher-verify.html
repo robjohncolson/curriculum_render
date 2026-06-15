@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verify a Record — Teacher</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --txt:#e2e8f0; --muted:#94a3b8; --ok:#22c55e; --accent2:#3b82f6; --danger:#ef4444; --warn:#f59e0b; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--txt);
+         padding: env(safe-area-inset-top) 12px calc(env(safe-area-inset-bottom) + 16px); }
+  header { padding: 14px 2px 8px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; margin: 4px 0 0; line-height:1.4; }
+  .row { display:flex; gap:8px; align-items:center; }
+  button { font-size:16px; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--txt); cursor:pointer; }
+  button.primary { background:var(--accent2); border-color:var(--accent2); color:#fff; font-weight:600; }
+  button:disabled { opacity:.5; }
+  #reader { width:100%; max-width:420px; margin:10px auto; border-radius:12px; overflow:hidden; background:#000; min-height:0; }
+  #reader-file { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin:10px 0; }
+  input { width:100%; padding:11px; font-size:16px; border-radius:9px; border:1px solid var(--line); background:#0b1220; color:var(--txt); }
+  label { font-size:12px; color:var(--muted); display:block; margin:8px 0 3px; }
+  #status { font-size:13px; margin-top:10px; min-height:1.2em; }
+  #status.err { color: var(--danger); }
+  .muted { color: var(--muted); font-size:12px; line-height:1.4; }
+  a { color: var(--accent2); }
+  /* result card */
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin:10px 0; }
+  .seal { display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:12px; padding:14px; margin-bottom:10px; border:2px solid; }
+  .seal.ok { border-color:var(--ok); background:rgba(34,197,94,0.10); }
+  .seal.fail { border-color:var(--danger); background:rgba(239,68,68,0.10); }
+  .seal-word { font-size:28px; font-weight:800; letter-spacing:1px; }
+  .seal.ok .seal-word { color:var(--ok); }
+  .seal.fail .seal-word { color:var(--danger); }
+  .seal-sub { font-size:11px; color:var(--muted); margin-top:2px; letter-spacing:.5px; }
+  .reason { color:var(--danger); font-size:13px; margin:0 0 8px; }
+  dl.facts { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:8px 0; font-size:13px; }
+  dl.facts dt { color:var(--muted); }
+  dl.facts dd { margin:0; word-break:break-word; }
+  .xcheck { margin-top:6px; }
+  .xc { border-radius:9px; padding:10px; font-size:13px; line-height:1.4; border:1px solid; }
+  .xc.match { border-color:var(--ok); background:rgba(34,197,94,0.10); color:#bbf7d0; }
+  .xc.up, .xc.down { border-color:var(--warn); background:rgba(245,158,11,0.10); color:#fde68a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔍 Verify a Record</h1>
+  <p class="sub">Scan a student's printed summary or receipt QR (camera or screenshot) to confirm it's genuine. Signed in as a teacher, it also cross-checks the sealed grade against your live gradebook.</p>
+</header>
+
+<div class="panel">
+  <div class="row">
+    <button id="scanBtn" class="primary" style="flex:1">📷 Start camera</button>
+    <button id="stopBtn" style="display:none">Stop</button>
+  </div>
+  <div id="reader"></div>
+  <div class="row" style="margin-top:8px">
+    <button id="photoBtn" style="flex:1">🖼 Scan a photo / screenshot</button>
+  </div>
+  <input type="file" id="photoInput" accept="image/*" style="display:none">
+  <label for="manualText" style="margin-top:10px">…or paste the receipt code / verify link</label>
+  <div class="row">
+    <input id="manualText" placeholder="paste a receipt or a …/verify.html#r=… link" autocapitalize="off" autocorrect="off" spellcheck="false" />
+    <button id="addManual">Verify</button>
+  </div>
+  <div id="status"></div>
+  <div id="rosterStatus" class="muted" style="margin-top:6px"></div>
+</div>
+
+<div id="result"></div>
+<div id="reader-file"></div>
+
+<p class="muted">A valid signature proves the class server <em>recorded</em> this at the time shown — it does not by itself prove the work was proctored. AI- and self-graded items are flagged; only items marked <strong>proctored</strong> carry that stronger claim.</p>
+
+<script src="roster_config.js"></script>
+<script src="roster-client.js"></script>
+<script src="railway_config.js"></script>
+<script src="lib/html5-qrcode.min.js"></script>
+<script src="receipt-verify.js"></script>
+<script>
+(function () {
+  var statusEl   = document.getElementById('status');
+  var resultEl   = document.getElementById('result');
+  var rosterEl   = document.getElementById('rosterStatus');
+  var scanBtn    = document.getElementById('scanBtn');
+  var stopBtn    = document.getElementById('stopBtn');
+  var html5Qr    = null;
+
+  function setStatus(msg, isErr) { statusEl.textContent = msg || ''; statusEl.className = isErr ? 'err' : ''; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]; }); }
+  function hasLib() { return typeof Html5Qrcode !== 'undefined'; }
+  function fmtDate(ms) { try { return new Date(Number(ms)).toLocaleString(); } catch (e) { return '—'; } }
+
+  function teacherToken() { try { return (window.rosterClient && rosterClient.token && rosterClient.token()) || null; } catch (e) { return null; } }
+  function currentUser() { try { return (window.rosterClient && rosterClient.current && rosterClient.current()) || null; } catch (e) { return null; } }
+  function isTeacher() { var c = currentUser(); return !!(c && c.role === 'teacher'); }
+
+  function refreshRosterStatus() {
+    var c = currentUser();
+    if (c && c.role === 'teacher') rosterEl.innerHTML = 'Signed in as <strong>' + esc(c.username || 'teacher') + '</strong> — gradebook cross-check enabled.';
+    else if (c) rosterEl.textContent = 'Signed in as a student — verification works, but the gradebook cross-check is teacher-only.';
+    else rosterEl.textContent = 'Not signed in — verification still works; sign in as a teacher (on the Desk) for the gradebook cross-check.';
+  }
+
+  // ── verify + render ──────────────────────────────────────────────────────
+  async function handleText(text) {
+    if (!text || !text.trim()) return;
+    setStatus('Verifying…');
+    var target = ReceiptVerify.parseVerifyTarget(text);
+    if (!target) { setStatus('That QR / text isn’t a recognized receipt or verify link.', true); resultEl.innerHTML = ''; return; }
+    if (target.kind === 'commit') { setStatus(''); renderCommitLink(target.value); return; }
+    try {
+      var includeTest = /[?#&]test=1/.test(String(text)) || ReceiptVerify.hasTestModeFlag();
+      var r = await ReceiptVerify.verifyReceipt(target.value, { includeTestKeys: includeTest });
+      setStatus('');
+      renderReceipt(r, target.value);
+      try { if (navigator.vibrate) navigator.vibrate(r.ok ? 40 : [60, 40, 60]); } catch (e) {}
+    } catch (e) {
+      setStatus('');
+      renderError((e && e.message) || 'Could not verify.');
+    }
+  }
+
+  function sealHtml(ok, sub) {
+    return '<div class="seal ' + (ok ? 'ok' : 'fail') + '"><div class="seal-word">' + (ok ? 'VERIFIED' : 'INVALID')
+      + '</div><div class="seal-sub">' + esc(sub) + '</div></div>';
+  }
+  function factRows(rows) {
+    return '<dl class="facts">' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + r[1] + '</dd>'; }).join('') + '</dl>';
+  }
+  function fullVerifierLink(compact) {
+    return 'https://robjohncolson.github.io/curriculum_render/verify.html#r=' + encodeURIComponent(compact || '');
+  }
+
+  function renderError(msg) {
+    resultEl.innerHTML = '<div class="card">' + sealHtml(false, 'NOT A RECEIPT') + '<p class="reason">' + esc(msg) + '</p></div>';
+  }
+  function renderCommitLink(deep) {
+    var url = 'https://robjohncolson.github.io/curriculum_render/verify.html#commit=' + encodeURIComponent(deep);
+    resultEl.innerHTML = '<div class="card"><p>This is a <strong>session commit</strong> QR. Open it in the full verifier:</p>'
+      + '<p><a href="' + esc(url) + '" target="_blank" rel="noopener">Verify this commit →</a></p></div>';
+  }
+
+  function renderReceipt(r, compact) {
+    var ok = !!r.ok, p = r.payload || {};
+    var sub = ok ? ('ED25519 · ' + (r.issuer ? String(r.issuer.name).toUpperCase() : 'CLASS SERVER')) : 'SIGNATURE FAILED';
+    var rows = [];
+    if (p.t === 'transcript') {
+      if (ok) rows.push(['Verified', '✅ <strong>' + esc(p.u || 'This student') + '</strong>’s AP Statistics progress — genuine and unaltered.']);
+      rows.push(['Type', 'Gradebook summary (report card)']);
+      rows.push(['Student', esc(p.u || '—') + (p.sid ? ' (' + esc(String(p.sid).slice(0, 8)) + '…)' : '')]);
+      rows.push(['Sealed grade', esc(p.g) + '% (' + esc(p.gq || '—') + ')']);
+      rows.push(['Items sealed', esc(p.cnt)]);
+      rows.push(['Sealed', fmtDate(p.asOf || p.ts)]);
+      rows.push(['Issuer', r.issuer ? esc(r.issuer.name) : '—']);
+    } else if (p.t === 'ledger' || p.t === 'verdict' || p.t === 'answer') {
+      rows.push(['Type', esc(String(p.t || '').toUpperCase()) + ' record']);
+      rows.push(['Student', esc(p.u || '—')]);
+      if (p.i) rows.push(['Item', esc(p.i)]);
+      if (p.q) rows.push(['Question', esc(p.q)]);
+      if (typeof p.sc === 'number') rows.push(['Score', Math.round(p.sc * 100) + '%']);
+      if (p.s) rows.push(['Verdict', esc(p.s)]);
+      if (p.e) rows.push(['Evidence', p.e === 'proctored' ? 'proctored ✓' : esc(p.e)]);
+      rows.push(['Issuer', r.issuer ? esc(r.issuer.name) : '—']);
+    } else {
+      rows.push(['Type', esc(String(p.t || 'receipt').toUpperCase())]);
+      rows.push(['Issuer', r.issuer ? esc(r.issuer.name) : '—']);
+    }
+    var html = '<div class="card">' + sealHtml(ok, sub);
+    if (!ok) html += '<p class="reason">This receipt was NOT signed by a known class issuer key, or was altered after signing.</p>';
+    html += factRows(rows);
+    html += '<div id="crosscheck" class="xcheck"></div>';
+    html += '<p class="muted" style="margin-bottom:0"><a href="' + esc(fullVerifierLink(compact)) + '" target="_blank" rel="noopener">Open in full verifier</a></p>';
+    html += '</div>';
+    resultEl.innerHTML = html;
+    if (ok && p.t === 'transcript' && p.sid) crossCheck(p);
+  }
+
+  // ── teacher-only gradebook cross-check ───────────────────────────────────
+  async function crossCheck(p) {
+    var box = document.getElementById('crosscheck');
+    if (!box) return;
+    var token = teacherToken();
+    if (!token || !isTeacher()) {
+      box.innerHTML = '<p class="muted">Sign in as a teacher (on the Desk) to compare this against your live gradebook.</p>';
+      return;
+    }
+    var base = window.ROSTER_SERVICE_URL;
+    if (!base) { box.innerHTML = ''; return; }
+    box.innerHTML = '<p class="muted">Checking your live gradebook…</p>';
+    try {
+      var res = await fetch(base + '/class/grades', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) throw new Error('grades HTTP ' + res.status);
+      var data = await res.json();
+      var students = (data && data.students) || [];
+      var stu = students.filter(function (s) { return s && s.studentId === p.sid; })[0];
+      if (!stu) { box.innerHTML = '<p class="muted">This student isn’t in your current roster — can’t cross-check.</p>'; return; }
+      var gq = p.gq;
+      var q = stu.quarters && stu.quarters[gq];
+      var current = (q && typeof q.quarterGrade === 'number') ? Math.round(q.quarterGrade * 10) / 10 : null;
+      if (current == null) { box.innerHTML = '<p class="muted">No current ' + esc(gq) + ' grade on file to compare.</p>'; return; }
+      var sealed = (typeof p.g === 'number') ? p.g : Number(p.g);
+      var delta = Math.round((current - sealed) * 10) / 10;
+      var name = esc(stu.realName || stu.username || p.u || 'this student');
+      if (Math.abs(delta) < 0.05) {
+        box.innerHTML = '<div class="xc match">✓ Still current — your gradebook shows <strong>' + current + '%</strong> for ' + esc(gq) + ' (' + name + ').</div>';
+      } else {
+        box.innerHTML = '<div class="xc ' + (delta > 0 ? 'up' : 'down') + '">⚠ Changed since sealing — your gradebook now shows <strong>' + current + '%</strong> for ' + esc(gq)
+          + ' (sealed at ' + sealed + '%, ' + (delta > 0 ? '+' : '') + delta + ' — ' + name + ').</div>';
+      }
+    } catch (e) {
+      box.innerHTML = '<p class="muted">Couldn’t reach the gradebook to cross-check (' + esc((e && e.message) || 'error') + ').</p>';
+    }
+  }
+
+  // ── scanner (camera + photo), mirrors teacher-guest-reconcile.html ────────
+  function onScan(text) { stopScan(); handleText(text); }
+
+  async function startScan() {
+    if (!hasLib()) { setStatus('Scanner library not loaded — use “Scan a photo” or paste the code.', true); return; }
+    setStatus('Starting camera…');
+    try {
+      html5Qr = new Html5Qrcode('reader', false);
+      var camChoice = { facingMode: 'environment' };
+      try {
+        var cams = await Html5Qrcode.getCameras();
+        if (cams && cams.length) {
+          var back = cams.filter(function (c) { return /back|rear|environment/i.test(c.label || ''); })[0] || cams[cams.length - 1];
+          if (back && back.id) camChoice = back.id;
+        }
+      } catch (e) { /* keep facingMode */ }
+      await html5Qr.start(camChoice, { fps: 10, qrbox: { width: 240, height: 240 } }, onScan, function () {});
+      scanBtn.style.display = 'none'; stopBtn.style.display = 'inline-block';
+      setStatus('Point the camera at a printed summary / receipt QR.');
+    } catch (err) {
+      setStatus('Camera error: ' + ((err && err.message) ? err.message : err) + ' — try “Scan a photo / screenshot”.', true);
+      try { if (html5Qr) html5Qr.clear(); } catch (e) {}
+      html5Qr = null;
+    }
+  }
+  function stopScan() {
+    if (html5Qr) { html5Qr.stop().then(function () { try { html5Qr.clear(); } catch (e) {} html5Qr = null; }).catch(function () {}); }
+    scanBtn.style.display = 'inline-block'; stopBtn.style.display = 'none';
+  }
+  async function scanPhoto(file) {
+    if (!file) return;
+    if (!hasLib()) { setStatus('Scanner library not loaded — paste the code instead.', true); return; }
+    setStatus('Reading photo…');
+    var tmp = new Html5Qrcode('reader-file', false);
+    try { var text = await tmp.scanFile(file, false); handleText(text); }
+    catch (e) { setStatus('No QR found in that image — try a clearer / closer screenshot.', true); }
+    finally { try { tmp.clear(); } catch (e) {} }
+  }
+
+  scanBtn.addEventListener('click', startScan);
+  stopBtn.addEventListener('click', stopScan);
+  document.getElementById('photoBtn').addEventListener('click', function () { document.getElementById('photoInput').click(); });
+  document.getElementById('photoInput').addEventListener('change', function (e) { if (e.target.files && e.target.files[0]) scanPhoto(e.target.files[0]); e.target.value = ''; });
+  document.getElementById('addManual').addEventListener('click', function () {
+    var v = (document.getElementById('manualText').value || '').trim();
+    if (v) handleText(v);
+  });
+  document.getElementById('manualText').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { var v = (this.value || '').trim(); if (v) handleText(v); }
+  });
+
+  if (!hasLib()) setStatus('Note: the live scanner library did not load. You can still paste a receipt / verify link, or reload.', true);
+  refreshRosterStatus();
+
+  // Deep-link: teacher-verify.html#r=<compact>  (verify a record straight away)
+  (function () {
+    var m = location.hash.match(/[#&]r=([^&]+)/);
+    if (m) { var c; try { c = decodeURIComponent(m[1]); } catch (e) { c = m[1]; } handleText(c); }
+  })();
+})();
+</script>
+</body>
+</html>
