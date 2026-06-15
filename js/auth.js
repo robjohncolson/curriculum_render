@@ -845,6 +845,15 @@ window.acceptUsername = async function(name) {
     // Normalize username to Title_Case to prevent case-sensitivity orphans
     currentUsername = normalizeUsername(name);
 
+    // Cross-app guest mode (shared with the Desk + worksheets via localStorage
+    // 'apstats_guest_active'): a Guest_ alias means "active guest"; any real roster
+    // name clears it. This is what the worksheet wall + getUsername read to let a
+    // guest work and to attribute answers to the recoverable Guest_ alias.
+    try {
+        if (/^Guest_/i.test(currentUsername || '')) localStorage.setItem('apstats_guest_active', '1');
+        else localStorage.removeItem('apstats_guest_active');
+    } catch (e) {}
+
     // Save to storage adapter (IDB + localStorage dual-write)
     const storage = await waitForStorage();
     await storage.setMeta('username', currentUsername);
