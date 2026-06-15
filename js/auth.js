@@ -155,6 +155,7 @@ window.showRosterSignIn = function showRosterSignIn() {
                        style="width:100%;padding:10px;margin:0 0 14px;font-size:16px;box-sizing:border-box" />
                 <button id="rs-submit" class="action-button primary extra-large" style="width:100%">Sign in</button>
                 <p id="rs-error" role="alert" style="color:#c0392b;min-height:1.2em;margin:8px 0 0"></p>
+                <p style="text-align:center;margin:12px 0 0;font-size:13px"><a href="#" id="rs-guest" style="color:var(--accent-primary,#3498db)">Not on the class roster? Continue as guest →</a></p>
             </div>
         </div>
     `;
@@ -199,6 +200,19 @@ window.showRosterSignIn = function showRosterSignIn() {
     if (passEl) passEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
     if (userEl) userEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && passEl) passEl.focus(); });
     if (userEl) { try { userEl.focus(); } catch (_) {} }
+
+    // Not on the roster: adopt the stable, shared guest alias and start working.
+    // Work saves under this alias and is recovered into a real student later via
+    // the Guest Pass QR (?claimGuest=) + the teacher's /api/guest/reconcile.
+    const guestEl = document.getElementById('rs-guest');
+    if (guestEl) guestEl.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (typeof getGuestIdentity === 'function') {
+            await acceptUsername(getGuestIdentity());
+        } else if (errEl) {
+            errEl.textContent = 'Guest mode is unavailable right now. Please refresh and try again.';
+        }
+    });
 };
 
 /**
