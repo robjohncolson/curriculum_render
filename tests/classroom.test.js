@@ -2592,17 +2592,32 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
     expect(result.broadcasts).toHaveLength(0);
   });
 
-  // --- non-students cannot castDoorwayVote (teacher attempts a vote) ----
+  // --- a TEACHER can castDoorwayVote (participates in the scene); a member with
+  //     neither role is still rejected -------------------------------------------
 
-  it('non-students cannot castDoorwayVote', () => {
+  it('a teacher castDoorwayVote is VISUAL-only (accepted + broadcast, tally unchanged); a non-participant role is rejected', () => {
     var wsT = makeWs();
     var now = 1000;
     registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
     registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
 
-    // Teacher tries to vote -- silent reject.
+    // Teacher votes -- ACCEPTED (their avatar steps into the door) and broadcasts the
+    // tally, but the door COUNT is NOT changed: the teacher must not steer which door
+    // the class advances to (the level engine picks the winner from these counts).
     var result = registry.castDoorwayVote(wsT, 'doorways-1', 'd0', now + 200);
-    expect(result.broadcasts).toHaveLength(0);
+    expect(result.broadcasts.length).toBeGreaterThan(0);
+    var tallyBc = result.broadcasts.find(function (b) {
+      return b.payload && b.payload.type === 'classroom_doorway_tally';
+    });
+    var byId = {};
+    tallyBc.payload.tally.forEach(function (t) { byId[t.doorId] = t.count; });
+    expect(byId.d0).toBe(0);   // teacher vote does NOT increment the count
+
+    // A member with neither 'student' nor 'teacher' role is still silently rejected.
+    var wsX = makeWs();
+    registry.join(wsX, 'PeriodA', 'ghost1', 'observer', now + 300);
+    var rejected = registry.castDoorwayVote(wsX, 'doorways-1', 'd0', now + 400);
+    expect(rejected.broadcasts).toHaveLength(0);
   });
 });
 

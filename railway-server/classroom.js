@@ -1331,6 +1331,12 @@ export function createClassroomRegistry() {
 
     var member = room.members.get(entry.username);
     if (!member) return { broadcasts: [] };
+    // Gate check-in is a STUDENT ritual (the teacher runs the gate, not checks into
+    // it). Guard server-side so a stray/replayed classroom_checkin can't set a
+    // teacher 'checkedIn' and hide their avatar via the presentStudents filter —
+    // the client guards this too, but the server is the authority. (Matches the
+    // role-guard convention used by armGate/greenLight/clearGate/reset.)
+    if (member.role !== 'student') return { broadcasts: [] };
 
     member.status = 'checkedIn';
 
@@ -1816,7 +1822,11 @@ export function createClassroomRegistry() {
     if (!room || !room.doorways) return { broadcasts: [] };
     if (room.doorways.id !== id) return { broadcasts: [] };
     var member = room.members.get(entry.username);
-    if (!member || member.role !== 'student') return { broadcasts: [] };
+    // Students AND the teacher may vote in a doorway (the teacher participates in
+    // the scene). A teacher vote increments the door tally but does NOT count toward
+    // the all-students-voted auto-close (_allOnlineStudentsHaveVoted skips non-students),
+    // so it stays additive and never blocks the close.
+    if (!member || (member.role !== 'student' && member.role !== 'teacher')) return { broadcasts: [] };
     var safeDoorId = (typeof doorId === 'string') ? doorId.trim() : '';
     // Find the option for the new vote. Bail if doorId unknown.
     var found = null;
@@ -1824,9 +1834,14 @@ export function createClassroomRegistry() {
       if (room.doorways.options[i].doorId === safeDoorId) { found = room.doorways.options[i]; break; }
     }
     if (!found) return { broadcasts: [] };
-    // If switching, decrement the prior doorId's count.
+    // A teacher's vote is VISUAL-only: their avatar steps into the door (doorVote +
+    // status are set, so they render in the door for everyone), but the door COUNT
+    // is changed by students only. The level engine picks the winning door from
+    // these counts, and the teacher must not steer the class's collective choice.
+    var isStudent = (member.role === 'student');
+    // If switching, decrement the prior doorId's count (students only).
     var priorDoorId = member.doorVote || null;
-    if (priorDoorId && priorDoorId !== safeDoorId) {
+    if (isStudent && priorDoorId && priorDoorId !== safeDoorId) {
       for (var j = 0; j < room.doorways.options.length; j++) {
         if (room.doorways.options[j].doorId === priorDoorId) {
           room.doorways.options[j].count = Math.max(0, room.doorways.options[j].count - 1);
@@ -1835,7 +1850,7 @@ export function createClassroomRegistry() {
     }
     // No-op if voting for the same door again.
     if (priorDoorId !== safeDoorId) {
-      found.count += 1;
+      if (isStudent) found.count += 1;   // teacher vote does not change the tally
       member.doorVote = safeDoorId;
       member.status   = 'voted';
     }
@@ -1851,9 +1866,9 @@ export function createClassroomRegistry() {
     // V7.5: auto-close when every online STUDENT has voted. Removes the
     // teacher-cockpit-click requirement that left the U1.1 cola-mystery
     // doorways stuck open even after all kids had stepped into a door.
-    // Counts only online students (online !== false). Teachers don't
-    // vote (this handler rejects role !== 'student' above), so they
-    // don't block the auto-close.
+    // Counts only online students (online !== false). A teacher vote is visual-only
+    // (it doesn't change the door counts) and _allOnlineStudentsHaveVoted counts only
+    // students, so a teacher never blocks nor skews the auto-close.
     var doorwaysId = room.doorways.id;   // capture before _closeDoorwaysServerSide nulls room.doorways
     if (_allOnlineStudentsHaveVoted(room)) {
       var closeRes = _closeDoorwaysServerSide(room, entry.section, doorwaysId, now);
@@ -1894,13 +1909,18 @@ export function createClassroomRegistry() {
     if (!room || !room.doorways) return { broadcasts: [] };
     if (room.doorways.id !== id) return { broadcasts: [] };
     var member = room.members.get(entry.username);
-    if (!member || member.role !== 'student') return { broadcasts: [] };
+    // Teachers may cancel their doorway vote too (mirrors castDoorwayVote).
+    if (!member || (member.role !== 'student' && member.role !== 'teacher')) return { broadcasts: [] };
     var priorDoorId = member.doorVote || null;
     if (!priorDoorId) return { broadcasts: [] };
-    // Decrement the prior doorId's count.
-    for (var j = 0; j < room.doorways.options.length; j++) {
-      if (room.doorways.options[j].doorId === priorDoorId) {
-        room.doorways.options[j].count = Math.max(0, room.doorways.options[j].count - 1);
+    // Decrement the prior doorId's count — students only. A teacher's vote never
+    // incremented the count (visual-only, see castDoorwayVote), so there's nothing
+    // to give back; we still clear their doorVote so their avatar leaves the door.
+    if (member.role === 'student') {
+      for (var j = 0; j < room.doorways.options.length; j++) {
+        if (room.doorways.options[j].doorId === priorDoorId) {
+          room.doorways.options[j].count = Math.max(0, room.doorways.options[j].count - 1);
+        }
       }
     }
     member.doorVote = null;
