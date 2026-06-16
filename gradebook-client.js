@@ -103,6 +103,15 @@
           body:    JSON.stringify(body)
         });
 
+        // Surface an expired / revoked token (401) distinctly so the caller can
+        // prompt a re-sign-in instead of silently dropping the grade as a generic
+        // "network" error. A non-OK response may be an HTML error page, not JSON,
+        // so check status BEFORE parsing (mirrors fetchReceipts).
+        if (!res.ok) {
+          console.warn('gradebook-client: /ledger/record HTTP', res.status);
+          return { ok: false, reason: res.status === 401 ? 'auth-expired' : 'network' };
+        }
+
         var data = await res.json();
 
         if (data && data.ok) {
@@ -110,7 +119,7 @@
           return { ok: true, ledgerId: data.ledgerId, receipt: data.receipt || null };
         }
 
-        // Server returned ok:false (e.g. 400/401) — treat as network failure
+        // Server returned ok:false (e.g. 400) — treat as network failure
         console.warn('gradebook-client: server returned ok:false', data);
         return { ok: false, reason: 'network' };
 

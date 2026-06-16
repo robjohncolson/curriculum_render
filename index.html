@@ -1604,6 +1604,18 @@
             }
         });
 
+        // Cross-tab identity sync: the Desk (same origin) shares the roster session
+        // in localStorage 'apstats_roster.v1'. When it changes in ANOTHER tab — a
+        // sign-in or sign-out on the Desk — re-read identity here so cr never keeps
+        // showing a stale signed-in/out state (and the next grade-write uses the
+        // current token). storage events fire only for OTHER tabs, never the one
+        // that made the change, so there's no self-trigger loop.
+        window.addEventListener('storage', function (e) {
+            if (e && e.key === 'apstats_roster.v1') {
+                try { if (typeof refreshRosterStatus === 'function') refreshRosterStatus(); } catch (_) {}
+            }
+        });
+
         // Pull peer data from Supabase - OPTIMIZED for 40+ users
         async function pullPeerDataFromSupabase() {
             if (!turboModeActive || !supabaseClient) return null;
@@ -11187,15 +11199,32 @@ Respond with JSON:
                 if (window.gradebookClient && window.gradebookClient.record && questionId) {
                     var gbSrc = /^U\d+-PC-/.test(questionId) ? 'pc' : 'curriculum_quiz';
                     var gbU = /^U(\d+)-/.exec(questionId);
-                    window.gradebookClient.record({
+                    var _p = window.gradebookClient.record({
                         source: gbSrc,
                         itemId: questionId,
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: answer,
                         attempt: 1
                     });
+                    // The gradebook-client now reports an expired/revoked token (401)
+                    // as reason 'auth-expired' (vs a silent generic 'network'). Surface
+                    // it once so the student knows to sign in again instead of losing
+                    // grades silently. Still fire-and-forget — never blocks the submit.
+                    if (_p && typeof _p.then === 'function') {
+                        _p.then(function (r) { if (r && r.reason === 'auth-expired') _notifyAuthExpired(); })
+                          .catch(function () {});
+                    }
                 }
             } catch (_) { /* never block cr's submit */ }
+        }
+
+        // One-time "your session expired — sign in again" notice. Guarded + idempotent.
+        var _authExpiredNotified = false;
+        function _notifyAuthExpired() {
+            if (_authExpiredNotified) return;
+            _authExpiredNotified = true;
+            try { if (typeof refreshRosterStatus === 'function') refreshRosterStatus(); } catch (_) {}
+            try { alert('Your sign-in session expired. Please sign in again so your work is saved.'); } catch (_) {}
         }
 
         // AI-review partial credit → records the credit the student earned on a

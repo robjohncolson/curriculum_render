@@ -189,6 +189,80 @@
       }
     },
 
+    // GET /roster/open-sections — the value:label list a student may self-enroll
+    // into. value = gradebook section; label = what the student sees (the real
+    // period is never revealed). Returns [{value,label}] or [] on failure (the
+    // caller falls back to a hardcoded default). Never throws.
+    openSections: async function () {
+      var baseUrl = serviceUrl();
+      if (!baseUrl) return [];
+      try {
+        var response = await fetch(baseUrl + '/roster/open-sections');
+        var data = await response.json();
+        if (data && data.ok && Array.isArray(data.sections)) return data.sections;
+        return [];
+      } catch (_) {
+        return [];
+      }
+    },
+
+    // POST /roster/claim — student self-signup. On success persists the session
+    // (claim IS sign-in, mirroring signIn). Returns { ok, ... } and, on failure,
+    // { ok:false, error, code } where code 'username-taken' means re-roll + retry.
+    // Never throws.
+    claim: async function (opts) {
+      var baseUrl = serviceUrl();
+      if (!baseUrl) {
+        return { ok: false, error: 'ROSTER_SERVICE_URL is not configured' };
+      }
+
+      var payload = {
+        realName: opts && opts.realName,
+        section:  opts && opts.section,
+        username: opts && opts.username,
+        pin:      opts && opts.pin
+      };
+      // Optional: elevate to a teacher account when the correct teacher key is given.
+      if (opts && opts.teacherKey) payload.teacherKey = opts.teacherKey;
+
+      try {
+        var response = await fetch(baseUrl + '/roster/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        var data = await response.json();
+
+        if (!data || !data.ok) {
+          // data.error 'username-taken' surfaces as code so the UI can re-roll.
+          return { ok: false, error: (data && data.error) || 'Signup failed', code: data && data.error };
+        }
+
+        writeSession({
+          studentId: data.studentId,
+          username: data.username,
+          realName: data.realName,
+          section: data.section,
+          token: data.token,
+          role: data.role || 'student',
+          spriteHue: (typeof data.spriteHue === 'number') ? data.spriteHue : null,
+          mustChangePassword: !!data.mustChangePassword,
+          signedInAt: new Date().toISOString()
+        });
+
+        return {
+          ok: true,
+          studentId: data.studentId,
+          username: data.username,
+          realName: data.realName,
+          section: data.section
+        };
+      } catch (err) {
+        return { ok: false, error: err.message || 'Network error' };
+      }
+    },
+
     // Removes the localStorage key.
     signOut: function () {
       clearSession();
