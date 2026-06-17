@@ -207,6 +207,11 @@
                 ? ('Signed in as ' + (who.realName ? (who.realName + ' (' + who.username + ')') : who.username) + '.')
                 : 'Not signed in — your quiz work is not yet being tracked.';
         }
+        // Exposed globally so the same-origin cross-tab 'storage' listener, the focus/
+        // visibility refresh, and _notifyAuthExpired — all defined OUTSIDE this IIFE — can
+        // actually reach it. As a bare `refreshRosterStatus` they resolved to undefined and
+        // silently no-op'd, so a Desk sign-in/out never reconciled cr's status line.
+        window.refreshRosterStatus = refreshRosterStatus;
         window.showRosterSignInModal = function () {
             var ov = document.getElementById('roster-signin-overlay');
             if (!ov) return;
@@ -1612,8 +1617,21 @@
         // that made the change, so there's no self-trigger loop.
         window.addEventListener('storage', function (e) {
             if (e && e.key === 'apstats_roster.v1') {
-                try { if (typeof refreshRosterStatus === 'function') refreshRosterStatus(); } catch (_) {}
+                try { if (typeof window.refreshRosterStatus === 'function') window.refreshRosterStatus(); } catch (_) {}
             }
+        });
+
+        // HOLE 4 (cr identity cheap-win): the cross-tab 'storage' refresh above fires only
+        // in OTHER tabs. When the user signs in/out on the Desk and returns to THIS tab
+        // (window regains focus / the tab becomes visible), re-read identity so a stale
+        // "Not signed in" line reconciles immediately instead of lingering until the next
+        // storage write. Idempotent (only rewrites the status text); fully guarded.
+        function _refreshRosterOnReturn() {
+            try { if (typeof window.refreshRosterStatus === 'function') window.refreshRosterStatus(); } catch (_) {}
+        }
+        window.addEventListener('focus', _refreshRosterOnReturn);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') _refreshRosterOnReturn();
         });
 
         // Pull peer data from Supabase - OPTIMIZED for 40+ users

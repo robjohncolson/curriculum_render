@@ -847,8 +847,13 @@ window.rerollUsername = function() {
  * @param {string} name - The username to accept
  */
 window.acceptUsername = async function(name) {
+    // Capture the prior identity BEFORE reassigning, to detect a genuine in-session
+    // identity SWITCH (HOLE 5, cr identity cheap-win). On a fresh load currentUsername
+    // is null (index.html), so this only trips on a real switch — never a same-user reload.
+    const _prevUsername = currentUsername;
     // Normalize username to Title_Case to prevent case-sensitivity orphans
     currentUsername = normalizeUsername(name);
+    const _identitySwitched = !!(_prevUsername && _prevUsername !== currentUsername);
 
     // Cross-app guest mode (shared with the Desk + worksheets via localStorage
     // 'apstats_guest_active'): a Guest_ alias means "active guest"; any real roster
@@ -861,6 +866,22 @@ window.acceptUsername = async function(name) {
 
     // Save to storage adapter (IDB + localStorage dual-write)
     const storage = await waitForStorage();
+
+    // HOLE 5 (cr identity cheap-win): on a genuine in-session identity SWITCH, evict the
+    // stale peer cache. Peers are cached per the PREVIOUS student's perspective (self-
+    // filtered for them — omitting their own answers, including the new student's), so the
+    // new student must NOT inherit it. Peers live in the 'peerCache' STORE: an IDB object
+    // store on the primary / dual-write path (rebuildClassDataView reads it via
+    // getAll('peerCache')), mapped to the localStorage 'classData' key only on the
+    // localStorage-only adapter. So clear the STORE (the dual-write facade covers both
+    // backends) AND remove the raw localStorage 'classData' blob. The new user's OWN answers
+    // are durable in the IDB 'answers' store (keyed by username) and are untouched.
+    // initClassData() below then rebuilds an empty peer view; pullPeerDataFromSupabase
+    // re-pulls fresh. Gated on an actual switch so a normal same-user reload keeps its cache.
+    if (_identitySwitched) {
+        try { if (typeof storage.clear === 'function') await storage.clear('peerCache'); } catch (e) {}
+        try { localStorage.removeItem('classData'); } catch (e) {}
+    }
     await storage.setMeta('username', currentUsername);
 
     // Also write to localStorage for backward compatibility during transition
