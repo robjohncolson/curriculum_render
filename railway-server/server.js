@@ -2363,6 +2363,26 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'candy_gift_received': {
+          // Candy "poke" relay. The REAL transfer is server-authoritative on the
+          // roster-server (POST /wallet/gift); on success the sender's client emits this
+          // COSMETIC notification so the recipient sees a toast in the Live Classroom.
+          // Rebroadcast to all clients (the board shares this wsClients pool, like
+          // user_online); each client shows it only when toUsername === its own identity.
+          // A spoofed message can at worst show a fake toast — it can NEVER mint candy,
+          // because every client reads its balance fresh from the roster-server.
+          broadcastToClients({
+            type: 'candy_gift_received',
+            // username only — real names are teacher-only on the board, never broadcast to students.
+            fromUsername: (data.fromUsername || '').toString().slice(0, 64),
+            toUsername: (data.toUsername || '').toString().slice(0, 64),
+            candy: (typeof data.candy === 'number' && data.candy > 0) ? Math.floor(data.candy) : 1,
+            giftId: (data.giftId || '').toString().slice(0, 128),
+            timestamp: Date.now()
+          });
+          break;
+        }
+
         case 'classroom_join': {
           var section  = (data.section  || '').trim();
           var username = (data.username || '').trim();
