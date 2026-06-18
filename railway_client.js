@@ -50,6 +50,25 @@
       return true;
   }
 
+  // Which app surface this page is, so the Desk's "Online Now" list can label
+  // WHERE each classmate is. This copy is loaded by the quiz app (index.html) and
+  // the cr worksheet variants. Derived purely from the URL — no per-page global.
+  function _presenceSurface() {
+      try {
+          var file = ((location.pathname || '').toLowerCase().split('/').pop()) || '';
+          var lesson = null;
+          try {
+              var qs = new URLSearchParams(location.search);
+              if (qs.get('u')) lesson = 'U' + qs.get('u') + (qs.get('l') ? ' L' + qs.get('l') : '');
+          } catch (e) {}
+          // cr worksheet pages (u3l4.html, u3l67.html, *_live.html, mit_*) vs the quiz app.
+          if (file && file !== 'index.html' && (/_live\.html$/.test(file) || /^u\d/.test(file) || /lesson/.test(file))) {
+              return { surface: 'worksheet', lesson: lesson };
+          }
+          return { surface: 'quiz', lesson: lesson };
+      } catch (e) { return { surface: 'quiz', lesson: null }; }
+  }
+
   // Connect to WebSocket for real-time updates
   function connectWebSocket() {
       if (!USE_RAILWAY) return;
@@ -92,7 +111,7 @@
           // Identify with current username as soon as connected
           const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
           if (username && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'identify', username }));
+            ws.send(JSON.stringify({ type: 'identify', username, location: _presenceSurface() }));
           }
           };
 

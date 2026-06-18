@@ -42,6 +42,7 @@ const wsClients = new Set();
 // Presence tracking (in-memory)
 const presence = new Map(); // username -> { lastSeen: number, connections: Set<WebSocket> }
 const wsToUser = new Map(); // ws -> username
+const wsLocation = new Map(); // ws -> { surface, lesson } : where this connection is (Desk vs worksheet vs quiz). Per-connection so a kid with both open resolves onDesk.
 const gameRooms = new Map(); // roomId -> { p1: ws, p2: ws, p1Name: string, p2Name: string, state: 'playing'|'done' }
 const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws, timestamp }
 const wsToRoom = new Map(); // ws -> roomId
@@ -2141,6 +2142,8 @@ wss.on('connection', (ws) => {
           const username = (data.username || '').trim();
           if (!username) break;
           wsToUser.set(ws, username);
+          const loc = sanitizeLocation(data.location);
+          if (loc) wsLocation.set(ws, loc);
           let info = presence.get(username);
           if (!info) {
             info = { lastSeen: Date.now(), connections: new Set() };
@@ -2148,14 +2151,16 @@ wss.on('connection', (ws) => {
           }
           info.connections.add(ws);
           info.lastSeen = Date.now();
-          // Broadcast user online
-          broadcastToClients({ type: 'user_online', username, timestamp: Date.now() });
+          // Broadcast user online (with the aggregated location, if known)
+          broadcastToClients({ type: 'user_online', username, location: aggregateLocation(info), timestamp: Date.now() });
           break;
         }
 
         case 'heartbeat': {
           const username = (data.username || wsToUser.get(ws) || '').trim();
           if (!username) break;
+          const loc = sanitizeLocation(data.location);
+          if (loc) wsLocation.set(ws, loc);
           let info = presence.get(username);
           if (!info) {
             info = { lastSeen: Date.now(), connections: new Set([ws]) };
@@ -2678,10 +2683,16 @@ wss.on('connection', (ws) => {
         if (info.connections.size === 0) {
           // Defer offline broadcast to allow quick reconnects; rely on TTL cleanup
           info.lastSeen = Date.now();
+        } else {
+          // A connection dropped but others remain — the aggregate surface may have
+          // changed (e.g. closed the Desk but kept a worksheet open). Re-announce so
+          // clients update the location chip + the challengeable (onDesk) state.
+          broadcastToClients({ type: 'user_online', username, location: aggregateLocation(info), timestamp: Date.now() });
         }
       }
       wsToUser.delete(ws);
     }
+    wsLocation.delete(ws);
 
     // Game room cleanup on disconnect
     const roomId = wsToRoom.get(ws);
@@ -2775,10 +2786,54 @@ function getOnlineUsernames() {
   return users;
 }
 
+// ── Presence LOCATION (where each online student is) ──────────────────────────
+// A small, validated {surface, lesson}. surface is one of a known set; lesson is
+// a short teacher-facing label. Clients derive it from their URL and send it on
+// `identify` (and optionally `heartbeat`). Everything is additive/optional — a
+// client that sends no location simply has no chip.
+const PRESENCE_SURFACES = new Set(['desk', 'worksheet', 'quiz', 'study-guide', 'edgar', 'mit', 'other']);
+const SURFACE_RANK = { desk: 6, worksheet: 5, quiz: 4, 'study-guide': 3, edgar: 2, mit: 2, other: 1 };
+function sanitizeLocation(loc) {
+  if (!loc || typeof loc !== 'object') return null;
+  let surface = String(loc.surface || '').trim().toLowerCase();
+  if (!PRESENCE_SURFACES.has(surface)) surface = 'other';
+  const lesson = (loc.lesson == null) ? null : String(loc.lesson).slice(0, 40);
+  return { surface, lesson };
+}
+// Aggregate one username's location across ALL its live connections. `onDesk`
+// wins (it's the only surface that can actually receive a Tetris challenge);
+// otherwise the most specific known surface is reported.
+function aggregateLocation(info) {
+  if (!info || !info.connections) return null;
+  let best = null, onDesk = false;
+  info.connections.forEach((ws) => {
+    const loc = wsLocation.get(ws);
+    if (!loc) return;
+    if (loc.surface === 'desk') onDesk = true;
+    if (!best || (SURFACE_RANK[loc.surface] || 0) > (SURFACE_RANK[best.surface] || 0)) best = loc;
+  });
+  if (!best) return null;
+  if (onDesk) return { surface: 'desk', lesson: null, onDesk: true };
+  return { surface: best.surface, lesson: best.lesson || null, onDesk: false };
+}
+function getOnlineLocations() {
+  const now = Date.now();
+  const out = {};
+  presence.forEach((info, username) => {
+    if (info.connections && info.connections.size > 0 && (now - info.lastSeen) < PRESENCE_TTL_MS) {
+      const loc = aggregateLocation(info);
+      if (loc) out[username] = loc;
+    }
+  });
+  return out;
+}
+
 function sendPresenceSnapshot(ws) {
   try {
     const users = getOnlineUsernames();
-    ws.send(JSON.stringify({ type: 'presence_snapshot', users, timestamp: Date.now() }));
+    // `locations` is a parallel map (username -> {surface,lesson,onDesk}); `users`
+    // stays a flat string[] so existing consumers are untouched (backward compatible).
+    ws.send(JSON.stringify({ type: 'presence_snapshot', users, locations: getOnlineLocations(), timestamp: Date.now() }));
   } catch (e) {
     console.error('Failed to send presence snapshot:', e);
   }
