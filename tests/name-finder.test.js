@@ -98,6 +98,9 @@ describe('name-finder — dial flow source pins', () => {
     expect(nfSrc).not.toContain("!== 'teacher'");              // no teacher-drop filter
     expect(nfSrc).not.toMatch(/role[\s\S]{0,40}!==\s*'teacher'/);
   });
+  it('defaultFetchRoster reads the LIVE roster (no-store) so new sign-ups appear', () => {
+    expect(nfSrc).toMatch(/fetch\(url,\s*\{\s*cache:\s*'no-store'\s*\}\)/);
+  });
 });
 
 describe('cr index.html wires the dial to the universal PeriodX roster', () => {

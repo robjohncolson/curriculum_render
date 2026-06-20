@@ -227,7 +227,10 @@
   async function defaultFetchRoster(url) {
     if (!url) return [];
     try {
-      var res = await fetch(url);
+      // no-store: always read the LIVE roster. The endpoint sets Cache-Control
+      // max-age=300, which would otherwise hide a just-enrolled student from the
+      // sign-in dial for up to 5 minutes.
+      var res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) return [];
       var data = await res.json();
       // Everyone the roster returns — students AND teachers — so the dial is 1:1
