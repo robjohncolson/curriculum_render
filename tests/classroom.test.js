@@ -350,6 +350,58 @@ describe('createClassroomRegistry', () => {
     expect(registry.stateFor('PeriodA')).toBeNull();   // empty room deleted
   });
 
+  // --- fix: a TRUE disconnect (zero sockets) is GC'd on the ~60s offline
+  //     clock, not the 45-min idle clock, so its avatar doesn't linger greyed
+  //     in the scene while the doge "Online Now" list (45s TTL) has already
+  //     dropped it (the avatar-vs-list disagreement). ----------------------
+
+  it('GC removes a detached (zero-socket) member after ~60s, not 45 min', () => {
+    var ws = makeWs();
+    var bobWs = makeWs();
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+    registry.join(bobWs, 'PeriodA', 'bob', 'student', now);
+
+    // alice truly disconnects: last socket gone -> offline, member.sockets empty.
+    registry.detach(ws, now + 100);
+
+    // Within the 60s offline window alice is still present (greyed).
+    registry.heartbeat(bobWs, now + 30 * 1000);          // keep the room alive
+    var early = registry.sweep(now + 100 + 30 * 1000);
+    expect(early.removals).toHaveLength(0);
+    expect(registry.stateFor('PeriodA').members.map(function (m) { return m.username; }))
+      .toContain('alice');
+
+    // Past 60s she is GC'd (was 45 min before the fix) + classroom_member_left.
+    registry.heartbeat(bobWs, now + 100 + 60 * 1000);    // keep the room alive
+    var late = registry.sweep(now + 100 + 61 * 1000);
+    expect(late.removals).toHaveLength(1);
+    expect(late.removals[0].payload.username).toBe('alice');
+    expect(late.removals[0].payload.type).toBe('classroom_member_left');
+    expect(registry.stateFor('PeriodA').members.map(function (m) { return m.username; }))
+      .not.toContain('alice');
+  });
+
+  // --- fix regression guard: a ZOMBIE socket (offline but socket still open)
+  //     keeps the long 45-min backstop -- it is NOT reclaimed at 60s, so rooms
+  //     with a lingering open socket can't be torn down prematurely. ---------
+
+  it('keeps the 45-min backstop for a zombie-socket member (not GCd at 60s)', () => {
+    var ws = makeWs();   // never detached -- the socket stays "open"
+    var now = 1000;
+    registry.join(ws, 'PeriodA', 'alice', 'student', now);
+
+    // Heartbeat lapses -> sweep flips alice offline; the socket lingers (size 1).
+    registry.sweep(now + 46 * 1000);
+    expect(registry.stateFor('PeriodA').members[0].online).toBe(false);
+
+    // ~2 min later (well past OFFLINE_GC_MS) the zombie-socket member must still
+    // be present -- only the 45-min IDLE_GC reclaims a lingering open socket.
+    var result = registry.sweep(now + 2 * 60 * 1000);
+    expect(result.removals).toHaveLength(0);
+    expect(registry.stateFor('PeriodA').members[0].username).toBe('alice');
+  });
+
   // =========================================================================
   // v1b Gate tests
   // =========================================================================

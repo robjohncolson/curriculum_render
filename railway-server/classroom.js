@@ -12,10 +12,16 @@ import * as levelEngine from './level-engine.js';
 // so server.js can call .send() and the module stays unit-testable.
 //
 // Protocol: see LIVE_CLASSROOM_V1B_BUILD.md Section 2.
-// Knobs: heartbeat 30s, liveness window 45s, idle GC 45 min.
+// Knobs: heartbeat 30s, liveness window 45s, offline GC 60s, idle GC 45 min.
 
 const LIVENESS_MS = 45 * 1000;          // 45 seconds
 const IDLE_GC_MS  = 45 * 60 * 1000;     // 45 minutes
+// A member that LOST its last socket (true disconnect -- detach empties
+// member.sockets) is reclaimed on roughly the doge presence TTL (~45s) clock so
+// its avatar doesn't linger greyed in the Live-Classroom scene for 45 min after
+// it has already dropped from the global "Online Now" list. IDLE_GC_MS stays as
+// the zombie-socket backstop (socket open, heartbeat lapsed) so rooms can't leak.
+const OFFLINE_GC_MS = 60 * 1000;        // 60 seconds (true-disconnect GC)
 const NUDGE_TTL_MS = 10 * 60 * 1000;    // 10 minutes: recentNudges retention (P3 Codex BLOCKER fold)
 
 // v4 Activity engine -- bridge-mean plugin constants.
@@ -1193,11 +1199,18 @@ export function createClassroomRegistry() {
           sweepBroadcasts.forEach(function(bc) { onlineFlips.push(bc); });
         }
 
-        // GC: remove members that have been offline for longer than
-        // IDLE_GC_MS. Do NOT also require zero sockets -- a member whose
-        // heartbeat lapsed but whose (zombie) socket never closed is
-        // still offline and must be reclaimed, or rooms leak forever.
-        if (!member.online && age > IDLE_GC_MS) {
+        // GC: remove members that have been offline too long. A member that
+        // LOST its last socket (true disconnect -- member.sockets emptied by
+        // detach) is reclaimed quickly (OFFLINE_GC_MS) so its avatar doesn't
+        // linger greyed in the scene for 45 min after it has already dropped
+        // from the doge "Online Now" list (which evicts on a ~45s TTL). A
+        // member that is offline but still holds a (zombie) socket -- heartbeat
+        // lapsed, socket never closed -- keeps the long IDLE_GC_MS backstop so
+        // rooms can't leak (and a late heartbeat can still revive it).
+        var gcWindow = (member.sockets && member.sockets.size === 0)
+          ? OFFLINE_GC_MS
+          : IDLE_GC_MS;
+        if (!member.online && age > gcWindow) {
           toRemove.push(username);
         }
       });
