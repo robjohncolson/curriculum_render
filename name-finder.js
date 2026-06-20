@@ -230,9 +230,9 @@
       var res = await fetch(url);
       if (!res.ok) return [];
       var data = await res.json();
-      var students = (data && data.ok && Array.isArray(data.students)) ? data.students : [];
-      // Drop the teacher account from the student-facing dial.
-      return students.filter(function (s) { return (s && (s.role || 'student')) !== 'teacher'; });
+      // Everyone the roster returns — students AND teachers — so the dial is 1:1
+      // with the Desk's name finder (the teacher signs in through it too).
+      return (data && data.ok && Array.isArray(data.students)) ? data.students : [];
     } catch (_) { return []; }
   }
 

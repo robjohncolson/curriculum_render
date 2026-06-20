@@ -94,8 +94,9 @@ describe('name-finder — dial flow source pins', () => {
   it('an empty/offline roster falls back to onTypeUsername (no dead-end)', () => {
     expect(nfSrc).toMatch(/if \(!list \|\| !list\.length\)[\s\S]{0,120}onTypeUsername/);
   });
-  it('defaultFetchRoster drops the teacher account', () => {
-    expect(nfSrc).toMatch(/role[\s\S]{0,40}!==\s*'teacher'/);
+  it('defaultFetchRoster includes EVERYONE (teachers too) — 1:1 with the Desk', () => {
+    expect(nfSrc).not.toContain("!== 'teacher'");              // no teacher-drop filter
+    expect(nfSrc).not.toMatch(/role[\s\S]{0,40}!==\s*'teacher'/);
   });
 });
 
