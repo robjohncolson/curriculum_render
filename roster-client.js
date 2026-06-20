@@ -63,6 +63,23 @@
       };
     },
 
+    // Updates spriteHue on the persisted session so cross-app surfaces converge
+    // on a locally-picked color WITHOUT a re-sign-in: the quiz's PlayerSprite
+    // constructor reads current().spriteHue as authoritative at load, and the
+    // Desk board reads roster.sprite_hue. The caller PATCHes the server
+    // separately; this only keeps the LOCAL session row in sync with that pick,
+    // so a fresh pick is not reverted to the stale sign-in hue on the next load.
+    // No-op (returns false) when signed out or hue is not a finite number.
+    // Never throws.
+    updateSpriteHue: function (hue) {
+      if (typeof hue !== 'number' || !isFinite(hue)) return false;
+      var session = readSession();
+      if (!session || !session.studentId) return false;
+      session.spriteHue = hue;
+      writeSession(session);
+      return true;
+    },
+
     // POST /roster/verify — persists the session key on success.
     // Returns { ok, studentId, realName, section, spriteHue, error? }
     signIn: async function (username, password) {

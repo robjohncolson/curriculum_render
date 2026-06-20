@@ -12990,6 +12990,19 @@ Respond with JSON:
                 playerSprite.setHue(hue);
             }
 
+            // U3 -- keep the SHARED roster session's spriteHue in sync with this
+            // local pick. The PlayerSprite constructor treats
+            // rosterClient.current().spriteHue as authoritative on every load and
+            // overwrites localStorage/IDB with it, so without this the avatar
+            // reverts to the stale sign-in hue on the next refresh (while the Desk,
+            // reading the freshly-PATCHed roster.sprite_hue, shows the new color).
+            // Guarded -- never block the local save.
+            try {
+                if (window.rosterClient && typeof window.rosterClient.updateSpriteHue === 'function') {
+                    window.rosterClient.updateSpriteHue(hue);
+                }
+            } catch (_) { /* never block local save */ }
+
             // U3 -- best-effort persist hue to roster server (never blocks local save)
             try {
                 var _token = window.rosterClient && window.rosterClient.token && window.rosterClient.token();
