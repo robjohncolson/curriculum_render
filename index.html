@@ -12915,6 +12915,11 @@ Respond with JSON:
             playerSprite = new PlayerSprite(spriteSheet, 100, canvasEngine.groundY - 96);
             canvasEngine.addEntity('player', playerSprite);
 
+            // Cross-device: reconcile the avatar hue with the server's
+            // authoritative value so a color changed elsewhere propagates here
+            // without a re-sign-in (best-effort; never blocks load).
+            reconcileSpriteHueFromServer();
+
             // Create sprite manager
             spriteManager = new SpriteManager(canvasEngine, spriteSheet);
             window.spriteManager = spriteManager; // Expose globally for early listeners
@@ -13031,6 +13036,45 @@ Respond with JSON:
             }
 
             closeSpriteConfigModal();
+        }
+
+        // U3 cross-device -- reconcile the avatar hue with the server's
+        // authoritative roster.sprite_hue on load. The roster session caches
+        // spriteHue only as of sign-in, so a color picked on ANOTHER device (or
+        // changed on the Desk) never reaches this device without a re-sign-in.
+        // This GETs the current hue and converges the session + local stores +
+        // live sprite when it differs. Best-effort: never blocks load, never
+        // throws; a missing endpoint / offline / LAN simply no-ops.
+        async function reconcileSpriteHueFromServer() {
+            try {
+                if (!window.rosterClient) return;
+                const token = window.rosterClient.token && window.rosterClient.token();
+                const sid   = window.rosterClient.studentId && window.rosterClient.studentId();
+                const base  = window.ROSTER_SERVICE_URL;
+                if (!token || !sid || !base) return;
+
+                const resp = await fetch(base + '/roster/' + sid + '/sprite-hue', {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!resp.ok) return;
+
+                const data = await resp.json();
+                if (!data || data.ok !== true || typeof data.spriteHue !== 'number') return;
+
+                const serverHue = data.spriteHue;
+                const current = window.rosterClient.current && window.rosterClient.current();
+                if (current && current.spriteHue === serverHue) return; // already in sync
+
+                if (typeof window.rosterClient.updateSpriteHue === 'function') {
+                    window.rosterClient.updateSpriteHue(serverHue);
+                }
+                try { localStorage.setItem('spriteColorHue', String(serverHue)); } catch (_) {}
+                if (typeof playerSprite !== 'undefined' && playerSprite &&
+                    typeof playerSprite.setHue === 'function') {
+                    playerSprite.setHue(serverHue);
+                }
+            } catch (_) { /* never block load */ }
         }
 
         // Listen for hue slider changes
