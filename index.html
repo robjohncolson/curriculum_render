@@ -76,6 +76,7 @@
     <!-- Gradebook ledger feeder (DN2d) — config → client → feeder load order required -->
     <script src="roster_config.js"></script>
     <script src="roster-client.js"></script>
+    <script src="name-finder.js"></script>
     <script src="gradebook-client.js"></script>
 
     <!-- Sprite system -->
@@ -212,7 +213,47 @@
         // actually reach it. As a bare `refreshRosterStatus` they resolved to undefined and
         // silently no-op'd, so a Desk sign-in/out never reconciled cr's status line.
         window.refreshRosterStatus = refreshRosterStatus;
-        window.showRosterSignInModal = function () {
+
+        // Shared post-sign-in work, called by BOTH the typed form (submitRosterSignIn)
+        // and the name-finder dial — so the two paths can never drift. Mirrors the
+        // roster identity into cr's own identity + hydrates the sprite hue + refreshes
+        // the status line. The CALLER closes its own UI.
+        window.applyRosterSignInResult = async function (result, fallbackUsername) {
+            // Mirror roster identity into cr's OWN identity so the feeder actually
+            // fires and survives reload (window.acceptUsername is cr's canonical entry).
+            var who = rosterWho() || {};
+            var rosterName = who.username || fallbackUsername;
+            if (typeof window.acceptUsername === 'function') {
+                try { await window.acceptUsername(rosterName); } catch (_) {}
+            } else {
+                // Fallback only if cr auth isn't loaded: best-effort (won't survive reload).
+                try {
+                    window.currentUsername = rosterName;
+                    localStorage.setItem('consensusUsername', rosterName);
+                } catch (_) {}
+                if (typeof updateCurrentUsernameDisplay === 'function') {
+                    try { updateCurrentUsernameDisplay(); } catch (_) {}
+                }
+            }
+            // U3 hue sync: hydrate the local sprite hue from the roster so every
+            // surface (quiz + the Desk's Live Classroom board) converges. Roster
+            // wins only when it carries a numeric hue; guarded — never breaks sign-in.
+            try {
+                if (result && typeof result.spriteHue === 'number') {
+                    try { localStorage.setItem('spriteColorHue', String(result.spriteHue)); } catch (_) {}
+                    if (typeof playerSprite !== 'undefined' && playerSprite &&
+                        typeof playerSprite.setHue === 'function') {
+                        playerSprite.setHue(result.spriteHue);
+                    }
+                }
+            } catch (_) {}
+            refreshRosterStatus();
+        };
+
+        // The legacy typed username/password form — kept as a fallback, reached from
+        // the dial's "Type my username instead" link (and used directly when already
+        // signed in or when the roster can't be fetched).
+        window.openRosterPasswordForm = function () {
             var ov = document.getElementById('roster-signin-overlay');
             if (!ov) return;
             var err = document.getElementById('roster-signin-error');
@@ -224,6 +265,25 @@
             if (p) p.value = '';
             refreshRosterStatus();
             ov.style.display = 'flex';
+        };
+
+        // PRIMARY sign-in: the roster-aligned "find your name" dial (↑ ← → ↓),
+        // identical to the Desk's Name Finder. Already signed in -> open the legacy
+        // form (shows status + lets you re-auth). Otherwise spin the dial over the
+        // universal PeriodX roster; "Type my username instead" + an empty/offline
+        // roster both fall back to the typed form.
+        window.showRosterSignInModal = function () {
+            if (!window.RosterNameFinder || !window.rosterClient || !window.rosterClient.signIn) {
+                return window.openRosterPasswordForm();
+            }
+            if (rosterWho()) { return window.openRosterPasswordForm(); }
+            var base = window.ROSTER_SERVICE_URL || '';
+            window.RosterNameFinder.open({
+                rosterUrl: base ? (base + '/roster/section/PeriodX') : '',
+                signIn: function (u, p) { return window.rosterClient.signIn(u, p); },
+                onSuccess: function (result, username) { return window.applyRosterSignInResult(result, username); },
+                onTypeUsername: function () { window.openRosterPasswordForm(); }
+            });
         };
         window.closeRosterSignInModal = function () {
             var ov = document.getElementById('roster-signin-overlay');
@@ -263,52 +323,9 @@
                     if (err) err.textContent = (result && result.error) || 'Sign-in failed.';
                     return;
                 }
-                // Mirror roster identity into cr's OWN identity so the feeder
-                // actually fires and survives reload. cr's `currentUsername` is a
-                // script-scoped `let` (index.html:3671) + IDB `username` meta —
-                // a window/localStorage poke does NOT update it (Codex DN2d #1).
-                // window.acceptUsername(name) is cr's canonical identity entry
-                // point (sets the lexical + setMeta('username') + localStorage +
-                // session init). For the clean-start cohort the roster identity
-                // IS the cr identity, so this is the intended semantics.
-                var who = rosterWho() || {};
-                var rosterName = who.username || username;
-                if (typeof window.acceptUsername === 'function') {
-                    try { await window.acceptUsername(rosterName); } catch (_) {}
-                } else {
-                    // Fallback only if cr auth isn't loaded: best-effort so the
-                    // feeder's `if(!currentUsername)return` guard still passes
-                    // this session (won't survive reload — acceptUsername would).
-                    try {
-                        window.currentUsername = rosterName;
-                        localStorage.setItem('consensusUsername', rosterName);
-                    } catch (_) {}
-                    if (typeof updateCurrentUsernameDisplay === 'function') {
-                        try { updateCurrentUsernameDisplay(); } catch (_) {}
-                    }
-                }
-                // U3 hue sync: the quiz avatar hue lives in device-local
-                // storage (localStorage 'spriteColorHue' + IDB), so a color
-                // picked on one device never appeared on another -- or in the
-                // Desk's Live Classroom board, which reads roster.sprite_hue.
-                // Hydrate the local hue from the roster on sign-in so every
-                // surface converges on the picked color. Roster wins only when
-                // it carries a numeric hue; a null roster hue leaves the local
-                // pick untouched. Guarded -- sign-in must never break on this.
-                try {
-                    if (result && typeof result.spriteHue === 'number') {
-                        // Seed localStorage first so a sprite constructed later
-                        // reads the roster hue; setHue (when the sprite already
-                        // exists) also writes localStorage + IDB and the running
-                        // canvas repaints the new color immediately.
-                        try { localStorage.setItem('spriteColorHue', String(result.spriteHue)); } catch (_) {}
-                        if (typeof playerSprite !== 'undefined' && playerSprite &&
-                            typeof playerSprite.setHue === 'function') {
-                            playerSprite.setHue(result.spriteHue);
-                        }
-                    }
-                } catch (_) {}
-                refreshRosterStatus();
+                // Shared post-sign-in work (identity mirror + sprite-hue + status),
+                // identical to the name-finder dial's success path.
+                await window.applyRosterSignInResult(result, username);
                 if (err) err.textContent = '';
                 window.closeRosterSignInModal();
             } finally {

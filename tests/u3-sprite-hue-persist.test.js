@@ -232,14 +232,16 @@ describe('U3 -- runtime: local save is NOT affected by roster errors', () => {
 // ---------------------------------------------------------------------------
 
 describe('U3 -- sign-in hydrates avatar hue from roster (structural)', () => {
-    // The sign-in success handler is an anonymous arrow, so slice the source
-    // region from the signIn() call to the modal close and assert on it --
-    // this also proves the hydration lives on the SIGN-IN path, not in the
-    // picker (saveSpriteConfig).
+    // The sign-in hue hydration now lives in the shared applyRosterSignInResult
+    // helper, called by BOTH the typed form (submitRosterSignIn) AND the name-
+    // finder dial (name-finder.js onSuccess) — so the two paths can't drift.
+    // Slice that helper's body (start of the fn -> its final refreshRosterStatus)
+    // and assert on it; this still proves the hydration lives on the SIGN-IN
+    // path, not in the picker (saveSpriteConfig).
     function signInRegion(src) {
-        const start = src.indexOf('rosterClient.signIn(');
-        const end   = src.indexOf('closeRosterSignInModal', start);
-        if (start < 0 || end < 0) throw new Error('sign-in region not found');
+        const start = src.indexOf('window.applyRosterSignInResult');
+        const end   = src.indexOf('refreshRosterStatus();', start);
+        if (start < 0 || end < 0) throw new Error('applyRosterSignInResult region not found');
         return src.slice(start, end);
     }
 
