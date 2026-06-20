@@ -13,10 +13,11 @@ import { resolve } from 'path';
 import { createContext, runInContext } from 'vm';
 
 const ROOT = resolve(__dirname, '..');
-let nfSrc, indexHtml;
+let nfSrc, indexHtml, authSrc;
 beforeAll(() => {
   nfSrc = readFileSync(resolve(ROOT, 'name-finder.js'), 'utf8');
   indexHtml = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
+  authSrc = readFileSync(resolve(ROOT, 'js/auth.js'), 'utf8');
 });
 
 // Load the IIFE in a fresh vm context with only a bare `window` (the module
@@ -113,5 +114,17 @@ describe('cr index.html wires the dial to the universal PeriodX roster', () => {
   });
   it('an already-signed-in user gets the form (status/re-auth), not the dial', () => {
     expect(indexHtml).toMatch(/if \(rosterWho\(\)\)\s*\{\s*return window\.openRosterPasswordForm\(\)/);
+  });
+});
+
+describe('cr js/auth.js ON-LOAD screen (showRosterSignIn) also opens the dial', () => {
+  it('opens RosterNameFinder over PeriodX, keeps the typed form + guest fallback', () => {
+    const fn = authSrc.slice(authSrc.indexOf('showRosterSignIn = function'));
+    expect(fn).toContain('window.RosterNameFinder.open(');
+    expect(fn).toMatch(/\/roster\/section\/PeriodX/);
+    expect(fn).toContain('onTypeUsername');
+    expect(fn).toMatch(/acceptUsername\(/);   // success transition (same as the typed Sign-in button)
+    expect(fn).toContain('rs-username');      // typed form retained underneath
+    expect(fn).toContain('rs-guest');         // guest off-ramp retained
   });
 });

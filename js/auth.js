@@ -218,6 +218,23 @@ window.showRosterSignIn = function showRosterSignIn() {
             errEl.textContent = 'Guest mode is unavailable right now. Please refresh and try again.';
         }
     });
+
+    // PRIMARY sign-in: open the roster-aligned name-finder dial (↑ ← → ↓) on top
+    // of the typed form above, identical to the Desk's Name Finder. The typed
+    // form is the FALLBACK — reached via "Type my username instead", closing the
+    // dial, or an empty/offline roster (RosterNameFinder.open calls onTypeUsername
+    // then). On success, acceptUsername adopts the roster name + boots the quiz
+    // (the same transition the typed Sign-in button does). The guest off-ramp
+    // stays on the form underneath.
+    if (window.RosterNameFinder && window.rosterClient && typeof window.rosterClient.signIn === 'function') {
+        const base = window.ROSTER_SERVICE_URL || '';
+        window.RosterNameFinder.open({
+            rosterUrl: base ? (base + '/roster/section/PeriodX') : '',
+            signIn: function (u, p) { return window.rosterClient.signIn(u, p); },
+            onSuccess: async function (result, username) { await acceptUsername((result && result.username) || username); },
+            onTypeUsername: function () { try { if (userEl) userEl.focus(); } catch (_) {} }
+        });
+    }
 };
 
 /**
