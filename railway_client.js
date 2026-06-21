@@ -69,6 +69,21 @@
       } catch (e) { return { surface: 'quiz', lesson: null }; }
   }
 
+  // Canonical presence username = the ROSTER username (lowercase, e.g. 'date_tiger'),
+  // so this surface keys the SAME presence entry as the Desk + every other app.
+  // cr's window.currentUsername is Title-cased by acceptUsername ('Date_Tiger'), which
+  // would otherwise make the same person a SECOND presence entry (the "two Robert
+  // Colson" bug). Fall back to currentUsername / consensusUsername when there's no
+  // roster session (covers guests — their shared alias case is already consistent).
+  function _presenceUsername() {
+      try {
+          var r = (window.rosterClient && typeof window.rosterClient.current === 'function')
+              ? window.rosterClient.current() : null;
+          if (r && r.username) return String(r.username).trim();
+      } catch (e) {}
+      return (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+  }
+
   // Connect to WebSocket for real-time updates
   function connectWebSocket() {
       if (!USE_RAILWAY) return;
@@ -98,7 +113,7 @@
               if (wsPingInterval) clearInterval(wsPingInterval);
               wsPingInterval = setInterval(() => {
                   if (ws.readyState === WebSocket.OPEN) {
-              const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+              const username = _presenceUsername();
               // Regular ping for latency
               ws.send(JSON.stringify({ type: 'ping' }));
               // Presence heartbeat
@@ -108,8 +123,8 @@
                   }
               }, 30000);
 
-          // Identify with current username as soon as connected
-          const username = (window.currentUsername || localStorage.getItem('consensusUsername') || '').trim();
+          // Identify with the CANONICAL roster username (matches the Desk's casing)
+          const username = _presenceUsername();
           if (username && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'identify', username, location: _presenceSurface() }));
           }
