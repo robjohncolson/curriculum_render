@@ -27,6 +27,7 @@ describe('guest-log — server persists every guest login', () => {
     expect(server).toMatch(/_guestLogSeen/);                        // per-guest debounce map
     expect(server).toMatch(/GUEST_LOG_DEBOUNCE_MS/);
     expect(server).toMatch(/catch\s*\(/);                           // never breaks presence
+    expect(server).toMatch(/_guestLogSeen\.delete\(username\)/);    // clear debounce on insert failure (allow retry)
   });
 
   it('identify AND classroom_join both log guest sessions', () => {

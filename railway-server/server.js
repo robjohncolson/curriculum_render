@@ -62,7 +62,7 @@ function logGuestSession(username, loc, event, section) {
     if (!username || !/^Guest_/i.test(username)) return;  // guests only
     const now = Date.now();
     if (now - (_guestLogSeen.get(username) || 0) < GUEST_LOG_DEBOUNCE_MS) return;
-    _guestLogSeen.set(username, now);
+    _guestLogSeen.set(username, now);   // optimistic debounce (dedupes the Desk's 2 sockets) -- CLEARED on failure below
     const row = {
       username: String(username).slice(0, 80),
       surface:  loc && loc.surface ? String(loc.surface).slice(0, 40) : null,
@@ -71,8 +71,13 @@ function logGuestSession(username, loc, event, section) {
       event:    String(event || 'identify').slice(0, 24),
     };
     Promise.resolve(supabase.from('guest_log').insert([row]))
-      .then((r) => { if (r && r.error) console.warn('guest_log insert error:', r.error.message || r.error); })
-      .catch((e) => console.warn('guest_log insert threw:', e && e.message));
+      .then((r) => {
+        if (r && r.error) {
+          console.warn('guest_log insert error:', r.error.message || r.error);
+          _guestLogSeen.delete(username);   // failed (e.g. table not migrated yet) -> allow a retry, don't suppress 5 min
+        }
+      })
+      .catch((e) => { console.warn('guest_log insert threw:', e && e.message); _guestLogSeen.delete(username); });
   } catch (_) { /* never break presence on a logging error */ }
 }
 
