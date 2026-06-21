@@ -48,6 +48,34 @@ const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws,
 const wsToRoom = new Map(); // ws -> roomId
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
 
+// ── Guest-login log ──────────────────────────────────────────────────────────
+// Presence is in-memory only, so a guest who logs on but never submits an answer
+// leaves NO database trace. Persist every guest LOGIN (identify / classroom_join)
+// to the guest_log table so the teacher can reliably see who used guest mode.
+// Debounced per guest so reconnect storms don't spam the table. Fire-and-forget:
+// a logging failure (e.g. the table isn't migrated yet) must never break presence.
+// Migration: railway-server/migrations/0001_guest_log.sql.
+const GUEST_LOG_DEBOUNCE_MS = parseInt(process.env.GUEST_LOG_DEBOUNCE_MS || '300000', 10); // 5 min
+const _guestLogSeen = new Map(); // username -> last-logged ms (in-memory debounce)
+function logGuestSession(username, loc, event, section) {
+  try {
+    if (!username || !/^Guest_/i.test(username)) return;  // guests only
+    const now = Date.now();
+    if (now - (_guestLogSeen.get(username) || 0) < GUEST_LOG_DEBOUNCE_MS) return;
+    _guestLogSeen.set(username, now);
+    const row = {
+      username: String(username).slice(0, 80),
+      surface:  loc && loc.surface ? String(loc.surface).slice(0, 40) : null,
+      lesson:   loc && loc.lesson  ? String(loc.lesson).slice(0, 60)  : null,
+      section:  section ? String(section).slice(0, 40) : null,
+      event:    String(event || 'identify').slice(0, 24),
+    };
+    Promise.resolve(supabase.from('guest_log').insert([row]))
+      .then((r) => { if (r && r.error) console.warn('guest_log insert error:', r.error.message || r.error); })
+      .catch((e) => console.warn('guest_log insert threw:', e && e.message));
+  } catch (_) { /* never break presence on a logging error */ }
+}
+
 // Classroom registry (Live Classroom v1a)
 const classroomRegistry = createClassroomRegistry();
 
@@ -168,6 +196,29 @@ app.get('/api/peer-data', async (req, res) => {
   } catch (error) {
     console.error('Error fetching peer data:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Recent guest LOGINS (identify / classroom_join), persisted by logGuestSession.
+// Lets the teacher reliably see who used guest mode even when the guest never
+// answered anything. Low-sensitivity (random Guest_ aliases), open like peer-data.
+// 503 until the guest_log table is migrated.
+app.get('/api/guest-log', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 300, 1000);
+    const { data, error } = await supabase
+      .from('guest_log')
+      .select('username, surface, lesson, section, event, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      // 42P01 = relation does not exist (migration not run yet) -> 503, not 500.
+      const code = error.code === '42P01' ? 503 : 500;
+      return res.status(code).json({ ok: false, error: error.message || 'guest_log unavailable' });
+    }
+    return res.json({ ok: true, count: (data || []).length, sessions: data || [] });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: (e && e.message) || 'error' });
   }
 });
 
@@ -2151,6 +2202,7 @@ wss.on('connection', (ws) => {
           }
           info.connections.add(ws);
           info.lastSeen = Date.now();
+          logGuestSession(username, loc, 'identify');   // persist guest logins (presence is otherwise in-memory only)
           // Broadcast user online (with the aggregated location, if known)
           broadcastToClients({ type: 'user_online', username, location: aggregateLocation(info), timestamp: Date.now() });
           break;
@@ -2405,6 +2457,7 @@ wss.on('connection', (ws) => {
             }
           });
           broadcastToClassroom(section, joinResult.broadcasts);
+          logGuestSession(username, { surface: 'classroom', lesson: null }, 'classroom_join', section);
           break;
         }
 
