@@ -2445,6 +2445,24 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'nudge_notify': {
+          // Persistent teacher chat relay. Message content lives on the roster-server;
+          // this unauthenticated WS payload is only a cosmetic "go fetch" ping.
+          var nnRecipients = Array.isArray(data.toUsernames) ? data.toUsernames : [];
+          var nnToUsernames = nnRecipients.slice(0, 64)
+            .map(function(u) { return (u || '').toString().trim().toLowerCase().slice(0, 64); })
+            .filter(Boolean);
+          if (nnToUsernames.length === 0) break;
+          broadcastToClients({
+            type: 'nudge_notify',
+            toUsernames: nnToUsernames,
+            fromUsername: (data.fromUsername || '').toString().trim().toLowerCase().slice(0, 64),
+            nudgeId: (data.nudgeId || '').toString().slice(0, 128),
+            timestamp: Date.now()
+          });
+          break;
+        }
+
         case 'classroom_join': {
           var section  = (data.section  || '').trim();
           var username = (data.username || '').trim();
