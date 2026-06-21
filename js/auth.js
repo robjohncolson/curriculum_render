@@ -165,6 +165,12 @@ window.showRosterSignIn = function showRosterSignIn() {
     const btnEl = document.getElementById('rs-submit');
     const errEl = document.getElementById('rs-error');
 
+    // Roster dropdown (matches the Desk's typed sign-in): type a name/username ->
+    // pick your classmate from the class list -> the input fills with your username.
+    if (userEl && window.RosterDropdown) {
+        window.RosterDropdown.attach(userEl, { onPick: function () { if (passEl) passEl.focus(); } });
+    }
+
     async function submit() {
         const username = (userEl && userEl.value || '').trim();
         // Password intentionally NOT trimmed -- edge whitespace can be valid.

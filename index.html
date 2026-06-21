@@ -77,6 +77,7 @@
     <script src="roster_config.js"></script>
     <script src="roster-client.js"></script>
     <script src="name-finder.js"></script>
+    <script src="roster-dropdown.js"></script>
     <script src="version-check.js"></script>
     <script src="gradebook-client.js"></script>
 
@@ -264,6 +265,8 @@
             var p = document.getElementById('roster-signin-password');
             if (u) u.value = (who && who.username) || '';
             if (p) p.value = '';
+            // Roster dropdown (matches the Desk): type a name/username -> pick from the class list.
+            if (u && window.RosterDropdown) window.RosterDropdown.attach(u, { onPick: function () { if (p) p.focus(); } });
             refreshRosterStatus();
             ov.style.display = 'flex';
         };
