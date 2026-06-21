@@ -2937,6 +2937,19 @@ setInterval(() => {
   });
 }, Math.max(5000, Math.floor(PRESENCE_TTL_MS / 3)));
 
+// Periodic FULL presence resync: re-broadcast the COMPLETE snapshot to every
+// client so anyone that missed an incremental user_online/user_offline (a brief
+// drop, a throttled/backgrounded tab) self-heals to the true live set instead of
+// drifting (showing stale "ghost" users, or missing live ones). Both the Desk's
+// DogePresence and cr's railway_client REPLACE their set on a presence_snapshot,
+// so no client change is needed — both converge to the same authoritative list.
+const PRESENCE_RESYNC_MS = parseInt(process.env.PRESENCE_RESYNC_MS || '30000', 10);
+setInterval(() => {
+  try {
+    broadcastToClients({ type: 'presence_snapshot', users: getOnlineUsernames(), locations: getOnlineLocations(), timestamp: Date.now() });
+  } catch (_) {}
+}, PRESENCE_RESYNC_MS);
+
 // Challenge expiry - auto-decline after 30 seconds
 setInterval(() => {
   const now = Date.now();
