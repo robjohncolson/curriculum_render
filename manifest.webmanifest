@@ -1,0 +1,14 @@
+{
+  "name": "AP Statistics — Quiz",
+  "short_name": "AP Stats Quiz",
+  "description": "AP Statistics consensus quiz — works offline.",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#cfcfcf",
+  "theme_color": "#1d2b53",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

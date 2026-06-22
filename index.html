@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AP Stats Consensus Quiz</title>
 
+    <!-- PWA (OFFLINE_MODE_SPEC §4.G): installable + offline shell via sw.js -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg">
+    <meta name="theme-color" content="#1d2b53">
+
     <link rel="stylesheet" href="css/styles.css">
 
     <!-- Local-first libraries (no network delay) -->
@@ -81,6 +86,7 @@
     <script src="version-check.js"></script>
     <script src="offline-queue.js"></script>
     <script src="gradebook-client.js"></script>
+    <script src="pwa-register.js"></script>
 
     <!-- Sprite system -->
     <script src="js/sprite_sheet.js"></script>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AP Statistics">
+  <rect width="512" height="512" rx="96" fill="#1d2b53"/>
+  <text x="256" y="150" font-family="Georgia, 'Times New Roman', serif" font-size="120" font-weight="bold" fill="#ffffff" text-anchor="middle">AP</text>
+  <rect x="116" y="300" width="58" height="96"  rx="10" fill="#29adff"/>
+  <rect x="198" y="252" width="58" height="144" rx="10" fill="#00e436"/>
+  <rect x="280" y="208" width="58" height="188" rx="10" fill="#ffec27"/>
+  <rect x="362" y="168" width="58" height="228" rx="10" fill="#ff77a8"/>
+</svg>
