@@ -79,6 +79,7 @@
     <script src="name-finder.js"></script>
     <script src="roster-dropdown.js"></script>
     <script src="version-check.js"></script>
+    <script src="offline-queue.js"></script>
     <script src="gradebook-client.js"></script>
 
     <!-- Sprite system -->
@@ -374,6 +375,23 @@
                             <small>Save your progress as a backup file</small>
                         </span>
                     </button>
+                    <button id="cloudRestoreBtn" class="modal-btn" style="display: none;">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        <span>
+                            <strong>Restore from Cloud</strong>
+                            <small>Pull saved answers for a username</small>
+                        </span>
+                    </button>
+                </div>
+                <div id="cloudRestoreHelper" style="display: none; margin-top: 10px; font-size: 0.9em; color: #666;"></div>
+                <div id="autoExportContainer" style="display: none; margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                    <label style="display: flex; gap: 10px; align-items: flex-start;">
+                        <input type="checkbox" id="autoExportToggle" style="margin-top: 3px;">
+                        <span>
+                            <strong>Auto-export Recovery Packs</strong>
+                            <small id="autoExportSupportNote" style="display: block; color: #666; margin-top: 3px;"></small>
+                        </span>
+                    </label>
                 </div>
             </div>
 
@@ -423,19 +441,15 @@
                             <small>Import answers from a backup file</small>
                         </span>
                     </button>
+                    <button id="classPacksBtn" class="modal-btn" style="display: none;">
+                        <i class="fas fa-box-archive"></i>
+                        <span>
+                            <strong>Generate Class Packs</strong>
+                            <small>Create per-student recovery packs</small>
+                        </span>
+                    </button>
                 </div>
             </details>
-
-            <!-- Hidden elements for backward compatibility -->
-            <div style="display: none;">
-                <button id="cloudRestoreBtn"></button>
-                <div id="cloudRestoreHelper"></div>
-                <div id="autoExportContainer">
-                    <input type="checkbox" id="autoExportToggle">
-                    <small id="autoExportSupportNote"></small>
-                </div>
-                <button id="classPacksBtn"></button>
-            </div>
 
             <div class="sync-footer">
             </div>
