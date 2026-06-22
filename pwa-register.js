@@ -1,38 +1,77 @@
-// pwa-register.js — register the PWA service worker + wire background-sync drain.
-// OFFLINE_MODE_SPEC §4.G. Loaded by the Desk; the SW's repo-root scope then covers
-// the worksheets + study guide too. Best-effort: guarded, never throws, never on
-// file:// (the offline pack uses a localhost server, where the SW works fine).
+// pwa-register.js — register the PWA service worker, expose an in-app install
+// trigger, and wire background-sync drain. OFFLINE_MODE_SPEC §4.G.
+// Best-effort: guarded, never throws, never on file://.
+//
+// window.PWAInstall.canInstall()  -> true once the browser offers install
+// window.PWAInstall.install()     -> Promise<'accepted'|'dismissed'|'unavailable'>
+//   ('unavailable' = browser gave no prompt — e.g. already installed, or iOS
+//    Safari, which has no programmatic install → the caller shows instructions.)
+// Any element with [data-pwa-install] is auto-shown when installable + click-wired.
 (function () {
   'use strict';
   try {
-    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-    if (typeof location !== 'undefined' && location.protocol === 'file:') return;
+    var deferred = null;
 
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').then(function (reg) {
-          // Ask for a one-off background sync so the queue drains when connectivity
-          // returns (the SW messages an open client to do the authenticated POST).
-          try {
-            if (reg && 'sync' in reg) {
-              navigator.serviceWorker.ready.then(function (r) {
-                try { r.sync.register('apstats-sync-grades').catch(function () {}); } catch (_) {}
-              });
-            }
-          } catch (_) { /* sync unsupported — the page 'online' listener still drains */ }
-        }).catch(function () { /* registration is best-effort */ });
-      });
+    function installEls() { try { return document.querySelectorAll('[data-pwa-install]'); } catch (_) { return []; } }
+    function syncInstallUI() {
+      var n = installEls();
+      for (var i = 0; i < n.length; i += 1) { n[i].hidden = !deferred; }
     }
 
-    // When the SW (on a background sync) asks, drain from the page — it has the
-    // auth token in localStorage that the SW cannot read.
-    navigator.serviceWorker.addEventListener('message', function (e) {
-      try {
-        if (e.data && e.data.type === 'drain-offline-queue'
-          && window.gradebookClient && typeof window.gradebookClient.syncOfflineQueue === 'function') {
-          window.gradebookClient.syncOfflineQueue();
-        }
-      } catch (_) { /* best-effort */ }
+    window.PWAInstall = {
+      canInstall: function () { return !!deferred; },
+      install: function () {
+        if (!deferred) return Promise.resolve('unavailable');
+        var d = deferred; deferred = null;
+        try { d.prompt(); } catch (_) { syncInstallUI(); return Promise.resolve('unavailable'); }
+        return d.userChoice.then(function (c) {
+          syncInstallUI();
+          return (c && c.outcome === 'accepted') ? 'accepted' : 'dismissed';
+        }, function () { syncInstallUI(); return 'dismissed'; });
+      },
+    };
+
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      try { e.preventDefault(); } catch (_) {}
+      deferred = e; syncInstallUI();
     });
+    window.addEventListener('appinstalled', function () { deferred = null; syncInstallUI(); });
+
+    var swOk = (typeof navigator !== 'undefined') && ('serviceWorker' in navigator)
+      && !(typeof location !== 'undefined' && location.protocol === 'file:');
+
+    window.addEventListener('load', function () {
+      // Auto-wire any in-app install control ([data-pwa-install]).
+      try {
+        var n = installEls();
+        for (var i = 0; i < n.length; i += 1) {
+          n[i].addEventListener('click', function (ev) { try { ev.preventDefault(); } catch (_) {} window.PWAInstall.install(); });
+        }
+        syncInstallUI();
+      } catch (_) {}
+      // Register the service worker (offline shell + background sync).
+      if (swOk) {
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+          try {
+            if (reg && 'sync' in reg) {
+              navigator.serviceWorker.ready.then(function (r) { try { r.sync.register('apstats-sync-grades').catch(function () {}); } catch (_) {} });
+            }
+          } catch (_) {}
+        }).catch(function () {});
+      }
+    });
+
+    if (swOk) {
+      navigator.serviceWorker.addEventListener('message', function (e) {
+        try {
+          if (e.data && e.data.type === 'drain-offline-queue'
+            && window.gradebookClient && typeof window.gradebookClient.syncOfflineQueue === 'function') {
+            window.gradebookClient.syncOfflineQueue();
+          }
+        } catch (_) {}
+      });
+    }
   } catch (_) { /* PWA is best-effort; never break the page */ }
 })();

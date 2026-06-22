@@ -101,6 +101,8 @@
 
 </head>
 <body>
+    <!-- PWA install affordance (OFFLINE_MODE_SPEC §4.G). Hidden when already installed. -->
+    <button id="pwa-install-fab" type="button" aria-label="Install app" style="position:fixed;left:10px;bottom:10px;z-index:9999;font-family:Geneva,Verdana,sans-serif;font-size:12px;padding:6px 10px;border:2px solid #1d2b53;background:#ffe24a;box-shadow:2px 2px 0 #1d2b53;cursor:pointer">&#128241; Install app</button>
     <!-- Phase 2: Offline Banner -->
     <div id="offline-banner" class="offline-banner hidden" role="alert">
         <span>📡 Working offline - your answers are saved locally and will sync when connected</span>
@@ -13134,6 +13136,24 @@ Respond with JSON:
             }
         });
 
+    </script>
+    <!-- PWA install button wiring (OFFLINE_MODE_SPEC §4.G). PWAInstall comes from pwa-register.js. -->
+    <script>
+    (function () {
+      var b = document.getElementById('pwa-install-fab');
+      if (!b) return;
+      try { if (window.matchMedia && matchMedia('(display-mode: standalone)').matches) b.style.display = 'none'; } catch (_) {}
+      try { if (navigator.standalone) b.style.display = 'none'; } catch (_) {} // iOS installed
+      window.addEventListener('appinstalled', function () { b.style.display = 'none'; });
+      function help() { alert('Install the AP Stats quiz as an app:\n\n• Computer (Chrome/Edge): click the install icon in the address bar, or the ⋮ menu → "Install".\n• iPhone/iPad (Safari): Share → "Add to Home Screen".'); }
+      b.addEventListener('click', function () {
+        try {
+          if (window.PWAInstall && typeof window.PWAInstall.canInstall === 'function' && window.PWAInstall.canInstall()) {
+            window.PWAInstall.install().then(function (r) { if (r === 'unavailable') help(); });
+          } else { help(); }
+        } catch (_) { help(); }
+      });
+    })();
     </script>
 </body>
 </html>

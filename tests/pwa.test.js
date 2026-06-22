@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import { createContext, runInContext } from 'vm';
 
@@ -30,7 +30,12 @@ describe('cr manifest.webmanifest', () => {
     expect(m.start_url).toBe('index.html');
     expect(m.scope).toBe('./');
     expect(m.display).toBe('standalone');
-    expect(m.icons[0]).toMatchObject({ src: 'icon.svg', type: 'image/svg+xml' });
+  });
+  it('ships raster PNG icons (Chrome installability)', () => {
+    expect(m.icons.some((i) => i.type === 'image/png' && i.sizes === '192x192')).toBe(true);
+    expect(m.icons.some((i) => i.type === 'image/png' && i.sizes === '512x512')).toBe(true);
+    expect(existsSync(resolve(ROOT, 'icon-192.png'))).toBe(true);
+    expect(existsSync(resolve(ROOT, 'icon-512.png'))).toBe(true);
   });
 });
 
@@ -88,9 +93,9 @@ describe('cr pwa-register.js', () => {
     expect(sw.register).toHaveBeenCalledWith('sw.js');
   });
 
-  it('does NOT register on file://', () => {
+  it('does NOT register a SW on file:// (load handler runs but skips registration)', () => {
     const { sw, winL } = boot('file:');
-    expect(winL.load).toBeUndefined();
+    if (typeof winL.load === 'function') winL.load();
     expect(sw.register).not.toHaveBeenCalled();
   });
 
@@ -99,13 +104,26 @@ describe('cr pwa-register.js', () => {
     swL.message({ data: { type: 'drain-offline-queue' } });
     expect(win.gradebookClient.syncOfflineQueue).toHaveBeenCalled();
   });
+
+  it('PWAInstall captures beforeinstallprompt and install() triggers it', async () => {
+    const { win, winL } = boot();
+    expect(win.PWAInstall.canInstall()).toBe(false);
+    const e = { preventDefault: () => {}, prompt: vi.fn(), userChoice: Promise.resolve({ outcome: 'accepted' }) };
+    winL.beforeinstallprompt(e);
+    expect(win.PWAInstall.canInstall()).toBe(true);
+    const r = await win.PWAInstall.install();
+    expect(e.prompt).toHaveBeenCalled();
+    expect(r).toBe('accepted');
+  });
 });
 
 describe('cr index.html wiring + build lockstep', () => {
-  it('links manifest/icon/theme + loads pwa-register.js', () => {
+  it('links manifest/icon/theme + loads pwa-register.js + has the install button', () => {
     expect(INDEX).toContain('rel="manifest" href="manifest.webmanifest"');
     expect(INDEX).toContain('name="theme-color"');
     expect(INDEX).toContain('src="pwa-register.js"');
+    expect(INDEX).toContain('id="pwa-install-fab"');
+    expect(INDEX).toContain('PWAInstall.install()');
   });
   it('sw BUILD === version.json build === version-check APP_BUILD', () => {
     const swB = (SW.match(/const BUILD = '([^']+)'/) || [])[1];
