@@ -194,3 +194,78 @@ describe('Coach: Blooket make-up awareness', () => {
     expect(serverCode).toMatch(/Blooket not done/);
   });
 });
+
+describe('Coach: PC track not-open-yet (no PC pushing before the fall)', () => {
+  it('prompt forbids recommending PC work when the PC track is NOT OPEN YET', () => {
+    expect(systemPrompt).toMatch(/NOT OPEN YET/);
+    expect(systemPrompt).toMatch(/NEVER tell the student to do, complete, raise/i);
+  });
+  it('buildCoachFacts has a pcDue-driven NOT OPEN YET branch (explicit pcDue === false)', () => {
+    expect(serverCode).toMatch(/ctx\.pcDue === false/);
+    expect(serverCode).toMatch(/NOT OPEN YET/);
+    expect(serverCode).toMatch(/do NOT tell the student to work on Progress Checks/);
+  });
+});
+
+describe('Coach: flashcard completion/unlock gate', () => {
+  it('prompt names flashcards as the completion + unlock gate', () => {
+    expect(systemPrompt).toMatch(/COMPLETION and next-lesson UNLOCK gate/);
+    expect(systemPrompt).toMatch(/NEXT-STEP GATE/);
+  });
+  it('prompt frames flashcards as completing/unlocking, not a grade jump', () => {
+    expect(systemPrompt).toMatch(/NOT as a big grade jump/);
+  });
+  it('prompt frames Blooket as mean-of-recorded (a missing one is NOT counted as 0)', () => {
+    expect(systemPrompt).toMatch(/NOT counted as 0/);
+  });
+  it('prompt: a strong single-track grade is affirmed, not given a manufactured bottleneck', () => {
+    expect(systemPrompt).toMatch(/do NOT manufacture a bottleneck/);
+  });
+  it('buildCoachFacts emits a NEXT-STEP GATE line from ctx.flashcardGate', () => {
+    expect(serverCode).toMatch(/ctx\.flashcardGate/);
+    expect(serverCode).toMatch(/NEXT-STEP GATE/);
+  });
+});
+
+describe('Coach: re-submit advice is gated (not proactive for undone work)', () => {
+  it('does not proactively tell students to re-submit undone work', () => {
+    expect(systemPrompt).toMatch(/Do NOT proactively tell a student to "re-submit"/);
+    expect(systemPrompt).toMatch(/for undone work, tell them to DO it/);
+  });
+});
+
+// Behavioral: actually run buildCoachFacts over the observed scenario.
+function buildFacts(ctx) {
+  const start = serverCode.indexOf('function buildCoachFacts(');
+  let depth = 0, end = -1;
+  for (let j = serverCode.indexOf('{', start); j < serverCode.length; j++) {
+    if (serverCode[j] === '{') depth++;
+    else if (serverCode[j] === '}') { depth--; if (depth === 0) { end = j + 1; break; } }
+  }
+  const fnSrc = serverCode.slice(start, end);
+  // eslint-disable-next-line no-new-func
+  return new Function(fnSrc + '\nreturn buildCoachFacts;')()(ctx);
+}
+
+describe('buildCoachFacts behavior (the observed Elmer scenario)', () => {
+  it('pcDue=false: says PCs are NOT OPEN YET and emits no PC-deficit note', () => {
+    const facts = buildFacts({ quarter: 'Q1', grade: 100, ceiling: 100, pcAvg: null, pcDue: false, workAvg: 100, lessonsGraded: 1, lessonsDue: 1, lessonsTotal: 38, flashcardGate: [] });
+    expect(facts).toMatch(/NOT OPEN YET/);
+    expect(facts).not.toMatch(/PC track is below the 40% gate/);
+  });
+  it('pcDue=true + null pcAvg: keeps the normal "not yet attempted" framing', () => {
+    const facts = buildFacts({ quarter: 'Q1', grade: 50, pcAvg: null, pcDue: true, workAvg: 50, flashcardGate: [] });
+    expect(facts).toMatch(/PC \(Progress-Check mastery\) track: not yet attempted/);
+    expect(facts).not.toMatch(/NOT OPEN YET/);
+  });
+  it('pcDue undefined (older client): falls back to normal framing, never NOT OPEN YET', () => {
+    const facts = buildFacts({ quarter: 'Q1', pcAvg: null, workAvg: 100, flashcardGate: [] });
+    expect(facts).not.toMatch(/NOT OPEN YET/);
+    expect(facts).toMatch(/PC \(Progress-Check mastery\) track: not yet attempted/);
+  });
+  it('flashcardGate present: emits a NEXT-STEP GATE line naming the topic', () => {
+    const facts = buildFacts({ quarter: 'Q1', pcAvg: null, pcDue: false, workAvg: 100, flashcardGate: [{ lesson: '1.1', worksheet: 100, blooket: null }] });
+    expect(facts).toMatch(/NEXT-STEP GATE/);
+    expect(facts).toMatch(/Topic 1\.1/);
+  });
+});

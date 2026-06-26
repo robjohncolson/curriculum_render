@@ -1529,9 +1529,12 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - Use ONLY the facts provided. NEVER invent assignments, scores, topics, or tasks. If a fact is not provided, do not assert it.
 - Name the single biggest bottleneck FIRST, then give 2-3 concrete next actions drawn only from the outstanding work in the facts. The biggest bottleneck is the LOWEST-scoring component in the facts (the facts may flag a "BIGGEST WIN" item, or it is the lowest % among the listed lessons) — lead with THAT specific item (e.g. "your Topic 1.2 worksheet at 1%"), NOT the earliest-unfinished lesson. A lesson that is already at a decent score is not the priority even if it appears first in a list.
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
-- Blooket is part of the Work track. A Blooket that has not been played counts as 0, BUT a student can MAKE IT UP to 80% by completing that lesson's flashcards on the Desk (a passed flashcard set = 80%). When the facts list undone Blookets ("Blooket make-up"), tell the student they can quickly lift their Work track by doing those flashcards. Only mention Blooket make-ups that appear in the facts — never invent a Blooket for a lesson that does not have one.
+- CRITICAL: if the facts say the PC track is NOT OPEN YET, the Progress Checks do not exist yet — NEVER tell the student to do, complete, raise, "attempt", or "get above 40%" on the PC/Progress-Check track, never call it a bottleneck or a 0, and never imply it is hurting the grade. The grade is the Work track ALONE right now; point only at Work-track actions.
+- Flashcards (Blooket) are the lesson COMPLETION and next-lesson UNLOCK gate: a lesson is not complete (and the next one will not unlock) until its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to complete and unlock the lesson — frame it as completing/unlocking the lesson, NOT as a big grade jump.
+- If the facts show the grade is already strong and NO component is below target (no BIGGEST WIN is listed), do NOT manufacture a bottleneck — affirm the student is doing well, then point them at the NEXT-STEP GATE (pass the flashcards to complete + unlock the lesson) or the earliest unfinished work as the next thing to do, framed as making progress, not fixing a deficit.
+- Blooket is part of the Work track (a small 10% slice, averaged only over Blookets the student has actually recorded — a missing one is NOT counted as 0, so it never tanks the grade). A student records a Blooket by passing that lesson's flashcards on the Desk. When the facts list undone Blookets ("Blooket make-up") or a NEXT-STEP GATE, point the student at doing those flashcards, framed as completing/recording the lesson rather than a big grade jump. Only mention Blookets that appear in the facts — never invent a Blooket for a lesson that does not have it.
 - Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
-- If a worksheet or quiz shows 0% (or far lower than the student expects) and they say they DID it, it most likely was not recorded yet — work only counts once each answer is CHECKED/submitted while signed in (typing answers in is not enough). In that case, gently tell them to re-open it signed in and check/submit their answers so it records, rather than implying they did no work.
+- Only if the student INSISTS they already did a worksheet/quiz that shows 0% should you suggest it was probably not recorded yet (work counts only once each answer is CHECKED/submitted while signed in — typing alone is not enough); then tell them to re-open it signed in and check/submit. Do NOT proactively tell a student to "re-submit" or "re-open" work the facts show as undone/0% — for undone work, tell them to DO it, not re-submit it.
 - Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. No markdown headers; short sentences or a tight bullet list.
 - End with one encouraging sentence naming the fastest realistic win.`;
 
@@ -1545,8 +1548,18 @@ function buildCoachFacts(ctx) {
   const c = num(ctx.ceiling);
   lines.push('Current quarter grade: ' + (g == null ? 'not yet computed' : g + '%') +
     (c != null ? ' (could reach about ' + c + '% if all due work is completed).' : '.'));
-  lines.push('PC (Progress-Check mastery) track: ' + pct(ctx.pcAvg) +
-    '. Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  // PC track: distinguish "not open yet (~fall)" from "open but unattempted". Only
+  // declare PCs unavailable when the client EXPLICITLY says so (pcDue === false) AND
+  // there's no PC score — so an older client that doesn't send pcDue falls back to the
+  // prior "not yet attempted" framing instead of wrongly suppressing real PC advice.
+  const _pcNotOpenYet = (ctx.pcDue === false) && (num(ctx.pcAvg) == null);
+  if (_pcNotOpenYet) {
+    lines.push('PC (Progress-Check mastery) track: NOT OPEN YET — Progress Checks unlock later in the course (this fall) and cannot be done now. Until then the quarter grade is set by the Work track ALONE; do NOT treat the PC track as a gap, a 0, a deficit, or a to-do, and do NOT tell the student to work on Progress Checks.');
+    lines.push('Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  } else {
+    lines.push('PC (Progress-Check mastery) track: ' + pct(ctx.pcAvg) +
+      '. Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  }
   // Work-track breakdown so the coach can see what's INSIDE the Work track —
   // especially the Blooket sub-track, which the student can't see elsewhere.
   if (ctx.workTracks && typeof ctx.workTracks === 'object') {
@@ -1572,6 +1585,16 @@ function buildCoachFacts(ctx) {
         b.todo.slice(0, 6).join(', Topic ') + '.';
     }
     lines.push(bl);
+  }
+  // Flashcard completion/unlock gate: lessons whose worksheet is done but flashcards
+  // (Blooket >=80) are still owed — the real thing blocking lesson completion + the
+  // next-lesson unlock. Frame as completing/unlocking, not a big grade lift (Blooket is
+  // only a small mean-of-recorded Work slice).
+  if (Array.isArray(ctx.flashcardGate) && ctx.flashcardGate.length) {
+    const fgTopics = ctx.flashcardGate.slice(0, 3)
+      .map((g) => 'Topic ' + g.lesson).join(', ');
+    lines.push('NEXT-STEP GATE: these lessons have the worksheet done but still need flashcards to COMPLETE and unlock the next lesson: ' + fgTopics +
+      '. Tell the student to pass each lesson’s flashcards to 80% on the Desk (this completes/unlocks the lesson).');
   }
   if (typeof ctx.lessonsGraded === 'number' && typeof ctx.lessonsTotal === 'number') {
     lines.push('Lessons graded so far: ' + ctx.lessonsGraded + ' of ' +
