@@ -155,7 +155,6 @@ window.showRosterSignIn = function showRosterSignIn() {
                        style="width:100%;padding:10px;margin:0 0 14px;font-size:16px;box-sizing:border-box" />
                 <button id="rs-submit" class="action-button primary extra-large" style="width:100%">Sign in</button>
                 <p id="rs-error" role="alert" style="color:#c0392b;min-height:1.2em;margin:8px 0 0"></p>
-                <p style="text-align:center;margin:12px 0 0;font-size:13px"><a href="#" id="rs-guest" style="color:var(--accent-primary,#3498db)">Not on the class roster? Continue as guest →</a></p>
             </div>
         </div>
     `;
@@ -207,23 +206,9 @@ window.showRosterSignIn = function showRosterSignIn() {
     if (userEl) userEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && passEl) passEl.focus(); });
     if (userEl) { try { userEl.focus(); } catch (_) {} }
 
-    // Not on the roster: adopt the stable, shared guest alias and start working.
-    // Work saves under this alias and is recovered into a real student later via
-    // the Guest Pass QR (?claimGuest=) + the teacher's /api/guest/reconcile.
-    const guestEl = document.getElementById('rs-guest');
-    if (guestEl) guestEl.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (typeof getGuestIdentity === 'function') {
-            // Becoming a guest drops any lingering roster session, so the guest
-            // alias isn't shadowed by a previous sign-in (e.g. date_tiger) — which
-            // rosterClient.current() would otherwise keep returning everywhere.
-            try { if (window.rosterClient && rosterClient.signOut) rosterClient.signOut(); } catch (_) {}
-            try { localStorage.removeItem('apstats_roster.v1'); } catch (_) {}
-            await acceptUsername(getGuestIdentity());
-        } else if (errEl) {
-            errEl.textContent = 'Guest mode is unavailable right now. Please refresh and try again.';
-        }
-    });
+    // Guests are retired (2026-06-25): the guest off-ramp link is removed — the quiz
+    // app requires a real roster sign-in (typed form / dropdown / name dial).
+    // Off-roster students self-sign-up at the Desk (real name), then sign in here.
 
     // PRIMARY sign-in: open the roster-aligned name-finder dial (↑ ← → ↓) on top
     // of the typed form above, identical to the Desk's Name Finder. The typed
@@ -878,14 +863,10 @@ window.acceptUsername = async function(name) {
     currentUsername = normalizeUsername(name);
     const _identitySwitched = !!(_prevUsername && _prevUsername !== currentUsername);
 
-    // Cross-app guest mode (shared with the Desk + worksheets via localStorage
-    // 'apstats_guest_active'): a Guest_ alias means "active guest"; any real roster
-    // name clears it. This is what the worksheet wall + getUsername read to let a
-    // guest work and to attribute answers to the recoverable Guest_ alias.
-    try {
-        if (/^Guest_/i.test(currentUsername || '')) localStorage.setItem('apstats_guest_active', '1');
-        else localStorage.removeItem('apstats_guest_active');
-    } catch (e) {}
+    // Guests are retired (2026-06-25): a real roster sign-in is the only path that
+    // reaches acceptUsername, so always CLEAR any stale cross-app guest flag — never
+    // re-set it. (Belt-and-suspenders: no caller supplies a Guest_ username anymore.)
+    try { localStorage.removeItem('apstats_guest_active'); } catch (e) {}
 
     // Save to storage adapter (IDB + localStorage dual-write)
     const storage = await waitForStorage();

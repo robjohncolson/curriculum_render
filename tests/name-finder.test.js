@@ -122,13 +122,15 @@ describe('cr index.html wires the dial to the universal PeriodX roster', () => {
 });
 
 describe('cr js/auth.js ON-LOAD screen (showRosterSignIn) also opens the dial', () => {
-  it('opens RosterNameFinder over PeriodX, keeps the typed form + guest fallback', () => {
+  it('opens RosterNameFinder over PeriodX, keeps the typed form, NO guest off-ramp', () => {
     const fn = authSrc.slice(authSrc.indexOf('showRosterSignIn = function'));
     expect(fn).toContain('window.RosterNameFinder.open(');
     expect(fn).toMatch(/\/roster\/section\/PeriodX/);
     expect(fn).toContain('onTypeUsername');
     expect(fn).toMatch(/acceptUsername\(/);   // success transition (same as the typed Sign-in button)
     expect(fn).toContain('rs-username');      // typed form retained underneath
-    expect(fn).toContain('rs-guest');         // guest off-ramp retained
+    // Guests are retired (2026-06-25): the "Continue as guest" off-ramp is gone.
+    expect(fn).not.toContain('rs-guest');
+    expect(fn).not.toContain('Continue as guest');
   });
 });

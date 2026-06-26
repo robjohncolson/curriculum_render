@@ -2197,6 +2197,9 @@ wss.on('connection', (ws) => {
         case 'identify': {
           const username = (data.username || '').trim();
           if (!username) break;
+          // Guests are retired (2026-06-25): reject any Guest_* alias so a stale/cached
+          // client can never inject a guest into presence / the "Online Now" feed.
+          if (/^Guest_/i.test(username)) break;
           wsToUser.set(ws, username);
           const loc = sanitizeLocation(data.location);
           if (loc) wsLocation.set(ws, loc);
@@ -2468,6 +2471,9 @@ wss.on('connection', (ws) => {
           var username = (data.username || '').trim();
           var role     = (data.role === 'teacher') ? 'teacher' : 'student';
           if (!section || !username) break;
+          // Guests are retired (2026-06-25): a Guest_* alias can never become a Live
+          // Classroom avatar (belt-and-suspenders against stale/cached clients).
+          if (/^Guest_/i.test(username)) break;
           // Coerce hue: integer 0-359 or null (non-integer / out-of-range -> null).
           var rawHue = data.hue;
           var joinHue = (typeof rawHue === 'number' && Number.isInteger(rawHue) && rawHue >= 0 && rawHue <= 359)
