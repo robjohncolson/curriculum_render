@@ -6800,3 +6800,79 @@ body.network-tier-lan .lan-setup-button {
 body.network-tier-lan .lan-setup-button:hover {
     background: #e67e22;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Focused mobile-responsive pass — the quiz on a phone (the Android packet app's
+   bundled quiz; ANDROID_PACKET_APP_SPEC). The core layout only had peer-sidebar +
+   modal mobile rules, so on a narrow screen the heavy .container/body padding ate
+   ~50px/side, charts were 400px tall, and wide elements (tables/canvas) overflowed
+   sideways. These are ADDITIVE overrides for ≤600px; the desktop layout is untouched.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    /* reclaim horizontal space — the single biggest win */
+    body { max-width: 100%; padding: 10px; }
+    .container { padding: 14px; border-radius: 8px; margin-bottom: 12px; }
+    h1 { font-size: 1.4rem; margin-bottom: 16px; }
+
+    /* kill sideways scroll: nothing should be wider than the screen */
+    body { overflow-x: hidden; }
+    img, canvas, svg, video, iframe, table, pre { max-width: 100%; height: auto; }
+    table { display: block; overflow-x: auto; }            /* wide data tables scroll inside their own box */
+
+    /* charts: 400px is too tall on a phone */
+    .chart-container { padding: 10px; margin: 12px 0; }
+    .chart-canvas { height: 260px; }
+
+    /* answer choices + free-response: comfy tap targets; 16px input font stops the
+       mobile browser auto-zooming on focus (the classic jarring jump) */
+    .choices { margin-top: 10px; }
+    .choice { padding: 14px; margin: 8px 0; }
+    .choice label, .choice-key { font-size: 15px; }
+    .reason-textarea, .frq-part-textarea, .username-input, .appeal-textarea, input, textarea, select { font-size: 16px; }
+
+    /* primary actions: full-width, thumb-height — easy to hit one-handed */
+    .submit-button, .action-button, .submit-reasoning-btn, .submit-appeal-btn {
+        width: 100%; box-sizing: border-box; min-height: 46px; }
+    .appeal-actions { flex-direction: column; gap: 8px; }
+
+    /* tighten the heavy section spacing */
+    .app-controls { padding: 10px; gap: 8px; }
+    .answer-section { padding-top: 14px; margin-top: 14px; }
+    .question-header { flex-wrap: wrap; gap: 6px; }
+
+    /* The floating action menu was the worst offender: 8× 56px circles stacked into a
+       ~540px rail down the right edge that buried the content when opened. Shrink the
+       whole FAB system + tuck it tighter into the corner so it stops dominating. */
+    .fab-container { bottom: 12px; right: 12px; }
+    .fab-main { width: 46px; height: 46px; font-size: 20px; }
+    .fab-menu { gap: 8px; bottom: 58px; }
+    .fab-item { width: 44px; height: 44px; }
+    .fab-item-icon { font-size: 20px; }
+
+    /* belt-and-suspenders against sideways scroll (a stray fixed/wide element) */
+    html { overflow-x: hidden; }
+
+    /* ── THE big one: the question 2-column layout kept a FIXED 450px peer sidebar
+       (flex: 0 0 450px) that's wider than a phone, so the card overflowed and clipped
+       the question + table. Force single-column, full-width, and make the data table
+       scroll inside its own box instead of widening the page. !important to beat the
+       more-specific desktop rules. ── */
+    .quiz-container.two-column-layout { flex-direction: column !important; max-width: 100% !important; gap: 16px !important; }
+    .peer-sidebar { flex: 1 1 auto !important; width: 100% !important; min-width: 0 !important; max-height: none !important; position: static !important; }
+    .question-main-column { flex: 1 1 auto !important; min-width: 0 !important; padding: 14px !important; }
+    .container, .quiz-container, .question-main-column { max-width: 100% !important; box-sizing: border-box; }
+    /* data tables: a scrollable block capped at the screen width (the missing piece was
+       width:100% — a display:block table without it sizes to its wide content) */
+    table, .question-main-column table, .question-prompt table, .container table {
+        display: block !important; width: 100% !important; max-width: 100% !important;
+        overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    /* let long words/question text wrap instead of forcing width */
+    .question-prompt, .question-text, .question-id { overflow-wrap: anywhere; }
+    .question-prompt { font-size: 16px; }
+
+    /* The right-edge sliver: the full-screen sprite canvas is `position:fixed; width:100vw`,
+       and 100vw includes the scrollbar gutter → it's a hair wider than the visual viewport,
+       creating sideways scroll that overflow-x:hidden can't clip (it's fixed). 100% fixes it. */
+    #spriteCanvas { width: 100% !important; max-width: 100% !important; }
+    body { overflow-x: hidden !important; }
+}
