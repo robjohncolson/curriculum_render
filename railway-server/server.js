@@ -1689,6 +1689,127 @@ app.post('/api/ai/coach', async (req, res) => {
 });
 
 // ============================
+// NIGHTLY REVIEW COMMENT DRAFTER (Nightly Review v2)
+// ============================
+// POST /api/ai/review-comment — draft ONE short teacher comment on a student's
+// free response, or one SHARED comment for a small cluster of answers that made
+// the same mistake. The teacher always edits/approves before it is sent; this
+// endpoint never grades and never changes a score.
+//
+// PRIVACY (NIGHTLY_REVIEW_V2_SPEC.md §0.2–0.3): the request envelope carries NO
+// structured identifiers — no name, no student id, no username; the Desk only
+// sends responses for rows that already crossed the LLM boundary at grade time,
+// and cluster batches are capped at 5 unlabeled answers. Answer text may still
+// contain a name the student typed — the system prompt orders the model to
+// ignore and never repeat it.
+
+const REVIEW_COMMENT_MAX_CHARS = 180;
+const REVIEW_COMMENT_MAX_ANSWERS = 5;
+const REVIEW_COMMENT_ANSWER_CLIP = 1200;
+
+const REVIEW_COMMENT_SYSTEM_PROMPT = `You are the student's AP Statistics teacher writing ONE comment (maximum ${REVIEW_COMMENT_MAX_CHARS} characters) on their free-response work.
+Rules:
+- Warm, specific to THIS answer, and actionable: exactly one concrete next step.
+- Second person ("you"). No grade, no score, no preamble, no quotation marks, no emoji.
+- If the answer text contains any personal names, ignore them and never repeat them.
+- When several answers are given, they share one misconception: write ONE comment to the whole group about that shared misconception. Never reference "answer 1" or any individual answer.
+- Respond with the comment text ONLY — a single line.`;
+
+// Normalize {response} or {answers:[...]} into 1..5 clipped answer strings.
+function normalizeReviewAnswers(body) {
+  const raw = Array.isArray(body.answers) ? body.answers
+    : (body.response !== undefined && body.response !== null) ? [body.response]
+      : [];
+  const answers = [];
+  for (const a of raw) {
+    if (answers.length >= REVIEW_COMMENT_MAX_ANSWERS) break;
+    const s = (typeof a === 'string' ? a : JSON.stringify(a) || '').trim();
+    if (!s) continue;
+    answers.push(s.length > REVIEW_COMMENT_ANSWER_CLIP ? s.slice(0, REVIEW_COMMENT_ANSWER_CLIP) + '…' : s);
+  }
+  return answers;
+}
+
+// One user message: optional topic/question/score context, then the unlabeled
+// answer block(s). NO identifiers, NO per-answer labels (privacy §0.3).
+function buildReviewCommentUserMessage({ answers, score, source, topic, question }) {
+  const lines = [];
+  if (typeof topic === 'string' && topic.trim()) lines.push('Topic: ' + topic.trim().slice(0, 120));
+  if (typeof source === 'string' && source.trim()) lines.push('Work type: ' + source.trim().slice(0, 40));
+  if (typeof question === 'string' && question.trim()) lines.push('Question: ' + question.trim().slice(0, 600));
+  if (score !== undefined && score !== null && Number.isFinite(Number(score))) {
+    lines.push('Score already given (do not mention it): ' + Number(score));
+  }
+  if (answers.length === 1) {
+    lines.push('Student answer:', '"""', answers[0], '"""');
+  } else {
+    lines.push(`${answers.length} student answers to the same item (write ONE shared comment):`);
+    for (const a of answers) lines.push('"""', a, '"""');
+  }
+  return lines.join('\n');
+}
+
+// The model sometimes wraps in quotes or adds a second line — take line one,
+// strip wrapping quotes, clamp to the cap. Empty in → empty out (never blocks).
+function clampReviewComment(text) {
+  let s = String(text || '').trim();
+  if (!s) return '';
+  s = s.replace(/\s*\n+\s*/g, ' ').trim();
+  const wraps = [['"', '"'], ['“', '”'], ["'", "'"]];
+  for (const [open, close] of wraps) {
+    if (s.startsWith(open) && s.endsWith(close) && s.length > 1) s = s.slice(1, -1).trim();
+  }
+  if (s.length > REVIEW_COMMENT_MAX_CHARS) s = s.slice(0, REVIEW_COMMENT_MAX_CHARS - 1).trimEnd() + '…';
+  return s;
+}
+
+app.post('/api/ai/review-comment', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const answers = normalizeReviewAnswers(body);
+
+    if (!answers.length) {
+      return res.status(400).json({ error: 'response (or answers[]) is required' });
+    }
+    if (!AI_AVAILABLE) {
+      return res.status(503).json({ error: 'AI service not configured' });
+    }
+
+    const userMessage = buildReviewCommentUserMessage({
+      answers,
+      score: body.score,
+      source: body.source,
+      topic: body.topic,
+      question: body.question
+    });
+
+    console.log(`🌙 Review comment draft (${answers.length} answer${answers.length > 1 ? 's' : ''})`);
+
+    const result = await gradingQueue.add((provider) => callAI(null, provider, {
+      systemMessage: REVIEW_COMMENT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userMessage }],
+      temperature: 0.4,
+      maxTokens: 120,
+      skipJsonFormat: true,
+      rawResponse: true
+    }));
+
+    const comment = clampReviewComment(result && result.content);
+    console.log(`✅ Review comment [${result._provider}] (${comment.length} chars)`);
+
+    res.json({
+      comment,
+      _provider: result._provider,
+      _model: result._model
+    });
+
+  } catch (error) {
+    console.error('Review comment error:', error.message);
+    res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
+// ============================
 // IDENTITY CLAIM RESOLUTION
 // ============================
 
