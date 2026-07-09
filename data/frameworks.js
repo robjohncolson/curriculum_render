@@ -1,15 +1,16 @@
 // AP Statistics Course Framework Data
 // Source: AP Statistics Course and Exam Description (College Board)
 // Used to provide context-aware AI grading feedback
+// FALL-2026 CED NOTE: the Big Ideas axis (VAR/UNC/DAT) is ELIMINATED in the
+// Fall-2026 CED and has been removed from this data — do not reintroduce it.
+// The canonical skill taxonomy is school/follow-alongs/data/skill-taxonomy-ced2026.json.
+// Remaining unit/lesson labels + LO/EK text are OLD-CED provenance (ids are the
+// stable keys); full re-derivation is tracked as W9 in the surface plan.
 
 const UNIT_FRAMEWORKS = {
   1: {
     title: "Exploring One-Variable Data",
     examWeight: "15-23%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "Is my cat old, compared to other cats?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "How certain are we that what seems to be a pattern is not just a coincidence?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: What Can We Learn from Data?",
@@ -351,10 +352,6 @@ const UNIT_FRAMEWORKS = {
   3: {
     title: "Collecting Data",
     examWeight: "12-15%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "What do our data tell us?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "Why might the data we collected not be valid for drawing conclusions about an entire population?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Do the Data We Collected Tell the Truth?",
@@ -571,11 +568,6 @@ const UNIT_FRAMEWORKS = {
   2: {
     title: "Exploring Two-Variable Data",
     examWeight: "5-7%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "Does the fact that the number of shark attacks increases with ice cream sales necessarily mean that ice cream sales cause shark attacks?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "How might you represent incomes of individuals with and without a college degree to help describe similarities and/or differences between the two groups?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "How can you determine the effectiveness of a linear model that uses the number of cricket chirps per minute to predict temperature?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Are Variables Related?",
@@ -860,10 +852,6 @@ const UNIT_FRAMEWORKS = {
   4: {
     title: "Probability, Random Variables, and Probability Distributions",
     examWeight: "10-20%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How can an event be both random and predictable?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "About how many rolls of a fair six-sided die would we anticipate it taking to get three 1s?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Random and Non-Random Patterns?",
@@ -1282,10 +1270,6 @@ const UNIT_FRAMEWORKS = {
   5: {
     title: "Sampling Distributions",
     examWeight: "7-12%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How likely is it to get a value this large just by chance?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "How can we anticipate patterns in the values of a statistic from one sample to another?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Why Is My Sample Not Like Yours?",
@@ -1583,11 +1567,6 @@ const UNIT_FRAMEWORKS = {
   6: {
     title: "Inference for Categorical Data: Proportions",
     examWeight: "12-15%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "When can we use a normal distribution to perform inference calculations involving population proportions?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "How can we narrow the width of a confidence interval?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "If the proportion of subjects who experience serious side effects when taking a new drug is smaller than the proportion of subjects who experience serious side effects when taking a placebo, how can we determine if the difference is statistically significant?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Why Be Normal?",
@@ -1950,11 +1929,6 @@ const UNIT_FRAMEWORKS = {
   7: {
     title: "Inference for Quantitative Data: Means",
     examWeight: "10-18%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How do we know whether to use a t-test or a z-test for inference with means?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "How can we make sure that samples are independent?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "Why is it inappropriate to accept a hypothesis as true based on the results of statistical inference testing?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Should I Worry About Error?",
@@ -2315,10 +2289,6 @@ const UNIT_FRAMEWORKS = {
   8: {
     title: "Inference for Categorical Data: Chi-Square",
     examWeight: "2-5%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How does increasing the degrees of freedom influence the shape of the chi-square distribution?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "Why is it inappropriate to use statistical inference to justify a claim that there is no association between variables?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Are My Results Unexpected?",
@@ -2554,11 +2524,6 @@ const UNIT_FRAMEWORKS = {
   9: {
     title: "Inference for Quantitative Data: Slopes",
     examWeight: "2-5%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How can there be variability in slope if the slope statistic is uniquely determined for a line of best fit?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "When is it appropriate to perform inference about the slope of a population regression line based on sample data?" },
-      { id: "DAT", name: "Data-Based Predictions, Decisions, and Conclusions", question: "Why do we not conclude that there is no correlation between two variables based on the results of a statistical inference for slopes?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Do Those Points Align?",

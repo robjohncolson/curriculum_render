@@ -1,15 +1,16 @@
 // AP Statistics Course Framework Data
 // Source: AP Statistics Course and Exam Description (College Board)
 // Used to provide context-aware AI grading feedback
+// FALL-2026 CED NOTE: the Big Ideas axis (VAR/UNC/DAT) is ELIMINATED in the
+// Fall-2026 CED and has been removed from this data — do not reintroduce it.
+// The canonical skill taxonomy is school/follow-alongs/data/skill-taxonomy-ced2026.json.
+// Remaining unit/lesson labels + LO/EK text are OLD-CED provenance (ids are the
+// stable keys); full re-derivation is tracked as W9 in the surface plan.
 
 const UNIT_FRAMEWORKS = {
   4: {
     title: "Probability, Random Variables, and Probability Distributions",
     examWeight: "10-20%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How can an event be both random and predictable?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "About how many rolls of a fair six-sided die would we anticipate it taking to get three 1s?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Random and Non-Random Patterns?",

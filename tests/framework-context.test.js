@@ -25,10 +25,6 @@ const UNIT_FRAMEWORKS = {
   4: {
     title: "Probability, Random Variables, and Probability Distributions",
     examWeight: "10-20%",
-    bigIdeas: [
-      { id: "VAR", name: "Variation and Distribution", question: "How can an event be both random and predictable?" },
-      { id: "UNC", name: "Patterns and Uncertainty", question: "About how many rolls of a fair six-sided die would we anticipate it taking to get three 1s?" }
-    ],
     lessons: {
       1: {
         topic: "Introducing Statistics: Random and Non-Random Patterns?",
@@ -206,22 +202,24 @@ describe('Framework Data Structure', () => {
       expect(unit4.examWeight).toBe("10-20%");
     });
 
-    it('should have big ideas with required fields', () => {
-      const bigIdeas = UNIT_FRAMEWORKS[4].bigIdeas;
-      expect(bigIdeas).toHaveLength(2);
-
-      bigIdeas.forEach(bi => {
-        expect(bi).toHaveProperty('id');
-        expect(bi).toHaveProperty('name');
-        expect(bi).toHaveProperty('question');
-      });
+    // Fall-2026 CED: the Big Ideas axis (VAR/UNC/DAT) is ELIMINATED. These are
+    // regression guards — the dead axis must never reappear in framework data
+    // or in AI-grading context (W10; canonical taxonomy lives in
+    // school/follow-alongs/data/skill-taxonomy-ced2026.json).
+    it('should NOT carry the eliminated Big Ideas axis', () => {
+      for (const unit of Object.values(UNIT_FRAMEWORKS)) {
+        expect(unit.bigIdeas).toBeUndefined();
+      }
     });
 
-    it('should have VAR and UNC big ideas', () => {
-      const bigIdeas = UNIT_FRAMEWORKS[4].bigIdeas;
-      const ids = bigIdeas.map(bi => bi.id);
-      expect(ids).toContain('VAR');
-      expect(ids).toContain('UNC');
+    it('should never emit Big Ideas text into AI grading context', () => {
+      for (const [u, unit] of Object.entries(UNIT_FRAMEWORKS)) {
+        for (const l of Object.keys(unit.lessons || {})) {
+          const fw = getFramework(Number(u), Number(l));
+          const ctx = fw ? buildFrameworkContext(fw) : '';
+          expect(ctx).not.toMatch(/Big Idea|Variation and Distribution|Patterns and Uncertainty|Data-Based Predictions/);
+        }
+      }
     });
   });
 
