@@ -552,6 +552,20 @@
 
     <!-- Tutor panel removed - local Qwen is now used as grading fallback only -->
 
+    <script>
+        window.SY2627_CROSSWALK_READY = fetch('data/2026-crosswalk.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Crosswalk request failed with status ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(crosswalk => {
+                window.SY2627_CROSSWALK = crosswalk;
+                return crosswalk;
+            });
+    </script>
+    <script src="js/sy2627_overlay.js"></script>
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
     <script src="data/chart_questions.js"></script>
@@ -3968,8 +3982,11 @@ window.submitManualMerge = submitManualMerge;
         let classData = null;
         let currentUnit = null;
         let currentLesson = null;
+        let currentNewUnit = null;
+        let currentTopic = null;
         let currentQuestions = [];
         let allUnitQuestions = [];
+        let allUnitTopics = {};
         let chartInstances = {};
         let currentTheme = 'light';
 
@@ -3994,6 +4011,7 @@ window.submitManualMerge = submitManualMerge;
 
         // Add this to your global variables
         let allCurriculumData = {}; // Store all units' data
+        let byNewUnit = {}; // Fall-2026 shape: {newUnit: {newTopic: [questions]}}
         let qrCodesGenerated = false; // Track if QR codes have been generated
 
         // TASK 4.1: Track activity listeners for cleanup (memory leak prevention)
@@ -4386,6 +4404,8 @@ window.submitManualMerge = submitManualMerge;
             8: { name: 'Chi-Square Tests', lessons: 2 },
             9: { name: 'Inference for Slopes', lessons: 2 }
         };
+
+        const NEW_UNIT_LABELS = SY2627Overlay.NEW_UNIT_LABELS;
 
         // Initialize class data - moved to js/data_manager.js
 
@@ -6255,15 +6275,17 @@ function renderLessonSelector(unitInfo) {
             });
             chartInstances = {};
             currentQuestions = [];
+            currentTopic = null;
             currentLesson = null;
 
-            // Re-detect the unit structure from allUnitQuestions
-            const unitInfo = detectUnitAndLessons(allUnitQuestions);
+            const unitData = allCurriculumData[currentNewUnit];
+            if (!unitData) {
+                backToUnits();
+                return;
+            }
 
-            // Call renderLessonSelector with the unitInfo
-            renderLessonSelector(unitInfo);
+            renderLessonSelector(unitData.unitInfo);
 
-            // Update URL (removes lesson param, keeps unit)
             if (typeof updateURLForCurrentView === 'function') {
                 updateURLForCurrentView();
             }
@@ -10989,6 +11011,14 @@ Respond with JSON:
         window.onload = async function() {
             initTheme();
 
+            try {
+                await window.SY2627_CROSSWALK_READY;
+            } catch (error) {
+                console.error('Failed to load the Fall-2026 curriculum crosswalk:', error);
+                showMessage('Unable to load the Fall-2026 curriculum map. Please refresh and try again.', 'error');
+                return;
+            }
+
             // Initialize IndexedDB storage system first
             if (typeof initializeStorage === 'function') {
                 try {
@@ -11023,98 +11053,126 @@ Respond with JSON:
             await promptUsername();
 
             // After login, check URL parameters for direct navigation
-            handleURLNavigation();
+            await handleURLNavigation();
         }
 
         // URL Deep Linking Support
         // Supports: ?unit=4&lesson=2 or ?u=4&l=2 or ?q=U4-L2-Q01
-        function handleURLNavigation() {
+        async function handleURLNavigation() {
             const urlParams = new URLSearchParams(window.location.search);
 
             // Check for question ID first (most specific)
             const questionId = urlParams.get('q') || urlParams.get('question');
             if (questionId) {
-                // Parse question ID format: U4-L2-Q01
-                const match = questionId.match(/U(\d+)-L(\d+)-Q\d+/i);
-                if (match) {
-                    const unitNum = parseInt(match[1]);
-                    const lessonNum = parseInt(match[2]);
-                    console.log(`🔗 URL navigation: question ${questionId} → Unit ${unitNum}, Lesson ${lessonNum}`);
-                    navigateToLesson(unitNum, lessonNum, questionId);
+                const oldTopic = SY2627Overlay.oldTopicOf(questionId);
+                if (oldTopic) {
+                    const [oldUnit, oldLesson] = oldTopic.split('.').map(Number);
+                    console.log(`🔗 URL navigation: question ${questionId} → old topic ${oldTopic}`);
+                    await navigateToLesson(oldUnit, oldLesson, questionId);
                     return;
                 }
             }
 
-            // Check for unit and lesson parameters
+            // New display locators are separate from the stable old-id locators.
+            const newUnitParam = urlParams.get('newUnit') || urlParams.get('nu');
+            const newTopicParam = urlParams.get('topic');
+            if (newUnitParam) {
+                const newUnit = parseInt(newUnitParam, 10);
+                if (!allCurriculumData[newUnit]) return;
+
+                selectUnit(newUnit);
+                if (newTopicParam && byNewUnit[newUnit]?.[newTopicParam]) {
+                    await loadTopic(newTopicParam);
+                }
+                return;
+            }
+
+            // u/l and unit/lesson remain historical id-prefix locators.
             const unitParam = urlParams.get('unit') || urlParams.get('u');
             const lessonParam = urlParams.get('lesson') || urlParams.get('l');
+            if (!unitParam) return;
 
-            if (unitParam) {
-                const unitNum = parseInt(unitParam);
-                if (unitNum >= 1 && unitNum <= 9) {
-                    if (lessonParam) {
-                        const lessonNum = lessonParam === 'PC' ? 'PC' : parseInt(lessonParam);
-                        console.log(`🔗 URL navigation: Unit ${unitNum}, Lesson ${lessonNum}`);
-                        navigateToLesson(unitNum, lessonNum);
-                    } else {
-                        console.log(`🔗 URL navigation: Unit ${unitNum}`);
-                        selectUnit(unitNum);
-                    }
-                } else {
-                    console.warn(`🔗 Invalid unit number in URL: ${unitParam}`);
-                }
+            const oldUnit = parseInt(unitParam, 10);
+            if (lessonParam) {
+                const oldLesson = lessonParam.toUpperCase() === 'PC'
+                    ? 'PC'
+                    : parseInt(lessonParam, 10);
+                console.log(`🔗 URL navigation: old Unit ${oldUnit}, Lesson ${oldLesson}`);
+                await navigateToLesson(oldUnit, oldLesson);
+                return;
             }
+
+            if (oldUnit >= 1 && oldUnit <= 5 && allCurriculumData[oldUnit]) {
+                selectUnit(oldUnit);
+                return;
+            }
+
+            console.warn(`🔗 Unit-only URL does not identify a Fall-2026 unit: ${unitParam}`);
         }
 
-        // Navigate directly to a specific unit and lesson
-        async function navigateToLesson(unitNum, lessonNum, scrollToQuestionId = null) {
-            // First select the unit
-            if (typeof selectUnit === 'function' && allCurriculumData[unitNum]) {
-                selectUnit(unitNum);
-
-                // Small delay to let unit selection complete
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Then load the lesson
-                if (typeof loadLessonWithResources === 'function') {
-                    await loadLessonWithResources(lessonNum);
-
-                    // If a specific question was requested, scroll to it
-                    if (scrollToQuestionId) {
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                        const questionElement = document.getElementById(`question-${scrollToQuestionId}`);
-                        if (questionElement) {
-                            questionElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            // Highlight the question briefly
-                            questionElement.style.transition = 'box-shadow 0.3s';
-                            questionElement.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.6)';
-                            setTimeout(() => {
-                                questionElement.style.boxShadow = '';
-                            }, 2000);
-                        }
-                    }
-                }
+        // Resolve stable old-unit locators directly against item id prefixes.
+        async function navigateToLesson(oldUnit, oldLesson, scrollToQuestionId = null) {
+            const allQuestions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM;
+            const questions = SY2627Overlay.questionsForOldLocator(allQuestions, oldUnit, oldLesson);
+            if (questions.length === 0) {
+                currentQuestions = [];
+                console.info(`🔗 No current questions for old Unit ${oldUnit}, Lesson ${oldLesson}`);
+                return false;
             }
+
+            const context = SY2627Overlay.contextForQuestions(
+                questions,
+                window.SY2627_CROSSWALK
+            );
+            const unitData = allCurriculumData[context.newUnit];
+            if (!unitData) return false;
+
+            currentNewUnit = context.newUnit;
+            currentUnit = context.newUnit;
+            currentTopic = context.newTopic;
+            currentLesson = context.newTopic;
+            allUnitQuestions = unitData.questions;
+            allUnitTopics = unitData.topics;
+
+            await loadLessonWithResources({
+                questions,
+                newTopic: context.newTopic,
+                newLabel: context.newLabel,
+                updateUrl: false
+            });
+
+            if (!scrollToQuestionId) return true;
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+            const questionElement = document.getElementById(`question-${scrollToQuestionId}`);
+            if (questionElement) {
+                questionElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                questionElement.style.transition = 'box-shadow 0.3s';
+                questionElement.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.6)';
+                setTimeout(() => {
+                    questionElement.style.boxShadow = '';
+                }, 2000);
+            }
+
+            return true;
         }
 
         // Update URL without reloading (for sharing)
         window.updateURLForCurrentView = function() {
-            if (currentUnit && currentLesson) {
-                const url = new URL(window.location);
-                url.searchParams.set('u', currentUnit);
-                url.searchParams.set('l', currentLesson);
-                window.history.replaceState({}, '', url);
-            } else if (currentUnit) {
-                const url = new URL(window.location);
-                url.searchParams.set('u', currentUnit);
-                url.searchParams.delete('l');
-                window.history.replaceState({}, '', url);
-            } else {
-                const url = new URL(window.location);
-                url.searchParams.delete('u');
-                url.searchParams.delete('l');
-                window.history.replaceState({}, '', url);
+            const url = new URL(window.location);
+            const managedParameters = [
+                'q', 'question', 'u', 'unit', 'l', 'lesson', 'nu', 'newUnit', 'topic'
+            ];
+            managedParameters.forEach(parameter => url.searchParams.delete(parameter));
+
+            if (currentNewUnit) {
+                url.searchParams.set('newUnit', currentNewUnit);
             }
+            if (currentTopic) {
+                url.searchParams.set('topic', currentTopic);
+            }
+
+            window.history.replaceState({}, '', url);
         }
 
         // Lazy loading charts removed - using immediate two-phase rendering instead
@@ -11376,19 +11434,18 @@ Respond with JSON:
         function renderUnitMenu() {
             const questionsContainer = document.getElementById('questionsContainer');
 
-            // Sort units numerically
             const sortedUnits = Object.keys(allCurriculumData).sort((a, b) => parseInt(a) - parseInt(b));
 
-            console.log('Rendering units:', sortedUnits); // Debug log
+            console.log('Rendering Fall-2026 units:', sortedUnits);
 
             let unitsHtml = '';
             sortedUnits.forEach(unitNum => {
                 const unitData = allCurriculumData[unitNum];
-                const unitName = unitStructure[unitNum]?.name || `Unit ${unitNum}`;
-                const lessonCount = unitData.unitInfo.lessonNumbers.length;
+                const unitName = NEW_UNIT_LABELS[unitNum] || `Unit ${unitNum}`;
+                const topicCount = unitData.unitInfo.topicNumbers.length;
                 const questionCount = unitData.questions.length;
 
-                console.log(`Unit ${unitNum}: ${questionCount} questions, ${lessonCount} lessons`); // Debug log
+                console.log(`Unit ${unitNum}: ${questionCount} questions, ${topicCount} topics`);
 
                 // Calculate completion percentage for this unit
                 let completedQuestions = 0;
@@ -11405,7 +11462,7 @@ Respond with JSON:
                         </div>
                         <div class="unit-title">${unitName}</div>
                         <div class="unit-stats">
-                            <span>${lessonCount} lessons</span>
+                            <span>${topicCount} topics</span>
                             <span>•</span>
                             <span>${questionCount} questions</span>
                         </div>
@@ -11432,12 +11489,16 @@ Respond with JSON:
 
         // Function to select a unit
         window.selectUnit = function(unitNumber) {
-            currentUnit = unitNumber;
-            currentLesson = null;
             const unitData = allCurriculumData[unitNumber];
-            allUnitQuestions = unitData.questions;
+            if (!unitData) return;
 
-            // Render lesson selector for this unit
+            currentNewUnit = Number(unitNumber);
+            currentUnit = currentNewUnit;
+            currentTopic = null;
+            currentLesson = null;
+            allUnitQuestions = unitData.questions;
+            allUnitTopics = byNewUnit[currentNewUnit];
+
             renderLessonSelector(unitData.unitInfo);
 
             // Update URL for sharing/bookmarking
@@ -11456,7 +11517,11 @@ Respond with JSON:
             });
             chartInstances = {};
             currentQuestions = [];
+            allUnitQuestions = [];
+            allUnitTopics = {};
+            currentNewUnit = null;
             currentUnit = null;
+            currentTopic = null;
             currentLesson = null;
 
             // Show unit menu instead of file upload
@@ -11500,121 +11565,108 @@ Respond with JSON:
             }
         }
 
-        // Modified renderLessonSelector to show video resources
+        // Render item-driven Fall-2026 topics and their old-keyed resources.
         async function renderLessonSelectorWithResources(unitInfo) {
             const questionsContainer = document.getElementById('questionsContainer');
-
-            // Load resources if available
             const resources = await loadUnitResources();
-            const unitResources = resources ?
-                resources.find(u => u.unitId === `unit${currentUnit}`) : null;
+            if (!unitInfo?.topicNumbers) return;
 
-            let lessonButtonsHtml = '';
-            const lessonNumbersSet = new Set(unitInfo?.lessonNumbers || []);
+            let topicButtonsHtml = '';
+            unitInfo.topicNumbers.forEach(newTopic => {
+                const questions = allUnitTopics[newTopic] || [];
+                const isCompleted = questions.length > 0 && questions.every(q => isQuestionAnswered(q.id));
+                const entry = SY2627Overlay.crosswalkEntryForId(
+                    questions[0]?.id,
+                    window.SY2627_CROSSWALK
+                );
+                const displayName = entry?.newLabel || `Topic ${newTopic}`;
+                const resourceTopics = SY2627Overlay.resourceTopicsForQuestions(resources, questions);
 
-            // Add lessons that exist only in resources (e.g., video/worksheet but no questions)
-            if (unitResources?.topics) {
-                unitResources.topics.forEach(topic => {
-                    if (!topic?.id) return;
-                    const match = topic.id.match(/^(\d+)-(\d+)$/);
-                    if (match && parseInt(match[1]) === currentUnit) {
-                        lessonNumbersSet.add(parseInt(match[2]));
-                    }
-                });
-            }
+                const pdfCount = resourceTopics.reduce((total, topic) => {
+                    return total + (Array.isArray(topic.pdfs) ? topic.pdfs.length : 0);
+                }, 0);
+                const videoCount = resourceTopics.reduce((total, topic) => {
+                    return total + (Array.isArray(topic.videos) ? topic.videos.length : 0);
+                }, 0);
+                const gameCount = resourceTopics.reduce((total, topic) => {
+                    return total + (Array.isArray(topic.blookets) ? topic.blookets.length : 0);
+                }, 0);
 
-            const numericLessons = Array.from(lessonNumbersSet)
-                .filter(l => l !== 'PC' && !isNaN(l))
-                .map(Number)
-                .sort((a, b) => a - b);
-            const lessonNumbers = lessonNumbersSet.has('PC')
-                ? numericLessons.concat(['PC'])
-                : numericLessons;
+                const resourceSummary = [];
+                if (pdfCount > 0) resourceSummary.push(`📄 ${pdfCount} PDF${pdfCount === 1 ? '' : 's'}`);
+                if (videoCount > 0) resourceSummary.push(`📹 ${videoCount} video${videoCount === 1 ? '' : 's'}`);
+                if (gameCount > 0) resourceSummary.push(`🎮 ${gameCount} game${gameCount === 1 ? '' : 's'}`);
 
-            if (unitInfo && unitInfo.lessonNumbers) {
-                lessonNumbers.forEach(lessonNum => {
-                    const questions = (unitInfo.lessons && unitInfo.lessons[lessonNum]) ? unitInfo.lessons[lessonNum] : [];
-                    const isCompleted = questions.every(q => isQuestionAnswered(q.id));
-                    const displayName = lessonNum === 'PC' ? 'Progress Check' : `Lesson ${lessonNum}`;
-                    const buttonId = lessonNum === 'PC' ? 'lesson-btn-PC' : `lesson-btn-${lessonNum}`;
-
-                    // Find matching resources for this lesson
-                    let resourceInfo = '';
-                    if (unitResources && lessonNum !== 'PC') {
-                        const topicId = `${currentUnit}-${lessonNum}`;
-                        const topic = unitResources.topics.find(t => t.id === topicId);
-                        if (topic) {
-                            const resources = [];
-                            if (Array.isArray(topic.pdfs) && topic.pdfs.length > 0) {
-                                resources.push(`📄 ${topic.pdfs.length} PDF${topic.pdfs.length > 1 ? 's' : ''}`);
-                            }
-                            if (topic.videos && topic.videos.length > 0) {
-                                resources.push(`📹 ${topic.videos.length} video${topic.videos.length > 1 ? 's' : ''}`);
-                            }
-                            if (topic.blookets && topic.blookets.length > 0) {
-                                resources.push(`🎮 ${topic.blookets.length} game${topic.blookets.length > 1 ? 's' : ''}`);
-                            }
-                            if (resources.length > 0) {
-                                resourceInfo = `<span style="color: #4CAF50;">${resources.join(' • ')}</span>`;
-                            }
-                        }
-                    }
-
-                    lessonButtonsHtml += `
-                        <button onclick="loadLesson('${lessonNum}')"
-                                class="lesson-btn ${isCompleted ? 'completed' : ''}"
-                                id="${buttonId}">
-                            ${displayName}<br>
-                            <small>${questions.length} questions</small>
-                            ${resourceInfo ? `<br><small>${resourceInfo}</small>` : ''}
-                        </button>
-                    `;
-                });
-
-                questionsContainer.innerHTML = `
-                    <button onclick="backToUnits()" class="back-button">← Back to Units</button>
-                    <div class="lesson-selector">
-                        <h3>Unit ${currentUnit}: ${unitStructure[currentUnit]?.name || 'Unknown Unit'}</h3>
-                        <p>Select a lesson to begin:</p>
-                        <div class="lesson-buttons">
-                            ${lessonButtonsHtml}
-                        </div>
-                    </div>
-
-                    <!-- Sync Modal -->
+                topicButtonsHtml += `
+                    <button onclick="loadTopic('${newTopic}')"
+                            class="lesson-btn ${isCompleted ? 'completed' : ''}"
+                            id="topic-btn-${newTopic.replace('.', '-')}">
+                        Topic ${newTopic}: ${displayName}<br>
+                        <small>${questions.length} questions</small>
+                        ${resourceSummary.length > 0 ? `<br><small><span style="color: #4CAF50;">${resourceSummary.join(' • ')}</span></small>` : ''}
+                    </button>
                 `;
-            }
+            });
+
+            questionsContainer.innerHTML = `
+                <button onclick="backToUnits()" class="back-button">← Back to Units</button>
+                <div class="lesson-selector">
+                    <h3>Unit ${currentNewUnit}: ${NEW_UNIT_LABELS[currentNewUnit] || 'Unknown Unit'}</h3>
+                    <p>Select a topic to begin:</p>
+                    <div class="lesson-buttons">
+                        ${topicButtonsHtml}
+                    </div>
+                </div>
+
+                <!-- Sync Modal -->
+            `;
         }
 
-        // Modified loadLesson to show video resources at the top
-        window.loadLessonWithResources = async function(lessonNumber) {
-            currentLesson = lessonNumber;
+        // Shared renderer for a new-topic selection or a direct old-id locator.
+        window.loadLessonWithResources = async function(selection) {
+            const options = typeof selection === 'object'
+                ? selection
+                : { newTopic: String(selection) };
+            const selectedQuestions = options.questions
+                || byNewUnit[currentNewUnit]?.[options.newTopic]
+                || [];
 
-            // Get questions for this lesson
-            if (lessonNumber === 'PC') {
-                currentQuestions = allUnitQuestions.filter(q => q.id.includes('-PC-'));
-            } else {
-                const lessonNum = parseInt(lessonNumber);
-                currentQuestions = allUnitQuestions.filter(q => {
-                    if (q.id.includes('-PC-')) return false;
-                    const match = q.id.match(/U\d+-L(\d+)-/);
-                    return match && parseInt(match[1]) === lessonNum;
-                });
+            if (selectedQuestions.length === 0) {
+                currentQuestions = [];
+                return false;
             }
 
-            // Get resources for this lesson
+            const context = SY2627Overlay.contextForQuestions(
+                selectedQuestions,
+                window.SY2627_CROSSWALK
+            );
+            currentNewUnit = context.newUnit;
+            currentUnit = context.newUnit;
+            currentTopic = options.newTopic || context.newTopic;
+            currentLesson = currentTopic;
+            currentQuestions = selectedQuestions;
+            allUnitTopics = byNewUnit[currentNewUnit];
+
+            const newLabel = options.newLabel || context.newLabel;
             const resources = await loadUnitResources();
             let videoSection = '';
             let hasResources = false;
-
-            let topic = null;
-            if (resources && lessonNumber !== 'PC') {
-                const unitResources = resources.find(u => u.unitId === `unit${currentUnit}`);
-                if (unitResources) {
-                    const topicId = `${currentUnit}-${lessonNumber}`;
-                    topic = unitResources.topics.find(t => t.id === topicId);
-                }
-            }
+            const resourceTopics = SY2627Overlay.resourceTopicsForQuestions(
+                resources,
+                currentQuestions
+            );
+            const topic = {
+                description: newLabel,
+                pdfs: resourceTopics.flatMap(resourceTopic => {
+                    return Array.isArray(resourceTopic.pdfs) ? resourceTopic.pdfs : [];
+                }),
+                videos: resourceTopics.flatMap(resourceTopic => {
+                    return Array.isArray(resourceTopic.videos) ? resourceTopic.videos : [];
+                }),
+                blookets: resourceTopics.flatMap(resourceTopic => {
+                    return Array.isArray(resourceTopic.blookets) ? resourceTopic.blookets : [];
+                })
+            };
 
             if (topic) {
                 const hasVideos = Array.isArray(topic.videos) && topic.videos.length > 0;
@@ -11625,7 +11677,7 @@ Respond with JSON:
                 if (hasResources) {
                     videoSection = `
                         <div class="resources-section">
-                            <h3>📚 Lesson Resources: ${topic.description}</h3>
+                            <h3>📚 Topic Resources: ${topic.description}</h3>
                     `;
 
                             if (hasPdfs) {
@@ -11690,18 +11742,13 @@ Respond with JSON:
                 }
             }
 
-            if (currentQuestions.length === 0 && !hasResources) {
-                showMessage(`No questions found for Lesson ${lessonNumber}`, 'error');
-                return;
-            }
-
             // Render quiz with resources
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                <button onclick="backToLessons()" class="back-button">← Back to Topics</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
-                        <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+                        <strong>Unit ${currentNewUnit}, Topic ${currentTopic}: ${newLabel}</strong> - ${currentQuestions.length} questions
                     </div>
                 </div>
 
@@ -11745,9 +11792,20 @@ Respond with JSON:
             }, 100);
 
             // Update URL for sharing/bookmarking
-            if (typeof updateURLForCurrentView === 'function') {
+            if (options.updateUrl !== false && typeof updateURLForCurrentView === 'function') {
                 updateURLForCurrentView();
             }
+
+            return true;
+        }
+
+        window.loadTopic = async function(newTopic) {
+            const questions = byNewUnit[currentNewUnit]?.[newTopic] || [];
+            return loadLessonWithResources({
+                questions,
+                newTopic,
+                updateUrl: true
+            });
         }
 
         // Add styles for the resources section
@@ -11906,7 +11964,7 @@ Respond with JSON:
 
         // Update the original functions to use the resource-aware versions
         window.renderLessonSelector = renderLessonSelectorWithResources;
-        window.loadLesson = loadLessonWithResources;
+        window.loadLesson = loadTopic;
 
         // Sync modal handlers (using ModalUtils for keyboard navigation)
         window.openSyncModal = function() {

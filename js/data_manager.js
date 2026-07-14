@@ -263,72 +263,35 @@ function initializeProgressTracking() {
 
 /**
  * Initializes curriculum data from embedded EMBEDDED_CURRICULUM
- * Parses and groups questions by unit, then renders unit menu
+ * Groups historical ids through the Fall-2026 crosswalk, then renders the menu
  */
 function initializeFromEmbeddedData() {
-    // Parse embedded curriculum
+    const crosswalk = window.SY2627_CROSSWALK;
+    if (!crosswalk) {
+        throw new Error('Fall-2026 curriculum crosswalk is not loaded');
+    }
+
     allCurriculumData = {};
     const allQuestions = EMBEDDED_CURRICULUM.questions || EMBEDDED_CURRICULUM;
+    byNewUnit = SY2627Overlay.groupByNewUnit(allQuestions, crosswalk);
 
-    // Group by units
-    const unitGroups = {};
-    allQuestions.forEach(question => {
-        const unitMatch = question.id.match(/U(\d+)/i);
-        if (unitMatch) {
-            const unitNum = parseInt(unitMatch[1]);
-            if (!unitGroups[unitNum]) {
-                unitGroups[unitNum] = [];
-            }
-            unitGroups[unitNum].push(question);
-        }
+    Object.keys(byNewUnit).forEach((newUnit) => {
+        const topics = byNewUnit[newUnit];
+        const topicNumbers = Object.keys(topics).sort(SY2627Overlay.compareTopicNumbers);
+        const questions = topicNumbers.flatMap((newTopic) => topics[newTopic]);
+
+        allCurriculumData[newUnit] = {
+            questions,
+            topics,
+            unitInfo: {
+                unitNumber: Number(newUnit),
+                topics,
+                topicNumbers
+            },
+            fileName: `Unit ${newUnit}`
+        };
     });
 
-    // Process each unit
-    Object.keys(unitGroups).forEach(unitNum => {
-        const unitQuestions = unitGroups[unitNum];
-        let unitInfo = detectUnitAndLessons(unitQuestions);
-
-        // Augment unitInfo with lessons that have resources but no questions
-        if (unitInfo && typeof ALL_UNITS_DATA !== 'undefined') {
-            const resourceUnit = ALL_UNITS_DATA.find(u => u.unitId === `unit${unitNum}`);
-            if (resourceUnit && Array.isArray(resourceUnit.topics)) {
-                const existing = new Set((unitInfo.lessonNumbers || []).map(String));
-
-                resourceUnit.topics.forEach(topic => {
-                    if (!topic || !topic.id) return;
-                    const match = topic.id.match(/^(\d+)-(\d+)$/);
-                    if (!match) return;
-
-                    const topicUnit = parseInt(match[1]);
-                    const lessonNum = parseInt(match[2]);
-                    if (topicUnit !== parseInt(unitNum)) return;
-
-                    // Add missing lesson with empty question list
-                    if (!existing.has(String(lessonNum))) {
-                        unitInfo.lessons[lessonNum] = unitInfo.lessons[lessonNum] || [];
-                        existing.add(String(lessonNum));
-                    }
-                });
-
-                // Rebuild lessonNumbers sorted numerically, preserve PC at end
-                const numericLessons = Array.from(existing)
-                    .filter(k => k !== 'PC')
-                    .map(Number)
-                    .sort((a, b) => a - b);
-                const hasPC = existing.has('PC');
-                unitInfo.lessonNumbers = hasPC ? numericLessons.concat(['PC']) : numericLessons;
-            }
-        }
-        if (unitInfo) {
-            allCurriculumData[unitNum] = {
-                questions: unitQuestions,
-                unitInfo: unitInfo,
-                fileName: `Unit ${unitNum}`
-            };
-        }
-    });
-
-    // Go straight to unit menu
     renderUnitMenu();
 }
 
