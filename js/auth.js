@@ -918,6 +918,14 @@ window.acceptUsername = async function(name) {
     initializeFromEmbeddedData();
     updateCurrentUsernameDisplay();
 
+    // Restore this student's OWN prior quiz answers from the authoritative roster
+    // ledger — the normal sign-in path never hydrates own answers into classData
+    // (peer-data self-filters + is turbo-only), so a fresh device / storage wipe
+    // showed none of their quiz work. Fire-and-forget; runs on sign-in AND reload.
+    if (typeof window.restoreOwnAnswersFromLedger === 'function') {
+        window.restoreOwnAnswersFromLedger().catch(function () {});
+    }
+
     // Trigger smart sync to restore from cloud if local is empty
     // This runs AFTER login so currentUsername is set
     if (typeof smartSyncWithSupabase === 'function') {

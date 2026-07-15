@@ -2886,6 +2886,60 @@
             }
         }
 
+        // Restore THIS student's OWN prior quiz answers from the authoritative
+        // roster ledger into classData (the store renderQuestion reads). Needed
+        // because the normal sign-in path NEVER hydrates own answers: pullPeerData
+        // FromSupabase deliberately .neq's self AND needs turbo mode, restoreFrom
+        // CloudByUsername is a manual turbo-only prompt, and mergePeerDataIntoStores
+        // skips self for classData. So a student re-opening the quiz on a fresh
+        // device / after a storage wipe saw none of their own work (worksheets
+        // restore server-side; the quiz did not). Timestamp-max → never clobbers
+        // newer in-progress local work. Best-effort: never throws / blocks sign-in.
+        window.restoreOwnAnswersFromLedger = async function restoreOwnAnswersFromLedger() {
+            try {
+                const rc = window.rosterClient;
+                const token = (rc && typeof rc.token === 'function') ? rc.token() : null;
+                const sid = (rc && typeof rc.studentId === 'function') ? rc.studentId() : null;
+                const base = window.ROSTER_SERVICE_URL;
+                const user = window.currentUsername;
+                if (!token || !sid || !base || !user) return;
+                const res = await fetch(base + '/ledger/student/' + encodeURIComponent(sid), { headers: { Authorization: 'Bearer ' + token } });
+                if (res.status !== 200) return;
+                const data = await res.json();
+                const rows = (data && data.rows) || [];
+                if (!rows.length) return;
+                ensureClassDataInitialized();
+                if (!classData.users[user]) classData.users[user] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+                const u = classData.users[user];
+                if (!u.answers) u.answers = {};
+                if (!u.timestamps) u.timestamps = {};
+                let restored = 0;
+                rows.forEach(function (r) {
+                    // The quiz's own ledger rows are source 'curriculum_quiz' (MCQ + FRQ).
+                    if (!r || r.source !== 'curriculum_quiz' || !r.item_id) return;
+                    if (r.response === undefined || r.response === null || r.response === '') return;
+                    const qid = String(r.item_id);
+                    const ts = r.recorded_at ? (Date.parse(r.recorded_at) || 0) : 0;
+                    const existingTs = u.timestamps[qid] || (u.answers[qid] && u.answers[qid].timestamp) || 0;
+                    if (u.answers[qid] && ts <= existingTs) return; // keep newer/equal local work
+                    // MCQ = a string; progressive FRQ = an object (maybe JSON-stringified).
+                    let val = r.response;
+                    if (typeof val === 'string') {
+                        const t = val.trim();
+                        if (t.charAt(0) === '{' || t.charAt(0) === '[') { try { val = JSON.parse(t); } catch (_) {} }
+                    }
+                    u.answers[qid] = { value: val, timestamp: ts };
+                    u.timestamps[qid] = ts;
+                    restored++;
+                });
+                if (restored > 0) {
+                    if (typeof saveClassData === 'function') saveClassData();
+                    const cur = (typeof getCurrentQuestionId === 'function') ? getCurrentQuestionId() : null;
+                    if (cur && typeof refreshQuestionIfVisible === 'function') refreshQuestionIfVisible(cur);
+                }
+            } catch (_) { /* best-effort — never block sign-in */ }
+        };
+
         // Smart sync - only sync new or updated answers (current user only)
         let _smartSyncPromise = null;
         // Re-run restore/sync the instant turbo mode connects. Covers the race where the
