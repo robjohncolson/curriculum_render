@@ -107,6 +107,7 @@
   async function openPc(unit, part, opts) {
     opts = opts || {};
     var key = unit + '-' + String(part).toUpperCase();
+    var teacherView = false;
     var items = await cacheGet(key);
     if (!items) {
       var token = rosterToken();
@@ -118,6 +119,7 @@
       if (!resp.ok) throw new Error('Could not load the Progress Check (HTTP ' + resp.status + ').');
       var body = await resp.json();
       items = (body && Array.isArray(body.items)) ? body.items : [];
+      teacherView = !!(body && body.teacher);
       await cachePut(key, items);
     }
     var questions = items.map(pc26ToCrQuestion);
@@ -127,6 +129,11 @@
         newTopic: opts.newTopic || ('U' + unit + '-PC-' + String(part).toUpperCase()),
         newLabel: opts.newLabel || ('Unit ' + unit + ' Progress Check' + (String(part).toUpperCase() === 'A' ? ' — Part A' : '')),
       });
+    }
+    // Teacher preview: remind that students are unlock-gated (per-student class
+    // status is the Phase 2 teacher console).
+    if (teacherView && typeof global.showMessage === 'function') {
+      global.showMessage('Teacher preview — students see this only after you unlock them (paper PC first).', 'info');
     }
     return questions.length;
   }
