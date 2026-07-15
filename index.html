@@ -6702,6 +6702,7 @@ function renderLessonSelector(unitInfo) {
                                        ${isDisabled ? 'disabled' : ''}>
                                 <span class="choice-key">${choice.key}.</span>
                                 <span>${choice.value}</span>
+                                ${choice.image ? `<img src="${choice.image}" alt="Choice ${choice.key}" style="max-width: 100%; height: auto; display: block; margin-top: 6px;">` : ''}
                             </label>
                         </div>
                     `;
@@ -7255,6 +7256,19 @@ function renderLessonSelector(unitInfo) {
                 `;
             }
 
+            // Multiple images (PC26 stem figures, slot 0/1/2 in page order)
+            if (Array.isArray(attachments.images)) {
+                attachments.images.forEach((img, idx) => {
+                    const src = (typeof img === 'string') ? img : (img && img.url);
+                    if (!src) return;
+                    html += `
+                        <div class="image-container">
+                            <img src="${src}" alt="Figure ${idx + 1}" style="max-width: 100%; height: auto;">
+                        </div>
+                    `;
+                });
+            }
+
             return { html, chartTasks };
         }
 
@@ -7299,6 +7313,20 @@ function renderLessonSelector(unitInfo) {
                         <img src="${attachments.image}" alt="Question image" style="max-width: 100%; height: auto; border-radius: 8px;">
                     </div>
                 `;
+            }
+
+            // Multiple images in sidebar (PC26 stem figures)
+            if (Array.isArray(attachments.images)) {
+                attachments.images.forEach((img, idx) => {
+                    const src = (typeof img === 'string') ? img : (img && img.url);
+                    if (!src) return;
+                    html += `
+                        <div class="sidebar-image-container">
+                            <h5>🖼️ Figure ${idx + 1}</h5>
+                            <img src="${src}" alt="Figure ${idx + 1}" style="max-width: 100%; height: auto; border-radius: 8px;">
+                        </div>
+                    `;
+                });
             }
 
             return { html, chartTasks };

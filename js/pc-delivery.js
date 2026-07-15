@@ -28,16 +28,27 @@
 
     var out = { id: item.id, prompt: prompt, attachments: {} };
 
-    // Visual → attachments. Phase 1: tables render natively; other figures get a
-    // described placeholder so the item still renders (faithful chart rendering
-    // is a later polish pass — flagged in the spec §4 risks).
-    if (item.visual && typeof item.visual === 'object') {
-      var v = item.visual;
-      if (v.kind === 'table' && Array.isArray(v.data)) {
-        out.attachments.table = v.data;
-      } else {
-        out.prompt += '\n\n[Figure: ' + (v.kind || 'visual') + (v.source ? ' — ' + v.source : '') + ']';
-      }
+    // Figures. D1-a: the roster server resolved the manifest slots and attached
+    // short-lived SIGNED URLs — item.figures = { stems:[url0,url1,…], choices:{A:url,…} }.
+    // Render those as real images; fall back to the [Figure: …] text ONLY when no
+    // signed URL exists (server env unset / older cached bank). This also fixes the
+    // array-visual bug: a multi-figure `item.visual` used to collapse to a single
+    // placeholder (typeof [] === 'object', no .kind), silently dropping every figure.
+    var figs = (item.figures && typeof item.figures === 'object') ? item.figures : {};
+    var stems = Array.isArray(figs.stems) ? figs.stems.filter(Boolean) : [];
+    if (stems.length === 1) {
+      out.attachments.image = stems[0];              // existing single-image renderer
+    } else if (stems.length > 1) {
+      out.attachments.images = stems;                // multi-image renderer (index.html)
+    } else if (item.visual) {
+      var vis = Array.isArray(item.visual) ? item.visual : [item.visual];
+      vis.forEach(function (v) {
+        if (v && v.kind === 'table' && Array.isArray(v.data)) {
+          out.attachments.table = v.data;            // native table (kept; dead for current banks)
+        } else if (v) {
+          out.prompt += '\n\n[Figure: ' + (v.kind || 'visual') + (v.source ? ' — ' + v.source : '') + ']';
+        }
+      });
     }
 
     if (isFrq) {
@@ -60,12 +71,18 @@
         : (ch && typeof ch === 'object')
           ? Object.keys(ch).map(function (k) { return { key: k, value: ch[k] }; })
           : [];
+      // Figure-choices (D1-a): staple the signed URL onto each choice by key; the
+      // choice `value` text stays as the fallback / aria label.
+      var choiceFigs = (figs.choices && typeof figs.choices === 'object') ? figs.choices : {};
+      out.attachments.choices = out.attachments.choices.map(function (c) {
+        return (c && choiceFigs[c.key]) ? Object.assign({}, c, { image: choiceFigs[c.key] }) : c;
+      });
     }
     return out;
   }
 
   // ── IndexedDB cache (offline-workable after the first fetch) ───────────────
-  var DB_NAME = 'pc_cache_v1', STORE = 'banks';
+  var DB_NAME = 'pc_cache_v2', STORE = 'banks'; // v2: entries now carry signed figure URLs
   function openDb() {
     return new Promise(function (resolve, reject) {
       if (!global.indexedDB) return reject(new Error('no indexedDB'));
@@ -114,21 +131,41 @@
     opts = opts || {};
     // Stamp the active PC so answer submissions route to the matching bank.
     activePc = { unit: Number(unit), part: String(part).toUpperCase() };
-    var key = unit + '-' + String(part).toUpperCase();
+    var PART = String(part).toUpperCase();
+    var key = unit + '-' + PART;
     var teacherView = false;
-    var items = await cacheGet(key);
-    if (!items) {
+
+    async function fetchItems() {
       var token = rosterToken();
       if (!token) throw new Error('Sign in to take the Progress Check.');
-      var resp = await fetch(rosterBase() + '/pc/' + unit + '/' + String(part).toUpperCase(), {
+      var resp = await fetch(rosterBase() + '/pc/' + unit + '/' + PART, {
         headers: { Authorization: 'Bearer ' + token },
       });
-      if (resp.status === 403) throw new Error('This Progress Check unlocks after you take the paper version in class.');
+      if (resp.status === 403) { var e = new Error('This Progress Check unlocks after you take the paper version in class.'); e.__locked = true; throw e; }
       if (!resp.ok) throw new Error('Could not load the Progress Check (HTTP ' + resp.status + ').');
       var body = await resp.json();
-      items = (body && Array.isArray(body.items)) ? body.items : [];
       teacherView = !!(body && body.teacher);
-      await cachePut(key, items);
+      return (body && Array.isArray(body.items)) ? body.items : [];
+    }
+
+    // Network-FIRST when online so the short-lived signed FIGURE URLs refresh on
+    // each open — the IndexedDB cache would otherwise freeze expiring URLs. A
+    // 403/locked always propagates; a transient network/server failure falls back
+    // to the cached bank so an offline sitting (fetched earlier) still works.
+    var online = (typeof global.navigator === 'undefined') ? true : (global.navigator.onLine !== false);
+    var items = null;
+    if (online) {
+      try {
+        items = await fetchItems();
+        await cachePut(key, items);
+      } catch (e) {
+        if (e && e.__locked) throw e;
+        items = await cacheGet(key);
+        if (!items) throw e;
+      }
+    } else {
+      items = await cacheGet(key);
+      if (!items) items = await fetchItems();
     }
     var questions = items.map(pc26ToCrQuestion);
     if (typeof global.loadLessonWithResources === 'function') {
