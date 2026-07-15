@@ -566,6 +566,7 @@
             });
     </script>
     <script src="js/sy2627_overlay.js"></script>
+    <script src="js/pc-delivery.js"></script>
     <script src="data/curriculum.js"></script>
     <script src="data/units.js"></script>
     <script src="data/chart_questions.js"></script>
@@ -11060,6 +11061,17 @@ Respond with JSON:
         // Supports: ?unit=4&lesson=2 or ?u=4&l=2 or ?q=U4-L2-Q01
         async function handleURLNavigation() {
             const urlParams = new URLSearchParams(window.location.search);
+
+            // PC makeup delivery (?pc=U1-A / ?pc=U2-REST / ?pc=U5-REST) — most specific, first.
+            const pcParam = urlParams.get('pc');
+            if (pcParam) {
+                const pcm = /^U?(\d+)-(A|REST)$/i.exec(pcParam.trim());
+                if (pcm && typeof PcDelivery !== 'undefined') {
+                    PcDelivery.openPc(parseInt(pcm[1], 10), pcm[2].toUpperCase())
+                        .catch(err => { if (typeof showMessage === 'function') showMessage(err.message || 'Could not open the Progress Check.', 'error'); });
+                    return;
+                }
+            }
 
             // Check for question ID first (most specific)
             const questionId = urlParams.get('q') || urlParams.get('question');
