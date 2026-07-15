@@ -11328,15 +11328,28 @@ Respond with JSON:
         function recordToGradebookLedger(questionId, answer) {
             try {
                 if (window.gradebookClient && window.gradebookClient.record && questionId) {
-                    var gbSrc = /^U\d+-PC-/.test(questionId) ? 'pc' : 'curriculum_quiz';
+                    // PC ids are U#-PC26-... (makeup) or the legacy U#-PC-...; both
+                    // route to source='pc' → the gradebook client posts them to the
+                    // token-gated /pc/:unit/:part/submit (server-scored vs pc_bank),
+                    // NOT /ledger/record (which can't score CB-secure PC items).
+                    var isPc = /^U\d+-PC/.test(questionId);
                     var gbU = /^U(\d+)-/.exec(questionId);
-                    var _p = window.gradebookClient.record({
-                        source: gbSrc,
+                    var rec = {
+                        source: isPc ? 'pc' : 'curriculum_quiz',
                         itemId: questionId,
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: answer,
                         attempt: 1
-                    });
+                    };
+                    if (isPc) {
+                        // Part rides from the open PC (U5's MCQ-A lives in its REST
+                        // bank, so it is NOT derivable from the id); fall back to the
+                        // id only if the context is somehow missing.
+                        var pcCtx = (window.PcDelivery && window.PcDelivery.active) ? window.PcDelivery.active() : null;
+                        rec.kind = 'pc';
+                        rec.part = (pcCtx && pcCtx.part) ? pcCtx.part : (/-MCQ-A-/i.test(questionId) ? 'A' : 'REST');
+                    }
+                    var _p = window.gradebookClient.record(rec);
                     // The gradebook-client now reports an expired/revoked token (401)
                     // as reason 'auth-expired' (vs a silent generic 'network'). Surface
                     // it once so the student knows to sign in again instead of losing

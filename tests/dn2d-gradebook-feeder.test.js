@@ -144,8 +144,15 @@ describe('DN2d — feeder body (recordToGradebookLedger)', () => {
     expect(body).toMatch(/itemId:\s*questionId/);
   });
 
-  it('derives source by id shape (U#-PC- → pc, else curriculum_quiz)', () => {
-    expect(body).toMatch(/\/\^U\\d\+-PC-\/\.test\(questionId\)\s*\?\s*'pc'\s*:\s*'curriculum_quiz'/);
+  it('derives source by id shape (U#-PC(26)?- → pc, else curriculum_quiz)', () => {
+    // Widened from /^U\d+-PC-/ so makeup ids (U#-PC26-...) also route to 'pc'.
+    expect(body).toMatch(/\/\^U\\d\+-PC\/\.test\(questionId\)/);
+    expect(body).toMatch(/source:\s*isPc\s*\?\s*'pc'\s*:\s*'curriculum_quiz'/);
+  });
+
+  it('PC rows carry the open part (PcDelivery.active) for /pc/:unit/:part routing', () => {
+    expect(body).toMatch(/PcDelivery\.active/);
+    expect(body).toMatch(/rec\.part\s*=/);
   });
 
   it('is wrapped in try/catch so it can never block cr submit', () => {

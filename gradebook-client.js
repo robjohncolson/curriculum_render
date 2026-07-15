@@ -76,6 +76,7 @@
         source: opts.source, itemId: opts.itemId, response: opts.response,
         score: opts.score, attempt: opts.attempt, grant: opts.grant,
         unit: opts.unit, topic: opts.topic, skill: opts.skill,
+        part: opts.part, // PC part rides to the queue so drain hits the right bank
         studentId: sid || undefined, kind: opts.kind || 'quiz'
       })).then(function () { return true; }, function () { return false; });
     } catch (_) { return Promise.resolve(false); }
@@ -83,12 +84,40 @@
   // Raw POST. NEVER throws; NEVER enqueues (safe to call from a drain). An
   // unreachable fetch (thrown) is marked offline:true so record() queues it;
   // an HTTP error (401 → auth-expired, else network) is NOT queued.
+  // Progress-Check makeup: score server-side against the CB-secure pc_bank via
+  // the token-gated /pc/:unit/:part/submit (NOT /ledger/record — the public
+  // answer key has no PC26 answers). One item per call; the endpoint enforces
+  // best-wins server-side. NEVER throws; an unreachable fetch marks offline:true
+  // so record()/drain re-queue it (part rides in the queued record).
+  async function _postPc(opts, baseUrl, token) {
+    try {
+      var m = /^U(\d+)-/.exec(String(opts.itemId || ''));
+      var unit = m ? m[1] : (opts.unit ? String(opts.unit).replace(/^U/i, '') : '');
+      var part = opts.part ? String(opts.part).toUpperCase() : (/-MCQ-A-/i.test(String(opts.itemId)) ? 'A' : 'REST');
+      if (!unit || !part) return { ok: false, reason: 'bad-args' };
+      var res = await fetch(baseUrl + '/pc/' + unit + '/' + part + '/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ responses: [{ itemId: opts.itemId, response: opts.response }] })
+      });
+      if (!res.ok) { console.warn('gradebook-client: /pc submit HTTP', res.status); return { ok: false, reason: res.status === 401 ? 'auth-expired' : 'network' }; }
+      var data = await res.json();
+      if (data && data.ok) return { ok: true, ledgerId: null };
+      console.warn('gradebook-client: /pc submit returned ok:false', data);
+      return { ok: false, reason: 'network' };
+    } catch (err) {
+      console.warn('gradebook-client: /pc submit failed —', err && err.message);
+      return { ok: false, reason: 'network', offline: true };
+    }
+  }
+
   async function _postRecord(opts) {
     try {
       var token = _token();
       if (!token) return { ok: false, reason: 'no-identity' };
       var baseUrl = window.ROSTER_SERVICE_URL || null;
       if (!baseUrl) { console.warn('gradebook-client: ROSTER_SERVICE_URL is not configured'); return { ok: false, reason: 'network' }; }
+      if (opts.source === 'pc') return await _postPc(opts, baseUrl, token);
       var body = {
         token: token, source: opts.source, itemId: opts.itemId,
         unit: opts.unit, topic: opts.topic, skill: opts.skill,

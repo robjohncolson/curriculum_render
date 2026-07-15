@@ -95,6 +95,12 @@
     }).catch(function () { return false; });
   }
 
+  // The PC the student currently has open. Stamped by openPc so the submit path
+  // (gradebook-client _postPc) knows which (unit, part) bank to score against —
+  // the part is NOT reliably derivable from the item id (U5's MCQ-A items live in
+  // its REST bank), so it must ride from here, including into the offline queue.
+  var activePc = null;
+
   function rosterBase() {
     return (global.ROSTER_SERVICE_URL || '').replace(/\/$/, '');
   }
@@ -106,6 +112,8 @@
   // openPc(unit, part, opts?) — cache-or-fetch → adapt → render.
   async function openPc(unit, part, opts) {
     opts = opts || {};
+    // Stamp the active PC so answer submissions route to the matching bank.
+    activePc = { unit: Number(unit), part: String(part).toUpperCase() };
     var key = unit + '-' + String(part).toUpperCase();
     var teacherView = false;
     var items = await cacheGet(key);
@@ -139,5 +147,9 @@
     return questions.length;
   }
 
-  global.PcDelivery = { openPc: openPc, pc26ToCrQuestion: pc26ToCrQuestion };
+  // active() → { unit, part } the student currently has open, or null. Read by
+  // the submit path (recordToGradebookLedger) to tag PC rows with their part.
+  function active() { return activePc; }
+
+  global.PcDelivery = { openPc: openPc, pc26ToCrQuestion: pc26ToCrQuestion, active: active };
 })(typeof window !== 'undefined' ? window : globalThis);
