@@ -75,7 +75,12 @@
     function contextForQuestions(questions, crosswalk) {
         if (!questions?.length) return null;
 
-        const entry = requireCoreEntry(questions[0], crosswalk);
+        // Tolerant (unlike groupByNewUnit, which stays fail-loud): ids that don't
+        // resolve to a core crosswalk entry — e.g. PC26 items served through the
+        // makeup path — return null, and the caller falls back to an explicit
+        // newUnit/newTopic/newLabel. Never throws.
+        const entry = crosswalkEntryForId(questions[0] && questions[0].id, crosswalk);
+        if (!entry || entry.status !== 'core' || !entry.newUnit || !entry.newTopic) return null;
         return {
             newUnit: entry.newUnit,
             newTopic: entry.newTopic,

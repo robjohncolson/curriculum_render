@@ -11648,18 +11648,20 @@ Respond with JSON:
                 return false;
             }
 
+            // context is null for ids outside the core crosswalk (e.g. PC26
+            // makeup items) — fall back to the caller's explicit newUnit/topic/label.
             const context = SY2627Overlay.contextForQuestions(
                 selectedQuestions,
                 window.SY2627_CROSSWALK
-            );
-            currentNewUnit = context.newUnit;
-            currentUnit = context.newUnit;
-            currentTopic = options.newTopic || context.newTopic;
+            ) || {};
+            currentNewUnit = context.newUnit || options.newUnit || currentNewUnit;
+            currentUnit = currentNewUnit;
+            currentTopic = options.newTopic || context.newTopic || currentTopic;
             currentLesson = currentTopic;
             currentQuestions = selectedQuestions;
-            allUnitTopics = byNewUnit[currentNewUnit];
+            allUnitTopics = byNewUnit[currentNewUnit] || {};
 
-            const newLabel = options.newLabel || context.newLabel;
+            const newLabel = options.newLabel || context.newLabel || currentTopic;
             const resources = await loadUnitResources();
             let videoSection = '';
             let hasResources = false;

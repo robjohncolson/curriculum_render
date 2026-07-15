@@ -126,6 +126,7 @@
     if (typeof global.loadLessonWithResources === 'function') {
       await global.loadLessonWithResources({
         questions: questions,
+        newUnit: unit,
         newTopic: opts.newTopic || ('U' + unit + '-PC-' + String(part).toUpperCase()),
         newLabel: opts.newLabel || ('Unit ' + unit + ' Progress Check' + (String(part).toUpperCase() === 'A' ? ' — Part A' : '')),
       });
