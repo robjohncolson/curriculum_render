@@ -1022,6 +1022,18 @@ async function callAI(prompt, provider, opts = {}) {
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
+      // 2026-08-19: DeepSeek occasionally returns an EMPTY `content` under
+      // response_format=json_object (observed on specific, ordinary answers;
+      // deterministic per answer). Retry ONCE on the same provider without JSON
+      // mode — the parser below already extracts {score,...} from prose — before
+      // failing over. Log what the provider said so this stays diagnosable.
+      const fr = data.choices?.[0]?.finish_reason;
+      const hasReasoning = !!data.choices?.[0]?.message?.reasoning_content;
+      console.warn(`⚠️ ${provider.name} empty content (finish_reason=${fr}, reasoning_content=${hasReasoning}, json_mode=${!opts.skipJsonFormat})`);
+      if (!opts.skipJsonFormat) {
+        clearTimeout(timeoutId);
+        return callAI(prompt, provider, { ...opts, skipJsonFormat: true, _emptyRetry: true });
+      }
       throw new Error(`Empty response from ${provider.name}`);
     }
 
