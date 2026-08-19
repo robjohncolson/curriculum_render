@@ -444,6 +444,7 @@ if (process.env.GROQ_API_KEY) {
     name: 'groq',
     apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
     apiKey: process.env.GROQ_API_KEY,
+    failoverOnly: true,       // 2026-08-19: never picked for overflow — only when DeepSeek errors
     model: 'llama-3.3-70b-versatile',
     timeoutMs: 30000,
     maxRPM: 25,
@@ -469,8 +470,13 @@ if (process.env.DEEPSEEK_API_KEY) {
     // infra stays dormant — only fires when a provider sets thinking:true.)
     primary: true,            // pinned as the preferred grader (Groq = failover)
     timeoutMs: 30000,
-    maxRPM: 25,
-    minDelayMs: 2500
+    // 2026-08-19: DeepSeek is pay-per-token with generous concurrency; the old
+    // 25 rpm / 2.5 s / one-at-a-time ceiling (~24 gradings/min class-wide) was
+    // the whole class's bottleneck at end of period and pushed overflow onto the
+    // free Groq tier, which 429s under load. Now: up to 4 in flight, 120 rpm.
+    maxRPM: 120,
+    minDelayMs: 250,
+    concurrency: 4
   });
 }
 
@@ -506,6 +512,10 @@ function pickProvider() {
   };
   const primary = AI_PROVIDERS.find(p => p.primary);
   if (primary && underLimit(primary)) return primary;
+  // 2026-08-19: with a primary configured, overflow WAITS for the primary rather
+  // than spilling onto failover-only providers (the free tier 429'd under class
+  // bursts and those failures were counted against the student).
+  if (primary) return primary;
   const startIndex = nextProviderIndex;
   for (let i = 0; i < AI_PROVIDERS.length; i++) {
     const idx = (startIndex + i) % AI_PROVIDERS.length;
@@ -532,95 +542,139 @@ function getAlternateProvider(currentName) {
   return AI_PROVIDERS.find(p => p.name !== currentName) || null;
 }
 
+// Rolling service-time stats for ETAs (last 50 completed gradings).
+const serviceTimes = [];
+function recordServiceTime(ms) {
+  serviceTimes.push(ms);
+  if (serviceTimes.length > 50) serviceTimes.shift();
+}
+function avgServiceMs() {
+  if (!serviceTimes.length) return 8000;   // cold estimate until we have data
+  return Math.round(serviceTimes.reduce((a, b) => a + b, 0) / serviceTimes.length);
+}
+
 // Request queue with per-provider rate limiting
 class GradingQueue {
+  // 2026-08-19: concurrent worker pool. Up to `provider.concurrency` tasks in
+  // flight on the primary (DeepSeek); per-provider rpm + spacing still honored;
+  // a 429 backs off THAT provider (not the whole queue) with exponential delay;
+  // failover-only providers are used only when the primary errors. Tracks
+  // in-flight count + rolling service time so /api/ai/status can give an ETA.
   constructor() {
     this.queue = [];
-    this.processing = false;
+    this.inFlight = 0;
+    this.processing = false;   // kept for /status back-compat (true while any work)
+    this.backoffUntil = new Map();   // provider name → epoch ms
   }
 
-  async add(task) {
+  async add(task, meta) {
     return new Promise((resolve, reject) => {
-      this.queue.push({ task, resolve, reject });
-      this.process();
+      this.queue.push({ task, resolve, reject, meta: meta || {}, enqueuedAt: Date.now() });
+      this.pump();
     });
   }
 
-  async process() {
-    if (this.processing || this.queue.length === 0) return;
-    this.processing = true;
+  concurrencyFor(provider) {
+    return Math.max(1, provider && provider.concurrency ? provider.concurrency : 1);
+  }
 
-    while (this.queue.length > 0) {
-      const { task, resolve, reject } = this.queue.shift();
+  // Start as many workers as capacity allows.
+  pump() {
+    const provider = pickProvider();
+    if (!provider) {
+      while (this.queue.length) this.queue.shift().reject(new Error('No AI providers configured'));
+      return;
+    }
+    const cap = this.concurrencyFor(provider);
+    while (this.queue.length > 0 && this.inFlight < cap) {
+      const job = this.queue.shift();
+      this.inFlight += 1;
+      this.processing = true;
+      this.runOne(job).finally(() => {
+        this.inFlight -= 1;
+        this.processing = this.inFlight > 0 || this.queue.length > 0;
+        this.pump();
+      });
+    }
+  }
 
+  async waitForCapacity(provider) {
+    const stats = providerStats.get(provider.name);
+    for (;;) {
+      const now = Date.now();
+      const until = this.backoffUntil.get(provider.name) || 0;
+      if (until > now) { await this.delay(until - now); continue; }
+      if (now - stats.minuteStart > 60000) { stats.requestsThisMinute = 0; stats.minuteStart = now; }
+      if (stats.requestsThisMinute >= provider.maxRPM) {
+        const waitTime = 60000 - (now - stats.minuteStart) + 250;
+        console.log(`⏳ ${provider.name} rate limit reached, waiting ${Math.round(waitTime / 1000)}s...`);
+        await this.delay(waitTime);
+        continue;
+      }
+      const since = now - stats.lastRequestTime;
+      if (since < provider.minDelayMs) { await this.delay(provider.minDelayMs - since); continue; }
+      stats.lastRequestTime = Date.now();
+      stats.requestsThisMinute++;
+      return;
+    }
+  }
+
+  isRateLimitError(err) {
+    const m = String(err && err.message || '');
+    return m.includes('429') || /rate limit/i.test(m);
+  }
+
+  async runOne(job) {
+    const { task, resolve, reject } = job;
+    let attempt = 0;
+    for (;;) {
+      const provider = pickProvider();
+      if (!provider) { reject(new Error('No AI providers configured')); return; }
+      await this.waitForCapacity(provider);
+      const stats = providerStats.get(provider.name);
+      const started = Date.now();
       try {
-        const provider = pickProvider();
-        if (!provider) { reject(new Error('No AI providers configured')); continue; }
-        const stats = providerStats.get(provider.name);
-
-        // Wait if at RPM limit
-        const now = Date.now();
-        if (now - stats.minuteStart > 60000) {
-          stats.requestsThisMinute = 0;
-          stats.minuteStart = now;
+        const result = await task(provider);
+        stats.failures = 0;
+        recordServiceTime(Date.now() - started);
+        resolve(result);
+        return;
+      } catch (primaryError) {
+        stats.failures++;
+        if (this.isRateLimitError(primaryError)) {
+          // Back off THIS provider (exponential, capped), keep the job, retry.
+          attempt += 1;
+          const backoff = Math.min(60000, 2000 * Math.pow(2, attempt - 1));
+          this.backoffUntil.set(provider.name, Date.now() + backoff);
+          console.warn(`⚠️ ${provider.name} 429 — backing off ${backoff} ms (attempt ${attempt})`);
+          if (attempt <= 4) continue;
+          reject(primaryError);
+          return;
         }
-        if (stats.requestsThisMinute >= provider.maxRPM) {
-          const waitTime = 60000 - (now - stats.minuteStart) + 1000;
-          console.log(`⏳ ${provider.name} rate limit reached, waiting ${Math.round(waitTime/1000)}s...`);
-          await this.delay(waitTime);
-          stats.requestsThisMinute = 0;
-          stats.minuteStart = Date.now();
-        }
-
-        // Minimum delay between requests to this provider
-        const timeSinceLast = Date.now() - stats.lastRequestTime;
-        if (timeSinceLast < provider.minDelayMs) {
-          await this.delay(provider.minDelayMs - timeSinceLast);
-        }
-
-        stats.lastRequestTime = Date.now();
-        stats.requestsThisMinute++;
-
-        try {
-          const result = await task(provider);
-          stats.failures = 0;
-          resolve(result);
-        } catch (primaryError) {
-          console.warn(`⚠️ ${provider.name} failed: ${primaryError.message}`);
-          stats.failures++;
-
-          // Try alternate provider as fallback
-          const alt = getAlternateProvider(provider.name);
-          if (alt) {
-            console.log(`🔄 Falling back to ${alt.name}...`);
-            const altStats = providerStats.get(alt.name);
-            altStats.lastRequestTime = Date.now();
-            altStats.requestsThisMinute++;
-            try {
-              const result = await task(alt);
-              altStats.failures = 0;
-              resolve(result);
-            } catch (fallbackError) {
-              altStats.failures++;
-              reject(primaryError); // Report original error
-            }
-          } else {
-            reject(primaryError);
+        console.warn(`⚠️ ${provider.name} failed: ${primaryError.message}`);
+        // Error failover: one try on the alternate provider.
+        const alt = getAlternateProvider(provider.name);
+        if (alt) {
+          console.log(`🔄 Falling back to ${alt.name}...`);
+          const altStats = providerStats.get(alt.name);
+          altStats.lastRequestTime = Date.now();
+          altStats.requestsThisMinute++;
+          try {
+            const result = await task(alt);
+            altStats.failures = 0;
+            recordServiceTime(Date.now() - started);
+            resolve(result);
+            return;
+          } catch (fallbackError) {
+            altStats.failures++;
+            reject(primaryError);   // report the original error
+            return;
           }
         }
-
-      } catch (error) {
-        if (error.message?.includes('429') || error.message?.includes('rate limit')) {
-          console.log('⚠️ Hit rate limit, backing off 30s...');
-          await this.delay(30000);
-          this.queue.unshift({ task, resolve, reject });
-        } else {
-          reject(error);
-        }
+        reject(primaryError);
+        return;
       }
     }
-
-    this.processing = false;
   }
 
   delay(ms) {
@@ -631,17 +685,31 @@ class GradingQueue {
     return this.queue.length;
   }
 
+  // ETA for a NEW request right now: queued ahead / effective throughput, plus
+  // one service time. Effective throughput = concurrency / avg service time.
+  estimateWaitMs() {
+    const provider = pickProvider();
+    const cap = this.concurrencyFor(provider || {});
+    const svc = avgServiceMs();
+    const ahead = this.queue.length + this.inFlight;
+    return Math.round((ahead / cap) * svc + svc);
+  }
+
   getStats() {
     const stats = {};
     for (const [name, s] of providerStats) {
       stats[name] = {
         requestsThisMinute: s.requestsThisMinute,
-        failures: s.failures
+        failures: s.failures,
+        backoffMs: Math.max(0, (this.backoffUntil.get(name) || 0) - Date.now())
       };
     }
     return {
       queueLength: this.queue.length,
+      inFlight: this.inFlight,
       processing: this.processing,
+      avgServiceMs: avgServiceMs(),
+      estimatedWaitMs: this.estimateWaitMs(),
       providers: stats
     };
   }
@@ -687,8 +755,11 @@ app.post('/api/ai/grade', async (req, res) => {
     const queuePos = gradingQueue.getQueueLength();
     console.log(`🤖 AI grading queued (position ${queuePos}): ${scenario.questionId || 'unknown'}`);
 
-    // Queue the request — provider is injected by the queue's round-robin
+    // Queue the request — provider is injected by the queue's worker pool.
+    const _queuedAt = Date.now();
     const result = await gradingQueue.add((provider) => callAI(gradingPrompt, provider));
+    // Timing metadata for honest client-side ETAs ("graded in 6 s" / calibration).
+    result._queue = { waitedMs: Date.now() - _queuedAt, positionAtEnqueue: queuePos };
 
     // CRITICAL: Server-side enforcement of MCQ grading rules
     // Wrong MCQ answers CANNOT receive E, regardless of what AI says
