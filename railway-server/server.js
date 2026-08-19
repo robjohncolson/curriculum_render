@@ -790,6 +790,112 @@ app.post('/api/ai/grade', async (req, res) => {
 });
 
 // ============================
+// AI BATCH FRQ GRADING — N reflections, ONE model call (2026-08-19)
+// ============================
+// POST /api/ai/grade-batch  { scenario:{topic, lessonContext}, items:[{questionId, prompt, answer}] }
+// Each item's `prompt` is the SAME per-item prompt the worksheet would send to
+// /api/ai/grade (rubric + instructions + answer, built client-side by the page's
+// buildReflectionPrompt*). We wrap them into one request asking for a JSON object
+// keyed by questionId; any item the model omits (or returns unusable) is graded
+// individually as a fallback, so the client always gets every item back.
+// Responses: { results: { [questionId]: <same shape as /api/ai/grade> }, _queue }
+function buildBatchGradingPrompt(items) {
+  const head =
+    `You are grading ${items.length} SEPARATE student responses. Each ITEM below carries its own grading instructions and rubric. ` +
+    `Grade each item INDEPENDENTLY, exactly as its own instructions say, and do not let one item influence another.\n` +
+    `Return ONE JSON object whose keys are the item ids and whose values are that item's result object ` +
+    `({"score": "E" | "P" | "I", "feedback": "...", "matched": [...], "missing": [...]}). No other top-level keys.\n\n`;
+  const body = items.map((it) => `=== ITEM ${it.questionId} ===\n${it.prompt}\n`).join('\n');
+  return head + body;
+}
+function coerceItemResult(value) {
+  if (!value || typeof value !== 'object') return null;
+  const sc = String(value.score || '').trim().charAt(0).toUpperCase();
+  if (!['E', 'P', 'I'].includes(sc)) return null;
+  return {
+    score: sc,
+    feedback: value.feedback || '',
+    matched: Array.isArray(value.matched) ? value.matched : [],
+    missing: Array.isArray(value.missing) ? value.missing : []
+  };
+}
+app.post('/api/ai/grade-batch', async (req, res) => {
+  try {
+    const { scenario, items } = req.body || {};
+    const sid = sidFromRequest(req);
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items to grade' });
+    if (items.length > 8) return res.status(400).json({ error: 'Too many items (max 8)' });
+    for (const it of items) {
+      if (!it || !it.questionId || typeof it.prompt !== 'string' || !it.prompt) {
+        return res.status(400).json({ error: 'Each item needs questionId and prompt' });
+      }
+    }
+    if (!AI_AVAILABLE) return res.status(503).json({ error: 'No AI providers configured' });
+
+    // Framework context once (items of one worksheet share a unit).
+    const fw = getFrameworkForQuestion(items[0].questionId) || (scenario && getFrameworkForQuestion(scenario.questionId));
+    const fwCtx = fw ? buildFrameworkContext(fw) : '';
+    const batchPrompt = fwCtx + buildBatchGradingPrompt(items);
+
+    const queuePos = gradingQueue.getQueueLength();
+    console.log(`🤖 AI batch grading queued (position ${queuePos}): ${items.length} items`);
+    const queuedAt = Date.now();
+
+    const results = {};
+    let parsed = null;
+    try {
+      const raw = await gradingQueue.add((provider) => callAI(batchPrompt, provider, {
+        rawResponse: true,
+        maxTokens: Math.min(6000, 1200 * items.length)
+      }));
+      parsed = extractAndParseJSON(raw.content);
+      for (const it of items) {
+        const r = coerceItemResult(parsed && parsed[it.questionId]);
+        if (r) { r._provider = raw._provider; r._model = raw._model; results[it.questionId] = r; }
+      }
+    } catch (err) {
+      console.warn('⚠️ batch grading call failed, falling back per item:', err.message);
+    }
+
+    // Fallback: grade any missing item individually (same path as /api/ai/grade).
+    for (const it of items) {
+      if (results[it.questionId]) continue;
+      try {
+        const one = await gradingQueue.add((provider) => callAI(fwCtx + it.prompt, provider));
+        results[it.questionId] = one;
+      } catch (err) {
+        results[it.questionId] = { error: err.message };
+      }
+    }
+
+    for (const it of items) {
+      const r = results[it.questionId];
+      if (!r || r.error) continue;
+      applyWrongMcqCap(r, Object.assign({}, scenario || {}, { questionId: it.questionId }), { answer: it.answer });
+      r._gradingMode = 'ai';
+      r._serverGraded = true;
+      r._batched = true;
+      if (sid) {
+        const receipt = issueReceipt({
+          type: 'verdict',
+          username: receiptUsernameFromBody(req.body),
+          sid,
+          questionId: it.questionId,
+          score: r.score,
+          answerValue: it.answer || ''
+        });
+        if (receipt) r.receipt = receipt;
+      }
+    }
+    console.log(`✅ AI batch grading complete: ${Object.values(results).filter((r) => r && !r.error).length}/${items.length}`);
+    res.json({ results, _queue: { waitedMs: Date.now() - queuedAt, positionAtEnqueue: queuePos } });
+  } catch (err) {
+    console.error('AI batch grading error:', err.message);
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ============================
 // AI WORKSHEET (FILL-IN-THE-BLANK) GRADING — semantic credit, one batched call
 // ============================
 // Grades ALL fill-in-the-blank answers on a follow-along worksheet in ONE
