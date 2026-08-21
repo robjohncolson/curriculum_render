@@ -18,8 +18,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(__dirname, '..', 'railway-server', 'server.js');
 const serverCode = fs.readFileSync(serverPath, 'utf8');
 
-// The endpoint handler block (from its route string forward).
-const epIdx = serverCode.indexOf("'/api/ai/grade-worksheet'");
+// The endpoint handler block (from its app.post registration forward — the route
+// string also appears earlier in the ai-grade-auth route config/parser mounts).
+const epIdx = serverCode.lastIndexOf("app.post('/api/ai/grade-worksheet'"); // the handler; an earlier app.post mounts the parser+auth chain
 const epBlock = epIdx > -1 ? serverCode.slice(epIdx, epIdx + 2500) : '';
 
 // The prompt builder body.

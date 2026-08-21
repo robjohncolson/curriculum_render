@@ -10,6 +10,12 @@ import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './
 import { createClassroomRegistry } from './classroom.js';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
+import {
+  aiGradeJsonErrorHandlerFor,
+  createAiGradeAuth,
+  getAiGradeAuthHealth,
+  getAiGradeRouteConfig,
+} from './ai-grade-auth.js';
 
 // Load environment variables
 dotenv.config();
@@ -18,8 +24,38 @@ initReceipts();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Railway terminates requests at exactly one reverse-proxy hop. Trusting only
+// hop 1 makes req.ip use Railway's client address while bounding X-Forwarded-For
+// trust. The tradeoff is that direct access to this origin could spoof that one
+// header, so the deployment must keep the origin behind Railway's proxy.
+app.set('trust proxy', 1);
+
+const aiGradeRouteConfig = getAiGradeRouteConfig();
+const aiGradeAuthFor = createAiGradeAuth({ sidFromRequest });
+
 // Middleware
 app.use(cors());
+// These exact POST routes parse at their advertised boundary before auth. The
+// later global parser sees an already-consumed body; every other route retains
+// the unchanged Express 100 KB default below.
+app.post(
+  '/api/ai/grade',
+  express.json({ limit: aiGradeRouteConfig['/api/ai/grade'].bodyBytes }),
+  aiGradeAuthFor('/api/ai/grade'),
+  aiGradeJsonErrorHandlerFor('/api/ai/grade'),
+);
+app.post(
+  '/api/ai/grade-batch',
+  express.json({ limit: aiGradeRouteConfig['/api/ai/grade-batch'].bodyBytes }),
+  aiGradeAuthFor('/api/ai/grade-batch'),
+  aiGradeJsonErrorHandlerFor('/api/ai/grade-batch'),
+);
+app.post(
+  '/api/ai/grade-worksheet',
+  express.json({ limit: aiGradeRouteConfig['/api/ai/grade-worksheet'].bodyBytes }),
+  aiGradeAuthFor('/api/ai/grade-worksheet'),
+  aiGradeJsonErrorHandlerFor('/api/ai/grade-worksheet'),
+);
 app.use(express.json());
 
 // Initialize Supabase
@@ -139,6 +175,9 @@ app.get('/health', (req, res) => {
       pubkey: receiptIssuer.pubkey || null
     },
     rosterAuth: !!process.env.ROSTER_TOKEN_SECRET,
+    // APPROVED COMPATIBILITY EXCEPTION (O5): health adds exactly these two
+    // rollout fields even in off/unknown mode; grading responses remain pinned.
+    ...getAiGradeAuthHealth(),
     timestamp: new Date().toISOString()
   });
 });
