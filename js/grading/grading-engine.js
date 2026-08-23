@@ -448,9 +448,14 @@ class GradingEngine {
     }
 
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      try {
+        const rosterToken = window.rosterClient?.token?.();
+        if (rosterToken) headers.Authorization = `Bearer ${rosterToken}`;
+      } catch (_) { /* appeals remain available under the existing username model */ }
       const response = await fetch(`${this.serverUrl}/api/ai/appeal`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           username: context.username || '',
           scenario: {
@@ -490,6 +495,7 @@ class GradingEngine {
         // stays capped at P, but a granted exception still counts the item correct.
         exceptionGranted: result.exceptionGranted === true,
         appealResponse: result.appealResponse || result.feedback,
+        reviewCredit: Number.isFinite(Number(result.reviewCredit)) ? Number(result.reviewCredit) : undefined,
         upgraded,
         previousScore: previousResult?.score,
         // Server-signed review-grant capability (SEALED_TRANSCRIPT_SPEC 1C): the

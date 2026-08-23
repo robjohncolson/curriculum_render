@@ -64,6 +64,20 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cWJodHJ1cnp6YXZocWJncXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxOTc1NDMsImV4cCI6MjA3NDc3MzU0M30.xDHsAxOlv0uprE9epz-M_Emn6q3mRegtTpFt0sl9uBo'
 );
 
+// Quiz-review evidence contains student-authored text and AI feedback.  It must
+// never use the browser-visible anon credential.  This separate client is only
+// constructed when the backend-only service key is configured.
+const quizReviewsSupabase = process.env.SUPABASE_SERVICE_KEY
+  ? createClient(
+      process.env.SUPABASE_URL || 'https://bzqbhtrurzzavhqbgqrs.supabase.co',
+      process.env.SUPABASE_SERVICE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    )
+  : null;
+if (!quizReviewsSupabase) {
+  console.info('Quiz review persistence is disabled: SUPABASE_SERVICE_KEY is not configured.');
+}
+
 // In-memory cache with TTL
 const cache = {
   peerData: null,
@@ -115,6 +129,45 @@ function logGuestSession(username, loc, event, section) {
       })
       .catch((e) => { console.warn('guest_log insert threw:', e && e.message); _guestLogSeen.delete(username); });
   } catch (_) { /* never break presence on a logging error */ }
+}
+
+// ── Quiz review history ─────────────────────────────────────────────────────
+// Persist the evidence behind every AI appeal so the earned review credit is
+// explainable later. Fire-and-forget: review storage must never delay or break
+// the already-issued grant/receipt or the appeal response. Migration:
+// railway-server/migrations/0002_quiz_reviews.sql.
+function quizReviewCredit(result) {
+  // Review-credit ladder: E=1, P=2/3, I=1/3. A defensible-question
+  // exception remains an independent full-credit gate; wrong-MCQ capping runs
+  // before this function, so an ordinary wrong MCQ cannot cheaply earn E.
+  return result && result.exceptionGranted === true ? 1
+    : result && result.score === 'E' ? 1
+    : result && result.score === 'P' ? (2 / 3)
+    : result && result.score === 'I' ? (1 / 3)
+    : 0;
+}
+
+function isMissingRelation(error) {
+  return !!error && ['42P01', 'PGRST205', 'PGRST202'].includes(String(error.code || '').toUpperCase());
+}
+
+async function persistQuizReview(review) {
+  if (!quizReviewsSupabase) {
+    const error = new Error('Quiz review persistence unavailable');
+    error.statusCode = 503;
+    throw error;
+  }
+  try {
+    // ignoreDuplicates maps to INSERT ... ON CONFLICT DO NOTHING.  The
+    // expression unique index in 0002 makes retries of the same appeal safe.
+    const result = await quizReviewsSupabase.from('quiz_reviews')
+      .upsert([review], { ignoreDuplicates: true });
+    if (result && result.error) throw result.error;
+  } catch (error) {
+    if (isMissingRelation(error)) error.statusCode = 503;
+    console.warn('quiz_reviews persistence error:', error && (error.message || error));
+    throw error;
+  }
 }
 
 // Classroom registry (Live Classroom v1a)
@@ -263,6 +316,37 @@ app.get('/api/guest-log', async (req, res) => {
     return res.json({ ok: true, count: (data || []).length, sessions: data || [] });
   } catch (e) {
     return res.status(500).json({ ok: false, error: (e && e.message) || 'error' });
+  }
+});
+
+// Return persisted AI appeal explanations. A valid roster bearer is mandatory;
+// username is display-only metadata and never grants or narrows access.
+app.get('/api/quiz-reviews', async (req, res) => {
+  try {
+    const sid = sidFromRequest(req);
+    if (!sid) return res.status(401).json({ ok: false, error: 'valid roster bearer required' });
+    if (!quizReviewsSupabase) {
+      return res.status(503).json({ ok: false, error: 'Quiz review persistence unavailable' });
+    }
+
+    const { data, error } = await quizReviewsSupabase
+      .from('quiz_reviews')
+      .select('sid, username, question_id, appeal_text, verdict, credit, feedback, created_at')
+      .eq('sid', sid)
+      .order('created_at', { ascending: false });
+    if (error) {
+      const code = isMissingRelation(error) ? 503 : 500;
+      return res.status(code).json({ ok: false, error: error.message || 'quiz_reviews unavailable' });
+    }
+
+    // Defence in depth for mocks/proxies: never return a row for another sid.
+    const owned = (data || []).filter(row => row && row.sid === sid);
+    const rows = owned.map(({ sid: _sid, ...row }) => row);
+    const username = rows.find(row => row.username)?.username || String(req.query.username || '').trim();
+    return res.json({ ok: true, username, count: rows.length, reviews: rows });
+  } catch (error) {
+    const code = isMissingRelation(error) ? 503 : 500;
+    return res.status(code).json({ ok: false, error: (error && error.message) || 'error' });
   }
 });
 
@@ -1395,6 +1479,12 @@ app.post('/api/ai/appeal', async (req, res) => {
       return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
     }
 
+    // Guest appeals remain ephemeral.  A roster-authenticated appeal must be
+    // persisted, so fail cleanly before grading when its private store is off.
+    if (sid && !quizReviewsSupabase) {
+      return res.status(503).json({ error: 'Quiz review persistence unavailable' });
+    }
+
     if (!AI_AVAILABLE) {
       return res.status(503).json({ error: 'No AI providers configured' });
     }
@@ -1423,15 +1513,13 @@ app.post('/api/ai/appeal', async (req, res) => {
     result._gradingMode = 'ai-appeal';
     result._serverGraded = true;
     result._appealProcessed = true;
+    const reviewCredit = quizReviewCredit(result);
+    result.reviewCredit = reviewCredit;
     if (sid) {
-      const credit = result.exceptionGranted === true ? 1
-        : result.score === 'P' ? (2 / 3)
-        : result.score === 'I' ? (1 / 3)
-        : 0;
       const reviewGrant = issueReviewGrant({
         sid,
         item: scenario.questionId + '#rev',
-        credit,
+        credit: reviewCredit,
         exp: Date.now() + 300000
       });
       if (reviewGrant) result.reviewGrant = reviewGrant.compact;
@@ -1445,6 +1533,23 @@ app.post('/api/ai/appeal', async (req, res) => {
         answerValue: answers.answer || Object.values(answers)[0] || ''
       });
       if (receipt) result.receipt = receipt;
+    }
+
+    // Do not persist guest appeal text: without a roster sid it cannot be
+    // safely authorized for later hydration.
+    if (sid) {
+      await persistQuizReview({
+        username: normalizeUsername(receiptUsernameFromBody(req.body)) || '',
+        sid,
+        question_id: String(scenario.questionId || ''),
+        appeal_text: String(appealText),
+        verdict: ['E', 'P', 'I'].includes(String(result.score || '').toUpperCase())
+          ? String(result.score).toUpperCase()
+          : 'I',
+        credit: reviewCredit,
+        exception_granted: result.exceptionGranted === true,
+        feedback: String(result.appealResponse || result.feedback || '')
+      });
     }
 
     console.log(`✅ AI appeal complete [${result._provider}]: score=${result.score || 'unknown'}, upgraded=${result.appealGranted || false}${result._scoreCapped ? ' (capped)' : ''}`);

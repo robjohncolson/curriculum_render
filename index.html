@@ -98,6 +98,7 @@
     <!-- AI Grading System -->
     <script src="js/grading/grading-engine.js"></script>
     <script src="js/grading/frq-grading-rules.js"></script>
+    <script src="js/quiz-reviews.js"></script>
 
 </head>
 <body>
@@ -259,6 +260,9 @@
                 }
             } catch (_) {}
             refreshRosterStatus();
+            if (typeof window.loadQuizReviews === 'function') {
+                try { await window.loadQuizReviews(true); } catch (_) {}
+            }
         };
 
         // The legacy typed username/password form — kept as a fallback, reached from
@@ -6346,8 +6350,91 @@ function renderLessonSelector(unitInfo) {
             }
         }
 
+        // Persisted AI appeal history is private and hydrates only through a
+        // valid roster bearer. Username is display metadata, never authority.
+        window.quizReviewsByQuestion = window.quizReviewsByQuestion || Object.create(null);
+        let _quizReviewsLoadedFor = null;
+        let _quizReviewsPromise = null;
+
+        function quizReviewSummaryText() {
+            if (!window.QuizReviewUI) return `${currentQuestions.length} questions`;
+            const answers = classData?.users?.[currentUsername]?.answers || {};
+            return window.QuizReviewUI.formatSummary(
+                currentQuestions,
+                answers,
+                window.quizReviewsByQuestion
+            );
+        }
+
+        function updateQuizReviewDisplays() {
+            if (!window.QuizReviewUI) return;
+            const summary = document.getElementById('quiz-summary');
+            if (summary) summary.textContent = quizReviewSummaryText();
+            currentQuestions.forEach(question => {
+                const container = document.getElementById(`quiz-reviews-${question.id}`);
+                if (!container) return;
+                const html = window.QuizReviewUI.formatQuestionReviews(
+                    question.id,
+                    window.quizReviewsByQuestion
+                );
+                container.innerHTML = html;
+                container.style.display = html ? 'block' : 'none';
+            });
+        }
+
+        function rememberQuizReview(review) {
+            if (!review || !review.question_id) return;
+            const questionId = String(review.question_id);
+            const rows = window.quizReviewsByQuestion[questionId] || [];
+            const duplicate = rows.some(row => row.appeal_text === review.appeal_text);
+            if (!duplicate) rows.push(review);
+            rows.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
+            window.quizReviewsByQuestion[questionId] = rows;
+        }
+
+        async function loadQuizReviews(force = false) {
+            const username = String(currentUsername || '').trim();
+            const base = window.RAILWAY_SERVER_URL || '';
+            if (!username || !base || !window.QuizReviewUI) return;
+            const token = window.rosterClient?.token?.();
+            if (!token) return;
+            if (!force && _quizReviewsLoadedFor === username) {
+                updateQuizReviewDisplays();
+                return _quizReviewsPromise;
+            }
+            if (_quizReviewsPromise && !force) return _quizReviewsPromise;
+
+            _quizReviewsLoadedFor = username;
+            window.quizReviewsByQuestion = Object.create(null);
+            updateQuizReviewDisplays();
+            _quizReviewsPromise = (async () => {
+                try {
+                    const headers = { Authorization: 'Bearer ' + token };
+                    const response = await fetch(
+                        base + '/api/quiz-reviews',
+                        { headers }
+                    );
+                    if (!response.ok) {
+                        _quizReviewsLoadedFor = null;
+                        return;
+                    }
+                    const payload = await response.json();
+                    if (username !== String(currentUsername || '').trim()) return;
+                    window.quizReviewsByQuestion = window.QuizReviewUI.indexRows(payload.reviews || []);
+                    updateQuizReviewDisplays();
+                } catch (_) {
+                    _quizReviewsLoadedFor = null; // best-effort; retry on the next render
+                } finally {
+                    _quizReviewsPromise = null;
+                }
+            })();
+            return _quizReviewsPromise;
+        }
+        window.loadQuizReviews = loadQuizReviews;
+
         // Render quiz - wrapper that checks feature flag
         function renderQuiz() {
+            loadQuizReviews();
             if (FeatureFlags.USE_INCREMENTAL_QUESTION_RENDER) {
                 if (FeatureFlags.DEBUG_RENDER) {
                     console.log('[Render] Using incremental renderer');
@@ -6369,7 +6456,7 @@ function renderLessonSelector(unitInfo) {
                 <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
-                        <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+                        <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                     </div>
                 </div>
 
@@ -6406,6 +6493,7 @@ function renderLessonSelector(unitInfo) {
 
                 // Load saved progress
                 loadProgress();
+                updateQuizReviewDisplays();
 
                 // FRQ solutions are NOT auto-displayed on page load
                 // They only appear when AI grading explicitly fails during the current session
@@ -6443,7 +6531,7 @@ function renderLessonSelector(unitInfo) {
                     <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
                     <div class="app-controls">
                         <div style="flex: 1;">
-                            <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - ${currentQuestions.length} questions
+                            <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                         </div>
                     </div>
                     <div id="questions-list"></div>
@@ -6457,7 +6545,7 @@ function renderLessonSelector(unitInfo) {
                 if (appControls) {
                     const newText = `Unit ${currentUnit}, Lesson ${currentLesson}`;
                     if (!appControls.innerHTML.includes(newText)) {
-                        appControls.innerHTML = `<strong>${newText}</strong> - ${currentQuestions.length} questions`;
+                        appControls.innerHTML = `<strong>${newText}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>`;
                     }
                 }
             }
@@ -6548,6 +6636,7 @@ function renderLessonSelector(unitInfo) {
 
                 // Load saved progress
                 loadProgress();
+                updateQuizReviewDisplays();
 
                 // Render MathJax
                 if (window.MathJax) {
@@ -6674,6 +6763,9 @@ function renderLessonSelector(unitInfo) {
                         </div>
                         <div class="question-id">ID: ${question.id || 'N/A'}</div>
                         <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
+                        <div id="quiz-reviews-${question.id}" class="quiz-review-history" style="display:${window.QuizReviewUI?.formatQuestionReviews(question.id, window.quizReviewsByQuestion) ? 'block' : 'none'};">
+                            ${window.QuizReviewUI?.formatQuestionReviews(question.id, window.quizReviewsByQuestion) || ''}
+                        </div>
             `;
 
             // Render question attachments (charts, tables, images) in main column
@@ -7672,6 +7764,8 @@ function renderLessonSelector(unitInfo) {
             if (header && !header.querySelector('span[style*="color"]')) {
                 header.innerHTML += '<span style="color: #a5d6a7;">✓ Answered</span>';
             }
+
+            updateQuizReviewDisplays();
 
             // Show/update dotplot immediately after submission (if it exists)
             const dotplotSection = document.getElementById(`dotplot-section-${questionId}`);
@@ -10339,6 +10433,21 @@ Respond with JSON:
                     // Display appeal result
                     displayAppealResult(questionId, result, previousResult);
 
+                    // Show the just-completed review immediately. The server has
+                    // already launched its non-blocking persistence write, and a
+                    // later page load will hydrate this same row from quiz_reviews.
+                    if (window.QuizReviewUI) {
+                        rememberQuizReview({
+                            question_id: questionId,
+                            appeal_text: appealText,
+                            verdict: result.score,
+                            credit: window.QuizReviewUI.creditForResult(result),
+                            feedback: result.appealResponse || result.feedback || '',
+                            created_at: new Date().toISOString()
+                        });
+                        updateQuizReviewDisplays();
+                    }
+
                     // Quiz partial credit: record what this AI review earned —
                     // a defensible-question exception (or E) = full (1), P = 2/3,
                     // I (engaged the review) = 1/3. The grade engine credits the
@@ -10378,6 +10487,9 @@ Respond with JSON:
 
             const scoreInfo = scoreClasses[result.score] || scoreClasses['I'];
             const upgraded = result.upgraded || result.appealGranted;
+            const escapedFeedback = window.QuizReviewUI.escapeHtml(
+                result.appealResponse || result.feedback || 'Review complete.'
+            );
 
             let upgradeMessage = '';
             if (result.exceptionGranted) {
@@ -10420,7 +10532,7 @@ Respond with JSON:
                     </div>
                     ${upgradeMessage}
                     <div class="grading-feedback-text">
-                        ${result.appealResponse || result.feedback || 'Review complete.'}
+                        ${escapedFeedback}
                     </div>
                 </div>
             `;
@@ -11755,6 +11867,7 @@ Respond with JSON:
             currentLesson = currentTopic;
             currentQuestions = selectedQuestions;
             allUnitTopics = byNewUnit[currentNewUnit] || {};
+            loadQuizReviews();
 
             const newLabel = options.newLabel || context.newLabel || currentTopic;
             const resources = await loadUnitResources();
@@ -11857,7 +11970,7 @@ Respond with JSON:
                 <button onclick="backToLessons()" class="back-button">← Back to Topics</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
-                        <strong>Unit ${currentNewUnit}, Topic ${currentTopic}: ${newLabel}</strong> - ${currentQuestions.length} questions
+                        <strong>Unit ${currentNewUnit}, Topic ${currentTopic}: ${newLabel}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                     </div>
                 </div>
 
@@ -11890,6 +12003,7 @@ Respond with JSON:
 
                 document.getElementById('loading-msg').style.display = 'none';
                 loadProgress();
+                updateQuizReviewDisplays();
 
                 // FRQ solutions are NOT auto-displayed on page load
                 // They only appear when AI grading explicitly fails during the current session
