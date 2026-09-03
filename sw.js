@@ -1,15 +1,20 @@
 // sw.js — AP Stats QUIZ-app PWA service worker (OFFLINE_MODE_SPEC §4.G, cr mirror).
-// Registered from the quiz index with the cr repo-root scope. Same strategy as the
-// follow-alongs SW: NETWORK-FIRST navigations (fresh online, cached offline),
-// cache-first same-origin assets, PASSTHROUGH for cross-origin/APIs/non-GET and
-// version.json. DISTINCT cache prefix ('apstats-quiz-pwa-') because cr shares the
+// Registered from the quiz index with the cr repo-root scope. NETWORK-FIRST for
+// navigations AND same-origin assets (fresh online, cached offline), PASSTHROUGH
+// for cross-origin/APIs/non-GET and version.json.
+//
+// Why assets are network-first (2026-09-03): they used to be cache-first, so a
+// student's tab kept the June curriculum.js/styles under a fresh index.html until
+// the BUILD stamp below changed — and the stamp had not been bumped since June.
+// Students learned to Ctrl+Shift+R. Network-first self-heals on the next load
+// even when a deploy forgets the bump; the browser HTTP cache keeps it fast. DISTINCT cache prefix ('apstats-quiz-pwa-') because cr shares the
 // github.io origin (and the localhost pack origin) with the Desk — each SW must
 // only purge its OWN caches.
 //
 // KILL SWITCH: deploy an sw.js whose body just skipWaiting()s on install and, on
 // activate, deletes all caches + clients.claim() — pages then fall back to network.
 
-const BUILD = '2026-06-26-m8wz'; // scripts/bump-build.mjs replaces this stamp
+const BUILD = '2026-09-03-yxsi'; // scripts/bump-build.mjs replaces this stamp
 const CACHE = 'apstats-quiz-pwa-' + BUILD;
 
 const CORE = [
@@ -64,14 +69,15 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // asset: network-first, cache fallback (offline), populate on success
   e.respondWith((async () => {
-    const cached = await caches.match(e.request);
-    if (cached) return cached;
     try {
       const net = await fetch(e.request);
       if (net && net.ok) { const c = await caches.open(CACHE); c.put(e.request, net.clone()); }
       return net;
     } catch (_) {
+      const cached = await caches.match(e.request);
+      if (cached) return cached;
       return new Response('', { status: 504 });
     }
   })());

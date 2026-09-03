@@ -62,6 +62,13 @@ describe('cr sw.js contracts', () => {
     expect(SW).toContain('self.skipWaiting()');
     expect(SW).toContain('self.clients.claim()');
   });
+  it('assets are network-first with cache fallback (stale-asset / Ctrl+Shift+R fix)', () => {
+    const assetBranch = SW.slice(SW.indexOf('// asset: network-first'));
+    const fetchAt = assetBranch.indexOf('await fetch(e.request)');
+    const cacheAt = assetBranch.indexOf('await caches.match(e.request)');
+    expect(fetchAt).toBeGreaterThan(-1);
+    expect(cacheAt).toBeGreaterThan(fetchAt); // cache is consulted only after the network fails
+  });
   it('navigations network-first + background-sync drain + kill switch', () => {
     expect(SW).toMatch(/strat === 'navigate'/);
     expect(SW).toContain("type: 'drain-offline-queue'");
