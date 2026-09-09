@@ -9,7 +9,7 @@ test('lost rejection receipts recover by retry or reconnect without losing the r
   for (const recovery of ['retry', 'resume']) {
     const { session, replica, key, advance } = setup();
     const wrongStation = session.level.switches[1];
-    replica.queue('switch', wrongStation.id, poseAt(wrongStation));
+    replica.queue('switch', wrongStation.id, poseAt(session.level.spawn));
     const packet = replica.outgoing({ connected: true })[0];
     const rejected = session.command(key, packet);
     assert.equal(rejected.status, 'rejected');
@@ -49,9 +49,8 @@ test('receipt retention is bounded, private to each stream and independently own
 function setup(members = ['alice', 'bob']) {
   let clock = 0;
   const now = () => clock;
-  const session = new ParkSession({ epoch: 'test-epoch', members, now });
+  const session = new ParkSession({ epoch: 'test-epoch', members, now, wallNow: now });
   const key = session.open(members[0], 'browser_1');
-  session.setRunning(true);
   const replica = new ParkReplica({ now });
   replica.resume(session.resume(key));
   return { session, key, replica, advance: ms => { clock += ms; } };
@@ -80,13 +79,13 @@ test('lost acknowledgment, duplicate action, event gap and reconnect converge', 
   const other = session.open('bob', 'browser_2');
   const bobStation = session.level.switches[1];
   const bob = session.command(other, { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'switch', target: bobStation.id, pose: poseAt(bobStation) });
-  const pause = session.setRunning(false)[0];
+  const pause = session.setOnline(['alice'])[0];
   assert.equal(replica.event(pause), false);
   assert.equal(replica.needsResume, true);
   replica.resume(session.resume(key, replica.revision));
-  assert.equal(replica.state.running, false);
+  assert.deepEqual(replica.state.online, ['alice']);
   assert.deepEqual(replica.state.progress, session.progress);
-  assert.equal(bob.events[0].bridgeOpen, true);
+  assert.equal(bob.events[0].bridgeOpen, false);
 });
 
 test('one minute offline queues actions once and coalesces all motion', () => {
@@ -120,10 +119,10 @@ test('traffic stays bounded and idle produces no gameplay messages', () => {
     }
     advance(1000 / 60);
   }
-  assert.ok(messages <= 241, `${messages} messages/minute`);
-  assert.ok(bytes < 40000, `${bytes} bytes/minute`);
+  assert.ok(messages <= 121, `${messages} messages/minute`);
+  assert.ok(bytes < 24000, `${bytes} bytes/minute`);
   replica.motion({ x: 899, y: 520, vx: 0, vy: 0 });
-  advance(300); replica.outgoing({ connected: true });
+  advance(600); replica.outgoing({ connected: true });
   for (let frame = 0; frame < 3600; frame++) {
     replica.motion({ x: 899, y: 520, vx: 0, vy: 0 });
     assert.deepEqual(replica.outgoing({ connected: true }), []);
@@ -132,11 +131,11 @@ test('traffic stays bounded and idle produces no gameplay messages', () => {
 });
 
 test('stale level action rejects without blocking next sequence', () => {
-  const { session, replica, key } = setup();
+  const { session, replica, key, advance } = setup();
   const station = session.level.switches[0];
   replica.queue('switch', station.id, poseAt(station));
   const packet = replica.outgoing({ connected: true })[0];
-  session.nextLevel();
+  advance(3600000); session.rotateIfReady({empty:true});
   const rejected = session.command(key, packet);
   assert.equal(rejected.status, 'rejected');
   replica.acknowledge({ epoch: session.epoch, ...rejected });
@@ -150,7 +149,7 @@ test('stale level action rejects without blocking next sequence', () => {
 
 test('bounded history falls back to a compact summary, not world state', () => {
   const { session, key } = setup(Array.from({ length: 8 }, (_, i) => `student${i}`));
-  for (let i = 0; i < 150; i++) session.setRunning(i % 2 === 0);
+  for (let i = 0; i < 150; i++) session.setOnline(i % 2 === 0 ? session.members : []);
   const summary = session.resume(key, 0);
   assert.equal(summary.mode, 'summary');
   assert.ok(session.history.length <= 128);
@@ -159,20 +158,18 @@ test('bounded history falls back to a compact summary, not world state', () => {
   assert.equal('physics' in summary, false);
 });
 
-test('member assignment, proximity, pause, sequences and rate limits are enforced', () => {
+test('membership, proximity, sequences and rate limits are enforced', () => {
   const { session, key, advance } = setup();
   const station = session.level.switches[1];
-  const command = { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'switch', target: station.id, pose: poseAt(station) };
+  const command = { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'switch', target: station.id, pose: poseAt(session.level.spawn) };
   assert.equal(session.command(key, command).status, 'rejected');
   assert.equal(session.command(key, { ...command, sequence: 3 }).status, 'gap');
   assert.throws(() => session.open('mallory', 'browser_3'));
-  session.setRunning(false);
   assert.equal(session.command(key, { ...command, sequence: 2 }).status, 'rejected');
-  session.setRunning(true);
   const motion = { epoch: session.epoch, level: session.level.id, sequence: 1, pose: poseAt(station) };
   assert.ok(session.motion(key, motion));
   assert.equal(session.motion(key, { ...motion, sequence: 2 }), null);
-  advance(250);
+  advance(500);
   assert.equal(session.motion(key, motion), null);
   assert.ok(session.motion(key, { ...motion, sequence: 2 }));
 });

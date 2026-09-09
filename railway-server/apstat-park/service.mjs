@@ -2,168 +2,134 @@ import { randomUUID } from 'node:crypto';
 import { ParkSession } from './session.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
-const RETENTION_MS = 30 * 60 * 1000;
+const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
+const RETENTION_MS = 2 * 60 * 60 * 1000;
 
-// Classroom identity comes from the existing registry, never from packet names.
-export function createParkService({ registry, send, now = () => performance.now() }) {
-  const groups = new Map(), bindings = new Map();
-  const groupKey = (section, id) => JSON.stringify([section, id]);
+// One self-directed park per classroom section, using the existing joined identity.
+export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now() }) {
+  const rooms = new Map(), bindings = new Map();
 
-  function removeGroup(group) {
-    groups.delete(groupKey(group.section, group.id));
-    for (const [socket, binding] of bindings) if (binding.group === group) bindings.delete(socket);
-  }
-
-  // At most 32 groups: reclaim lazily before requests, with no timer or traffic.
-  // A disconnected group's receipts stay intact throughout the recovery window.
-  function sweep() {
-    const at = now();
-    for (const group of groups.values()) if (at - group.lastActivity >= RETENTION_MS) removeGroup(group);
-  }
-
-  // membersCache (optional Map section → members): one registry snapshot per section per
-  // broadcast/presence pass instead of one per binding (stateFor builds the whole room payload).
-  function identity(ws, membersCache) {
+  function identity(ws, cache) {
     const entry = registry._wsEntry(ws);
     if (!entry) throw new Error('Join the classroom first');
-    let members = membersCache?.get(entry.section);
+    let members = cache?.get(entry.section);
     if (!members) {
       members = registry.stateFor(entry.section, 'student', entry.username)?.members ?? [];
-      membersCache?.set(entry.section, members);
+      cache?.set(entry.section, members);
     }
-    const member = members.find(item => item.username === entry.username && item.online !== false);
-    if (!member) throw new Error('Classroom member is offline');
-    return { ...entry, teacher: member.role === 'teacher', members };
+    if (!members.some(member => member.username === entry.username && member.online !== false)) throw new Error('Classroom member is offline');
+    return entry;
   }
 
-  function broadcast(group, event) {
-    const membersCache = new Map();
+  function broadcast(room, event) {
+    const cache = new Map();
     for (const [ws, binding] of bindings) {
-      if (binding.group !== group) continue;
+      if (binding.room !== room) continue;
       let who;
-      try { who = identity(ws, membersCache); } catch { bindings.delete(ws); continue; }
-      if (who.section !== group.section || who.username !== binding.member) { bindings.delete(ws); continue; }
-      if (event.kind === 'motion' && (who.teacher || binding.member === event.member)) continue;
-      // Ephemeral motion is expendable under backpressure. Durable progress is
-      // recovered from its revision when the client's status check sees a gap.
+      try { who = identity(ws, cache); } catch { bindings.delete(ws); continue; }
+      if (who.section !== room.section || who.username !== binding.member) { bindings.delete(ws); continue; }
+      if (event.kind === 'motion' && binding.member === event.member) continue;
       if (ws.bufferedAmount > 32768) continue;
       send(ws, { type: 'park_event', ...event });
     }
   }
 
-  function teacherSummary(group) {
-    const s = group.session;
-    return { epoch: s.epoch, revision: s.revision, sequence: 0, mode: 'summary', members: [...s.members],
-      online: [...s.online], running: s.running, done: s.done, level: structuredClone(s.level), progress: structuredClone(s.progress), poses: Object.fromEntries(s.poses) };
+  function syncPresence(room) {
+    const online = [], cache = new Map();
+    for (const [ws, binding] of bindings) {
+      if (binding.room !== room) continue;
+      let who;
+      try { who = identity(ws, cache); } catch { bindings.delete(ws); continue; }
+      if (who.section !== room.section || who.username !== binding.member) { bindings.delete(ws); continue; }
+      online.push(binding.member);
+    }
+    for (const event of room.session.setOnline(online)) broadcast(room, event);
   }
 
-  // Count live park bindings, not motion: a stationary teammate is still here.
-  // Multiple tabs count as one member; closing one must not mark the other away.
-  function syncPresence(group) {
-    const online = [];
-    const membersCache = new Map();
-    for (const [socket, binding] of bindings) {
-      if (binding.group !== group) continue;
-      let who;
-      try { who = identity(socket, membersCache); } catch { bindings.delete(socket); continue; }
-      if (who.section !== group.section || who.username !== binding.member) {
-        bindings.delete(socket);
-        continue;
-      }
-      if (binding.key) online.push(binding.member);
+  function sweep() {
+    for (const [section, room] of rooms) {
+      if (now() - room.lastActivity < RETENTION_MS) continue;
+      syncPresence(room);
+      if (!room.session.online.length) rooms.delete(section);
     }
-    for (const event of group.session.setOnline(online)) broadcast(group, event);
+  }
+
+  function unbind(ws, voluntary = false) {
+    const binding = bindings.get(ws);
+    bindings.delete(ws);
+    if (binding) {
+      syncPresence(binding.room);
+      if (voluntary && !binding.room.session.online.length) binding.room.allowEmptyRotation = true;
+    }
   }
 
   return {
     accepts: message => types.has(message?.type),
     handle(ws, message) {
       if (!types.has(message?.type)) return null;
-      sweep();
       const reply = value => ({ type: 'park_result', requestId: message.requestId, ...value });
       try {
+        if (retired.has(message.type)) return { type: 'park_error', requestId: message.requestId,
+          code: 'PARK_SELF_DIRECTED', message: 'Enter the park doorway on the calendar. Teacher groups are retired.' };
         const who = identity(ws);
         if (message.type === 'park_leave') {
-          const binding = bindings.get(ws);
-          if (binding && message.epoch === binding.group.session.epoch) {
-            bindings.delete(ws);
-            syncPresence(binding.group);
-          }
+          if (bindings.get(ws)?.room.session.epoch === message.epoch) unbind(ws, true);
           return reply({ left: true });
         }
-        if (message.type === 'park_start') {
-          if (!who.teacher) throw new Error('Only your teacher can create a park group');
-          const id = message.groupId;
-          if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(id)) throw new Error('Invalid park group');
-          const members = message.members;
-          if (!Array.isArray(members) || !members.every(name => who.members.some(item => item.username === name && item.role === 'student' && item.online !== false))) throw new Error('Choose online students in this classroom');
-          if (groups.size >= 32 || groups.has(groupKey(who.section, id))) throw new Error('Park group already exists or capacity reached');
-          if ([...groups.values()].some(group => group.section === who.section && group.session.members.some(name => members.includes(name)))) throw new Error('A student is already in another park group');
-          const group = { id, section: who.section, lastActivity: now(), session: new ParkSession({ epoch: randomUUID(), members, now }) };
-          groups.set(groupKey(who.section, id), group);
-          bindings.set(ws, { group, member: who.username, key: null });
-          return reply({ groupId: id, ...teacherSummary(group) });
+        const joining = message.type === 'park_join' || message.type === 'park_resume';
+        // Validate before allocating a room or member slot.
+        if (joining && (typeof message.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(message.clientId))) throw new Error('Invalid park client');
+        sweep();
+        let room = rooms.get(who.section);
+        if (!room && joining) {
+          if (rooms.size >= 32) throw new Error('The park is busy. Try entering again shortly.');
+          room = { section: who.section, lastActivity: now(), session: new ParkSession({ epoch: randomUUID(), now, wallNow }) };
+          rooms.set(who.section, room);
         }
-        const group = who.teacher
-          ? groups.get(groupKey(who.section, message.groupId))
-          : [...groups.values()].find(group => group.section === who.section && group.session.members.includes(who.username));
-        if (!group) return { type: 'park_error', requestId: message.requestId, code: 'PARK_NOT_ASSIGNED', message: 'No park group is assigned. Your teacher can create a new group.' };
-        if (['park_join', 'park_resume'].includes(message.type)) {
-          syncPresence(group);
-          const activeKeys = new Set([...bindings.values()].filter(binding => binding.group === group).map(binding => binding.key));
+        const changed = () => ({ type: 'park_error', requestId: message.requestId, code: 'PARK_STREAM_CHANGED', message: 'Rejoining your park connection' });
+        if (!room) return changed();
+        if (joining) {
+          const prior = bindings.get(ws);
+          if (prior && prior.room !== room) unbind(ws);
+          syncPresence(room);
+          for (const event of room.session.rotateIfReady({ empty: room.allowEmptyRotation })) broadcast(room, event);
+          const activeKeys = new Set([...bindings.values()].filter(binding => binding.room === room).map(binding => binding.key));
           const requestedKey = JSON.stringify([who.username, message.clientId]);
-          const sharedClient = !who.teacher && [...bindings].some(([socket, binding]) => socket !== ws
-            && binding.group === group && binding.key === requestedKey);
-          const clientId = sharedClient ? randomUUID() : message.clientId;
-          const key = who.teacher ? null : group.session.open(who.username, clientId, activeKeys);
-          bindings.set(ws, { group, member: who.username, key });
-          group.lastActivity = now();
-          syncPresence(group);
-          return reply({ groupId: group.id, member: who.username, ...(who.teacher ? {} : { clientId }),
-            ...(who.teacher ? teacherSummary(group) : group.session.resume(key, message.epoch === group.session.epoch ? message.since : null)) });
+          const shared = [...bindings].some(([socket, binding]) => socket !== ws && binding.room === room && binding.key === requestedKey);
+          const clientId = shared ? randomUUID() : message.clientId;
+          const events = room.session.addMember(who.username);
+          const key = room.session.open(who.username, clientId, activeKeys);
+          for (const event of events) broadcast(room, event);
+          bindings.set(ws, { room, member: who.username, key });
+          room.allowEmptyRotation = false;
+          room.lastActivity = now();
+          syncPresence(room);
+          return reply({ groupId: 'classroom-park', member: who.username, clientId,
+            ...room.session.resume(key, message.epoch === room.session.epoch ? message.since : null) });
         }
-        // Motion arrives up to 4x/s per player and never changes presence: presence is synced by
-        // joins, leaves, commands and control messages instead of on every packet.
-        if (message.type !== 'park_motion') syncPresence(group);
-        if (bindings.get(ws)?.group === group) group.lastActivity = now();
-        if (['park_run', 'park_next', 'park_stop'].includes(message.type)) {
-          if (!who.teacher) throw new Error('Teacher controls required');
-          if (message.type === 'park_stop') {
-            broadcast(group, { epoch: group.session.epoch, kind: 'stopped' });
-            removeGroup(group);
-            return reply({ stopped: true });
-          }
-          const events = message.type === 'park_next' ? group.session.nextLevel() : group.session.setRunning(message.running);
-          for (const event of events) broadcast(group, event);
-          return reply({ epoch: group.session.epoch, revision: group.session.revision });
-        }
-        if (message.type === 'park_status') return reply({ epoch: group.session.epoch, revision: group.session.revision });
         const binding = bindings.get(ws);
-        if (who.teacher) throw new Error('Teacher sockets do not play');
-        // No live binding (the relay pruned it while the member was offline, or a classroom re-join
-        // moved this socket): a CODED error so the client rejoins instead of retrying forever.
-        if (!binding || binding.group !== group || binding.member !== who.username || !binding.key) {
-          return { type: 'park_error', requestId: message.requestId, code: 'PARK_STREAM_CHANGED', message: 'Rejoining your park connection' };
+        if (!binding || binding.room !== room || binding.member !== who.username) return changed();
+        room.lastActivity = now();
+        if (message.type !== 'park_motion') {
+          syncPresence(room);
+          for (const event of room.session.rotateIfReady()) broadcast(room, event);
         }
-        const streamId = group.session.stream(binding.key).id;
-        if (message.streamId !== streamId) return { type: 'park_error', code: 'PARK_STREAM_CHANGED', message: 'Rejoining your park connection' };
+        if (message.type === 'park_status') return reply({ epoch: room.session.epoch, revision: room.session.revision });
+        const streamId = room.session.stream(binding.key).id;
+        if (message.streamId !== streamId) return changed();
         if (message.type === 'park_motion') {
-          const event = group.session.motion(binding.key, message);
-          if (event) broadcast(group, event);
+          const event = room.session.motion(binding.key, message);
+          if (event) broadcast(room, event);
           return null;
         }
-        const { events, ...receipt } = group.session.command(binding.key, message);
-        for (const event of events) broadcast(group, event);
-        return reply({ epoch: group.session.epoch, streamId, ...receipt });
+        const { events, ...receipt } = room.session.command(binding.key, message);
+        for (const event of events) broadcast(room, event);
+        return reply({ epoch: room.session.epoch, streamId, ...receipt });
       } catch (error) {
         return { type: 'park_error', requestId: message.requestId, message: error.message };
       }
     },
-    detached(ws) {
-      const binding = bindings.get(ws);
-      bindings.delete(ws);
-      if (binding) syncPresence(binding.group);
-    },
-    close() { bindings.clear(); groups.clear(); },
+    detached: unbind,
+    close() { bindings.clear(); rooms.clear(); },
   };
 }

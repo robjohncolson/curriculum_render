@@ -1,32 +1,31 @@
-// Original APStat Park layouts. Definitions are sent on entry, never per frame.
-export function createParkLevel(index, members) {
+// Original shared puzzles. Stations belong to the room, never to an absent player.
+export const PARK_LEVEL_COUNT = 3;
+export const PARK_HOUR_MS = 60 * 60 * 1000;
+
+export function createParkLevel(index, hour = 0) {
   const titles = ['Build a bridge together', 'Gather the whole sample', 'Pass it on'];
-  if (!Number.isInteger(index) || index < 0 || index >= titles.length) {
-    throw new Error('Unknown park level');
-  }
-  const switches = members.map((owner, slot) => ({
-    id: `switch-${slot}`, owner, x: 180 + slot * 110, y: 520,
+  if (!Number.isInteger(index) || index < 0 || index >= titles.length) throw new Error('Unknown park level');
+  const switches = Array.from({ length: 4 }, (_, slot) => ({
+    id: 'switch-' + slot, label: String(slot + 1), x: 220 + slot * 210, y: 520,
   }));
-  const samples = index === 1 ? members.map((owner, slot) => ({
-    id: `sample-${slot}`, owner, x: 200 + slot * 110, y: 408,
-  })) : index === 2 ? members.map((owner, slot) => ({
-    id: `parcel-${slot}`, owner, x: 140 + slot * 110, y: 520,
-    destination: switches[(slot + 1) % members.length].id,
-  })) : [];
+  const samples = index === 0 ? [] : switches.map((station, slot) => ({
+    id: 'sample-' + slot, label: String(slot + 1), x: index === 1 ? station.x : 140 + slot * 210,
+    y: index === 1 ? 408 : 520,
+    destination: switches[index === 2 ? (slot + 1) % switches.length : slot].id,
+  }));
   return {
-    id: `park-${index + 1}`, index, title: titles[index], width: 1280, height: 600,
-    spawn: { x: 60, y: 520 },
+    id: 'park-' + hour + '-' + index, index, title: titles[index], rotationAt: (hour + 1) * PARK_HOUR_MS,
+    width: 1280, height: 600, spawn: { x: 85, y: 520 }, checkpoint: { x: 955, y: 520 },
+    exit: { x: 40, y: 520 },
     platforms: [
       { x: 0, y: 540, w: 1000, h: 60 },
-      { x: 1100, y: 540, w: 180, h: 60 },
-      ...(index === 1 ? [{ x: 160, y: 430, w: 880, h: 18 }] : []),
+      { x: 1120, y: 540, w: 160, h: 60 },
+      ...(index === 1 ? [{ x: 175, y: 430, w: 730, h: 18 }] : []),
     ],
-    bridge: { x: 1000, y: 540, w: 100, h: 18 },
-    switches, samples, goal: { x: 1200, y: 520 },
-    hint: index === 2 ? (members.length === 1 ? 'Collect your parcel and deliver it to your switch.' : 'Carry your parcel to the next teammate. Each switch needs its incoming parcel.') : index === 1
-      ? 'Collect your sample, then activate your switch. Every contribution stays saved.'
-      : 'Activate your switch to help build the bridge. You do not need to arrive at the same time.',
+    bridge: { x: 1000, y: 540, w: 120, h: 18 },
+    switches, samples, goal: { x: 1210, y: 520 },
+    hint: index === 0 ? 'Light four switches to build the bridge. Anyone can help.'
+      : index === 1 ? 'Collect samples above, then deliver them to matching numbered stations.'
+      : 'Collect parcels and take them to their numbered stations. Share the work!',
   };
 }
-
-export const PARK_LEVEL_COUNT = 3;

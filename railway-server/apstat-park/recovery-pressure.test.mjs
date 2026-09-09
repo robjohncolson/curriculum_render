@@ -5,9 +5,8 @@ import { ParkReplica } from '../../../follow-alongs/apstat-park/replica.mjs';
 
 test('a saturated offline outbox drains through lost receipts without flooding movement', () => {
   let at = 0;
-  const session = new ParkSession({ epoch: 'pressure-test', members: ['alice'], now: () => at });
+  const session = new ParkSession({ wallNow: () => 0, epoch: 'pressure-test', members: ['alice'], now: () => at });
   const key = session.open('alice', 'browser_a');
-  session.setRunning(true);
   const replica = new ParkReplica({ now: () => at });
   replica.resume(session.resume(key));
   const station = session.level.switches[0];
