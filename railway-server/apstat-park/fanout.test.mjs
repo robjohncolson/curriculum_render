@@ -16,10 +16,10 @@ test('whole-class motion fanout excludes sender and teacher and stays bounded', 
   } });
   registry.join(teacher, 'room', teacher.name, 'teacher', 0);
   for (const player of players) registry.join(player, 'room', player.name, 'student', 0);
-  const created = service.handle(players[0], { type: 'park_join', clientId: 'client_student0' });
+  const created = service.handle(players[0], { type: 'park_join', protocol: 2, clientId: 'client_student0' });
   assert.equal(created.type, 'park_result');
   for (const player of players) {
-    const joined = service.handle(player, { type: 'park_join', clientId: `client_${player.name}` });
+    const joined = service.handle(player, { type: 'park_join', protocol: 2, clientId: `client_${player.name}` });
     assert.equal(joined.type, 'park_result');
     player.streamId = joined.streamId;
   }
@@ -27,7 +27,7 @@ test('whole-class motion fanout excludes sender and teacher and stays bounded', 
     clock = frame * 500;
     for (const player of players) {
       const packet = { type: 'park_motion', epoch: created.epoch, streamId: player.streamId, level: created.level.id, sequence: frame + 1,
-        pose: { x: 60 + frame % 100 * 5, y: 525, vx: 220, vy: 0 } };
+        pose: { x: 60 + frame % 100 * 5, y: 146, vx: 220, vy: 0 } };
       upBytes += Buffer.byteLength(JSON.stringify(packet));
       assert.equal(service.handle(player, packet), null);
     }

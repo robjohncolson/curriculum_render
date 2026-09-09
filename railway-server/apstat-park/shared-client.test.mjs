@@ -9,7 +9,7 @@ test('tabs presenting the same cached identity receive independent command strea
   registry.join(firstTab, 'a', 'alice', 'student', 0);
   registry.join(secondTab, 'a', 'alice', 'student', 0);
   const service = createParkService({ wallNow: () => 0, registry, send() {} });
-  const join = { type: 'park_join', clientId: 'copied_client' };
+  const join = { type: 'park_join', protocol: 2, clientId: 'copied_client' };
   const first = service.handle(firstTab, join);
   const second = service.handle(secondTab, join);
   assert.equal(first.clientId, join.clientId);
@@ -21,9 +21,9 @@ test('tabs presenting the same cached identity receive independent command strea
   assert.equal(service.handle(firstTab, { ...packet, streamId: first.streamId }).status, 'accepted');
   // The second tab's first action must execute, rather than collide with sequence 1.
   assert.equal(service.handle(secondTab, { ...packet, streamId: second.streamId,
-    target: first.level.switches[1].id, pose: { ...first.level.switches[1], vx: 0, vy: 0 } }).status, 'accepted');
+    kind: 'key', target: first.level.key.id, pose: { ...first.level.key, vx: 0, vy: 0 } }).status, 'accepted');
   const resumed = service.handle(secondTab, { ...join, clientId: second.clientId });
   assert.equal(resumed.streamId, second.streamId);
-  assert.deepEqual(resumed.progress.switches, [station.id, first.level.switches[1].id]);
+  assert.deepEqual(resumed.progress.switches, [station.id]);
   service.close();
 });

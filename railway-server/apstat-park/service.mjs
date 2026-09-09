@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { ParkSession } from './session.mjs';
+import { PARK_PROTOCOL } from './levels.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
@@ -84,6 +85,8 @@ export function createParkService({ registry, send, now = () => performance.now(
           return reply({ left: true });
         }
         const joining = message.type === 'park_join' || message.type === 'park_resume';
+        if (joining && message.protocol !== PARK_PROTOCOL) return { type: 'park_error', requestId: message.requestId,
+          code: 'PARK_UPDATE_REQUIRED', message: 'Reload the calendar to enter the updated park.' };
         // Validate before allocating a room or member slot.
         if (joining && (typeof message.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(message.clientId))) throw new Error('Invalid park client');
         sweep();
@@ -123,7 +126,7 @@ export function createParkService({ registry, send, now = () => performance.now(
           syncPresence(room);
           for (const event of room.session.rotateIfReady()) broadcast(room, event);
         }
-        if (message.type === 'park_status') return reply({ epoch: room.session.epoch, revision: room.session.revision });
+        if (message.type === 'park_status') return reply({ epoch: room.session.epoch, revision: room.session.revision, clockMs: now() });
         const streamId = room.session.stream(binding.key).id;
         if (message.streamId !== streamId) return changed();
         if (message.type === 'park_motion') {

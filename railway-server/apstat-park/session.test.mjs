@@ -8,7 +8,7 @@ const poseAt = item => ({ x: item.x, y: item.y, vx: 0, vy: 0 });
 test('lost rejection receipts recover by retry or reconnect without losing the reason', () => {
   for (const recovery of ['retry', 'resume']) {
     const { session, replica, key, advance } = setup();
-    const wrongStation = session.level.switches[1];
+    const wrongStation = session.level.switches[0];
     replica.queue('switch', wrongStation.id, poseAt(session.level.spawn));
     const packet = replica.outgoing({ connected: true })[0];
     const rejected = session.command(key, packet);
@@ -77,15 +77,15 @@ test('lost acknowledgment, duplicate action, event gap and reconnect converge', 
   assert.equal(replica.outbox.length, 0);
   assert.equal(replica.event(accepted.events[0]), true);
   const other = session.open('bob', 'browser_2');
-  const bobStation = session.level.switches[1];
-  const bob = session.command(other, { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'switch', target: bobStation.id, pose: poseAt(bobStation) });
+  const bobStation = session.level.key;
+  const bob = session.command(other, { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'key', target: bobStation.id, pose: poseAt(bobStation) });
   const pause = session.setOnline(['alice'])[0];
   assert.equal(replica.event(pause), false);
   assert.equal(replica.needsResume, true);
   replica.resume(session.resume(key, replica.revision));
   assert.deepEqual(replica.state.online, ['alice']);
   assert.deepEqual(replica.state.progress, session.progress);
-  assert.equal(bob.events[0].bridgeOpen, false);
+  assert.equal(bob.events[0].holder, 'bob');
 });
 
 test('one minute offline queues actions once and coalesces all motion', () => {
@@ -135,13 +135,13 @@ test('stale level action rejects without blocking next sequence', () => {
   const station = session.level.switches[0];
   replica.queue('switch', station.id, poseAt(station));
   const packet = replica.outgoing({ connected: true })[0];
-  advance(3600000); session.rotateIfReady({empty:true});
+  packet.level = 'retired-level';
   const rejected = session.command(key, packet);
   assert.equal(rejected.status, 'rejected');
   replica.acknowledge({ epoch: session.epoch, ...rejected });
   replica.resume(session.resume(key, replica.revision));
-  const sample = session.level.samples[0];
-  replica.queue('sample', sample.id, poseAt(sample));
+  const sample = session.level.key;
+  replica.queue('key', sample.id, poseAt(sample));
   const next = replica.outgoing({ connected: true })[0];
   assert.equal(next.sequence, 2);
   assert.equal(session.command(key, next).status, 'accepted');
@@ -160,7 +160,7 @@ test('bounded history falls back to a compact summary, not world state', () => {
 
 test('membership, proximity, sequences and rate limits are enforced', () => {
   const { session, key, advance } = setup();
-  const station = session.level.switches[1];
+  const station = session.level.switches[0];
   const command = { epoch: session.epoch, level: session.level.id, sequence: 1, kind: 'switch', target: station.id, pose: poseAt(session.level.spawn) };
   assert.equal(session.command(key, command).status, 'rejected');
   assert.equal(session.command(key, { ...command, sequence: 3 }).status, 'gap');
