@@ -4,6 +4,7 @@ import { ParkSession } from './session.mjs';
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
 const RETENTION_MS = 2 * 60 * 60 * 1000;
+const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
 
 // One self-directed park per classroom section, using the existing joined identity.
 export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now() }) {
@@ -59,7 +60,13 @@ export function createParkService({ registry, send, now = () => performance.now(
     bindings.delete(ws);
     if (binding) {
       syncPresence(binding.room);
-      if (voluntary && !binding.room.session.online.length) binding.room.allowEmptyRotation = true;
+      if (!binding.room.session.online.length) {
+        // Empty by choice → rotate at the next hour boundary right away. Empty by a dropped socket or
+        // a closed lid → keep the attempt for ABANDON_MS, then treat it as abandoned; otherwise every
+        // period after the first inherited the previous hour's finished puzzle.
+        if (voluntary) binding.room.allowEmptyRotation = true;
+        else if (binding.room.emptySince == null) binding.room.emptySince = now();
+      }
     }
   }
 
@@ -92,7 +99,8 @@ export function createParkService({ registry, send, now = () => performance.now(
           const prior = bindings.get(ws);
           if (prior && prior.room !== room) unbind(ws);
           syncPresence(room);
-          for (const event of room.session.rotateIfReady({ empty: room.allowEmptyRotation })) broadcast(room, event);
+          const abandoned = room.emptySince != null && now() - room.emptySince >= ABANDON_MS;
+          for (const event of room.session.rotateIfReady({ empty: room.allowEmptyRotation || abandoned })) broadcast(room, event);
           const activeKeys = new Set([...bindings.values()].filter(binding => binding.room === room).map(binding => binding.key));
           const requestedKey = JSON.stringify([who.username, message.clientId]);
           const shared = [...bindings].some(([socket, binding]) => socket !== ws && binding.room === room && binding.key === requestedKey);
@@ -102,6 +110,7 @@ export function createParkService({ registry, send, now = () => performance.now(
           for (const event of events) broadcast(room, event);
           bindings.set(ws, { room, member: who.username, key });
           room.allowEmptyRotation = false;
+          room.emptySince = null;
           room.lastActivity = now();
           syncPresence(room);
           return reply({ groupId: 'classroom-park', member: who.username, clientId,
