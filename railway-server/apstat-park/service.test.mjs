@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createClassroomRegistry } from '../classroom.js';
+import { createParkService } from './service.mjs';
+
+test('registry owns identity, teacher controls, group boundaries and reconnect', () => {
+  const registry = createClassroomRegistry(), sent = [];
+  const service = createParkService({ registry, send: (ws, message) => sent.push({ ws, message }) });
+  const teacher = {}, alice = {}, bob = {}, outsider = {};
+  registry.join(teacher, 'section-a', 'teacher', 'teacher', 0);
+  registry.join(alice, 'section-a', 'alice', 'student', 0);
+  registry.join(bob, 'section-a', 'bob', 'student', 0);
+  registry.join(outsider, 'section-b', 'outsider', 'student', 0);
+  const start = { type: 'park_start', groupId: 'one', members: ['alice', 'bob'] };
+  assert.equal(service.handle(alice, start).type, 'park_error');
+  const created = service.handle(teacher, start);
+  assert.equal(created.type, 'park_result');
+  assert.equal(service.handle(outsider, { type: 'park_join', clientId: 'browser_3' }).type, 'park_error');
+  const a = service.handle(alice, { type: 'park_join', clientId: 'browser_a' });
+  const b = service.handle(bob, { type: 'park_join', clientId: 'browser_b' });
+  assert.equal(a.epoch, b.epoch);
+  assert.equal(service.handle(alice, { type: 'park_run', groupId: 'one', running: true }).type, 'park_error');
+  service.handle(teacher, { type: 'park_run', groupId: 'one', running: true });
+  const station = a.level.switches[0];
+  const command = { type: 'park_command', epoch: a.epoch, streamId: a.streamId, level: a.level.id, sequence: 1,
+    member: 'bob', kind: 'switch', target: station.id, pose: { x: station.x, y: station.y, vx: 0, vy: 0 } };
+  const accepted = service.handle(alice, command);
+  assert.equal(accepted.status, 'accepted');
+  assert.ok(sent.some(row => row.ws === bob && row.message.kind === 'contribution' && row.message.member === 'alice'));
+  assert.ok(!sent.some(row => row.ws === outsider));
+  service.detached(alice);
+  registry.detach(alice, 100);
+  const replacement = {};
+  registry.join(replacement, 'section-a', 'alice', 'student', 200);
+  const resumed = service.handle(replacement, { type: 'park_resume', clientId: 'browser_a', epoch: a.epoch, since: a.revision });
+  assert.equal(resumed.sequence, 1);
+  assert.ok(resumed.events.some(event => event.kind === 'contribution'));
+  assert.equal(service.handle(replacement, command).status, 'duplicate');
+  service.handle(teacher, { type: 'park_stop', groupId: 'one' });
+  assert.equal(service.handle(replacement, command).type, 'park_error');
+  service.close();
+});

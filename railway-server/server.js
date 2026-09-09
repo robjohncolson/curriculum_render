@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 import { createClassroomRegistry } from './classroom.js';
+import { createParkService } from './apstat-park/service.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 import {
@@ -172,6 +173,10 @@ async function persistQuizReview(review) {
 
 // Classroom registry (Live Classroom v1a)
 const classroomRegistry = createClassroomRegistry();
+const classroomPark = createParkService({
+  registry: classroomRegistry,
+  send: (ws, payload) => { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); }
+});
 
 // Helper to check cache validity
 function isCacheValid(lastUpdate, ttl = cache.TTL) {
@@ -2666,6 +2671,12 @@ wss.on('connection', (ws) => {
     try {
       const data = JSON.parse(message);
 
+      if (classroomPark.accepts(data)) {
+        const result = classroomPark.handle(ws, data);
+        if (ws.readyState === 1 && result) ws.send(JSON.stringify(result));
+        return;
+      }
+
       switch (data.type) {
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
@@ -3288,6 +3299,7 @@ wss.on('connection', (ws) => {
     // Detach the socket; if the member lost its last socket, broadcast
     // online:false to the rest of the room. The member record is NOT removed here.
     var classroomDetach = classroomRegistry.detach(ws, Date.now());
+    classroomPark.detached(ws);
     if (classroomDetach.lostLastSocket && classroomDetach.section) {
       broadcastToClassroom(classroomDetach.section, classroomDetach.broadcasts);
     }
