@@ -191,3 +191,69 @@ describe('cr gradebook-client offline capture (quiz feeder path)', () => {
     expect(await win.OfflineQueue.all()).toHaveLength(0);
   });
 });
+
+
+describe('repeated server failures preserve and park answers', () => {
+  it('parks after 12 server failures, exports flagged work, and a fresh edit resets it', async () => {
+    const Q = boot().OfflineQueue;
+    const row = { source: 'quiz', itemId: 'park-me', response: 'A', ts: 1 };
+    await Q.enqueue(row);
+    let calls = 0;
+    const sender = async () => { calls++; return { ok: false, status: 500 }; };
+    for (let i = 0; i < 12; i++) await Q.drain(sender);
+    expect(await Q.parked()).toEqual([expect.objectContaining({ serverFailures: 12, lastServerError: { status: 500, at: expect.any(Number) }, response: 'A' })]);
+    expect(await Q.drain(sender)).toEqual({ sent: 0, failed: 0, remaining: 1 });
+    expect(calls).toBe(12);
+    expect(Q.toBundle(await Q.all(), {}).records[0]).toMatchObject({ parked: true, response: 'A' });
+    await Q.enqueue({ ...row, ts: 2, response: 'B' });
+    expect(await Q.parked()).toEqual([]);
+    expect((await Q.all())[0]).toMatchObject({ serverFailures: 0, response: 'B' });
+    expect((await Q.all())[0].lastServerError).toBeUndefined();
+    await Q.drain(sender); expect(calls).toBe(13);
+  });
+  it('401, 429, unreachable sends and ownership/auth refusal do not consume attempts', async () => {
+    const Q = boot().OfflineQueue;
+    await Q.enqueue({ source: 'quiz', itemId: 'recoverable', ts: 1 });
+    for (const result of [{ok:false,status:401}, {ok:false,status:429}, {ok:false,status:500,reason:'no-identity'}, {ok:false,status:503,reason:'auth-expired'}]) {
+      await Q.drain(async () => result);
+    }
+    await Q.drain(async () => { throw new Error('offline'); });
+    expect((await Q.all())[0].serverFailures).toBe(0);
+    expect((await Q.all())[0].lastServerError).toBeUndefined();
+  });
+  it('a failed older send does not charge a newer edit', async () => {
+    const Q = boot().OfflineQueue;
+    await Q.enqueue({ source: 'quiz', itemId: 'race', ts: 1 });
+    await Q.drain(async () => {
+      await Q.enqueue({ source: 'quiz', itemId: 'race', ts: 2, response: 'new' });
+      return { ok: false, status: 500 };
+    });
+    expect((await Q.all())[0]).toMatchObject({ ts: 2, serverFailures: 0, response: 'new' });
+  });
+});
+
+
+describe('parked answer notification', () => {
+  it('12 HTTP 500s park the stored row; a 13th sync makes no fetch and shows one banner', async () => {
+    const win = boot();
+    const nodes = [];
+    win.document = {
+      body: { appendChild: node => nodes.push(node) },
+      createElement: () => ({ style: {}, setAttribute() {}, remove() { nodes.splice(nodes.indexOf(this), 1); } }),
+      getElementById: id => nodes.find(node => node.id === id),
+      querySelectorAll: selector => nodes.filter(node => '#' + node.id === selector),
+      defaultView: { close() {} }
+    };
+    try {
+      win.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({ ok: false }) });
+      await win.OfflineQueue.enqueue({ source: 'quiz', itemId: 'park-http', studentId: 'stu-1', response: 'saved answer', ts: 1 });
+      for (let i=0;i<12;i++) await win.gradebookClient.syncOfflineQueue();
+      expect(win.document.querySelectorAll('#gb-parked-nudge')).toHaveLength(1);
+      expect(win.document.getElementById('gb-parked-nudge').textContent).toContain('1 answer(s) could not be saved');
+      win.document.getElementById('gb-parked-nudge').remove();
+      expect(await win.gradebookClient.syncOfflineQueue()).toEqual({sent:0,failed:0,remaining:1});
+      expect(win.document.querySelectorAll('#gb-parked-nudge')).toHaveLength(0);
+      expect(win.fetch).toHaveBeenCalledTimes(12);
+    } finally { win.document.defaultView.close(); }
+  });
+});

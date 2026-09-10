@@ -78,6 +78,24 @@
   // kind 'captured' = the answer is queued on this device and will save after the next
   // sign-in; 'lost' = nothing was captured (no identity / no queue). Fires at most once
   // per page; never throws; record()'s contract is unchanged.
+  var _parkedNudgeShown = false;
+  function _showParkedNudge(rows) {
+    try {
+      if (!rows.length || _parkedNudgeShown) return;
+      console.warn('gradebook-client: parked answers', rows.map(function (row) { return window.OfflineQueue.keyOf(row); }));
+      if (typeof document === 'undefined' || !document.body) return;
+      _parkedNudgeShown = true;
+      if (document.getElementById('gb-parked-nudge')) return;
+      var bar = document.createElement('div');
+      bar.id = 'gb-parked-nudge';
+      bar.setAttribute('role', 'alert');
+      bar.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99998;background:#b00020;color:#fff;'
+        + 'font-family:Geneva,Verdana,sans-serif;font-size:13px;padding:10px 14px;display:flex;'
+        + 'align-items:center;gap:12px;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+      bar.textContent = rows.length + ' answer(s) could not be saved to your grade after repeated server errors \u2014 tell your teacher.';
+      document.body.appendChild(bar);
+    } catch (_) { /* Reporting must never interrupt replay or destroy the saved work. */ }
+  }
   var _noIdentityNudgeShown = false;
   function _showNoIdentityNudge(kind) {
     try {
@@ -155,7 +173,7 @@
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ responses: [{ itemId: opts.itemId, response: opts.response }] })
       });
-      if (!res.ok) { console.warn('gradebook-client: /pc submit HTTP', res.status); return { ok: false, reason: res.status === 401 ? 'auth-expired' : 'network' }; }
+      if (!res.ok) { console.warn('gradebook-client: /pc submit HTTP', res.status); return { ok: false, status: res.status, reason: res.status === 401 ? 'auth-expired' : 'network' }; }
       var data = await res.json();
       if (data && data.ok) return { ok: true, ledgerId: null };
       console.warn('gradebook-client: /pc submit returned ok:false', data);
@@ -184,7 +202,7 @@
         // retryable = the SAME write can succeed later (new session / server back); a 4xx
         // reject is final and must NOT be queued (it would never drain).
         var retryable = res.status === 401 || res.status === 429 || res.status >= 500;
-        return { ok: false, reason: res.status === 401 ? 'auth-expired' : 'network', retryable: retryable };
+        return { ok: false, status: res.status, reason: res.status === 401 ? 'auth-expired' : 'network', retryable: retryable };
       }
       var data = await res.json();
       if (data && data.ok) { _captureReceipt(data.receipt, opts.source, opts.itemId, opts.score); return { ok: true, ledgerId: data.ledgerId, receipt: data.receipt || null }; }
@@ -232,6 +250,9 @@
         var r = await _postRecord(opts);
         if (r.ok) { _scheduleDrain(0); return r; }   // a working session also replays anything captured earlier
 
+        // HTTP status is internal drain metadata; preserve the public record result shape.
+        delete r.status;
+
         // 2026-09-09: a quiz taken with an expired token (401) or during a server hiccup used
         // to be dropped with only a console warning — the student "did the quiz but can't see
         // the grade". Capture EVERY non-ok write that can be attributed (the queue row carries
@@ -262,7 +283,7 @@
     syncOfflineQueue: async function () {
       try {
         if (!window.OfflineQueue || typeof window.OfflineQueue.drain !== 'function') return { sent: 0, failed: 0 };
-        return await window.OfflineQueue.drain(function (rec) {
+        var result = await window.OfflineQueue.drain(function (rec) {
           // Drain-time OWNERSHIP gate (2026-09-09, mirrors the Desk client): _postRecord
           // attributes by the CURRENT token, so a row captured by another student on a
           // shared device — or a legacy row with no owner — must stay queued rather than
@@ -273,6 +294,8 @@
           }
           return _postRecord(rec);
         });
+        if (typeof window.OfflineQueue.parked === 'function') _showParkedNudge(await window.OfflineQueue.parked());
+        return result;
       } catch (_) {
         return { sent: 0, failed: 0 };
       }
