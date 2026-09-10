@@ -30,6 +30,8 @@ for (const count of [2, 8, 24]) test('key handoff and cooperative completion wit
   replica.resume(session.resume(streams[0],replica.revision));
   assert.deepEqual(replica.state.progress,session.progress);
   session.addMember('late'); session.setOnline([...members,'late']);
+  assert.equal(session.progress.complete,true, 'completion remains recorded until an explicit new attempt');
+  session.enter('late');
   assert.equal(session.progress.complete,false);
-  assert.equal(session.progress.doorOpen,true);
+  assert.equal(session.progress.doorOpen,false);
 });

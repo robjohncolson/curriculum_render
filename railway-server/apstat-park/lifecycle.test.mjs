@@ -8,7 +8,7 @@ function setup(){
  const registry=createClassroomRegistry(),student={},sent=[];
  registry.join(student,'B','student','student',0);
  const service=createParkService({registry,now:()=>at,wallNow:()=>0,send:(ws,message)=>sent.push(message)});
- const join=()=>service.handle(student,{type: 'park_join', protocol: 2,clientId:'browser_one'});
+ const join=()=>service.handle(student,{type: 'park_join', protocol: 3,clientId:'browser_one'});
  return {service,student,sent,join,time:value=>{at=value;}};
 }
 test('leaving retains milestones and receipts; delayed leave cannot detach a new epoch',()=>{

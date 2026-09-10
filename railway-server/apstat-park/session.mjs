@@ -9,7 +9,7 @@ const requireValue = (condition, message) => { if (!condition) throw new Error(m
 // The relay owns shared milestones, not a continuously simulated world.
 // No tick loop, physics snapshots, engine memory or server audio state.
 export class ParkSession {
-  constructor({ epoch, members = [], now = () => performance.now(), wallNow = () => Date.now() }) {
+  constructor({ epoch, members = [], levelIndex = 0, now = () => performance.now(), wallNow = () => Date.now() }) {
     requireValue(typeof epoch === 'string' && epoch.length > 0 && epoch.length <= 64, 'Invalid park epoch');
     this.epoch = epoch;
     this.members = [];
@@ -23,7 +23,8 @@ export class ParkSession {
     this.online = [];
     this.running = true;
     this.done = false;
-    this.level = createParkLevel();
+    this.level = createParkLevel(levelIndex);
+    this.attempt = 1;
     this.progress = this.emptyProgress();
     for (const member of members) this.addMember(member);
   }
@@ -38,7 +39,7 @@ export class ParkSession {
 
   emptyProgress() {
     return { switches: [], arrived: [], bridgeOpen: false,
-      keyHolder: null, doorOpen: false, complete: false };
+      keyHolder: null, doorOpen: false, complete: false, requiredSwitches: 1, soloAssist: false };
   }
 
   open(member, clientId, activeKeys = null) {
@@ -79,15 +80,44 @@ export class ParkSession {
       this.progress.keyHolder = null;
       events.push(this.emit('key', { holder: null }));
     }
-    events.push(...this.checkCompletion());
+    events.push(...this.adaptParty(), ...this.checkCompletion());
     return events;
   }
 
   checkCompletion() {
-    const complete = this.online.length > 0 && this.online.every(member => this.progress.arrived.includes(member));
+    const complete = this.progress.complete || this.online.length > 0 && this.online.every(member => this.progress.arrived.includes(member));
     if (complete === this.progress.complete) return [];
     this.progress.complete = complete;
     return [this.emit('complete', { complete })];
+  }
+
+  adaptParty() {
+    // Difficulty can grow only before the first puzzle action. A late arrival
+    // never relocks a bridge; a departing friend never leaves an impossible task.
+    const count = Math.max(1, Math.min(this.online.length, this.level.switches.length));
+    const started = this.progress.switches.length || this.progress.keyHolder || this.progress.doorOpen;
+    const required = started ? Math.min(this.progress.requiredSwitches, count) : count;
+    const assist = (started && this.progress.soloAssist) || this.online.length === 1;
+    const bridgeOpen = this.progress.bridgeOpen || this.progress.switches.length >= required;
+    if (required === this.progress.requiredSwitches && assist === this.progress.soloAssist && bridgeOpen === this.progress.bridgeOpen) return [];
+    Object.assign(this.progress, { requiredSwitches: required, soloAssist: assist, bridgeOpen });
+    return [this.emit('party', { requiredSwitches: required, soloAssist: assist, bridgeOpen })];
+  }
+
+  enter(member) {
+    // Explicit doorway entry starts a fresh completed attempt. Socket resumes
+    // never call this, so a connection drop cannot reset anyone's puzzle.
+    if (this.progress.complete) {
+      this.level = createParkLevel(this.level.index);
+      this.level.id += '-attempt-' + ++this.attempt;
+      this.progress = this.emptyProgress();
+      this.poses.clear();
+      return [this.emit('level', { level: this.level, progress: this.progress }), ...this.adaptParty()];
+    }
+    if (!this.progress.arrived.includes(member)) return [];
+    this.progress.arrived = this.progress.arrived.filter(name => name !== member);
+    this.poses.delete(member);
+    return [this.emit('reentered', { member })];
   }
 
   // No hourly timer or forced reset mid-puzzle. A status/join advances only
@@ -149,8 +179,8 @@ export class ParkSession {
       if (!item || !near(item)) return reject('Reach the bridge switch');
       if (this.progress.switches.includes(item.id)) return finish('accepted');
       this.progress.switches.push(item.id);
-      this.progress.bridgeOpen = true;
-      event = this.emit('contribution', { member: stream.member, collection: 'switches', target: item.id, bridgeOpen: true });
+      this.progress.bridgeOpen = this.progress.switches.length >= this.progress.requiredSwitches;
+      event = this.emit('contribution', { member: stream.member, collection: 'switches', target: item.id, bridgeOpen: this.progress.bridgeOpen });
     } else if (packet.kind === 'key') {
       if (!near(this.level.key)) return reject('Reach the key');
       if (this.progress.doorOpen || this.progress.keyHolder === stream.member) return finish('accepted');
@@ -160,6 +190,7 @@ export class ParkSession {
     } else if (packet.kind === 'unlock') {
       if (!near(this.level.goal)) return reject('Bring the key to the door');
       if (this.progress.doorOpen) return finish('accepted');
+      if (this.level.requiresSwitches && !this.progress.bridgeOpen) return reject('Light the switches first');
       if (this.progress.keyHolder !== stream.member) return reject('The key holder opens the door');
       this.progress.doorOpen = true;
       event = this.emit('door', { open: true });

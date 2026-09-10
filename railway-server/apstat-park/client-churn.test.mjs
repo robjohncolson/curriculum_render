@@ -9,7 +9,7 @@ test('closed tabs can be replaced repeatedly; reclaimed clients safely retry sav
   registry.join(teacher, 'a', 'teacher', 'teacher', 0);
   registry.join(student, 'a', 'alice', 'student', 0);
   const service = createParkService({ wallNow: () => 0, registry, send() {} });
-  const join = id => service.handle(student, { type: 'park_join', protocol: 2, clientId: id });
+  const join = id => service.handle(student, { type: 'park_join', protocol: 3, clientId: id });
   const first = join('browser_original');
   const replica = new ParkReplica(); replica.resume(join('browser_original'));
   const station = first.level.switches[0];
@@ -47,7 +47,7 @@ test('four active tabs retain their slots; leaving one permits a replacement', (
   registry.join(teacher, 'a', 'teacher', 'teacher', 0);
   for (const socket of sockets) registry.join(socket, 'a', 'alice', 'student', 0);
   const service = createParkService({ wallNow: () => 0, registry, send() {} });
-  const join = i => service.handle(sockets[i], { type: 'park_join', protocol: 2, clientId: `browser_${i}` });
+  const join = i => service.handle(sockets[i], { type: 'park_join', protocol: 3, clientId: `browser_${i}` });
   for (let i = 0; i < 4; i++) assert.equal(join(i).type, 'park_result');
   assert.match(join(4).message, /Close another park tab/);
   service.detached(sockets[0]);

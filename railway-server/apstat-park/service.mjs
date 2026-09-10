@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { ParkSession } from './session.mjs';
-import { PARK_PROTOCOL } from './levels.mjs';
+import { PARK_PROTOCOL, PARK_LEVEL_COUNT } from './levels.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
@@ -81,7 +81,9 @@ export function createParkService({ registry, send, now = () => performance.now(
           code: 'PARK_SELF_DIRECTED', message: 'Enter the park doorway on the calendar. Teacher groups are retired.' };
         const who = identity(ws);
         if (message.type === 'park_leave') {
-          if (bindings.get(ws)?.room.session.epoch === message.epoch) unbind(ws, true);
+          // WebSocket ordering makes a leave during the initial handshake safe.
+          // The client may not have received its epoch yet.
+          if (message.epoch == null || bindings.get(ws)?.room.session.epoch === message.epoch) unbind(ws, true);
           return reply({ left: true });
         }
         const joining = message.type === 'park_join' || message.type === 'park_resume';
@@ -90,11 +92,15 @@ export function createParkService({ registry, send, now = () => performance.now(
         // Validate before allocating a room or member slot.
         if (joining && (typeof message.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(message.clientId))) throw new Error('Invalid park client');
         sweep();
-        let room = rooms.get(who.section);
+        const levelIndex = message.levelIndex ?? 0;
+        if (joining && (!Number.isInteger(levelIndex) || levelIndex < 0 || levelIndex >= PARK_LEVEL_COUNT)) throw new Error('Unknown park level');
+        const roomKey = JSON.stringify([who.section, levelIndex]);
+        let room = joining ? rooms.get(roomKey) : bindings.get(ws)?.room;
+        if (room && room.section !== who.section) room = null;
         if (!room && joining) {
           if (rooms.size >= 32) throw new Error('The park is busy. Try entering again shortly.');
-          room = { section: who.section, lastActivity: now(), session: new ParkSession({ epoch: randomUUID(), now, wallNow }) };
-          rooms.set(who.section, room);
+          room = { section: who.section, lastActivity: now(), session: new ParkSession({ epoch: randomUUID(), levelIndex, now, wallNow }) };
+          rooms.set(roomKey, room);
         }
         const changed = () => ({ type: 'park_error', requestId: message.requestId, code: 'PARK_STREAM_CHANGED', message: 'Rejoining your park connection' });
         if (!room) return changed();
@@ -110,6 +116,7 @@ export function createParkService({ registry, send, now = () => performance.now(
           const clientId = shared ? randomUUID() : message.clientId;
           const events = room.session.addMember(who.username);
           const key = room.session.open(who.username, clientId, activeKeys);
+          if (message.type === 'park_join') events.push(...room.session.enter(who.username));
           for (const event of events) broadcast(room, event);
           bindings.set(ws, { room, member: who.username, key });
           room.allowEmptyRotation = false;
