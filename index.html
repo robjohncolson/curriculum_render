@@ -247,6 +247,14 @@
                     try { updateCurrentUsernameDisplay(); } catch (_) {}
                 }
             }
+            // 2026-09-09: a same-tab sign-in fires no 'storage' event — replay any quiz
+            // answers captured while the session was expired (the drain is ownership-gated,
+            // so a different student signing in here leaves the other student's rows queued).
+            try {
+                if (window.gradebookClient && typeof window.gradebookClient.syncOfflineQueue === 'function') {
+                    window.gradebookClient.syncOfflineQueue();
+                }
+            } catch (_) { /* best-effort */ }
             // U3 hue sync: hydrate the local sprite hue from the roster so every
             // surface (quiz + the Desk's Live Classroom board) converges. Roster
             // wins only when it carries a numeric hue; guarded — never breaks sign-in.
