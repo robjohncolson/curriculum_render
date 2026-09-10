@@ -6,6 +6,7 @@ import { ParkReplica } from '../../../follow-alongs/apstat-park/replica.mjs';
 test('a lost final motion anchor and lost stop event recover through reliable replay', () => {
   let clock = 0;
   const session = new ParkSession({ epoch: 'rest', members: ['alice', 'bob'], now: () => clock });
+  session.setOnline(['alice','bob']);
   const alice = session.open('alice', 'client_alice'), bob = session.open('bob', 'client_bob');
   const observer = new ParkReplica({ now: () => clock });
   observer.resume(session.resume(bob));

@@ -19,6 +19,7 @@ for (const count of [2, 8, 24]) test('key handoff and cooperative completion wit
   assert.equal(act(1,'unlock',session.level.goal).status,'rejected');
   session.setOnline(members.slice(1));
   assert.equal(session.progress.keyHolder,null);
+  if (count === 2) { assert.equal(act(1,'key',session.level.key).status,'rejected'); session.setOnline(members); }
   assert.equal(act(1,'key',session.level.key).status,'accepted');
   assert.equal(act(1,'unlock',session.level.goal).status,'accepted');
   session.setOnline(members);

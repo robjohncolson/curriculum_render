@@ -21,7 +21,10 @@ export class ParkSession {
     this.nextStreamId = 1;
     this.poses = new Map();
     this.online = [];
-    this.running = true;
+    this.running = false;
+    this.clockBase = this.now(); this.pausedAt = this.clockBase; this.pausedMs = 0;
+    this.holds = new Map();
+    this.pushes = new Map();
     this.done = false;
     this.level = createParkLevel(levelIndex);
     this.attempt = 1;
@@ -38,8 +41,17 @@ export class ParkSession {
   }
 
   emptyProgress() {
-    return { switches: [], arrived: [], bridgeOpen: false,
-      keyHolder: null, doorOpen: false, complete: false, requiredSwitches: 1, soloAssist: false };
+    return { switches: [], arrived: [], bridgeOpen: false, keyHolder: null, doorOpen: false, complete: false,
+      holds: {}, gates: [],
+      boxes: Object.fromEntries(this.level.boxes.map(box => {
+        const point = box.nodes[box.start];
+        return [box.id, { from: point, to: point, at: this.sceneClock(), duration: 0, node: box.start }];
+      })),
+      lifts: Object.fromEntries(this.level.weightedLifts.map(lift => {
+        const y = lift.descend ? lift.top : lift.bottom;
+        return [lift.id, { from: y, to: y, at: this.sceneClock(), duration: 0 }];
+      }))
+    };
   }
 
   open(member, clientId, activeKeys = null) {
@@ -80,40 +92,108 @@ export class ParkSession {
       this.progress.keyHolder = null;
       events.push(this.emit('key', { holder: null }));
     }
-    events.push(...this.adaptParty(), ...this.checkCompletion());
+    events.push(...this.adaptParty(), ...this.expireHolds(), ...this.checkCompletion());
     return events;
   }
 
   checkCompletion() {
-    const complete = this.progress.complete || this.online.length > 0 && this.online.every(member => this.progress.arrived.includes(member));
+    const complete = this.progress.complete || this.online.length >= 2 && this.online.every(member => this.progress.arrived.includes(member));
     if (complete === this.progress.complete) return [];
     this.progress.complete = complete;
     return [this.emit('complete', { complete })];
   }
 
   adaptParty() {
-    // Difficulty can grow only before the first puzzle action. A late arrival
-    // never relocks a bridge; a departing friend never leaves an impossible task.
-    const count = Math.max(1, Math.min(this.online.length, this.level.switches.length));
-    const started = this.progress.switches.length || this.progress.keyHolder || this.progress.doorOpen;
-    const required = started ? Math.min(this.progress.requiredSwitches, count) : count;
-    const assist = (started && this.progress.soloAssist) || this.online.length === 1;
-    const bridgeOpen = this.progress.bridgeOpen || this.progress.switches.length >= required;
-    if (required === this.progress.requiredSwitches && assist === this.progress.soloAssist && bridgeOpen === this.progress.bridgeOpen) return [];
-    Object.assign(this.progress, { requiredSwitches: required, soloAssist: assist, bridgeOpen });
-    return [this.emit('party', { requiredSwitches: required, soloAssist: assist, bridgeOpen })];
+    const running = this.online.length >= 2;
+    if (running === this.running) return [];
+    if (running) { this.pausedMs += this.now() - this.pausedAt; this.pausedAt = null; }
+    else this.pausedAt = this.now();
+    this.running = running;
+    return [this.emit('running', { running, clockMs: this.sceneClock() }), ...this.refreshMechanisms()];
+  }
+
+  sceneClock() { return (this.running ? this.now() : this.pausedAt) - this.clockBase - this.pausedMs; }
+
+  valueAt(state) {
+    const t = state.duration ? Math.min(1, Math.max(0, (this.sceneClock() - state.at) / state.duration)) : 1;
+    if (typeof state.from === 'number') return state.from + (state.to - state.from) * t;
+    return { x: state.from.x + (state.to.x - state.from.x) * t, y: state.from.y + (state.to.y - state.from.y) * t };
+  }
+
+  heldState() {
+    const result = {};
+    for (const { member, target } of this.holds.values()) {
+      if (!result[target]) result[target] = [];
+      if (!result[target].includes(member)) result[target].push(member);
+    }
+    return result;
+  }
+
+  expireHolds() {
+    let changed = false;
+    for (const [key, held] of this.holds) {
+      if (!this.running || !this.online.includes(held.member) || this.progress.arrived.includes(held.member) || this.now() >= held.until) {
+        this.holds.delete(key); changed = true;
+      }
+    }
+    const events = [];
+    if (changed) {
+      this.progress.holds = this.heldState();
+      this.progress.switches = Object.keys(this.progress.holds);
+      events.push(this.emit('holds', { holds: this.progress.holds }));
+    }
+    for (const [id, push] of this.pushes) {
+      if (!this.running || !this.online.includes(push.member) || this.now() >= push.until) {
+        this.pushes.delete(id);
+        const state = this.progress.boxes[id], point = this.valueAt(state);
+        this.progress.boxes[id] = { ...state, from: point, to: point, at: this.sceneClock(), duration: 0 };
+        events.push(this.emit('box', { id, state: this.progress.boxes[id] }));
+      }
+    }
+    return [...events, ...this.refreshMechanisms()];
+  }
+
+  refreshMechanisms() {
+    const p = this.progress, at = this.sceneClock();
+    const gates = this.level.gates.filter(gate => gate.holds
+      ? gate.holds.some(id => (p.holds[id] || []).length)
+      : gate.boxes.every(id => {
+        const box = this.level.boxes.find(box => box.id === id), state = p.boxes[id];
+        const point = this.valueAt(state), dock = box.nodes.at(-1);
+        return Math.hypot(point.x-dock.x,point.y-dock.y)<1;
+      })).map(gate => gate.id);
+    let changed = JSON.stringify(gates) !== JSON.stringify(p.gates);
+    p.gates = gates;
+    p.bridgeOpen = gates.includes('bridge');
+    for (const lift of this.level.weightedLifts) {
+      const riders = (p.holds[lift.id] || []).length;
+      // Four riders fit the board-sized shelter; larger classes take turns.
+      const half = Math.max(1, Math.min(4, Math.ceil(this.online.length / 2)));
+      const min = lift.minRiders === 'half' ? half : lift.minRiders;
+      const max = lift.maxRiders === 'half' ? half : lift.maxRiders || 64;
+      const active = riders >= min && riders <= max;
+      const state = p.lifts[lift.id], current = this.valueAt(state);
+      const target = !this.running ? current : lift.descend
+        ? active ? lift.bottom : lift.top : active ? lift.top : lift.bottom;
+      if (Math.abs(target - state.to) < 0.01) continue;
+      p.lifts[lift.id] = { from: current, to: target, at, duration: Math.abs(target-current) / 35 * 1000 };
+      changed = true;
+    }
+    return changed ? [this.emit('mechanisms', { gates: p.gates, lifts: p.lifts, bridgeOpen: p.bridgeOpen })] : [];
+  }
+
+  resetAttempt() {
+    this.level = createParkLevel(this.level.index);
+    this.level.id += '-attempt-' + ++this.attempt;
+    this.clockBase = this.now(); this.pausedMs = 0; this.pausedAt = this.running ? null : this.now();
+    this.holds.clear(); this.pushes.clear(); this.progress = this.emptyProgress(); this.poses.clear();
+    return [this.emit('level', { level: this.level, progress: this.progress, clockMs: this.sceneClock() })];
   }
 
   enter(member) {
     // Explicit doorway entry starts a fresh completed attempt. Socket resumes
     // never call this, so a connection drop cannot reset anyone's puzzle.
-    if (this.progress.complete) {
-      this.level = createParkLevel(this.level.index);
-      this.level.id += '-attempt-' + ++this.attempt;
-      this.progress = this.emptyProgress();
-      this.poses.clear();
-      return [this.emit('level', { level: this.level, progress: this.progress }), ...this.adaptParty()];
-    }
+    if (this.progress.complete) return this.resetAttempt();
     if (!this.progress.arrived.includes(member)) return [];
     this.progress.arrived = this.progress.arrived.filter(name => name !== member);
     this.poses.delete(member);
@@ -166,7 +246,7 @@ export class ParkSession {
     };
     const reject = reason => finish('rejected', [], reason);
     if (packet.level !== this.level.id) return reject('Level changed');
-    if (!this.running || this.done) return reject('The park is not running');
+    if ((!this.running && packet.kind !== 'settle') || this.done) return reject('Wait for at least two players');
     if (!this.validPose(packet.pose)) return reject('Invalid position');
     const near = item => Math.hypot(packet.pose.x - item.x, packet.pose.y - item.y) <= 24;
     let event;
@@ -174,15 +254,52 @@ export class ParkSession {
       if (packet.pose.vx !== 0 || packet.pose.vy !== 0) return reject('A resting anchor must be stationary');
       this.poses.set(stream.member, copy(packet.pose));
       event = this.emit('settled', { member: stream.member, pose: packet.pose });
-    } else if (packet.kind === 'switch') {
-      const item = this.level.switches.find(item => item.id === packet.target);
-      if (!item || !near(item)) return reject('Reach the bridge switch');
-      if (this.progress.switches.includes(item.id)) return finish('accepted');
-      this.progress.switches.push(item.id);
-      this.progress.bridgeOpen = this.progress.switches.length >= this.progress.requiredSwitches;
-      event = this.emit('contribution', { member: stream.member, collection: 'switches', target: item.id, bridgeOpen: this.progress.bridgeOpen });
+    } else if (packet.kind === 'hold' || packet.kind === 'switch') {
+      const pad = this.level.switches.find(item => item.id === packet.target);
+      const lift = this.level.weightedLifts.find(item => item.id === packet.target);
+      if (!pad && !lift) return reject('Unknown pressure surface');
+      // The original switch command is a pressure-down intent, never a permanent latch.
+      const active = packet.kind === 'switch' ? true : packet.active;
+      if (typeof active !== 'boolean') return reject('Invalid pressure state');
+      if (active && this.progress.arrived.includes(stream.member)) return reject('Leave the exit before helping');
+      const onLift = lift && packet.pose.x + 20 > lift.x && packet.pose.x < lift.x + lift.w
+        && Math.abs(packet.pose.y + 24 - this.valueAt(this.progress.lifts[lift.id])) < 16;
+      if (active && !(pad ? near(pad) : onLift)) return reject('Stand on the pressure surface');
+      const holdKey = JSON.stringify([stream.member, packet.target]);
+      if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000 });
+      else this.holds.delete(holdKey);
+      const holds = this.heldState(), events = [];
+      if (JSON.stringify(holds) !== JSON.stringify(this.progress.holds)) {
+        this.progress.holds = holds; this.progress.switches = Object.keys(holds); events.push(this.emit('holds', { holds }));
+      }
+      return finish('accepted', [...events, ...this.refreshMechanisms()]);
+    } else if (packet.kind === 'push') {
+      const box = this.level.boxes.find(item => item.id === packet.target);
+      if (!box || ![-1,0,1].includes(packet.direction)) return reject('Invalid push');
+      const state = this.progress.boxes[box.id], point = this.valueAt(state), active = this.pushes.get(box.id);
+      if (packet.direction === 0) {
+        if (!active || active.member !== stream.member) return finish('accepted');
+        this.pushes.delete(box.id);
+        this.progress.boxes[box.id] = { ...state, from: point, to: point, at: this.sceneClock(), duration: 0 };
+        return finish('accepted', [this.emit('box', { id: box.id, state: this.progress.boxes[box.id] }), ...this.refreshMechanisms()]);
+      }
+      if (active && active.member !== stream.member && active.direction !== packet.direction) return reject('A friend is pushing from the other side');
+      const next = packet.direction === 1 ? box.nodes.findIndex(node => node.x > point.x + 0.1)
+        : box.nodes.findLastIndex(node => node.x < point.x - 0.1);
+      if (next < 0) return finish('accepted');
+      const side = packet.direction === 1 ? Math.abs(packet.pose.x + 20 - point.x) : Math.abs(packet.pose.x - point.x - box.w);
+      if (side > 18 || packet.pose.y + 24 < point.y - 2 || packet.pose.y > point.y + box.h) return reject('Push from beside the block');
+      if (box.requires && !this.progress.gates.includes(box.requires)) return reject('A friend must hold the bridge button');
+      this.pushes.set(box.id, { member: stream.member, direction: packet.direction, until: this.now() + 6000 });
+      if (this.sceneClock() < state.at + state.duration && active?.direction === packet.direction) return finish('accepted');
+      const to = box.nodes[next];
+      this.progress.boxes[box.id] = { from: point, to, node: next, at: this.sceneClock(), duration: Math.hypot(to.x-point.x,to.y-point.y) / 65 * 1000 };
+      return finish('accepted', [this.emit('box', { id: box.id, state: this.progress.boxes[box.id] }), ...this.refreshMechanisms()]);
+    } else if (packet.kind === 'retry') {
+      return finish('accepted', this.resetAttempt());
     } else if (packet.kind === 'key') {
       if (!near(this.level.key)) return reject('Reach the key');
+      if (this.level.boxes.some(box => { const p = this.valueAt(this.progress.boxes[box.id]); return this.level.key.x + 10 > p.x && this.level.key.x < p.x + box.w && this.level.key.y + 18 > p.y && this.level.key.y < p.y + box.h; })) return reject('Move the block covering the key');
       if (this.progress.doorOpen || this.progress.keyHolder === stream.member) return finish('accepted');
       if (this.progress.keyHolder) return reject('A friend is carrying the key');
       this.progress.keyHolder = stream.member;
@@ -190,7 +307,6 @@ export class ParkSession {
     } else if (packet.kind === 'unlock') {
       if (!near(this.level.goal)) return reject('Bring the key to the door');
       if (this.progress.doorOpen) return finish('accepted');
-      if (this.level.requiresSwitches && !this.progress.bridgeOpen) return reject('Light the switches first');
       if (this.progress.keyHolder !== stream.member) return reject('The key holder opens the door');
       this.progress.doorOpen = true;
       event = this.emit('door', { open: true });
@@ -205,7 +321,7 @@ export class ParkSession {
 
   resume(key, since = null) {
     const stream = this.stream(key);
-    const common = { epoch: this.epoch, clockMs: this.now(), streamId: stream.id, revision: this.revision, sequence: stream.sequence, receipts: copy(stream.receipts) };
+    const common = { epoch: this.epoch, clockMs: this.sceneClock(), streamId: stream.id, revision: this.revision, sequence: stream.sequence, receipts: copy(stream.receipts) };
     const first = this.history[0]?.revision ?? this.revision + 1;
     if (Number.isSafeInteger(since) && since >= first - 1 && since <= this.revision) {
       return { ...common, mode: 'events', events: copy(this.history.filter(event => event.revision > since)), poses: copy(Object.fromEntries(this.poses)) };

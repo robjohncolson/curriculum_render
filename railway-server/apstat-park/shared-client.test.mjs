@@ -9,7 +9,9 @@ test('tabs presenting the same cached identity receive independent command strea
   registry.join(firstTab, 'a', 'alice', 'student', 0);
   registry.join(secondTab, 'a', 'alice', 'student', 0);
   const service = createParkService({ wallNow: () => 0, registry, send() {} });
-  const join = { type: 'park_join', protocol: 3, clientId: 'copied_client' };
+  const buddy = {}; registry.join(buddy, 'a', 'bob', 'student', 0);
+  service.handle(buddy, {type:'park_join',protocol:4,clientId:'buddy_browser'});
+  const join = { type: 'park_join', protocol: 4, clientId: 'copied_client' };
   const first = service.handle(firstTab, join);
   const second = service.handle(secondTab, join);
   assert.equal(first.clientId, join.clientId);

@@ -5,7 +5,8 @@ import { ParkReplica } from '../../../follow-alongs/apstat-park/replica.mjs';
 
 test('a saturated offline outbox drains through lost receipts without flooding movement', () => {
   let at = 0;
-  const session = new ParkSession({ wallNow: () => 0, epoch: 'pressure-test', members: ['alice'], now: () => at });
+  const session = new ParkSession({ wallNow: () => 0, epoch: 'pressure-test', members: ['alice', 'bob'], now: () => at });
+  session.setOnline(['alice','bob']);
   const key = session.open('alice', 'browser_a');
   const replica = new ParkReplica({ now: () => at });
   replica.resume(session.resume(key));
@@ -47,5 +48,5 @@ test('a saturated offline outbox drains through lost receipts without flooding m
   assert.equal(motionCount, 1);
   assert.deepEqual(replica.state.progress, session.progress);
   assert.deepEqual(session.progress.switches, [station.id]);
-  assert.equal(session.history.filter(event => event.kind === 'contribution').length, 1);
+  assert.equal(session.history.filter(event => event.kind === 'holds').length, 1);
 });

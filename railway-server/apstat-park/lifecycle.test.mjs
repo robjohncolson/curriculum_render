@@ -8,18 +8,18 @@ function setup(){
  const registry=createClassroomRegistry(),student={},sent=[];
  registry.join(student,'B','student','student',0);
  const service=createParkService({registry,now:()=>at,wallNow:()=>0,send:(ws,message)=>sent.push(message)});
- const join=()=>service.handle(student,{type: 'park_join', protocol: 3,clientId:'browser_one'});
+ const join=()=>service.handle(student,{type: 'park_join', protocol: 4,clientId:'browser_one'});
  return {service,student,sent,join,time:value=>{at=value;}};
 }
-test('leaving retains milestones and receipts; delayed leave cannot detach a new epoch',()=>{
- const f=setup(),first=f.join(),station=first.level.switches[0];
- const packet={type:'park_command',epoch:first.epoch,streamId:first.streamId,level:first.level.id,sequence:1,kind:'switch',target:station.id,pose:{...station,vx:0,vy:0}};
+test('leaving retains resting anchors and receipts; delayed leave cannot detach a new epoch',()=>{
+ const f=setup(),first=f.join(),station=first.level.spawn;
+ const packet={type:'park_command',epoch:first.epoch,streamId:first.streamId,level:first.level.id,sequence:1,kind:'settle',target:'rest',pose:{...station,vx:0,vy:0}};
  assert.equal(f.service.handle(f.student,packet).status,'accepted');
  f.service.handle(f.student,{type:'park_leave',epoch:first.epoch});
  f.time(90*60000);
  const resumed=f.join();
  assert.equal(resumed.epoch,first.epoch); assert.equal(resumed.sequence,1);
- assert.deepEqual(resumed.progress.switches,[station.id]);
+ assert.deepEqual(resumed.poses.student,{...station,vx:0,vy:0});
  assert.equal(f.service.handle(f.student,packet).status,'duplicate');
  f.service.handle(f.student,{type:'park_leave',epoch:'old'});
  assert.deepEqual(f.join().online,['student']); f.service.close();

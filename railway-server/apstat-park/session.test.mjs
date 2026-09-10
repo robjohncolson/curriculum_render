@@ -50,6 +50,7 @@ function setup(members = ['alice', 'bob']) {
   let clock = 0;
   const now = () => clock;
   const session = new ParkSession({ epoch: 'test-epoch', members, now, wallNow: now });
+  session.setOnline(members);
   const key = session.open(members[0], 'browser_1');
   const replica = new ParkReplica({ now });
   replica.resume(session.resume(key));
@@ -62,7 +63,7 @@ test('lost acknowledgment, duplicate action, event gap and reconnect converge', 
   replica.queue('switch', station.id, poseAt(station));
   const packet = replica.outgoing({ connected: true })[0];
   const accepted = session.command(key, packet);
-  assert.equal(accepted.events.length, 1);
+  assert.equal(accepted.events.length, 2);
   // Drop both event and acknowledgment. A retry must not apply the action twice.
   advance(1600);
   const retry = replica.outgoing({ connected: true })[0];

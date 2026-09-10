@@ -71,6 +71,14 @@ export function createParkService({ registry, send, now = () => performance.now(
     }
   }
 
+  // This timer only expires leases / finishes finite block movements. It never simulates physics.
+  const maintenance = setInterval(() => {
+    for (const room of rooms.values()) {
+      for (const event of room.session.expireHolds()) broadcast(room, event);
+    }
+  }, 250);
+  maintenance.unref?.();
+
   return {
     accepts: message => types.has(message?.type),
     handle(ws, message) {
@@ -133,7 +141,7 @@ export function createParkService({ registry, send, now = () => performance.now(
           syncPresence(room);
           for (const event of room.session.rotateIfReady()) broadcast(room, event);
         }
-        if (message.type === 'park_status') return reply({ epoch: room.session.epoch, revision: room.session.revision, clockMs: now() });
+        if (message.type === 'park_status') return reply({ epoch: room.session.epoch, revision: room.session.revision, clockMs: room.session.sceneClock() });
         const streamId = room.session.stream(binding.key).id;
         if (message.streamId !== streamId) return changed();
         if (message.type === 'park_motion') {
@@ -149,6 +157,6 @@ export function createParkService({ registry, send, now = () => performance.now(
       }
     },
     detached: unbind,
-    close() { bindings.clear(); rooms.clear(); },
+    close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); },
   };
 }
