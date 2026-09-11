@@ -588,6 +588,14 @@ if (process.env.DEEPSEEK_API_KEY) {
     // mode = R1-style reasoning, the stronger grader for E/P/I + defensibility.
     apiKey: process.env.DEEPSEEK_API_KEY,
     model: 'deepseek-v4-flash',
+    // 2026-09-11: DeepSeek enables thinking BY DEFAULT (docs: "Thinking mode is
+    // enabled by default, with the default effort being high"). Leaving the
+    // `thinking` param out therefore did NOT turn it off — v4-flash reasoned
+    // in reasoning_content until it hit max_tokens (finish_reason=length) and
+    // returned EMPTY content → "Empty response from deepseek" 500s for the
+    // hourly sweep and for in-class grading. callAI now sends thinking
+    // {type:'disabled'} explicitly for providers with thinkingControl.
+    thinkingControl: true,
     // thinking mode left OFF: live-tested with a PROPER E/P/I prompt, v4-flash
     // thinking TRUNCATED the answer (reasoning ate the token budget → feedback
     // cut off to "The student", score unreliable). Non-thinking v4-flash returns
@@ -795,6 +803,8 @@ class GradingQueue {
             return;
           } catch (fallbackError) {
             altStats.failures++;
+            // 2026-09-11: this was silent — Groq failed 11/11 with no trace in the logs.
+            console.warn(`⚠️ ${alt.name} failover failed: ${fallbackError && fallbackError.message}`);
             reject(primaryError);   // report the original error
             return;
           }
@@ -1210,7 +1220,7 @@ async function callAI(prompt, provider, opts = {}) {
   const systemMessage = opts.systemMessage || 'You are an AP Statistics teacher grading student responses. Always respond with valid JSON only.';
   const temperature = opts.temperature ?? 0.1;
   // Thinking mode emits reasoning tokens before the answer — give it more room.
-  const maxTokens = opts.maxTokens ?? (provider.thinking ? 4000 : 1500);
+  const maxTokens = opts.max_tokens ?? opts.maxTokens ?? (provider.thinking ? 4000 : 1500);
 
   try {
     const body = {
@@ -1223,7 +1233,12 @@ async function callAI(prompt, provider, opts = {}) {
       max_tokens: maxTokens
     };
     // DeepSeek v4 thinking mode (R1-style reasoning) — stronger grading judgment.
-    if (provider.thinking) {
+    // For providers that understand the param, ALWAYS send it: DeepSeek defaults
+    // to enabled, so "omitted" meant "on" and the reasoning ate max_tokens.
+    if (provider.thinkingControl) {
+      body.thinking = { type: provider.thinking ? 'enabled' : 'disabled' };
+      if (provider.thinking) body.reasoning_effort = 'high';
+    } else if (provider.thinking) {
       body.thinking = { type: 'enabled' };
       body.reasoning_effort = 'high';
     }
@@ -1263,7 +1278,14 @@ async function callAI(prompt, provider, opts = {}) {
       // failing over. Log what the provider said so this stays diagnosable.
       const fr = data.choices?.[0]?.finish_reason;
       const hasReasoning = !!data.choices?.[0]?.message?.reasoning_content;
-      console.warn(`⚠️ ${provider.name} empty content (finish_reason=${fr}, reasoning_content=${hasReasoning}, json_mode=${!opts.skipJsonFormat})`);
+      console.warn(`⚠️ ${provider.name} empty content (finish_reason=${fr}, reasoning_content=${hasReasoning}, json_mode=${!opts.skipJsonFormat}, max_tokens=${maxTokens})`);
+      // 2026-09-11: the empty content was the TOKEN CAP — reasoning_content used
+      // the whole budget (finish_reason=length). Retry once with a budget large
+      // enough to hold the reasoning AND the JSON answer before trying prose mode.
+      if (fr === 'length' && !opts._lengthRetry) {
+        clearTimeout(timeoutId);
+        return callAI(prompt, provider, { ...opts, max_tokens: Math.max(maxTokens * 4, 6000), _lengthRetry: true });
+      }
       if (!opts.skipJsonFormat) {
         clearTimeout(timeoutId);
         return callAI(prompt, provider, { ...opts, skipJsonFormat: true, _emptyRetry: true });
@@ -1828,7 +1850,7 @@ app.post('/api/ai/chat', async (req, res) => {
       systemMessage: REDOX_SYSTEM_PROMPT,
       messages: chatHistory,
       temperature: 0.7,
-      maxTokens: 400,
+      max_tokens: 400,
       skipJsonFormat: true,
       rawResponse: true
     }));
