@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ParkSession } from './session.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT } from './levels.mjs';
 
-const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
+const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_lobby', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
 const RETENTION_MS = 2 * 60 * 60 * 1000;
 const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
@@ -93,6 +93,15 @@ export function createParkService({ registry, send, now = () => performance.now(
           // The client may not have received its epoch yet.
           if (message.epoch == null || bindings.get(ws)?.room.session.epoch === message.epoch) unbind(ws, true);
           return reply({ left: true });
+        }
+        if (message.type === 'park_lobby') {
+          const levels = [];
+          for (let levelIndex = 0; levelIndex < PARK_LEVEL_COUNT; levelIndex++) {
+            const room = rooms.get(JSON.stringify([who.section, levelIndex]));
+            if (room) syncPresence(room);
+            levels.push({ levelIndex, online: room ? [...room.session.online].sort() : [] });
+          }
+          return reply({ levels });
         }
         const joining = message.type === 'park_join' || message.type === 'park_resume';
         if (joining && message.protocol !== PARK_PROTOCOL) return { type: 'park_error', requestId: message.requestId,
