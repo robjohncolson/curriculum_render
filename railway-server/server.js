@@ -1891,7 +1891,7 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest win.
 - ZERO DATES: a piece of work counts as 0 only once its ZERO DATE has passed (about two weeks after the class day). The facts list each missing item as either COUNTS AS 0 NOW (a red item in the student's ledger) or NOT YET A 0 with the date it becomes one (a yellow item). Never call a NOT-YET item a 0 or say it is hurting the grade; say it becomes a 0 on that date unless it is turned in. Any score, even a low one, replaces a 0.
 - CRITICAL: if the facts say the PC track is NOT OPEN YET, the Progress Checks do not exist yet — NEVER tell the student to do, complete, raise, "attempt", or "get above 40%" on the PC/Progress-Check track, never call it a bottleneck or a 0, and never imply it is hurting the grade. The grade is the Work track ALONE right now; point only at Work-track actions.
-- PROGRESS CHECK ON FILE: when the facts list a PROGRESS CHECK ON FILE, the student's paper Progress Check is recorded but may not count yet. You MAY say so (e.g. "your paper Progress Check is on file at 67% and counts from Tue 10/13") and explain the STRATEGY NOTE in one sentence (with a Progress Check TRACK at 40% or more, the Work track only needs to reach 40% for the grade to follow the higher track). When the note says the PC track is PROJECTED, say it as an "if" ("if your Progress Check track ends the quarter near 67% …"), never as a fact. Never call that Progress Check a 0, a gap, or a deficit.
+- PROGRESS CHECK ON FILE: when the facts list a PROGRESS CHECK ON FILE, the student's paper Progress Check is recorded but may not count yet. You MAY say so (e.g. "your paper Progress Check is on file at 67% and counts from Tue 10/13") and give the STRATEGY NOTE in its own words — it is the exact sentence the student sees on the Desk and on their slip (goal first: the Work average to reach, how many points, and that the grade is the higher track once both are at least 40%). Do not reword it into a promise; its "would be" is deliberate while the Progress Check does not count yet. Never call that Progress Check a 0, a gap, or a deficit.
 - WORK DONE AHEAD: when the facts list WORK DONE AHEAD, open with ONE sentence of credit for it before anything else (e.g. "You are three lessons ahead of the calendar — that already counts."), then give the priorities as usual.
 - Never say the student's effort or work is "not counted". Work done ahead already counts in the Desk grade; Schoology "catches up when the column opens".
 - Flashcards (Blooket) mark a lesson COMPLETE: a lesson shows complete once its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. NOTHING IS LOCKED — every lesson is open at all times; never say a lesson "will not unlock". When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to mark the lesson complete.
@@ -1903,6 +1903,34 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - Say "becomes a 0 after <date>" for a NOT-YET item — never "due after" or "due by" (the class day already passed; the date is when the 0 lands).
 - Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. PLAIN TEXT ONLY: the reply is shown verbatim, so no markdown of any kind — no **bold**, no headers, no backticks. Short sentences or lines that start with "- ".
 - End with one encouraging sentence naming the fastest realistic win.`;
+
+// The 40% strategy, goal first — VERBATIM the sentence of the follow-alongs repo's
+// lib/effort-facts.js strategyLine (EFFORT_VISIBILITY_V2_SPEC §1), so the coach, the Desk and the
+// slip say the same thing. pcPct: the PC track (>= 40); projected: the PC does not count yet;
+// day: "Tue 10/13" or null; workRaw: the UNROUNDED Work average or null.
+function coachStrategySentence(pcPct, projected, day, workRaw) {
+  const floor = 40;
+  const pcShown = Math.round(pcPct);
+  const haveWork = workRaw != null;
+  if (haveWork && workRaw >= pcPct) {
+    return 'Your Work track (' + Math.round(workRaw) + '%) is the higher one right now, so your grade follows it; '
+      + 'your Progress Check (' + pcShown + '%) is the safety net — the grade is whichever is higher once both are at least ' + floor + '%.';
+  }
+  if (!haveWork || workRaw < floor) {
+    let goal = (projected ? 'To finish the quarter with your ' : 'To keep your ') + pcShown + '%, your Work average has to reach ' + floor + '%';
+    if (haveWork) {
+      const need = Math.ceil(floor - workRaw);
+      goal += ' — you are at ' + Math.floor(workRaw) + '%, so bring it up by at least ' + need + ' point' + (need === 1 ? '' : 's');
+    }
+    return goal + '. Once both tracks are at least ' + floor + '%, your grade is the higher one, and yours would be the Progress Check.';
+  }
+  const keep = ' Keep Work at ' + floor + '% or better and it stays that way.';
+  if (projected) {
+    return 'Your Work average is already past ' + floor + '%, so once your Progress Check counts' + (day ? ' (' + day + ')' : '')
+      + ' your grade becomes the higher of the two — right now that would be your ' + pcShown + '%.' + keep;
+  }
+  return 'Your grade is the higher of your two tracks: Progress Check ' + pcShown + '%, Work ' + Math.round(workRaw) + '% → ' + pcShown + '%.' + keep;
+}
 
 // Turn the client-computed breakdown into a readable, defensive facts block.
 function buildCoachFacts(ctx) {
@@ -1959,19 +1987,10 @@ function buildCoachFacts(ctx) {
       if (onFile.length) track = onFile.reduce((a, b) => a + b, 0) / onFile.length;
     }
     if (track != null && track >= 40) {
-      const trackText = pcFile.counting
-        ? 'PC track ' + num(track) + '% (counting)'
-        : 'PC track so far ' + num(track) + '% (projected from the units on file; not counting until ' + (pcFile.day || 'its date') + ')';
       // UNROUNDED Work average for the 40% gate; round only in the words.
       const workRaw = (typeof ctx.workAvg === 'number' && isFinite(ctx.workAvg)) ? ctx.workAvg : null;
-      if (workRaw == null || workRaw < 40) {
-        lines.push('STRATEGY NOTE: with a ' + trackText + ', the student only needs the Work track at 40% for the grade to follow the PC' +
-          (workRaw == null ? '; the Work track has not started yet.' : '; Work is at ' + Math.round(workRaw) + '% (' + Math.ceil(40 - workRaw) + (Math.ceil(40 - workRaw) === 1 ? ' more point reaches' : ' more points reach') + ' 40%).') +
-          (pcFile.counting ? '' : ' Say this as a projection ("if your PC track ends the quarter near …"), not a fact.'));
-      } else {
-        lines.push('STRATEGY NOTE: with a ' + trackText + ', the Work track (' + Math.round(workRaw) + '%) is already past 40%, so the grade follows the higher track' +
-          (pcFile.counting ? '.' : ' once the PC counts.'));
-      }
+      const sentence = coachStrategySentence(track, !pcFile.counting, pcFile.day, workRaw);
+      lines.push('STRATEGY NOTE (the sentence the student sees on the Desk; say it in these words): ' + sentence);
     }
   }
   // Lessons scored before their class day (count-all: they already count in the Desk grade).
