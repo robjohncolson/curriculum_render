@@ -216,7 +216,7 @@ describe('Coach: flashcard completion/unlock gate', () => {
     expect(systemPrompt).toMatch(/mark a lesson COMPLETE/);
     expect(systemPrompt).toMatch(/NOTHING IS LOCKED/);
     expect(systemPrompt).toMatch(/NEXT-STEP GATE/);
-    expect(systemPrompt).not.toMatch(/will not unlock/i);
+    expect(systemPrompt).not.toMatch(/the next one will not unlock/);   // the prompt may quote the phrase only to forbid it
   });
   it('prompt: work counts as 0 only once its zero date passes; a NOT-YET item is never called a 0', () => {
     expect(systemPrompt).toMatch(/ZERO DATES/);
