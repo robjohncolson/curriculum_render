@@ -1943,7 +1943,7 @@ function buildCoachFacts(ctx) {
   if (ctx.blooket && typeof ctx.blooket === 'object' && ctx.blooket.due > 0) {
     const b = ctx.blooket;
     let bl = 'Blooket: ' + (b.done || 0) + ' of ' + b.due + ' done';
-    if (num(b.track) != null) bl += ' (Blooket sub-track ' + num(b.track) + '%)';
+    if (num(b.track) != null) bl += ' (Blooket sub-track ' + num(b.track) + '% — recorded decks only; every unplayed deck becomes a 0 in this average on its zero date, so do not call it "strong" while decks are still missing)';
     bl += '.';
     if (Array.isArray(b.todo) && b.todo.length) {
       bl += ' NOT YET PLAYED — play each deck from the Desk flashcards (best score counts; a deck missing on its zero date is a 0): Topic ' +
