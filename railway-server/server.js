@@ -1891,6 +1891,9 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest win.
 - ZERO DATES: a piece of work counts as 0 only once its ZERO DATE has passed (about two weeks after the class day). The facts list each missing item as either COUNTS AS 0 NOW (a red item in the student's ledger) or NOT YET A 0 with the date it becomes one (a yellow item). Never call a NOT-YET item a 0 or say it is hurting the grade; say it becomes a 0 on that date unless it is turned in. Any score, even a low one, replaces a 0.
 - CRITICAL: if the facts say the PC track is NOT OPEN YET, the Progress Checks do not exist yet — NEVER tell the student to do, complete, raise, "attempt", or "get above 40%" on the PC/Progress-Check track, never call it a bottleneck or a 0, and never imply it is hurting the grade. The grade is the Work track ALONE right now; point only at Work-track actions.
+- PROGRESS CHECK ON FILE: when the facts list a PROGRESS CHECK ON FILE, the student's paper Progress Check is recorded but may not count yet. You MAY say so (e.g. "your paper Progress Check is on file at 67% and counts from Tue 10/13") and explain the STRATEGY NOTE in one sentence (with a Progress Check TRACK at 40% or more, the Work track only needs to reach 40% for the grade to follow the higher track). When the note says the PC track is PROJECTED, say it as an "if" ("if your Progress Check track ends the quarter near 67% …"), never as a fact. Never call that Progress Check a 0, a gap, or a deficit.
+- WORK DONE AHEAD: when the facts list WORK DONE AHEAD, open with ONE sentence of credit for it before anything else (e.g. "You are three lessons ahead of the calendar — that already counts."), then give the priorities as usual.
+- Never say the student's effort or work is "not counted". Work done ahead already counts in the Desk grade; Schoology "catches up when the column opens".
 - Flashcards (Blooket) mark a lesson COMPLETE: a lesson shows complete once its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. NOTHING IS LOCKED — every lesson is open at all times; never say a lesson "will not unlock". When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to mark the lesson complete.
 - If the facts show the grade is already strong and NO component is below target (no BIGGEST WIN is listed), do NOT manufacture a bottleneck — affirm the student is doing well, then point them at the NEXT-STEP GATE (pass the flashcards to complete + unlock the lesson) or the earliest unfinished work as the next thing to do, framed as making progress, not fixing a deficit.
 - Blooket is part of the Work track (a 10% slice). A deck that is not played by its zero date COUNTS AS 0, exactly like a missing worksheet or quiz, and that 0 also reaches Schoology. A student records a Blooket by playing that lesson's flashcards on the Desk (the timed deck; the best score counts, there is no cap). When the facts list undone Blookets ("Blooket make-up"), point the student at playing those decks. Only mention Blookets that appear in the facts — never invent a Blooket for a lesson that does not have it.
@@ -1918,7 +1921,12 @@ function buildCoachFacts(ctx) {
   // there's no PC score — so an older client that doesn't send pcDue falls back to the
   // prior "not yet attempted" framing instead of wrongly suppressing real PC advice.
   const _pcNotOpenYet = (ctx.pcDue === false) && (num(ctx.pcAvg) == null);
-  if (_pcNotOpenYet) {
+  const _pcOnFileEarly = _pcNotOpenYet && ctx.pcOnFile && typeof ctx.pcOnFile === 'object' && num(ctx.pcOnFile.pct) != null;
+  if (_pcOnFileEarly) {
+    // A paper PC is recorded but its Day 2 has not come: the track still does not count yet.
+    lines.push('PC (Progress-Check mastery) track: NOT COUNTING YET — the paper Progress Check below is on file and joins the grade on its date. Until then the quarter grade is set by the Work track ALONE; do NOT treat the PC as a gap, a 0, a deficit, or a to-do.');
+    lines.push('Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
+  } else if (_pcNotOpenYet) {
     lines.push('PC (Progress-Check mastery) track: NOT OPEN YET — Progress Checks unlock later in the course (this fall) and cannot be done now. Until then the quarter grade is set by the Work track ALONE; do NOT treat the PC track as a gap, a 0, a deficit, or a to-do, and do NOT tell the student to work on Progress Checks.');
     lines.push('Work track (worksheets, quizzes, Blooket): ' + pct(ctx.workAvg) + '.');
   } else {
@@ -1935,8 +1943,48 @@ function buildCoachFacts(ctx) {
     if (num(wt.blooket) != null) wparts.push('Blooket ' + num(wt.blooket) + '%');
     if (wparts.length) lines.push('Work track breakdown: ' + wparts.join(', ') + '.');
   }
+  // EFFORT_VISIBILITY_SPEC §4: a paper Progress Check on file (it may not count yet) + the 40% strategy.
+  const pcFile = (ctx.pcOnFile && typeof ctx.pcOnFile === 'object') ? ctx.pcOnFile : null;
+  if (pcFile && num(pcFile.pct) != null) {
+    const when = pcFile.counting ? 'counting in the grade now.' : (pcFile.day ? 'counts from ' + pcFile.day + ' — not yet in the grade.' : 'not yet in the grade.');
+    lines.push('PROGRESS CHECK ON FILE: ' + num(pcFile.pct) + '% (paper), ' + when);
+    // The strategy is about the PC TRACK, never one unit (Codex review 2026-09-27): counting →
+    // the engine's pcAvg; not counting yet → the mean of every unit on file, stated as a projection.
+    let track = null;
+    if (pcFile.counting) {
+      if (typeof ctx.pcAvg === 'number' && isFinite(ctx.pcAvg)) track = ctx.pcAvg;
+    } else {
+      const onFile = (Array.isArray(pcFile.all) && pcFile.all.length ? pcFile.all : [pcFile])
+        .map((u) => (u && typeof u.pct === 'number' && isFinite(u.pct)) ? u.pct : null).filter((v) => v != null);
+      if (onFile.length) track = onFile.reduce((a, b) => a + b, 0) / onFile.length;
+    }
+    if (track != null && track >= 40) {
+      const trackText = pcFile.counting
+        ? 'PC track ' + num(track) + '% (counting)'
+        : 'PC track so far ' + num(track) + '% (projected from the units on file; not counting until ' + (pcFile.day || 'its date') + ')';
+      // UNROUNDED Work average for the 40% gate; round only in the words.
+      const workRaw = (typeof ctx.workAvg === 'number' && isFinite(ctx.workAvg)) ? ctx.workAvg : null;
+      if (workRaw == null || workRaw < 40) {
+        lines.push('STRATEGY NOTE: with a ' + trackText + ', the student only needs the Work track at 40% for the grade to follow the PC' +
+          (workRaw == null ? '; the Work track has not started yet.' : '; Work is at ' + Math.round(workRaw) + '% (' + Math.ceil(40 - workRaw) + (Math.ceil(40 - workRaw) === 1 ? ' more point reaches' : ' more points reach') + ' 40%).') +
+          (pcFile.counting ? '' : ' Say this as a projection ("if your PC track ends the quarter near …"), not a fact.'));
+      } else {
+        lines.push('STRATEGY NOTE: with a ' + trackText + ', the Work track (' + Math.round(workRaw) + '%) is already past 40%, so the grade follows the higher track' +
+          (pcFile.counting ? '.' : ' once the PC counts.'));
+      }
+    }
+  }
+  // Lessons scored before their class day (count-all: they already count in the Desk grade).
+  if (Array.isArray(ctx.ahead) && ctx.ahead.length) {
+    const aheadKeys = ctx.ahead.filter((a) => a && a.lessonKey != null).slice(0, 8).map((a) => 'Topic ' + a.lessonKey);
+    const total = Math.max(aheadKeys.length, Number.isFinite(ctx.aheadCount) ? ctx.aheadCount : 0);
+    if (aheadKeys.length) {
+      lines.push('WORK DONE AHEAD (commend this): ' + aheadKeys.join(', ') + (total > aheadKeys.length ? ' and ' + (total - aheadKeys.length) + ' more' : '') +
+        " — already counted in the Desk grade; Schoology catches up when each lesson's column opens.");
+    }
+  }
   if (num(ctx.pcAvg) != null && num(ctx.pcAvg) < 40) lines.push('NOTE: the PC track is below the 40% gate, which is penalizing the grade.');
-  if (num(ctx.workAvg) != null && num(ctx.workAvg) < 40) lines.push('NOTE: the Work track is below the 40% gate, which is penalizing the grade.');
+  if (typeof ctx.workAvg === 'number' && isFinite(ctx.workAvg) && ctx.workAvg < 40) lines.push('NOTE: the Work track is below the 40% gate, which is penalizing the grade.');
   // Blooket make-up: undone Blookets can each be made up to 80% via the Desk
   // flashcards — usually the fastest Work-track lift. Only the topics listed here
   // exist; the AI must not invent a Blooket for any other lesson.
