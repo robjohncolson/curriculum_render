@@ -240,14 +240,18 @@ describe('Coach: re-submit advice is gated (not proactive for undone work)', () 
 });
 
 // Behavioral: actually run buildCoachFacts over the observed scenario.
-function buildFacts(ctx) {
-  const start = serverCode.indexOf('function buildCoachFacts(');
+function fnSource(name) {
+  const start = serverCode.indexOf('function ' + name + '(');
   let depth = 0, end = -1;
   for (let j = serverCode.indexOf('{', start); j < serverCode.length; j++) {
     if (serverCode[j] === '{') depth++;
     else if (serverCode[j] === '}') { depth--; if (depth === 0) { end = j + 1; break; } }
   }
-  const fnSrc = serverCode.slice(start, end);
+  return serverCode.slice(start, end);
+}
+function buildFacts(ctx) {
+  // buildCoachFacts plus the small helpers it calls on the paths these tests exercise.
+  const fnSrc = ['coachAheadProjectionText', 'buildCoachFacts'].map(fnSource).join('\n');
   // eslint-disable-next-line no-new-func
   return new Function(fnSrc + '\nreturn buildCoachFacts;')()(ctx);
 }
@@ -272,5 +276,21 @@ describe('buildCoachFacts behavior (the observed Elmer scenario)', () => {
     const facts = buildFacts({ quarter: 'Q1', pcAvg: null, pcDue: false, workAvg: 100, flashcardGate: [{ lesson: '1.1', worksheet: 100, blooket: null }] });
     expect(facts).toMatch(/NEXT-STEP GATE/);
     expect(facts).toMatch(/Topic 1\.1/);
+  });
+});
+
+describe('buildCoachFacts WORK DONE AHEAD projection (AHEAD_WORK_PROJECTION_SPEC)', () => {
+  const base = { quarter: 'Q1', pcAvg: null, pcDue: false, workAvg: 90, flashcardGate: [],
+    ahead: [{ lessonKey: '1.6' }, { lessonKey: '1.7' }, { lessonKey: '1.8' }], aheadCount: 3 };
+  const aheadLine = facts => facts.split('\n').find(l => l.startsWith('WORK DONE AHEAD'));
+  it('adds what Schoology reads once the ahead work comes due', () => {
+    const line = aheadLine(buildFacts({ ...base, aheadProjection: { projected: 85.04, today: 83.66, aheadCells: 4 } }));
+    expect(line).toBe("WORK DONE AHEAD (commend this): Topic 1.6, Topic 1.7, Topic 1.8 — already counted in the Desk grade; Schoology catches up when each lesson's column opens — once those come due Schoology reads about 85% (today 83.7%).");
+  });
+  it('keeps the old line when there is no projection (older Desk)', () => {
+    for (const aheadProjection of [undefined, null, { projected: 85, today: 83, aheadCells: 0 }, { projected: 'x', aheadCells: 2 }]) {
+      expect(aheadLine(buildFacts({ ...base, aheadProjection }))).toBe(
+        "WORK DONE AHEAD (commend this): Topic 1.6, Topic 1.7, Topic 1.8 — already counted in the Desk grade; Schoology catches up when each lesson's column opens.");
+    }
   });
 });

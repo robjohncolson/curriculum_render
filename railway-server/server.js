@@ -1905,6 +1905,18 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - End with one encouraging sentence naming the fastest realistic win.`;
 
 // The 40% strategy, goal first — VERBATIM the sentence of the follow-alongs repo's
+// AHEAD_WORK_PROJECTION_SPEC (follow-alongs repo): the Desk sends ctx.aheadProjection =
+// { projected, today, aheadCells } — what Schoology reads once the ahead cells come due.
+// Returns ' — once those come due Schoology reads about 85% (today 83.7%)' or ''.
+function coachAheadProjectionText(p) {
+  if (!p || typeof p !== 'object') return '';
+  const isNum = (v) => typeof v === 'number' && isFinite(v);
+  if (!isNum(p.projected) || !isNum(p.aheadCells) || p.aheadCells <= 0) return '';
+  const one = (v) => Math.round(v * 10) / 10;
+  const today = isNum(p.today) ? ' (today ' + one(p.today) + '%)' : '';
+  return ' — once those come due Schoology reads about ' + one(p.projected) + '%' + today;
+}
+
 // lib/effort-facts.js strategyLine (EFFORT_VISIBILITY_V2_SPEC §1), so the coach, the Desk and the
 // slip say the same thing. pcPct: the PC track (>= 40); projected: the PC does not count yet;
 // day: "Tue 10/13" or null; workRaw: the UNROUNDED Work average or null.
@@ -1999,7 +2011,8 @@ function buildCoachFacts(ctx) {
     const total = Math.max(aheadKeys.length, Number.isFinite(ctx.aheadCount) ? ctx.aheadCount : 0);
     if (aheadKeys.length) {
       lines.push('WORK DONE AHEAD (commend this): ' + aheadKeys.join(', ') + (total > aheadKeys.length ? ' and ' + (total - aheadKeys.length) + ' more' : '') +
-        " — already counted in the Desk grade; Schoology catches up when each lesson's column opens.");
+        " — already counted in the Desk grade; Schoology catches up when each lesson's column opens" +
+        coachAheadProjectionText(ctx.aheadProjection) + '.');
     }
   }
   if (num(ctx.pcAvg) != null && num(ctx.pcAvg) < 40) lines.push('NOTE: the PC track is below the 40% gate, which is penalizing the grade.');
