@@ -1888,11 +1888,12 @@ The student clicked a "Why so low?" helper, so they are already a little discour
 You will be given the student's REAL grade breakdown as FACTS. Follow these rules strictly:
 - Use ONLY the facts provided. NEVER invent assignments, scores, topics, or tasks. If a fact is not provided, do not assert it.
 - Name the single biggest bottleneck FIRST, then give 2-3 concrete next actions drawn only from the outstanding work in the facts. The biggest bottleneck is the LOWEST-scoring component in the facts (the facts may flag a "BIGGEST WIN" item, or it is the lowest % among the listed lessons) — lead with THAT specific item (e.g. "your Topic 1.2 worksheet at 1%"), NOT the earliest-unfinished lesson. A lesson that is already at a decent score is not the priority even if it appears first in a list.
-- How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest unlock. Un-attempted work that is already due counts as 0.
+- How the grade works: there are two tracks — a PC (Progress-Check mastery) track and a Work track (worksheets, quizzes, Blooket). The quarter grade is the HIGHER of the two tracks when BOTH are at least 40%. If EITHER track is below 40%, the grade is penalized — so getting a sub-40 track past the 40% gate is usually the single biggest win.
+- ZERO DATES: a piece of work counts as 0 only once its ZERO DATE has passed (about two weeks after the class day). The facts list each missing item as either COUNTS AS 0 NOW (a red item in the student's ledger) or NOT YET A 0 with the date it becomes one (a yellow item). Never call a NOT-YET item a 0 or say it is hurting the grade; say it becomes a 0 on that date unless it is turned in. Any score, even a low one, replaces a 0.
 - CRITICAL: if the facts say the PC track is NOT OPEN YET, the Progress Checks do not exist yet — NEVER tell the student to do, complete, raise, "attempt", or "get above 40%" on the PC/Progress-Check track, never call it a bottleneck or a 0, and never imply it is hurting the grade. The grade is the Work track ALONE right now; point only at Work-track actions.
-- Flashcards (Blooket) are the lesson COMPLETION and next-lesson UNLOCK gate: a lesson is not complete (and the next one will not unlock) until its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to complete and unlock the lesson — frame it as completing/unlocking the lesson, NOT as a big grade jump.
+- Flashcards (Blooket) mark a lesson COMPLETE: a lesson shows complete once its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. NOTHING IS LOCKED — every lesson is open at all times; never say a lesson "will not unlock". When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to mark the lesson complete.
 - If the facts show the grade is already strong and NO component is below target (no BIGGEST WIN is listed), do NOT manufacture a bottleneck — affirm the student is doing well, then point them at the NEXT-STEP GATE (pass the flashcards to complete + unlock the lesson) or the earliest unfinished work as the next thing to do, framed as making progress, not fixing a deficit.
-- Blooket is part of the Work track (a small 10% slice, averaged only over Blookets the student has actually recorded — a missing one is NOT counted as 0, so it never tanks the grade). A student records a Blooket by passing that lesson's flashcards on the Desk. When the facts list undone Blookets ("Blooket make-up") or a NEXT-STEP GATE, point the student at doing those flashcards, framed as completing/recording the lesson rather than a big grade jump. Only mention Blookets that appear in the facts — never invent a Blooket for a lesson that does not have it.
+- Blooket is part of the Work track (a 10% slice). A deck that is not played by its zero date COUNTS AS 0, exactly like a missing worksheet or quiz, and that 0 also reaches Schoology. A student records a Blooket by playing that lesson's flashcards on the Desk (the timed deck; the best score counts, there is no cap). When the facts list undone Blookets ("Blooket make-up"), point the student at playing those decks. Only mention Blookets that appear in the facts — never invent a Blooket for a lesson that does not have it.
 - Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
 - Only if the student INSISTS they already did a worksheet/quiz that shows 0% should you suggest it was probably not recorded yet (work counts only once each answer is CHECKED/submitted while signed in — typing alone is not enough); then tell them to re-open it signed in and check/submit. Do NOT proactively tell a student to "re-submit" or "re-open" work the facts show as undone/0% — for undone work, tell them to DO it, not re-submit it.
 - Keep it brief: about 120-180 words. Plain language a high-schooler reads in 20 seconds. No markdown headers; short sentences or a tight bullet list.
@@ -1906,8 +1907,10 @@ function buildCoachFacts(ctx) {
   lines.push('Quarter: ' + (ctx.quarter || 'current') + '.');
   const g = num(ctx.grade);
   const c = num(ctx.ceiling);
+  // The engine's `ceiling` assumes EVERYTHING left in the quarter is perfect, including lessons not
+  // taught yet — it is not "if the missing work were done", so it is worded as the upper bound it is.
   lines.push('Current quarter grade: ' + (g == null ? 'not yet computed' : g + '%') +
-    (c != null ? ' (could reach about ' + c + '% if all due work is completed).' : '.'));
+    (c != null ? ' (the most it could still reach this quarter if everything left were perfect: about ' + c + '%).' : '.'));
   // PC track: distinguish "not open yet (~fall)" from "open but unattempted". Only
   // declare PCs unavailable when the client EXPLICITLY says so (pcDue === false) AND
   // there's no PC score — so an older client that doesn't send pcDue falls back to the
@@ -1941,10 +1944,23 @@ function buildCoachFacts(ctx) {
     if (num(b.track) != null) bl += ' (Blooket sub-track ' + num(b.track) + '%)';
     bl += '.';
     if (Array.isArray(b.todo) && b.todo.length) {
-      bl += ' NOT YET DONE — make each up to 80% with the Desk flashcards: Topic ' +
+      bl += ' NOT YET PLAYED — play each deck from the Desk flashcards (best score counts; a deck missing on its zero date is a 0): Topic ' +
         b.todo.slice(0, 6).join(', Topic ') + '.';
     }
     lines.push(bl);
+  }
+  // The Missing-work list exactly as the student's ledger shows it, with zero dates. This is the
+  // ground truth for "what counts as 0 right now" — it outranks the older 'un-attempted = 0' framing.
+  if (Array.isArray(ctx.missing) && ctx.missing.length) {
+    lines.push('MISSING WORK (same list as the student\'s ledger; oldest first):');
+    ctx.missing.slice(0, 12).forEach((m) => {
+      if (!m || m.lesson == null) return;
+      const what = m.kind === 'blooket' ? 'flashcards (Blooket)' : m.kind === 'quiz' ? 'quiz' : 'worksheet';
+      const day = m.day || m.zeroDate || '';
+      lines.push('- Topic ' + m.lesson + ' ' + what + ': ' + (m.past
+        ? 'COUNTS AS 0 NOW (since ' + day + ') — any score replaces it.'
+        : 'NOT YET A 0 — becomes one after ' + day + ' unless turned in.'));
+    });
   }
   // Flashcard completion/unlock gate: lessons whose worksheet is done but flashcards
   // (Blooket >=80) are still owed — the real thing blocking lesson completion + the
@@ -1953,13 +1969,13 @@ function buildCoachFacts(ctx) {
   if (Array.isArray(ctx.flashcardGate) && ctx.flashcardGate.length) {
     const fgTopics = ctx.flashcardGate.slice(0, 3)
       .map((g) => 'Topic ' + g.lesson).join(', ');
-    lines.push('NEXT-STEP GATE: these lessons have the worksheet done but still need flashcards to COMPLETE and unlock the next lesson: ' + fgTopics +
-      '. Tell the student to pass each lesson’s flashcards to 80% on the Desk (this completes/unlocks the lesson).');
+    lines.push('NEXT-STEP GATE: these lessons have the worksheet done but still need flashcards to show as COMPLETE: ' + fgTopics +
+      '. Tell the student to pass each lesson’s flashcards to 80% on the Desk (this marks the lesson complete; nothing is locked).');
   }
   if (typeof ctx.lessonsGraded === 'number' && typeof ctx.lessonsTotal === 'number') {
     lines.push('Lessons graded so far: ' + ctx.lessonsGraded + ' of ' +
       (typeof ctx.lessonsDue === 'number' ? ctx.lessonsDue + ' due (' + ctx.lessonsTotal + ' total this quarter)' : ctx.lessonsTotal + ' this quarter') +
-      '. Un-attempted due lessons count as 0.');
+      '. A lesson counts as 0 only once its zero date has passed (see MISSING WORK).');
   }
   // The single biggest grade opportunity — the lowest-scoring component. The AI
   // should LEAD with this, not the earliest-unfinished lesson.
