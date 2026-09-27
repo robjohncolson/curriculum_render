@@ -160,18 +160,21 @@ describe('Coach facts: prioritize the lowest-scoring component (biggest win)', (
     expect(serverCode).toMatch(/!ctx\.biggestWin && ctx\.nextTask/);
   });
 
-  it('the prompt tells the AI to lead with the lowest-scoring component, not earliest-unfinished', () => {
-    expect(systemPrompt).toMatch(/LOWEST-scoring component/);
-    expect(systemPrompt).toMatch(/NOT the earliest-unfinished/);
+  it('the prompt orders advice: 0s counting now, then soon-to-be 0s, then the lowest RECORDED score (never the earliest-unfinished)', () => {
+    expect(systemPrompt).toMatch(/ORDER OF ADVICE/);
+    expect(systemPrompt).toMatch(/COUNTS AS 0 NOW/);
+    expect(systemPrompt).toMatch(/lowest-scoring RECORDED item/);
+    expect(serverCode).toMatch(/FIRST PRIORITY \(lead with this\)/);
   });
 });
 
 describe('Coach: Blooket make-up awareness', () => {
-  it('the prompt explains the Blooket flashcard make-up (80%)', () => {
+  it('the prompt explains the Blooket rule: a deck missing on its zero date is a 0; play the deck, best score counts, no cap', () => {
     expect(systemPrompt).toMatch(/Blooket/);
     expect(systemPrompt).toMatch(/flashcards/);
-    expect(systemPrompt).toMatch(/80%/);
-    expect(systemPrompt).toMatch(/make it up|make-up/i);
+    expect(systemPrompt).toMatch(/not played by its zero date COUNTS AS 0/);
+    expect(systemPrompt).toMatch(/best score counts/);
+    expect(systemPrompt).not.toMatch(/make each up to 80%/);
   });
 
   it('the prompt forbids inventing a Blooket for a lesson that has none', () => {
@@ -183,10 +186,11 @@ describe('Coach: Blooket make-up awareness', () => {
     expect(serverCode).toMatch(/ctx\.workTracks/);
   });
 
-  it('buildCoachFacts lists undone Blookets as make-up opportunities', () => {
+  it('buildCoachFacts lists unplayed decks (no 80% cap; a deck missing on its zero date is a 0)', () => {
     expect(serverCode).toMatch(/ctx\.blooket/);
-    expect(serverCode).toMatch(/make each up to 80%/);
+    expect(serverCode).toMatch(/NOT YET PLAYED/);
     expect(serverCode).toMatch(/b\.todo/);
+    expect(serverCode).not.toMatch(/make each up to 80%/);
   });
 
   it('a weak-lesson line includes Blooket only when the lesson has one', () => {
@@ -208,15 +212,16 @@ describe('Coach: PC track not-open-yet (no PC pushing before the fall)', () => {
 });
 
 describe('Coach: flashcard completion/unlock gate', () => {
-  it('prompt names flashcards as the completion + unlock gate', () => {
-    expect(systemPrompt).toMatch(/COMPLETION and next-lesson UNLOCK gate/);
+  it('prompt names flashcards as what marks a lesson COMPLETE, and says nothing is locked', () => {
+    expect(systemPrompt).toMatch(/mark a lesson COMPLETE/);
+    expect(systemPrompt).toMatch(/NOTHING IS LOCKED/);
     expect(systemPrompt).toMatch(/NEXT-STEP GATE/);
+    expect(systemPrompt).not.toMatch(/will not unlock/i);
   });
-  it('prompt frames flashcards as completing/unlocking, not a grade jump', () => {
-    expect(systemPrompt).toMatch(/NOT as a big grade jump/);
-  });
-  it('prompt frames Blooket as mean-of-recorded (a missing one is NOT counted as 0)', () => {
-    expect(systemPrompt).toMatch(/NOT counted as 0/);
+  it('prompt: work counts as 0 only once its zero date passes; a NOT-YET item is never called a 0', () => {
+    expect(systemPrompt).toMatch(/ZERO DATES/);
+    expect(systemPrompt).toMatch(/Never call a NOT-YET item a 0/);
+    expect(systemPrompt).not.toMatch(/is NOT counted as 0, so it never tanks the grade/);
   });
   it('prompt: a strong single-track grade is affirmed, not given a manufactured bottleneck', () => {
     expect(systemPrompt).toMatch(/do NOT manufacture a bottleneck/);
