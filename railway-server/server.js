@@ -1894,7 +1894,7 @@ You will be given the student's REAL grade breakdown as FACTS. Follow these rule
 - Flashcards (Blooket) mark a lesson COMPLETE: a lesson shows complete once its worksheet is >=60% AND its flashcards are passed to >=80% on the Desk. NOTHING IS LOCKED — every lesson is open at all times; never say a lesson "will not unlock". When the facts list a NEXT-STEP GATE, tell the student to pass those flashcards to mark the lesson complete.
 - If the facts show the grade is already strong and NO component is below target (no BIGGEST WIN is listed), do NOT manufacture a bottleneck — affirm the student is doing well, then point them at the NEXT-STEP GATE (pass the flashcards to complete + unlock the lesson) or the earliest unfinished work as the next thing to do, framed as making progress, not fixing a deficit.
 - Blooket is part of the Work track (a 10% slice). A deck that is not played by its zero date COUNTS AS 0, exactly like a missing worksheet or quiz, and that 0 also reaches Schoology. A student records a Blooket by playing that lesson's flashcards on the Desk (the timed deck; the best score counts, there is no cap). When the facts list undone Blookets ("Blooket make-up"), point the student at playing those decks. Only mention Blookets that appear in the facts — never invent a Blooket for a lesson that does not have it.
-- Reference specific topics by number when given (e.g. "the Topic 1.2 quiz"). Be concrete, never generic ("study more" is banned — point at a real assignment).
+- Reference specific topics by number. Write "Topic 1.3" the FIRST time a topic appears (the app expands that into the lesson's full title); after that write just "the 1.3 quiz" / "the 1.3 worksheet" so the full title is not repeated three times. Be concrete, never generic ("study more" is banned — point at a real assignment).
 - A RECORDED but low worksheet (any score above 0) is fixed by REVISING it: worksheets stay open, Check keeps the latest answer, and AI grading only ever raises a score — so say "go back into the Topic 1.1 worksheet and fix the answers marked wrong", never "re-open it and make sure every answer is checked/submitted" (that wording is only for the unrecorded case below). A low quiz is fixed by retaking it; a low Blooket by playing the deck again (best score counts).
 - Only if the student INSISTS they already did a worksheet/quiz that shows 0% should you suggest it was probably not recorded yet (work counts only once each answer is CHECKED/submitted while signed in — typing alone is not enough); then tell them to re-open it signed in and check/submit. Do NOT proactively tell a student to "re-submit" or "re-open" work the facts show as undone/0% — for undone work, tell them to DO it, not re-submit it.
 - Say "becomes a 0 after <date>" for a NOT-YET item — never "due after" or "due by" (the class day already passed; the date is when the 0 lands).
@@ -1981,10 +1981,27 @@ function buildCoachFacts(ctx) {
   }
   // The single biggest grade opportunity — the lowest-scoring component. The AI
   // should LEAD with this, not the earliest-unfinished lesson.
+  // Missing work outranks a low recorded score. FIRST PRIORITY is computed here so the model
+  // does not have to weigh it: everything counting as 0 now, else the soonest-date group.
+  const missing = Array.isArray(ctx.missing) ? ctx.missing.filter((m) => m && m.lesson != null) : [];
+  const nameOf = (m) => 'Topic ' + m.lesson + ' ' + (m.kind === 'blooket' ? 'flashcards' : m.kind === 'quiz' ? 'quiz' : 'worksheet');
+  const nowZero = missing.filter((m) => m.past);
+  let hasFirst = false;
+  if (nowZero.length) {
+    lines.push('FIRST PRIORITY (lead with this): ' + nowZero.slice(0, 4).map(nameOf).join(', ') + (nowZero.length > 4 ? ' and ' + (nowZero.length - 4) + ' more' : '') +
+      ' — counting as 0 right now; any score replaces a 0.');
+    hasFirst = true;
+  } else if (missing.length) {
+    const soonest = missing.map((m) => m.zeroDate).sort()[0];
+    const soon = missing.filter((m) => m.zeroDate === soonest);
+    lines.push('FIRST PRIORITY (lead with this): ' + soon.slice(0, 4).map(nameOf).join(', ') + (soon.length > 4 ? ' and ' + (soon.length - 4) + ' more' : '') +
+      ' — become a 0 after ' + (soon[0].day || soonest) + ' unless turned in.');
+    hasFirst = true;
+  }
   if (ctx.biggestWin && ctx.biggestWin.lesson != null && typeof num(ctx.biggestWin.score) === 'number') {
-    lines.push('BIGGEST WIN (lead with this): the Topic ' + ctx.biggestWin.lesson + ' ' +
+    lines.push((hasFirst ? 'AFTER THAT — lowest recorded score: ' : 'BIGGEST WIN (lead with this): ') + 'the Topic ' + ctx.biggestWin.lesson + ' ' +
       (ctx.biggestWin.label || 'work') + ' is at ' + Math.round(ctx.biggestWin.score) +
-      '% — it is the lowest-scoring item, so fixing it raises the grade the most.');
+      '% — it is the lowest-scoring recorded item' + (hasFirst ? '; fix it once the missing work is in.' : ', so fixing it raises the grade the most.'));
   }
   // Only mention the earliest-incomplete task when there is no low-scoring
   // component to fix first (otherwise it competes with the biggest win).
