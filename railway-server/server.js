@@ -244,6 +244,29 @@ app.get('/api/receipts/issuer', (req, res) => {
   res.json(getReceiptIssuer());
 });
 
+// Every quiz answer in the shared `answers` table, newest first.
+// Worksheet fill-in answers (question ids `WS-...`) live in the same table and
+// outnumber quiz answers ~7:1; they have their own per-question stats route and
+// are never peer data, so they are excluded here. PostgREST caps an un-ranged
+// select at 1000 rows, which silently dropped every older unit's quiz peers
+// once the worksheet rows filled the window (2026-09-28). Page explicitly.
+const PEER_PAGE_SIZE = 1000;
+async function fetchAllQuizAnswers(client = supabase) {
+  const rows = [];
+  for (let from = 0; ; from += PEER_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('answers')
+      .select('*')
+      .not('question_id', 'like', 'WS-%')
+      .order('timestamp', { ascending: false })
+      .range(from, from + PEER_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PEER_PAGE_SIZE) return rows;
+  }
+}
+
 // Get all peer data with optional delta
 app.get('/api/peer-data', async (req, res) => {
   try {
@@ -264,13 +287,8 @@ app.get('/api/peer-data', async (req, res) => {
       });
     }
 
-    // Fetch from Supabase
-    const { data, error } = await supabase
-      .from('answers')
-      .select('*')
-      .order('timestamp', { ascending: false });
-
-    if (error) throw error;
+    // Fetch from Supabase (all quiz answers, paged; worksheet rows excluded)
+    const data = await fetchAllQuizAnswers();
 
     // Normalize timestamps
     const normalizedData = data.map(answer => ({
