@@ -4490,8 +4490,12 @@ window.submitManualMerge = submitManualMerge;
             return String(reason);
         }
 
-        // Student Performance Badges
+        // Student Performance Badges — RETIRED 2026-09-29 (teacher): the personality labels
+        // ("Silent Type", "Conformist", "Outlier", ...) read as judgements next to a classmate's
+        // name. Always empty now; the computation below is kept only for reference.
         function calculateBadges(username) {
+            return [];
+            // eslint-disable-next-line no-unreachable
             const userAnswers = classData.users[username]?.answers || {};
             const userReasons = classData.users[username]?.reasons || {};
             const userAttempts = classData.users[username]?.attempts || {};
