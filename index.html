@@ -103,7 +103,8 @@
 </head>
 <body>
     <!-- PWA install affordance (OFFLINE_MODE_SPEC §4.G). Hidden when already installed. -->
-    <button id="pwa-install-fab" type="button" aria-label="Install app" style="position:fixed;left:10px;bottom:10px;z-index:9999;font-family:Geneva,Verdana,sans-serif;font-size:12px;padding:6px 10px;border:2px solid #1d2b53;background:#ffe24a;box-shadow:2px 2px 0 #1d2b53;cursor:pointer">&#128241; Install app</button>
+    <!-- The 'Install app' button was retired 2026-09-29 (teacher: distracting, unnecessary).
+         The install wiring below no-ops without it; browsers still offer install via the address bar. -->
     <!-- Phase 2: Offline Banner -->
     <div id="offline-banner" class="offline-banner hidden" role="alert">
         <span>📡 Working offline - your answers are saved locally and will sync when connected</span>
@@ -1706,6 +1707,29 @@
 
         // Pull peer data from Supabase - OPTIMIZED for 40+ users
         async function pullPeerDataFromSupabase() {
+            // 2026-09-29 (seen live in the teacher's browser): supabase-js is loaded async with a
+            // timeout while this script runs at once, so `window.supabase.createClient` throws and
+            // supabaseClient is null for the life of the page -> this function returned null and NO
+            // peer pull ever happened ("You're the first to answer" everywhere). The Railway server
+            // already serves the same rows (paged, worksheet rows excluded) with no library needed,
+            // so delegate to it whenever it is available; the direct query below is the fallback.
+            if (window.USE_RAILWAY && typeof window.pullPeerDataFromRailway === 'function') {
+                const currentUser = window.currentUsername || safeGetItem('consensusUsername');
+                const pulled = await window.pullPeerDataFromRailway(lastPeerDataTimestamp || 0);
+                if (!pulled) return null;
+                const peerData = {};
+                let newest = lastPeerDataTimestamp || 0;
+                for (const [username, userData] of Object.entries(pulled)) {
+                    if (username === currentUser) continue;
+                    peerData[username] = userData;
+                    for (const a of Object.values(userData.answers || {})) {
+                        const ts = parseInt(a.timestamp);
+                        if (ts > newest) newest = ts;
+                    }
+                }
+                if (newest > (lastPeerDataTimestamp || 0)) lastPeerDataTimestamp = newest;
+                return Object.keys(peerData).length ? peerData : null;
+            }
             if (!turboModeActive || !supabaseClient) return null;
 
             try {

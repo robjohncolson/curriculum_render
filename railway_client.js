@@ -462,6 +462,10 @@
       // Override with Railway-enhanced versions
       window.pushAnswerToSupabase = submitAnswerViaRailway;
       window.pullPeerDataFromSupabase = () => pullPeerDataFromRailway();
+      // The page's own top-level `async function pullPeerDataFromSupabase` is declared AFTER this
+      // script and its hoisted declaration replaces the override above. Expose the Railway pull
+      // under its own name so the page can delegate to it explicitly (2026-09-29).
+      window.pullPeerDataFromRailway = pullPeerDataFromRailway;
 
       // Add new Railway-specific functions
       window.getQuestionStats = getQuestionStats;

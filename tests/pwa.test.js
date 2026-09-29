@@ -125,12 +125,12 @@ describe('cr pwa-register.js', () => {
 });
 
 describe('cr index.html wiring + build lockstep', () => {
-  it('links manifest/icon/theme + loads pwa-register.js + has the install button', () => {
+  it('links manifest/icon/theme + loads pwa-register.js; the install button is RETIRED (teacher 2026-09-29)', () => {
     expect(INDEX).toContain('rel="manifest" href="manifest.webmanifest"');
     expect(INDEX).toContain('name="theme-color"');
     expect(INDEX).toContain('src="pwa-register.js"');
-    expect(INDEX).toContain('id="pwa-install-fab"');
-    expect(INDEX).toContain('PWAInstall.install()');
+    expect(INDEX).not.toContain('id="pwa-install-fab"');   // distracting + unnecessary; address-bar install still works
+    expect(INDEX).toContain('PWAInstall.install()');         // wiring kept, no-ops without the button
   });
   it('sw BUILD === version.json build === version-check APP_BUILD', () => {
     const swB = (SW.match(/const BUILD = '([^']+)'/) || [])[1];

@@ -92,6 +92,31 @@ describe('quiz page peer pull (the one that really runs)', () => {
     expect(result).toBeNull();
   });
 
+  it('delegates to the Railway pull when USE_RAILWAY is on (no Supabase library needed), dropping own rows and advancing the cursor', async () => {
+    const calls = [];
+    const sandbox = {
+      turboModeActive: false, supabaseClient: null, lastPeerDataTimestamp: 100,
+      window: {
+        currentUsername: 'Me', USE_RAILWAY: true,
+        pullPeerDataFromRailway: async (since) => { calls.push(since); return {
+          Me: { answers: { 'U1-L7-Q1': { value: 'A', timestamp: 900 } } },
+          peer: { answers: { 'U1-L7-Q1': { value: 'B', timestamp: 500 }, 'U1-L7-Q2': { value: 'C', timestamp: 700 } } },
+        }; },
+      },
+      safeGetItem: () => 'Me', console: { log() {} },
+    };
+    vm.createContext(sandbox);
+    const result = await vm.runInContext('(' + fnSrc('pullPeerDataFromSupabase') + ')()', sandbox);
+    expect(calls).toEqual([100]);                                   // incremental cursor passed through
+    expect(Object.keys(result)).toEqual(['peer']);                  // own rows dropped
+    expect(sandbox.lastPeerDataTimestamp).toBe(700);                // cursor advanced from peers only
+  });
+
+  it('source pin: railway_client.js exposes window.pullPeerDataFromRailway for that delegation', () => {
+    const rc = readFileSync(resolve(ROOT, 'railway_client.js'), 'utf8');
+    expect(rc).toContain('window.pullPeerDataFromRailway = pullPeerDataFromRailway;');
+  });
+
   it('source pin: railway_client.js loads BEFORE the page declares pullPeerDataFromSupabase (so the page version wins)', () => {
     const inc = html.indexOf('railway_client.js');
     const decl = html.indexOf('async function pullPeerDataFromSupabase');
