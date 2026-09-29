@@ -97,7 +97,9 @@ const wsLocation = new Map(); // ws -> { surface, lesson } : where this connecti
 const gameRooms = new Map(); // roomId -> { p1: ws, p2: ws, p1Name: string, p2Name: string, state: 'playing'|'done' }
 const challenges = new Map(); // targetUsername -> { from: username, fromWs: ws, timestamp }
 const wsToRoom = new Map(); // ws -> roomId
-const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '45000', 10);
+// 90s (was 45s): the Desk heartbeats every 20s but Chrome throttles background-tab timers to >=60s,
+// so at 45s students flapped out of the online list every other resync (STUDY_BREAK_CHALLENGE_ALERT_SPEC §4).
+const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '90000', 10);
 
 // ── Guest-login log ──────────────────────────────────────────────────────────
 // Presence is in-memory only, so a guest who logs on but never submits an answer
