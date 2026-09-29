@@ -8057,6 +8057,15 @@ function renderLessonSelector(unitInfo) {
             unlock(`${String(body.error || `Server error ${reply.status}`)}. Your message was not used.`);
         };
 
+        // QUIZ appeal rule (teacher 2026-09-29): a multiple-choice appeal is only about the AI's
+        // FEEDBACK on a correct answer (the grade is already full credit). A wrong answer uses the
+        // one explained retry, then "Talk it through". The server enforces the same rule.
+        function _appealAllowedFor(questionId, questionType) {
+            if (questionType !== 'multiple-choice') return true;
+            try { return _quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId)); } catch (_) { return false; }
+        }
+        var MCQ_CORRECT_FEEDBACK_NOTE = 'Your answer is correct: full credit. This feedback is about your explanation only and does not change your grade.';
+
         // Populate peer reasoning section with peer response cards
         function populatePeerReasoning(questionId, contributors) {
             const peerReasoningContent = document.getElementById(`peer-reasoning-content-${questionId}`);
@@ -9988,8 +9997,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             }
 
-            // Update feedback text
-            updateText(feedbackText, result.feedback || 'Review the official solution for detailed grading criteria.');
+            // Update feedback text (a correct multiple-choice answer says plainly that the grade is full)
+            const _mcqCorrectNote = (result.questionType === 'multiple-choice' && _appealAllowedFor(questionId, 'multiple-choice'))
+                ? MCQ_CORRECT_FEEDBACK_NOTE + ' ' : '';
+            updateText(feedbackText, _mcqCorrectNote + (result.feedback || 'Review the official solution for detailed grading criteria.'));
 
             // Phase 3B: Update matched list using keyed diffing
             if (result.matched?.length > 0 && matchedUl) {
@@ -10007,8 +10018,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 missingDiv.style.display = 'none';
             }
 
-            // Show appeal button for non-E scores (P or I)
-            if (result.score !== 'E') {
+            // Show appeal button for non-E scores (P or I), per the quiz appeal rule
+            if (result.score !== 'E' && _appealAllowedFor(questionId, result.questionType)) {
                 const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                 if (appealBtn) {
                     appealBtn.style.display = 'inline-block';
@@ -11070,9 +11081,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Display result
                 displayGradingFeedback(questionId, gradingResult);
 
-                // Show appeal button if not perfect score (free-response only: a multiple-choice
-                // item is reviewed through "Talk it through", and the server refuses MCQ appeals)
-                if (gradingResult.score !== 'E' && questionType !== 'multiple-choice') {
+                // Show appeal button if not perfect score (multiple choice: correct answers only,
+                // a feedback appeal; a wrong answer uses the retry, then "Talk it through")
+                if (gradingResult.score !== 'E' && _appealAllowedFor(questionId, questionType)) {
                     const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                     if (appealBtn) appealBtn.style.display = 'inline-block';
                 }
@@ -11165,9 +11176,11 @@ You must evaluate BOTH the selected answer AND the reasoning independently. A co
 
 ${isCorrect ? `
 ### The student selected the CORRECT answer. However:
-- E (Essentially correct): Reasoning demonstrates genuine understanding of the statistical concept and correctly explains WHY the answer is right
-- P (Partially correct): Answer is correct but reasoning is incomplete, vague, or shows partial understanding
+- E (Essentially correct): Reasoning correctly explains the METHOD or CONCEPT that produces the answer (for example, what a formula or statistic means and why it applies here)
+- P (Partially correct): Answer is correct but reasoning is vague, only partly right, or does not connect to this question
 - I (Incorrect): Answer is correct BUT reasoning is nonsensical, irrelevant, contradicts the answer, or suggests the student guessed without understanding
+
+Do NOT require the arithmetic to be shown, even when the question asks for a computed value: the correct choice already shows the computation was done. A correct explanation of what is being computed and why earns E. Lower the score only for statements that are wrong, or reasoning that does not connect to this question.
 
 IMPORTANT: If the reasoning does not match the statistical concepts needed to answer this question, or if it's gibberish/irrelevant, score as P or I even though the answer is correct. A lucky guess is NOT the same as understanding.
 ` : `
@@ -11245,6 +11258,17 @@ Respond with JSON:
 
             // Now call the actual AI review
             await requestAIReview(questionId, questionType);
+
+            // Teacher 2026-09-29: the explanation written here is shared with classmates too
+            // (they see it only once their own item is settled, and only if it is non-empty).
+            // Only for an answered question: an explanation is never shared without an answer.
+            try {
+                const answered = _currentAnswerValue(questionId);
+                if (answered !== null && answered !== undefined && String(answered).trim() !== ''
+                        && typeof window.shareReasoningWithPeers === 'function') {
+                    await window.shareReasoningWithPeers(questionId);
+                }
+            } catch (_) { /* sharing never blocks the review */ }
         };
 
         // Show appeal form
@@ -11265,7 +11289,9 @@ Respond with JSON:
 
         // Submit appeal
         window.submitAppeal = async function(questionId, questionType) {
-            if (questionType === 'multiple-choice') {
+            // Multiple choice: a CORRECT answer may appeal the AI's feedback (the grade is already
+            // full credit); a wrong answer uses the retry, then "Talk it through" (teacher 2026-09-29).
+            if (questionType === 'multiple-choice' && !_appealAllowedFor(questionId, questionType)) {
                 const fbMcq = document.getElementById(`grading-feedback-${questionId}`);
                 if (fbMcq) fbMcq.innerHTML = '<div class="grading-feedback"><span class="grading-text">Multiple-choice questions are not appealed. If your final answer was wrong, use "Talk it through".</span></div>';
                 return;

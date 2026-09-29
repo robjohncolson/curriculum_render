@@ -706,3 +706,91 @@ describe('Talk it through: round 3 (hydrated finals deliver credit exactly once;
     expect(w.document.getElementById(`grading-feedback-${QID}`).textContent).toContain('Talk it through');
   });
 });
+
+describe('multiple-choice feedback appeal (teacher 2026-09-29)', () => {
+  function showVerdict(w, score) {
+    w.eval(`displayGradingFeedback('${QID}', { score: '${score}', feedback: 'Show the computation next time.', questionType: 'multiple-choice', matched: [], missing: [] });`);
+  }
+
+  it('a CORRECT answer with a P verdict: appeal offered, and the note says the grade is already full', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(50);
+    showVerdict(w, 'P');
+    const btn = w.document.getElementById(`btn-appeal-${QID}`);
+    expect(btn && btn.style.display).toBe('inline-block');
+    expect(w.document.getElementById(`grading-feedback-${QID}`).textContent)
+      .toContain('Your answer is correct: full credit. This feedback is about your explanation only');
+  });
+
+  it('a WRONG answer never offers the appeal (retry, then Talk it through) and shows no full-credit note', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'A', attempts: 1 });
+    render(w);
+    await tick(50);
+    showVerdict(w, 'P');
+    const btn = w.document.getElementById(`btn-appeal-${QID}`);
+    expect(!btn || btn.style.display !== 'inline-block').toBe(true);
+    expect(w.document.getElementById(`grading-feedback-${QID}`).textContent).not.toContain('full credit');
+  });
+
+  it('the explanation written for the AI review is shared with classmates', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(50);
+    let shared = null;
+    w.eval(`window.requestAIReview = async () => {};`);
+    w.shareReasoningWithPeers = async (qid) => { shared = qid; };
+    w.document.getElementById(`reasoning-text-${QID}`).value = 'the sum of all squared deviations of the scores from the mean';
+    await w.eval(`submitForAIReview('${QID}', 'multiple-choice')`);
+    expect(shared).toBe(QID);
+    expect(w.eval(`classData.users.Me.reasons['${QID}']`)).toBe('the sum of all squared deviations of the scores from the mean');
+  });
+
+  it('a CORRECT answer can actually send the appeal (no mode: the server checks the ledger)', async () => {
+    const server = createServer();
+    const w = boot({ server });
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(300);
+    w.document.getElementById(`appeal-text-${QID}`).value = 'My explanation of the squared deviations was within scope';
+    await w.eval(`submitAppeal('${QID}', 'multiple-choice')`);
+    await tick(60);
+    const appeal = server.calls.find(c => c.mode === undefined);
+    expect(appeal).toBeTruthy();
+    expect(appeal.scenario.questionId).toBe(QID);
+  });
+
+  it('a WRONG answer is stopped on the page before any appeal request', async () => {
+    const server = createServer();
+    const w = boot({ server });
+    seedMine(w, { answer: 'A', attempts: 1 });
+    render(w);
+    await tick(300);
+    w.document.getElementById(`appeal-text-${QID}`).value = 'please reconsider my answer';
+    await w.eval(`submitAppeal('${QID}', 'multiple-choice')`);
+    await tick(60);
+    expect(server.calls.find(c => c.mode === undefined)).toBeUndefined();
+  });
+
+  it('no explanation is shared for a question that has no answer', async () => {
+    const w = boot();
+    render(w);
+    await tick(50);
+    let shared = null;
+    w.eval(`window.requestAIReview = async () => {};`);
+    w.shareReasoningWithPeers = async (qid) => { shared = qid; };
+    w.document.getElementById(`reasoning-text-${QID}`).value = 'some explanation text here';
+    await w.eval(`submitForAIReview('${QID}', 'multiple-choice')`);
+    expect(shared).toBeNull();
+  });
+
+  it('the reasoning rubric accepts a correct conceptual explanation without the arithmetic', () => {
+    const w = boot();
+    const prompt = w.eval(`buildMCQGradingPrompt(currentQuestions[0], 'B', 'x')`);
+    expect(prompt).toMatch(/Do NOT require the arithmetic to be shown/);
+    expect(prompt).toMatch(/correctly explains the METHOD or CONCEPT/);
+  });
+});

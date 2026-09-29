@@ -1623,7 +1623,7 @@ app.post('/api/ai/appeal', async (req, res) => {
     // The legacy appeal below is for free-response / worksheet items ONLY: a canonical
     // multiple-choice item must use the understanding lifecycle, and the lifecycle's reserved
     // markers / '#talk' ids can never be written through this path.
-    const legacyRefusal = await legacyAppealRefusal(scenario, appealText);
+    const legacyRefusal = await legacyAppealRefusal(scenario, appealText, req);
     if (legacyRefusal) {
       return res.status(legacyRefusal.status).json(legacyRefusal.body);
     }
@@ -1736,7 +1736,7 @@ ${scenario.choices ? `Answer Choices:\n${scenario.choices.map(c => `  ${c.key}: 
 
 ## Student's Answer
 ${studentAnswers} ${answerStatus}
-${isMCQ && !isCorrect ? '\n⚠️ NOTE: Student selected the WRONG answer. Maximum possible score is P.' : ''}
+${isMCQ && !isCorrect ? '\n⚠️ NOTE: Student selected the WRONG answer. Maximum possible score is P.' : ''}${isMCQ && isCorrect ? '\nNOTE: The student selected the CORRECT answer (the grade is already full credit). Judge only the explanation: a correct explanation of the METHOD or CONCEPT that produces the answer earns E. Do NOT require the arithmetic to be shown, even when the question asks for a computed value; lower the score only for statements that are wrong or reasoning that does not connect to this question.' : ''}
 
 ## Previous Grading
 ${previousFeedback}
@@ -1926,7 +1926,7 @@ function understandingChoiceKey(question, value) {
 
 // ── Legacy appeal guard: free-response / worksheet items only; reserved names refused ──
 // Returns { status, body } to refuse, or null to let the legacy appeal run unchanged.
-async function legacyAppealRefusal(scenario, appealText) {
+async function legacyAppealRefusal(scenario, appealText, req) {
   const questionId = String((scenario && scenario.questionId) || '');
   if (/#talk/i.test(questionId)) {
     return { status: 400, body: { error: 'reserved question id' } };
@@ -1946,7 +1946,26 @@ async function legacyAppealRefusal(scenario, appealText) {
   }
   const question = bank.get(questionId);
   if (question && question.type === 'multiple-choice') {
-    return { status: 400, body: { error: 'use mode understanding' } };
+    // A CORRECT answer may appeal the AI's feedback on the explanation: the grade is already
+    // full credit (key result 1; the engine takes the max), so the appeal can never buy points.
+    // A wrong answer goes through the retry and then "Talk it through". Decided from the
+    // student's own ledger (the answer that counts) against the canonical key; fail closed.
+    const sid = req ? sidFromRequest(req) : null;
+    if (!sid) return { status: 401, body: { error: 'Sign in to appeal' } };
+    let counting;
+    try {
+      counting = await readCountingQuizAnswer(sid, understandingBearer(req), questionId);
+    } catch (error) {
+      return { status: error.statusCode || 503, body: { error: error.message || 'Could not check your quiz answer right now.' } };
+    }
+    if (counting == null) return { status: 400, body: { error: 'Answer the question first.' } };
+    const canonical = understandingCanonicalQuestion(question);
+    const chosen = canonical ? understandingChoiceKey(canonical, counting) : null;
+    const correct = chosen != null && chosen.toUpperCase() === canonical.key.toUpperCase();
+    if (!correct) {
+      return { status: 400, body: { error: 'Your answer was not correct: use your one retry, then Talk it through.' } };
+    }
+    return null;
   }
   // A quiz-shaped id that is not in the bank is not a real quiz item: refuse it rather than
   // grade an invented question. Worksheet (WS-…) and other non-quiz ids keep the legacy path.
@@ -1978,6 +1997,30 @@ function understandingResponseValue(response) {
 // Throws (-> 503) when the ledger cannot be read: never grade blind.
 async function readSettledQuizRetry(sid, token, questionId) {
   if (!token) throw understandingError(401, 'Sign in to talk it through');
+  const rows = await readQuizLedgerRows(sid, token, questionId);
+  const retry = rows.find(row => row
+    && row.item_id === questionId
+    && row.source === 'curriculum_quiz'
+    && Number(row.attempt ?? 1) === 2);
+  return retry ? { answer: understandingResponseValue(retry.response) } : null;
+}
+
+// The answer that COUNTS for a quiz item: the accepted retry (attempt 2) if there is one,
+// otherwise the first answer. Returns the raw value, or null when the student has none.
+async function readCountingQuizAnswer(sid, token, questionId) {
+  const rows = await readQuizLedgerRows(sid, token, questionId);
+  const pick = (n) => rows.find(row => row
+    && row.item_id === questionId
+    && row.source === 'curriculum_quiz'
+    && Number(row.attempt ?? 1) === n);
+  const counting = pick(2) || pick(1);
+  return counting ? understandingResponseValue(counting.response) : null;
+}
+
+// The student's own ledger rows for one item (their bearer is forwarded). Throws 503 on any
+// failure so a caller can never decide eligibility blind.
+async function readQuizLedgerRows(sid, token, questionId) {
+  if (!token) throw understandingError(401, 'Sign in first');
   const url = `${ROSTER_SERVICE_URL}/ledger/student/${encodeURIComponent(sid)}?prefix=${encodeURIComponent(questionId)}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UNDERSTANDING_LEDGER_TIMEOUT_MS);
@@ -1993,11 +2036,7 @@ async function readSettledQuizRetry(sid, token, questionId) {
   }
   const rows = body && Array.isArray(body.rows) ? body.rows : null;
   if (!rows) throw understandingError(503, 'Could not check your quiz answer right now. Try again soon.');
-  const retry = rows.find(row => row
-    && row.item_id === questionId
-    && row.source === 'curriculum_quiz'
-    && Number(row.attempt ?? 1) === 2);
-  return retry ? { answer: understandingResponseValue(retry.response) } : null;
+  return rows;
 }
 
 // ── Signed lifecycle records ──

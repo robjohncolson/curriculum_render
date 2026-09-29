@@ -508,15 +508,43 @@ describe('legacy appeals: free-response / worksheet only (round 3, item 9)', () 
     ...extra
   });
 
-  it('a canonical MCQ without mode is refused: no ledger read, no AI, no grant, nothing stored', async () => {
-    const { handler, calls, store } = loadRoute({ appealResult: { score: 'E', feedback: 'x' } });
-    const res = await run(handler, legacyBody('U1-L1-Q01'));   // the request even CLAIMS free-response
+  it('a canonical MCQ answered WRONG cannot use the legacy appeal: retry, then Talk it through (no AI, no grant)', async () => {
+    for (const qid of ['U1-L1-Q01', 'U1-L1-Q02']) {        // settled wrong; wrong with the retry still open
+      const { handler, calls, store } = loadRoute({ appealResult: { score: 'E', feedback: 'x' } });
+      const res = await run(handler, legacyBody(qid));     // the request even CLAIMS free-response
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toMatch(/use your one retry, then Talk it through/);
+      expect(calls.prompts).toHaveLength(0);
+      expect(calls.grants).toHaveLength(0);
+      expect(store.rows).toHaveLength(0);
+    }
+  });
+
+  it('a canonical MCQ answered CORRECTLY may appeal the feedback (teacher 2026-09-29); the prompt judges the explanation only', async () => {
+    for (const qid of ['U1-L1-Q03', 'U1-L1-Q05']) {        // correct first answer; correct retry
+      const { handler, calls } = loadRoute({ appealResult: { score: 'E', feedback: 'fair point' } });
+      const res = await run(handler, legacyBody(qid, { scenario: { questionId: qid, questionType: 'multiple-choice', correctAnswer: 'B', prompt: 'Which?' }, answers: { answer: 'B' } }));
+      expect(res.statusCode).toBe(200);
+      expect(calls.ledgerFetches).toHaveLength(1);
+      expect(calls.ledgerFetches[0].auth).toBe('Bearer tok-1');
+      expect(calls.prompts).toHaveLength(1);
+      expect(calls.prompts[0]).toMatch(/Do NOT require the arithmetic to be shown/);
+    }
+  });
+
+  it('a canonical MCQ appeal fails closed: never answered -> 400; ledger down -> 503; not signed in -> 401', async () => {
+    let r = loadRoute();
+    let res = await run(r.handler, legacyBody('U1-L1-Q04'));
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: 'use mode understanding' });
-    expect(calls.prompts).toHaveLength(0);
-    expect(calls.grants).toHaveLength(0);
-    expect(calls.ledgerFetches).toHaveLength(0);
-    expect(store.rows).toHaveLength(0);
+    expect(res.body.error).toBe('Answer the question first.');
+    r = loadRoute({ ledgerMode: 'http500' });
+    res = await run(r.handler, legacyBody('U1-L1-Q03'));
+    expect(res.statusCode).toBe(503);
+    expect(r.calls.prompts).toHaveLength(0);
+    r = loadRoute();
+    res = await run(r.handler, legacyBody('U1-L1-Q03'), { sid: null, token: null });
+    expect(res.statusCode).toBe(401);
+    expect(r.calls.prompts).toHaveLength(0);
   });
 
   it('a canonical FREE-RESPONSE item keeps the legacy appeal exactly (P = 2/3, receipt, appeal row)', async () => {
