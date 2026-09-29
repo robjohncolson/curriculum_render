@@ -173,6 +173,20 @@ describe('safe, deduplicated rendering', () => {
     expect(feedbackContainer.innerHTML).toContain('&lt;img');
   });
 
+  it('shows a "Talk it through" final as the student words + AI feedback, escaped (not raw JSON)', () => {
+    const html = reviewUi().formatReview({
+      question_id: 'Q1', appeal_text: '{"mode":"understanding","phase":"final"}', verdict: 'P', credit: 0.5,
+      feedback: JSON.stringify({ verdict: 'understands', feedback: 'Good <b>work</b>', turns: [
+        { role: 'student', text: '<img src=x> B is right' }, { role: 'ai', text: 'Why?' }, { role: 'student', text: 'A moves' }
+      ] }),
+      created_at: '2026-09-29T00:00:00Z'
+    });
+    expect(html).toContain('&lt;img src=x&gt; B is right / A moves');
+    expect(html).toContain('Good &lt;b&gt;work&lt;/b&gt;');
+    expect(html).not.toContain('phase');
+    expect(html).not.toContain('<img');
+  });
+
   it('deduplicates retries and sorts reviews newest-first', () => {
     const ui = reviewUi();
     const indexed = ui.indexRows([

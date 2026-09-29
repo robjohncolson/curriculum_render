@@ -6539,6 +6539,7 @@ function renderLessonSelector(unitInfo) {
                 );
                 container.innerHTML = html;
                 container.style.display = html ? 'block' : 'none';
+                try { _renderTalkItThrough(question.id); } catch (_) {}
             });
         }
 
@@ -7224,6 +7225,9 @@ function renderLessonSelector(unitInfo) {
                                     </div>
                                 </div>
 
+                                <!-- Talk it through (QUIZ_AI_HALF_CREDIT_SPEC): settled-and-wrong MCQs only -->
+                                <div id="talk-${question.id}" class="talk-panel" style="display: none;"></div>
+
                                 <div id="ai-section-hint-${question.id}" class="ai-section-hint">
                                     Submit an answer to interact with AI
                                 </div>
@@ -7570,6 +7574,7 @@ function renderLessonSelector(unitInfo) {
                 return;
             }
             try { _applyQuizFormState(questionId); } catch (_) {}
+            try { _renderTalkItThrough(questionId); } catch (_) {}
             const answered = isQuestionAnswered(questionId);
             const settled = answered && quizSettledFor(questionId);
             const keySection = document.getElementById(`answer-key-${questionId}`);
@@ -7584,6 +7589,473 @@ function renderLessonSelector(unitInfo) {
             try { if (answered && typeof showDotplot === 'function') showDotplot(questionId, type); } catch (_) {}
             try { if (typeof populatePeerResponses === 'function') populatePeerResponses(questionId, type); } catch (_) {}
         }
+
+        // ── QUIZ_AI_HALF_CREDIT_SPEC (teacher 2026-09-29) ─────────────────────────────────────
+        // A multiple-choice item that is SETTLED and WRONG gets "Talk it through": two exchanges
+        // with the AI. If the student shows they understand why the key is right and theirs is
+        // not, the item earns 1/2 credit (a flawed question still earns full credit).
+        // The SERVER owns the conversation (eligibility, the stored exchange 1, one immutable
+        // final); this page mirrors it per (student, item) in localStorage so a reload shows the
+        // lock. A signed grant is kept as a PENDING credit until the roster ledger acknowledges
+        // it; the roster ledger keeps the higher review credit, so delivery is always safe.
+        var TALK_OPENING_TEXT = "You've used your retry. Talk it through with the AI: explain why the correct answer is right and why yours wasn't. If you show you understand, you get half credit.";
+        var TALK_MAX_EXCHANGES = 2;
+        var TALK_FALLBACK_FOLLOW_UP = 'Say a little more: what makes the correct answer right, and what is wrong with the answer you chose?';
+        var TALK_E1_MARKER = '{"mode":"understanding","phase":1}';
+        var TALK_FINAL_MARKER = '{"mode":"understanding","phase":"final"}';
+        var TALK_HIGHER_CREDIT_TEXT = 'You already have higher credit for this item. Your higher credit is kept.';
+        var TALK_PENDING_TEXT = 'Saving your credit… (it keeps trying until it is saved)';
+        var _talkStoreCache = {};
+        var _talkPendingCache = {};
+        var _talkSending = {};
+        var _talkDraining = {};
+        // Circuit breaker: at most this many credit-delivery attempts per item per page load.
+        // A pending credit that still fails is retried on the next load; a bug that makes the
+        // drain re-trigger itself can never become a request storm from students' browsers.
+        var _talkDrainAttempts = {};
+        var TALK_MAX_DRAIN_ATTEMPTS = 3;
+
+        function _talkLoad(prefix, cache, username) {
+            const user = username || currentUsername;
+            if (!user) return {};
+            if (cache[user]) return cache[user];
+            let store = {};
+            try {
+                const saved = JSON.parse(localStorage.getItem(`${prefix}${user}`) || 'null');
+                if (saved && typeof saved === 'object') store = saved;
+            } catch (_) { /* localStorage may be blocked */ }
+            cache[user] = store;
+            return store;
+        }
+        function _talkSave(prefix, cache, username) {
+            const user = username || currentUsername;
+            if (!user) return;
+            try {
+                localStorage.setItem(`${prefix}${user}`, JSON.stringify(_talkLoad(prefix, cache, user)));
+            } catch (_) { /* localStorage may be blocked */ }
+        }
+        function _talkStore(username) { return _talkLoad('quizTalkState_', _talkStoreCache, username); }
+        function _saveTalkStore(username) { _talkSave('quizTalkState_', _talkStoreCache, username); }
+        function _talkPending(username) { return _talkLoad('quizTalkPending_', _talkPendingCache, username); }
+        function _saveTalkPending(username) { _talkSave('quizTalkPending_', _talkPendingCache, username); }
+
+        function _talkParse(text) {
+            try {
+                const parsed = JSON.parse(String(text || ''));
+                return parsed && typeof parsed === 'object' ? parsed : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function _talkIsConversationRow(row) {
+            if (!row) return false;
+            if (row.appeal_text === TALK_FINAL_MARKER || row.appeal_text === TALK_E1_MARKER) return true;
+            const parsed = _talkParse(row.appeal_text);
+            return !!(parsed && parsed.mode === 'understanding');
+        }
+
+        // What the server has stored (hydrated from /api/quiz-reviews): the final and exchange 1.
+        function _talkServerRecords(questionId) {
+            const byQuestion = window.quizReviewsByQuestion || {};
+            let final = null;
+            (byQuestion[questionId] || []).forEach(row => {
+                if (!row || row.appeal_text !== TALK_FINAL_MARKER) return;
+                const record = _talkParse(row.feedback) || {};
+                final = {
+                    exchange: TALK_MAX_EXCHANGES,
+                    turns: Array.isArray(record.turns) ? record.turns : [],
+                    final: true,
+                    verdict: record.verdict === 'understands' ? 'understands' : 'not-yet',
+                    exceptionGranted: row.exception_granted === true,
+                    credit: Number(row.credit) || 0,
+                    feedback: String(record.feedback || '')
+                };
+            });
+            let exchange1 = null;
+            (byQuestion[`${questionId}#talk1`] || []).forEach(row => {
+                if (!row || row.appeal_text !== TALK_E1_MARKER) return;
+                exchange1 = _talkParse(row.feedback) || {};
+            });
+            const terminal = exchange1 && exchange1.terminal;
+            if (terminal && typeof terminal === 'object') {
+                final = {
+                    exchange: TALK_MAX_EXCHANGES,
+                    turns: [{ role: 'student', text: String(exchange1.studentTurn || '') }],
+                    final: true,
+                    verdict: terminal.verdict === 'understands' ? 'understands' : 'not-yet',
+                    exceptionGranted: terminal.exceptionGranted === true,
+                    credit: terminal.exceptionGranted === true ? 1 : (terminal.verdict === 'understands' ? 0.5 : 0),
+                    feedback: String(terminal.feedback || '')
+                };
+            }
+            return { final, exchange1 };
+        }
+
+        // Local final stays locked. A server FINAL beats unfinished local state (another device
+        // finished it) and is written back locally; a server exchange 1 resumes at exchange 2.
+        function _talkStateFor(questionId) {
+            const store = _talkStore();
+            const local = store[questionId];
+            if (local && typeof local === 'object' && local.final) return local;
+            const server = _talkServerRecords(questionId);
+            if (server.final) {
+                store[questionId] = { ...server.final, answer: local && local.answer };
+                _saveTalkStore();
+                _talkEnsurePending(questionId);
+                return store[questionId];
+            }
+            if (local && typeof local === 'object') return local;
+            if (server.exchange1) {
+                store[questionId] = {
+                    exchange: 1,
+                    final: false,
+                    turns: [
+                        { role: 'student', text: String(server.exchange1.studentTurn || '') },
+                        { role: 'ai', text: String(server.exchange1.aiFollowUp || TALK_FALLBACK_FOLLOW_UP) }
+                    ]
+                };
+                _saveTalkStore();
+                return store[questionId];
+            }
+            return { exchange: 0, turns: [], final: false };
+        }
+
+        function _talkEnsurePending(questionId, username) {
+            const user = username || currentUsername;
+            const state = _talkStore(user)[questionId];
+            if (!state || !state.final || !(Number(state.credit) > 0)) return;
+            if (state.delivered) return;   // creditNote 'higher' is display-only; delivery still happens
+            const pendingStore = _talkPending(user);
+            if (pendingStore[questionId]) return;
+            pendingStore[questionId] = { grant: null, credit: Number(state.credit), itemId: `${questionId}#rev`, answer: state.answer, savedAt: Date.now() };
+            _saveTalkPending(user);
+        }
+
+        // The highest credit the student already holds for the item from OTHER reviews (appeals).
+        function _talkKnownCredit(questionId) {
+            const rows = (window.quizReviewsByQuestion && window.quizReviewsByQuestion[questionId]) || [];
+            return rows.reduce((best, row) => {
+                if (!row || _talkIsConversationRow(row)) return best;
+                const credit = Number(row.credit);
+                return Number.isFinite(credit) && credit > best ? credit : best;
+            }, 0);
+        }
+
+        // The gate: multiple-choice, settled, and the answer that counts does not match the key.
+        function _talkEligible(questionId) {
+            if (_quizIsFrq(questionId)) return false;
+            if (!quizSettledFor(questionId)) return false;
+            return !_quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId));
+        }
+
+        function _talkVerdictText(state) {
+            if (state.exceptionGranted) return 'Full credit: the question was flawed';
+            if (state.verdict === 'understands') return '½ credit earned';
+            return 'Not yet — your grade stands';
+        }
+
+        function _talkBubble(role, text) {
+            const who = role === 'student' ? 'You' : 'AI';
+            const style = role === 'student'
+                ? 'margin:6px 0 6px 24px;padding:8px 10px;border-radius:6px;background:rgba(52,152,219,.12);white-space:pre-wrap;'
+                : 'margin:6px 24px 6px 0;padding:8px 10px;border-radius:6px;background:rgba(108,92,231,.10);white-space:pre-wrap;';
+            return `<div class="talk-turn talk-${role === 'student' ? 'student' : 'ai'}" style="${style}"><strong>${who}:</strong> ${_escHtml(text)}</div>`;
+        }
+
+        function _renderTalkItThrough(questionId, statusText) {
+            const panel = document.getElementById(`talk-${questionId}`);
+            if (!panel) return;
+            if (!_talkEligible(questionId)) {
+                panel.style.display = 'none';
+                panel.innerHTML = '';
+                return;
+            }
+            const hint = document.getElementById(`ai-section-hint-${questionId}`);
+            if (hint) hint.style.display = 'none';
+            // The old "Request AI Review" appeal is replaced for multiple-choice items.
+            const oldReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
+            if (oldReviewBtn) oldReviewBtn.style.display = 'none';
+
+            // A repaint (peer sync, review hydration) must not wipe a half-typed message.
+            const previousTextarea = document.getElementById(`talk-text-${questionId}`);
+            const draft = previousTextarea ? previousTextarea.value : '';
+            const previousStatus = document.getElementById(`talk-status-${questionId}`);
+            const status = statusText !== undefined ? statusText : (previousStatus ? previousStatus.textContent : '');
+
+            const state = _talkStateFor(questionId);
+            const qidArg = _escJsArg(questionId);
+            let html = '<div class="talk-header" style="font-weight:700;margin-bottom:6px;">💬 Talk it through</div>';
+            html += _talkBubble('ai', TALK_OPENING_TEXT);
+            (Array.isArray(state.turns) ? state.turns : []).forEach(turn => {
+                if (turn && typeof turn.text === 'string') html += _talkBubble(turn.role, turn.text);
+            });
+
+            if (state.final || (Number(state.exchange) || 0) >= TALK_MAX_EXCHANGES) {
+                const cls = state.exceptionGranted || state.verdict === 'understands' ? 'excellent' : 'incorrect';
+                if (state.final) _talkEnsurePending(questionId);
+                const pending = _talkPending()[questionId];
+                html += `<div class="talk-verdict grading-feedback ${cls}" style="margin-top:8px;padding:8px 10px;">`
+                    + `<div class="talk-verdict-line" style="font-weight:700;">${_escHtml(_talkVerdictText(state))}</div>`
+                    + (state.feedback ? `<div class="talk-feedback" style="margin-top:4px;white-space:pre-wrap;">${_escHtml(state.feedback)}</div>` : '')
+                    + (state.creditNote === 'higher' ? `<div class="talk-credit-note" style="margin-top:6px;">${_escHtml(TALK_HIGHER_CREDIT_TEXT)}</div>` : '')
+                    + (pending ? `<div class="talk-pending" style="margin-top:6px;">${_escHtml(TALK_PENDING_TEXT)}</div>` : '')
+                    + '<div class="talk-locked" style="margin-top:6px;font-size:.9em;opacity:.8;">This conversation is finished for this question.</div>'
+                    + '</div>';
+                panel.innerHTML = html;
+                panel.style.display = 'block';
+                if (pending) _drainTalkPending(questionId);
+                return;
+            }
+
+            const exchangeNumber = Math.min((Number(state.exchange) || 0) + 1, TALK_MAX_EXCHANGES);
+            html += `<div class="talk-counter" id="talk-counter-${_escHtml(questionId)}" style="margin-top:8px;font-size:.9em;">Exchange ${exchangeNumber} of ${TALK_MAX_EXCHANGES}</div>`
+                + `<textarea id="talk-text-${_escHtml(questionId)}" class="reasoning-textarea talk-textarea" placeholder="Why is the correct answer right, and why wasn't yours? (at least 3 words)"></textarea>`
+                + '<div class="talk-actions" style="margin-top:6px;">'
+                + `<button id="talk-send-${_escHtml(questionId)}" class="escalation-btn talk-send-btn" onclick="sendTalkItThrough(${qidArg})" disabled>Send</button>`
+                + `<span id="talk-status-${_escHtml(questionId)}" class="talk-status" style="margin-left:8px;">${_escHtml(status)}</span>`
+                + '</div>';
+            panel.innerHTML = html;
+            panel.style.display = 'block';
+            const textarea = document.getElementById(`talk-text-${questionId}`);
+            if (textarea && draft) textarea.value = draft;
+            const button = document.getElementById(`talk-send-${questionId}`);
+            if (button) button.disabled = !!_talkSending[questionId] || !retryReasoningReady(draft);
+            if (textarea && _talkSending[questionId]) textarea.readOnly = true;
+        }
+
+        // Send enables live at 3+ real words (the same rule as the retry explanation).
+        function _onTalkInput(event) {
+            const target = event && event.target;
+            if (!target || typeof target.id !== 'string' || !target.id.startsWith('talk-text-')) return;
+            const questionId = target.id.slice('talk-text-'.length);
+            const button = document.getElementById(`talk-send-${questionId}`);
+            if (button) button.disabled = !!_talkSending[questionId] || !retryReasoningReady(target.value);
+        }
+        if (!window.__quizTalkInputWired) {
+            window.__quizTalkInputWired = true;
+            document.addEventListener('input', _onTalkInput);
+        }
+
+        // → { status, body }. Throws only when the server cannot be reached.
+        async function _postTalkItThrough(questionId, exchange, message) {
+            const engine = (typeof getGradingEngine === 'function') ? getGradingEngine() : null;
+            const base = (engine && engine.serverUrl) || window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
+            const headers = { 'Content-Type': 'application/json' };
+            try {
+                const rosterToken = window.rosterClient?.token?.();
+                if (rosterToken) headers.Authorization = `Bearer ${rosterToken}`;
+            } catch (_) { /* the server answers 401 without a roster sign-in */ }
+            // The server reads the key, choices and the student's answer itself; only the
+            // questionId matters. The rest keeps the shared route's required fields present.
+            const response = await fetch(`${base}/api/ai/appeal`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    mode: 'understanding',
+                    exchange,
+                    username: currentUsername || '',
+                    scenario: { questionId, questionType: 'multiple-choice' },
+                    answers: { answer: _currentAnswerValue(questionId) },
+                    appealText: message
+                })
+            });
+            let body = null;
+            try { body = await response.json(); } catch (_) { body = null; }
+            return { status: response.status, body: body || {} };
+        }
+
+        function _talkGrantExpired(grant) {
+            try {
+                const part = String(grant || '').split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(part + '==='.slice((part.length + 3) % 4)));
+                return !(Number(payload.exp) > Date.now() + 15000);
+            } catch (_) {
+                return true;
+            }
+        }
+
+        // Deliver a pending credit to the roster ledger; cleared only on a real acknowledgement.
+        // An expired grant is refreshed from the server's stored verdict (no AI call there).
+        async function _drainTalkPending(questionId) {
+            const username = currentUsername;
+            const pendingStore = _talkPending(username);
+            const pending = pendingStore[questionId];
+            if (!pending || _talkDraining[questionId]) return;
+            if ((_talkDrainAttempts[questionId] || 0) >= TALK_MAX_DRAIN_ATTEMPTS) return;
+            _talkDrainAttempts[questionId] = (_talkDrainAttempts[questionId] || 0) + 1;
+            _talkDraining[questionId] = true;
+            try {
+                if (_talkGrantExpired(pending.grant)) {
+                    const reply = await _postTalkItThrough(questionId, TALK_MAX_EXCHANGES, 'recover my stored verdict');
+                    const body = reply.body || {};
+                    if (!(reply.status === 200 && body.final === true && body.reviewGrant)) return;
+                    pending.grant = body.reviewGrant;
+                    pending.credit = Number(body.reviewCredit) || pending.credit;
+                    _saveTalkPending(username);
+                }
+                if (typeof recordQuizReview !== 'function') return;
+                const answer = pending.answer !== undefined && pending.answer !== null ? pending.answer : _currentAnswerValue(questionId);
+                const ack = await Promise.resolve(recordQuizReview(questionId, answer, pending.grant));
+                if (ack && ack.ok === true && !ack.queued) {
+                    delete pendingStore[questionId];
+                    _saveTalkPending(username);
+                    // Mark delivered so the repaint below does not re-create a pending record
+                    // for this item. Without this, drain → render → ensurePending → drain loops
+                    // forever (a request storm to /api/ai/appeal and the ledger).
+                    const state = _talkStore(username)[questionId];
+                    if (state) {
+                        state.delivered = true;
+                        _saveTalkStore(username);
+                    }
+                }
+            } catch (_) {
+                /* stays pending: the next render tries again */
+            } finally {
+                _talkDraining[questionId] = false;
+                if (username === currentUsername && !_talkPending(username)[questionId]) {
+                    try { _renderTalkItThrough(questionId); } catch (_) {}
+                }
+            }
+        }
+
+        // A final verdict from the server (fresh or replayed). The credit is made durable
+        // (pending) BEFORE the panel locks, then delivered.
+        function _talkApplyFinal(questionId, body, username, answer, fallbackTurns) {
+            const credit = Number(body.reviewCredit) || 0;
+            const state = {
+                exchange: TALK_MAX_EXCHANGES,
+                final: true,
+                turns: Array.isArray(body.turns) && body.turns.length ? body.turns : fallbackTurns,
+                verdict: body.verdict === 'understands' ? 'understands' : 'not-yet',
+                exceptionGranted: body.exceptionGranted === true,
+                credit,
+                feedback: String(body.feedback || ''),
+                answer
+            };
+            if (credit > 0 && body.reviewGrant) {
+                // Always deliver. The roster ledger keeps the HIGHER review credit (durable floor
+                // on source quiz_review), so recording ½ over an earlier ⅔ is harmless, and review
+                // history is not proof that the earlier credit ever reached the ledger. Skipping
+                // here could strand earned credit (Codex closure review 2026-09-29).
+                _talkPending(username)[questionId] = { grant: body.reviewGrant, credit, itemId: `${questionId}#rev`, answer, savedAt: Date.now() };
+                _saveTalkPending(username);
+                if (credit <= _talkKnownCredit(questionId)) state.creditNote = 'higher';   // display only
+            }
+            _talkStore(username)[questionId] = state;
+            _saveTalkStore(username);
+            if (window.QuizReviewUI && typeof rememberQuizReview === 'function') {
+                rememberQuizReview({
+                    question_id: questionId,
+                    appeal_text: TALK_FINAL_MARKER,
+                    verdict: state.exceptionGranted ? 'E' : (state.verdict === 'understands' ? 'P' : 'I'),
+                    credit,
+                    exception_granted: state.exceptionGranted,
+                    feedback: JSON.stringify({ verdict: state.verdict, feedback: state.feedback, turns: state.turns }),
+                    created_at: new Date().toISOString()
+                });
+                try { updateQuizReviewDisplays(); } catch (_) {}
+            }
+        }
+
+        window.sendTalkItThrough = async function(questionId) {
+            if (_talkSending[questionId]) return;
+            if (!_talkEligible(questionId)) return;
+            // Re-checked right before every send (hydration may have finished it elsewhere).
+            const state = _talkStateFor(questionId);
+            const done = Number(state.exchange) || 0;
+            if (state.final || done >= TALK_MAX_EXCHANGES) {
+                _renderTalkItThrough(questionId);
+                return;
+            }
+
+            const textarea = document.getElementById(`talk-text-${questionId}`);
+            const message = textarea ? textarea.value.trim() : '';
+            if (!retryReasoningReady(message)) return;
+
+            const button = document.getElementById(`talk-send-${questionId}`);
+            const status = document.getElementById(`talk-status-${questionId}`);
+            const username = currentUsername;
+            const answer = _currentAnswerValue(questionId);
+            const priorTurns = Array.isArray(state.turns) ? state.turns.slice() : [];
+            const exchange = done + 1;
+
+            _talkSending[questionId] = true;
+            if (button) button.disabled = true;
+            if (textarea) textarea.readOnly = true;
+            if (status) status.textContent = 'The AI is reading…';
+
+            let reply;
+            try {
+                reply = await _postTalkItThrough(questionId, exchange, message);
+            } catch (error) {
+                reply = null;
+            }
+            _talkSending[questionId] = false;
+            if (username !== currentUsername) return;
+
+            const body = (reply && reply.body) || {};
+            const clearDraft = () => {
+                const sent = document.getElementById(`talk-text-${questionId}`);
+                if (sent) sent.value = '';   // the message is used: never re-offer it as a draft
+            };
+            const unlock = (text) => {
+                const area = document.getElementById(`talk-text-${questionId}`);
+                if (area) area.readOnly = false;
+                _renderTalkItThrough(questionId, text);
+            };
+
+            if (!reply) {
+                unlock('Could not reach the AI. Your message was not used — try again.');
+                return;
+            }
+            if (reply.status === 200 && body.final === true) {
+                _talkApplyFinal(questionId, body, username, answer, priorTurns.concat([{ role: 'student', text: message }]));
+                clearDraft();
+                _renderTalkItThrough(questionId);
+                return;
+            }
+            if (reply.status === 200 && exchange >= TALK_MAX_EXCHANGES) {
+                // Exchange 2 is always the last one: a reply without a verdict still locks
+                // (never a third exchange); the grade stands.
+                _talkApplyFinal(questionId, { verdict: 'not-yet', feedback: String(body.feedback || ''), reviewCredit: 0 }, username, answer,
+                    priorTurns.concat([{ role: 'student', text: message }]));
+                clearDraft();
+                _renderTalkItThrough(questionId);
+                return;
+            }
+            if (reply.status === 200) {
+                const turns = Array.isArray(body.turns) && body.turns.length
+                    ? body.turns
+                    : priorTurns.concat([{ role: 'student', text: message }, { role: 'ai', text: String(body.followUp || TALK_FALLBACK_FOLLOW_UP) }]);
+                _talkStore(username)[questionId] = { exchange: 1, final: false, turns, answer };
+                _saveTalkStore(username);
+                clearDraft();
+                _renderTalkItThrough(questionId, '');
+                return;
+            }
+            if (reply.status === 409 && body.error === 'conversation already started') {
+                _talkStore(username)[questionId] = {
+                    exchange: 1,
+                    final: false,
+                    answer,
+                    turns: [
+                        { role: 'student', text: String(body.studentTurn || '') },
+                        { role: 'ai', text: String(body.followUp || TALK_FALLBACK_FOLLOW_UP) }
+                    ]
+                };
+                _saveTalkStore(username);
+                unlock('This conversation was already started — here is where it stands. Your new message was not used.');
+                return;
+            }
+            if (reply.status === 409 && body.error === 'no conversation to continue') {
+                delete _talkStore(username)[questionId];
+                _saveTalkStore(username);
+                unlock('The server has no record of your first message. Please send it again.');
+                return;
+            }
+            unlock(`${String(body.error || `Server error ${reply.status}`)}. Your message was not used.`);
+        };
 
         // Populate peer reasoning section with peer response cards
         function populatePeerReasoning(questionId, contributors) {
@@ -10186,12 +10658,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 return;
             }
 
-            // For wrong answers, show "Request AI Review" button
+            // Wrong MCQ: the old "Request AI Review" appeal is replaced by the retry and then
+            // "Talk it through" (QUIZ_AI_HALF_CREDIT_SPEC) — never shown for multiple choice.
             const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
-            if (aiReviewBtn) {
-                aiReviewBtn.textContent = '🤖 Request AI Review';
-                aiReviewBtn.style.display = 'inline-block';
-            }
+            if (aiReviewBtn) aiReviewBtn.style.display = 'none';
+            const wrongSettled = quizSettledFor(questionId);
 
             // Store initial result for potential appeal
             window.gradingResults[questionId] = {
@@ -10211,7 +10682,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <span class="ai-badge">📋 Auto-graded</span>
                         </div>
                         <div class="grading-feedback-text">
-                            Your answer was not correct. If you believe you have valid reasoning, you can request an AI review.
+                            ${wrongSettled
+                                ? 'Your answer was not correct. Talk it through with the AI below: show you understand and you earn half credit.'
+                                : 'Your answer was not correct. Use your one retry first.'}
                         </div>
                     </div>
                 `;
@@ -10597,8 +11070,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 // Display result
                 displayGradingFeedback(questionId, gradingResult);
 
-                // Show appeal button if not perfect score
-                if (gradingResult.score !== 'E') {
+                // Show appeal button if not perfect score (free-response only: a multiple-choice
+                // item is reviewed through "Talk it through", and the server refuses MCQ appeals)
+                if (gradingResult.score !== 'E' && questionType !== 'multiple-choice') {
                     const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                     if (appealBtn) appealBtn.style.display = 'inline-block';
                 }
@@ -10791,6 +11265,11 @@ Respond with JSON:
 
         // Submit appeal
         window.submitAppeal = async function(questionId, questionType) {
+            if (questionType === 'multiple-choice') {
+                const fbMcq = document.getElementById(`grading-feedback-${questionId}`);
+                if (fbMcq) fbMcq.innerHTML = '<div class="grading-feedback"><span class="grading-text">Multiple-choice questions are not appealed. If your final answer was wrong, use "Talk it through".</span></div>';
+                return;
+            }
             const engine = getGradingEngine();
             if (!engine) {
                 alert('AI appeals are not available.');
@@ -12191,12 +12670,14 @@ Respond with JSON:
         // collide with the quiz row). Fire-and-forget, no-ops without a roster
         // token. (questionId is always 'U#-...', no '#'; re-recording is
         // idempotent — latestPerItem keeps one '#rev' row per item.)
+        // Returns record()'s promise ({ ok, queued, ... }) so "Talk it through" can clear its
+        // pending credit only on a real acknowledgement; the appeal path ignores it as before.
         function recordQuizReview(questionId, response, reviewGrant) {
             try {
                 if (window.gradebookClient && window.gradebookClient.record && questionId
                     && reviewGrant) {
                     var gbU = /^U(\d+)-/.exec(questionId);
-                    window.gradebookClient.record({
+                    return window.gradebookClient.record({
                         source: 'quiz_review',
                         itemId: questionId + '#rev',
                         unit: gbU ? ('U' + gbU[1]) : undefined,
@@ -12206,6 +12687,7 @@ Respond with JSON:
                     });
                 }
             } catch (_) { /* never block cr's flow */ }
+            return null;
         }
 
         // Enhanced answer saving that tracks progress

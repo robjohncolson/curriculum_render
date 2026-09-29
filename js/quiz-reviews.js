@@ -41,12 +41,28 @@
     }
   }
 
+  // "Talk it through" final rows (QUIZ_AI_HALF_CREDIT_SPEC) keep a fixed marker in appeal_text
+  // and the conversation as JSON in feedback: show the student's words and the AI feedback.
+  var TALK_FINAL_MARKER = '{"mode":"understanding","phase":"final"}';
+  function conversationText(review) {
+    if (!review || review.appeal_text !== TALK_FINAL_MARKER) return null;
+    var record = null;
+    try { record = JSON.parse(String(review.feedback || '')); } catch (_) { record = null; }
+    var turns = record && Array.isArray(record.turns) ? record.turns : [];
+    return {
+      appeal: turns.filter(function (turn) { return turn && turn.role === 'student'; })
+        .map(function (turn) { return String(turn.text || ''); }).join(' / '),
+      feedback: record && typeof record.feedback === 'string' ? record.feedback : ''
+    };
+  }
+
   function formatReview(review) {
     var verdict = ['E', 'P', 'I'].includes(String(review && review.verdict || '').toUpperCase())
       ? String(review.verdict).toUpperCase()
       : 'I';
-    var appeal = escapeHtml(review && review.appeal_text);
-    var feedback = escapeHtml(review && review.feedback);
+    var talk = conversationText(review);
+    var appeal = escapeHtml(talk ? talk.appeal : (review && review.appeal_text));
+    var feedback = escapeHtml(talk ? talk.feedback : (review && review.feedback));
     return '<article class="quiz-review" style="margin:12px 0;padding:10px 12px;border-left:4px solid #6c5ce7;background:rgba(108,92,231,.08);border-radius:4px;">' +
       '<div class="quiz-review-line" style="font-weight:700;">↻ Reviewed ' + escapeHtml(reviewDate(review && review.created_at)) +
       ' — earned ' + creditLabel(review && review.credit) + ' credit (' + verdict + ')</div>' +
