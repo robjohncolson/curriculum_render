@@ -112,6 +112,16 @@ describe('quiz page peer pull (the one that really runs)', () => {
     expect(sandbox.lastPeerDataTimestamp).toBe(700);                // cursor advanced from peers only
   });
 
+  it('source pin: initializeTurboMode pulls peers at startup even when the Supabase client is missing', () => {
+    const start = html.indexOf('async function initializeTurboMode()');
+    const end = html.indexOf('async function', start + 10);
+    const fn = html.slice(start, end);
+    const elseBranch = fn.slice(fn.indexOf('} else {'));
+    expect(elseBranch).toContain('await pullPeerDataFromSupabase()');
+    expect(elseBranch).toContain('mergePeerDataIntoStores(initialPeerData)');
+    expect(elseBranch.indexOf('pullPeerDataFromSupabase()')).toBeLessThan(elseBranch.indexOf('setInterval(performSyncCheck, 30 * 1000)'));
+  });
+
   it('source pin: railway_client.js exposes window.pullPeerDataFromRailway for that delegation', () => {
     const rc = readFileSync(resolve(ROOT, 'railway_client.js'), 'utf8');
     expect(rc).toContain('window.pullPeerDataFromRailway = pullPeerDataFromRailway;');

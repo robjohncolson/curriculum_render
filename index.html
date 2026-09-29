@@ -4044,6 +4044,16 @@ window.submitManualMerge = submitManualMerge;
                 // Start periodic sync (every 5 minutes)
                 syncCheckInterval = setInterval(performSyncCheck, 5 * 60 * 1000);
             } else {
+                // 2026-09-29: the Supabase client is usually null here (its library loads async and
+                // loses the race), but the Railway relay carries the same peer rows -- pull them NOW
+                // instead of leaving the peer panels empty until the first 30s check.
+                if (window.USE_RAILWAY && typeof window.pullPeerDataFromRailway === 'function') {
+                    try {
+                        const initialPeerData = await pullPeerDataFromSupabase();
+                        if (initialPeerData) mergePeerDataIntoStores(initialPeerData);
+                        updatePeerDataTimestamp();
+                    } catch (e) { console.log('Initial Railway peer pull failed:', e && e.message); }
+                }
                 // Start checking for connection every 30 seconds
                 syncCheckInterval = setInterval(performSyncCheck, 30 * 1000);
             }
