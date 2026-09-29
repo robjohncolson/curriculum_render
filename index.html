@@ -1712,24 +1712,39 @@
                 const currentUser = window.currentUsername || safeGetItem('consensusUsername');
                 if (!currentUser) return null;
 
-                // OPTIMIZATION 1: Build query with server-side filtering
-                let query = supabaseClient
-                    .from('answers')
-                    .select('*')
-                    .neq('username', currentUser) // Filter out own answers on server
-                    .order('timestamp', { ascending: false });
-
-                // OPTIMIZATION 2: Incremental fetch - only get data newer than last sync
+                // This is the pull that actually runs: it is declared AFTER railway_client.js, so
+                // its hoisted declaration replaces the Railway override (2026-09-29 finding).
+                // The shared `answers` table also holds follow-along worksheet rows (`WS-...`,
+                // ~7 per quiz row) and PostgREST silently caps an un-ranged select at 1000, so the
+                // newest 1000 rows were almost all worksheet rows and older units' quiz peers never
+                // arrived ("You're the first to answer" on 1.7 with 173 peer rows on the server).
+                // Fix: exclude WS- rows (they are never peer data) and page the initial full sync.
+                const PEER_PAGE = 1000;
+                const buildQuery = () => {
+                    let q = supabaseClient
+                        .from('answers')
+                        .select('*')
+                        .neq('username', currentUser) // Filter out own answers on server
+                        .not('question_id', 'like', 'WS-%')
+                        .order('timestamp', { ascending: false });
+                    // OPTIMIZATION 2: Incremental fetch - only get data newer than last sync
+                    if (lastPeerDataTimestamp) q = q.gt('timestamp', lastPeerDataTimestamp);
+                    return q;
+                };
                 if (lastPeerDataTimestamp) {
-                    query = query.gt('timestamp', lastPeerDataTimestamp);
                     console.log(`🔄 Incremental sync from timestamp: ${lastPeerDataTimestamp}`);
                 } else {
                     console.log(`🔄 Initial full sync (no previous timestamp)`);
                 }
 
-                const { data, error } = await query;
-
-                if (error) throw error;
+                let data = [];
+                for (let from = 0; ; from += PEER_PAGE) {
+                    const page = await buildQuery().range(from, from + PEER_PAGE - 1);
+                    if (page.error) throw page.error;
+                    const rows = page.data || [];
+                    data = data.concat(rows);
+                    if (rows.length < PEER_PAGE) break;
+                }
 
                 // OPTIMIZATION 3: Early return if no new data
                 if (!data || data.length === 0) {
