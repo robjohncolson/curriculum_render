@@ -6,7 +6,7 @@
 //
 // Implements FROZEN CONTRACT 3 (GRADEBOOK_PHASE1_BUILD.md):
 //   window.gradebookClient.record({ source, itemId, unit, topic, skill, response, score, attempt })
-//   → { ok:true, ledgerId } | { ok:false, reason:'no-identity'|'network'|'auth-expired'|'bad-args'|'read-only' }
+//   → { ok:true, ledgerId } | { ok:false, reason:'no-identity'|'network'|'auth-expired'|'bad-args'|'read-only'|'retry-not-allowed' }
 //
 // OFFLINE_MODE_SPEC §4.A (additive): when a write is captured into window.OfflineQueue
 // (offline pack or an unreachable fetch), the result carries `queued:true` — offline
@@ -148,12 +148,27 @@
       return Promise.resolve(window.OfflineQueue.enqueue({
         source: opts.source, itemId: opts.itemId, response: opts.response,
         score: opts.score, attempt: opts.attempt, grant: opts.grant,
+        reasoning: opts.reasoning, // quiz retry explanation: the server refuses attempt 2 without it
         unit: opts.unit, topic: opts.topic, skill: opts.skill,
         part: opts.part, // PC part rides to the queue so drain hits the right bank
         studentId: sid, kind: opts.kind || 'quiz'
       })).then(function () { return true; }, function () { return false; });
     } catch (_) { return Promise.resolve(false); }
   }
+  // A replayed quiz retry (attempt 2) was accepted or permanently refused: tell the page, which
+  // keeps the retry PENDING until then (QUIZ_FIRST_ANSWER_SPEC v2). Never throws.
+  function _isQuizRetry(rec) {
+    return !!rec && rec.source === 'curriculum_quiz' && Number(rec.attempt) === 2;
+  }
+  function _emitQuizRetryOutcome(rec, outcome, reason) {
+    try {
+      if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+      window.dispatchEvent(new CustomEvent('gradebook:quiz-retry-outcome', {
+        detail: { itemId: rec.itemId, studentId: rec.studentId || null, outcome: outcome, reason: reason || null }
+      }));
+    } catch (_) { /* best-effort */ }
+  }
+
   // Raw POST. NEVER throws; NEVER enqueues (safe to call from a drain). An
   // unreachable fetch (thrown) is marked offline:true so record() queues it;
   // an HTTP error (401 → auth-expired, else network) is NOT queued.
@@ -194,9 +209,17 @@
       var body = {
         token: token, source: opts.source, itemId: opts.itemId,
         unit: opts.unit, topic: opts.topic, skill: opts.skill,
-        response: opts.response, score: opts.score, grant: opts.grant, attempt: opts.attempt
+        response: opts.response, score: opts.score, grant: opts.grant, attempt: opts.attempt,
+        reasoning: opts.reasoning   // quiz retry explanation (QUIZ_FIRST_ANSWER_SPEC v2); omitted when undefined
       };
       var res = await fetch(baseUrl + '/ledger/record', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.status === 409) {
+        // Quiz retry rule (QUIZ_FIRST_ANSWER_SPEC v2): a final, plain refusal the page shows
+        // the student (never queued). `detail` = the server's reason code.
+        var refusal = null;
+        try { refusal = await res.json(); } catch (_) { refusal = null; }
+        return { ok: false, reason: 'retry-not-allowed', detail: (refusal && refusal.reason) || null };
+      }
       if (!res.ok) {
         console.warn('gradebook-client: /ledger/record HTTP', res.status);
         // retryable = the SAME write can succeed later (new session / server back); a 4xx
@@ -283,7 +306,7 @@
     syncOfflineQueue: async function () {
       try {
         if (!window.OfflineQueue || typeof window.OfflineQueue.drain !== 'function') return { sent: 0, failed: 0 };
-        var result = await window.OfflineQueue.drain(function (rec) {
+        var result = await window.OfflineQueue.drain(async function (rec) {
           // Drain-time OWNERSHIP gate (2026-09-09, mirrors the Desk client): _postRecord
           // attributes by the CURRENT token, so a row captured by another student on a
           // shared device — or a legacy row with no owner — must stay queued rather than
@@ -292,7 +315,15 @@
           if (!rec || !rec.studentId || !sid || String(rec.studentId) !== String(sid)) {
             return { ok: false, reason: 'no-identity' };
           }
-          return _postRecord(rec);
+          var res = await _postRecord(rec);
+          if (_isQuizRetry(rec) && res && res.ok) _emitQuizRetryOutcome(rec, 'accepted', null);
+          if (res && res.reason === 'retry-not-allowed') {
+            // A final refusal (HTTP 409): it can never succeed, so drop it from the queue
+            // (reported as sent to the drain) and let the page roll the retry back.
+            if (_isQuizRetry(rec)) _emitQuizRetryOutcome(rec, 'refused', res.detail || null);
+            return { ok: true, refused: true };
+          }
+          return res;
         });
         if (typeof window.OfflineQueue.parked === 'function') _showParkedNudge(await window.OfflineQueue.parked());
         return result;

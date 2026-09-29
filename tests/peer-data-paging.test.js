@@ -90,6 +90,15 @@ describe('peer-data: every quiz answer, no worksheet rows', () => {
     expect(calls.length).toBe(2);                       // second page comes back empty and ends the loop
   });
 
+  it('selects every column, so each row reasoning (migration 0003) reaches the client unchanged', async () => {
+    const { fetchAllQuizAnswers } = loadFetcher();
+    const calls = [];
+    const table = [{ question_id: 'U1-L7-Q03', username: 'u', timestamp: 1, answer_value: 'B', reasoning: 'I misread the axis' }];
+    const out = await fetchAllQuizAnswers(fakeClient(table, calls));
+    expect(calls[0].query.select).toBe('*');
+    expect(out[0].reasoning).toBe('I misread the axis');
+  });
+
   it('surfaces a Supabase error instead of returning a partial list', async () => {
     const { fetchAllQuizAnswers } = loadFetcher();
     const failing = { from() { const c = { select: () => c, not: () => c, order: () => c,

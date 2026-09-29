@@ -289,7 +289,8 @@ app.get('/api/peer-data', async (req, res) => {
       });
     }
 
-    // Fetch from Supabase (all quiz answers, paged; worksheet rows excluded)
+    // Fetch from Supabase (all quiz answers, paged; worksheet rows excluded).
+    // select('*') means answers.reasoning (migration 0003) flows to clients as-is.
     const data = await fetchAllQuizAnswers();
 
     // Normalize timestamps
@@ -443,10 +444,65 @@ app.get('/api/question-stats/:questionId', async (req, res) => {
   }
 });
 
+// Optional quiz explanation (QUIZ_FIRST_ANSWER_SPEC v2 §3): stored in answers.reasoning.
+// Migration 0003 adds the column (USER-RUN); until then the upsert is retried WITHOUT it
+// so a missing column can never lose the answer itself.
+const ANSWER_REASONING_MAX = 2000;
+let answersReasoningMissingLogged = false;
+
+// undefined = the field was not sent (the stored explanation is left alone);
+// null = sent empty (CLEAR the stored explanation, e.g. a refused retry's rollback);
+// string = the explanation.
+function cleanReasoning(value) {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, ANSWER_REASONING_MAX) : null;
+}
+
+function isMissingReasoningColumn(error) {
+  if (!error) return false;
+  const code = String(error.code || '');
+  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
+  if (!text.includes('reasoning')) return false;
+  return code === 'PGRST204' || code === '42703' || /column .* does not exist|could not find the .* column/i.test(text);
+}
+
+// Best-effort read of the stored row's timestamp; a read failure never blocks the write.
+async function storedAnswerIsNewer(client, username, questionId, incomingTimestamp) {
+  try {
+    const { data, error } = await client
+      .from('answers')
+      .select('timestamp')
+      .eq('username', username)
+      .eq('question_id', questionId)
+      .maybeSingle();
+    if (error || !data) return false;
+    const raw = data.timestamp;
+    const stored = (typeof raw === 'string' && !/^\d+$/.test(raw)) ? Date.parse(raw) : Number(raw);
+    return Number.isFinite(stored) && Number.isFinite(Number(incomingTimestamp)) && stored > Number(incomingTimestamp);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function upsertAnswerRow(client, row) {
+  const upsert = (r) => client.from('answers').upsert([r], { onConflict: 'username,question_id' });
+  const result = await upsert(row);
+  if (!('reasoning' in row) || !isMissingReasoningColumn(result && result.error)) return result;
+  if (!answersReasoningMissingLogged) {
+    answersReasoningMissingLogged = true;
+    console.warn('answers.reasoning column missing (run migration 0003); storing answers without reasoning');
+  }
+  const { reasoning, ...withoutReasoning } = row;
+  return upsert(withoutReasoning);
+}
+
 // Submit answer (proxies to Supabase and broadcasts via WebSocket)
 app.post('/api/submit-answer', async (req, res) => {
   try {
     const { username: rawUsername, question_id, answer_value, timestamp } = req.body;
+    const reasoning = cleanReasoning(req.body.reasoning);   // undefined | null (clear) | string
     const username = normalizeUsername(rawUsername);
     const sid = sidFromRequest(req);
 
@@ -464,15 +520,20 @@ app.post('/api/submit-answer', async (req, res) => {
     const sizeLabel = answerSize >= 0 ? `${answerSize} chars` : 'received';
     console.log(`📨 submit-answer ${question_id}: answer_value ${sizeLabel}`);
 
-    // Upsert to Supabase
-    const { data, error } = await supabase
-      .from('answers')
-      .upsert([{
-        username,
-        question_id,
-        answer_value,
-        timestamp: normalizedTimestamp
-      }], { onConflict: 'username,question_id' });
+    // Last-writer-by-timestamp: a delayed older POST (e.g. a refused retry landing after its
+    // rollback) must never overwrite a newer stored row for this (username, question).
+    if (await storedAnswerIsNewer(supabase, username, question_id, normalizedTimestamp)) {
+      return res.json({ success: true, skipped: 'stale', timestamp: normalizedTimestamp, broadcast: 0 });
+    }
+
+    // Upsert to Supabase (reasoning only when the student wrote one)
+    const { data, error } = await upsertAnswerRow(supabase, {
+      username,
+      question_id,
+      answer_value,
+      timestamp: normalizedTimestamp,
+      ...(reasoning !== undefined ? { reasoning } : {})
+    });
 
     if (error) throw error;
 
@@ -480,13 +541,14 @@ app.post('/api/submit-answer', async (req, res) => {
     cache.lastUpdate = 0;
     cache.questionStats.delete(question_id);
 
-    // Broadcast to WebSocket clients
+    // Broadcast to WebSocket clients (reasoning is an additive field)
     const update = {
       type: 'answer_submitted',
       username,
       question_id,
       answer_value,
-      timestamp: normalizedTimestamp
+      timestamp: normalizedTimestamp,
+      ...(reasoning !== undefined ? { reasoning: reasoning || '' } : {})
     };
 
     broadcastToClients(update);
@@ -3578,7 +3640,7 @@ const subscription = supabase
       // Invalidate cache
       cache.lastUpdate = 0;
 
-      // Broadcast to all WebSocket clients
+      // Broadcast to all WebSocket clients (the full row, so `reasoning` rides along)
       broadcastToClients({
         type: 'realtime_update',
         event: payload.eventType,

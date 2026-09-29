@@ -1781,12 +1781,16 @@
                 data.forEach(answer => {
                     // No need to filter currentUser here - already done on server
                     if (!peerData[answer.username]) {
-                        peerData[answer.username] = { answers: {} };
+                        peerData[answer.username] = { answers: {}, reasons: {} };
                     }
                     peerData[answer.username].answers[answer.question_id] = {
                         value: answer.answer_value,
                         timestamp: parseInt(answer.timestamp)
                     };
+                    // answers.reasoning: a value shows, '' / null clears (a refused retry's explanation).
+                    if (Object.prototype.hasOwnProperty.call(answer, 'reasoning')) {
+                        peerData[answer.username].reasons[answer.question_id] = (typeof answer.reasoning === 'string' && answer.reasoning.trim()) ? answer.reasoning : '';
+                    }
                 });
 
                 // Update last peer timestamp for next incremental fetch
@@ -2924,6 +2928,19 @@
                         classData.users[username].timestamps[questionId] = answerData.timestamp;
                     }
                 }
+
+                // Pulled explanations (answers.reasoning) → the peer cards' source (spec v2 §3).
+                const pulledReasons = userData.reasons || {};
+                if (Object.keys(pulledReasons).length) {
+                    if (!classData.users[username].reasons) classData.users[username].reasons = {};
+                    Object.assign(classData.users[username].reasons, pulledReasons);
+                    try {
+                        const reasonsKey = `reasons_${username}`;
+                        const mirror = JSON.parse(localStorage.getItem(reasonsKey) || '{}');
+                        Object.assign(mirror, pulledReasons);
+                        localStorage.setItem(reasonsKey, JSON.stringify(mirror));
+                    } catch (_) { /* localStorage may be blocked */ }
+                }
             }
 
             // Persist and refresh
@@ -2965,29 +2982,118 @@
                 if (!u.answers) u.answers = {};
                 if (!u.timestamps) u.timestamps = {};
                 let restored = 0;
-                rows.forEach(function (r) {
-                    // The quiz's own ledger rows are source 'curriculum_quiz' (MCQ + FRQ).
-                    if (!r || r.source !== 'curriculum_quiz' || !r.item_id) return;
-                    if (r.response === undefined || r.response === null || r.response === '') return;
-                    const qid = String(r.item_id);
-                    const ts = r.recorded_at ? (Date.parse(r.recorded_at) || 0) : 0;
-                    const existingTs = u.timestamps[qid] || (u.answers[qid] && u.answers[qid].timestamp) || 0;
-                    if (u.answers[qid] && ts <= existingTs) return; // keep newer/equal local work
+                const changed = new Set();   // question ids whose visible state may have moved
+                if (!u.attempts) u.attempts = {};
+                if (!u.reasons) u.reasons = {};
+                const retryState = _quizRetryState(user);
+                let retryStateChanged = false;
+                const tsOf = (r) => (r && r.recorded_at ? (Date.parse(r.recorded_at) || 0) : 0);
+                const hasResponse = (r) => !!r && r.response !== undefined && r.response !== null && r.response !== '';
+                const parseResponse = (value) => {
                     // MCQ = a string; progressive FRQ = an object (maybe JSON-stringified).
-                    let val = r.response;
-                    if (typeof val === 'string') {
-                        const t = val.trim();
-                        if (t.charAt(0) === '{' || t.charAt(0) === '[') { try { val = JSON.parse(t); } catch (_) {} }
-                    }
-                    u.answers[qid] = { value: val, timestamp: ts };
-                    u.timestamps[qid] = ts;
+                    if (typeof value !== 'string') return value;
+                    const t = value.trim();
+                    if (t.charAt(0) === '{' || t.charAt(0) === '[') { try { return JSON.parse(t); } catch (_) {} }
+                    return value;
+                };
+                const localValue = (qid) => {
+                    const a = u.answers[qid];
+                    return (a && typeof a === 'object') ? a.value : a;
+                };
+                const takeServer = (qid, row, attemptNo) => {
+                    u.answers[qid] = { value: parseResponse(row.response), timestamp: tsOf(row) };
+                    u.timestamps[qid] = tsOf(row);
+                    u.attempts[qid] = attemptNo;
+                    if (typeof row.reasoning === 'string' && row.reasoning.trim()) u.reasons[qid] = row.reasoning;
                     restored++;
+                    changed.add(qid);
+                };
+
+                // The quiz's own ledger rows are source 'curriculum_quiz' (MCQ + FRQ), keyed by attempt.
+                const byItem = {};
+                rows.forEach(function (r) {
+                    if (!r || r.source !== 'curriculum_quiz' || !r.item_id) return;
+                    const qid = String(r.item_id);
+                    (byItem[qid] = byItem[qid] || {})[Number(r.attempt) || 1] = r;
                 });
-                if (restored > 0) {
-                    if (typeof saveClassData === 'function') saveClassData();
-                    const cur = (typeof getCurrentQuestionId === 'function') ? getCurrentQuestionId() : null;
-                    if (cur && typeof refreshQuestionIfVisible === 'function') refreshQuestionIfVisible(cur);
-                }
+
+                Object.keys(byItem).forEach(function (qid) {
+                    const a1 = byItem[qid][1];
+                    const a2 = byItem[qid][2];
+                    const keyedMcq = !_quizIsFrq(qid) && _quizKeyFor(qid) !== null;
+
+                    if (!keyedMcq) {
+                        // FRQ / unkeyed: newest wins, as before (unlimited revisions).
+                        const attempts = Object.keys(byItem[qid]).map(Number).sort((a, b) => b - a);
+                        const row = byItem[qid][attempts[0]];
+                        if (!hasResponse(row)) return;
+                        const existingTs = u.timestamps[qid] || (u.answers[qid] && u.answers[qid].timestamp) || 0;
+                        if (u.answers[qid] && tsOf(row) <= existingTs) return; // keep newer/equal local work
+                        takeServer(qid, row, Math.max(Number(u.attempts[qid]) || 0, attempts[0]));
+                        return;
+                    }
+
+                    // Keyed MCQ (spec v2): the SERVER decides. The first answer is its attempt-1 row.
+                    if (hasResponse(a1) && retryState.firstAnswers[qid] !== a1.response) {
+                        retryState.firstAnswers[qid] = a1.response;
+                        retryStateChanged = true;
+                        changed.add(qid);
+                    }
+                    const retry = retryState.retries[qid];
+
+                    if (hasResponse(a2)) {
+                        // An accepted retry exists. If THIS device has a different retry still in
+                        // flight, it keeps its own outcome (it will be refused) — remember what the
+                        // server accepted so that refusal restores this value, never the refused one.
+                        if (retry && retry.state === 'pending' && retry.value !== a2.response) {
+                            if (retry.serverAccepted !== a2.response) {
+                                retry.serverAccepted = a2.response;
+                                retry.serverAcceptedAt = tsOf(a2);
+                                retry.serverAcceptedReasoning = typeof a2.reasoning === 'string' ? a2.reasoning : '';
+                                retryStateChanged = true;
+                            }
+                            return;
+                        }
+                        // Otherwise the accepted answer IS the server's attempt-2 response.
+                        retryState.retries[qid] = { state: 'accepted', value: a2.response, submittedAt: tsOf(a2) };
+                        retryStateChanged = true;
+                        changed.add(qid);
+                        if (localValue(qid) !== a2.response || Number(u.attempts[qid]) !== 2) takeServer(qid, a2, 2);
+                        else if (typeof a2.reasoning === 'string' && a2.reasoning.trim() && getReasonString(u.reasons[qid]) !== a2.reasoning) {
+                            u.reasons[qid] = a2.reasoning; restored++;
+                        }
+                        return;
+                    }
+
+                    if (!hasResponse(a1)) return;
+                    if (retry && retry.state === 'pending') return;   // its own outcome decides
+                    if (retry && retry.state === 'accepted') return;  // accepted locally just now
+                    // No retry on the server: the graded answer is attempt 1. A local second attempt
+                    // with no record (pre-v2 / lost state) and any local first answer that differs
+                    // from the server's kept first answer both reconcile to the server.
+                    if (!u.answers[qid] || Number(u.attempts[qid]) !== 1 || localValue(qid) !== a1.response) {
+                        takeServer(qid, a1, 1);
+                    } else if (typeof a1.reasoning === 'string' && a1.reasoning.trim() && !getReasonString(u.reasons[qid]).trim()) {
+                        u.reasons[qid] = a1.reasoning; restored++; changed.add(qid);
+                    }
+                });
+                if (retryStateChanged) _saveQuizRetryState(user);
+                if (restored > 0 && typeof saveClassData === 'function') saveClassData();
+                // Repaint every visible affected question from its state: inputs, form, key, chart, peers.
+                changed.forEach(function (qid) {
+                    if (!(currentQuestions || []).some(function (q) { return q && q.id === qid; })) return;
+                    if (!document.querySelector(`[data-question-id="${qid}"]`)) return;
+                    const frqInput = document.getElementById(`frq-${qid}`);
+                    const restoredValue = localValue(qid);
+                    if (frqInput && (typeof restoredValue === 'string' || typeof restoredValue === 'number')) {
+                        frqInput.value = String(restoredValue);
+                    }
+                    const reasonInput = document.getElementById(`reason-${qid}`);
+                    if (reasonInput && _quizFormState(qid).mode !== 'retry') {
+                        reasonInput.value = getReasonString(u.reasons[qid]);
+                    }
+                    _refreshAfterReveal(qid);
+                });
             } catch (_) { /* best-effort — never block sign-in */ }
         };
 
@@ -3288,7 +3394,7 @@ function ensureClassDataInitialized() {
  * @returns {boolean} - True if the state was updated, false otherwise.
  */
 function mergePeerAnswer(detail) {
-    const { username, question_id, answer_value, timestamp } = detail;
+    const { username, question_id, answer_value, timestamp, reasoning } = detail;
     ensureClassDataInitialized();
 
     if (!classData.users[username]) {
@@ -3302,6 +3408,11 @@ function mergePeerAnswer(detail) {
         // 1. Update in-memory `classData`
         classData.users[username].answers[question_id] = { value: answer_value, timestamp: timestamp };
         classData.users[username].timestamps[question_id] = timestamp;
+        // Spec v2 §3: the broadcast carries the explanation (peer cards need it); '' clears it.
+        if (typeof reasoning === 'string') {
+            if (!classData.users[username].reasons) classData.users[username].reasons = {};
+            classData.users[username].reasons[question_id] = reasoning.trim() ? reasoning : '';
+        }
         saveClassData(); // Persists the whole classData object
 
         // 2. Update legacy `answers_[username]` key for backward compatibility
@@ -4618,31 +4729,14 @@ window.submitManualMerge = submitManualMerge;
             return classData.users[currentUsername]?.attempts?.[questionId] || 0;
         }
 
-        // Check if can retry (has reason in previous attempt - no max attempt limit)
+        // QUIZ_FIRST_ANSWER_SPEC v2 (teacher 2026-09-29): one answer, plus exactly ONE retry after a
+        // WRONG first answer (the retry needs an explanation and becomes the grade). A correct first
+        // answer is final; there is never a third attempt. FRQs keep unlimited revisions.
         function canRetry(questionId) {
-            // QUIZ_FIRST_ANSWER_SPEC (teacher 2026-09-29): the FIRST answer is the grade, so a retry can
-            // never buy points and the old "add reasoning before you may retry" brake only left students
-            // stuck on a wrong answer they wanted to fix. Retries are always allowed; reasoning stays
-            // optional (it still speeds up the answer-key reveal).
-            return true;
-            // eslint-disable-next-line no-unreachable
-            const q = currentQuestions.find(q => q.id === questionId) ||
-                      EMBEDDED_CURRICULUM.find(q => q.id === questionId);
-            const isFRQ = q && q.type === 'free-response';
-
-            // FRQs have unlimited retries
-            if (isFRQ) return true;
-
-            // MCQs: unlimited attempts but require reasoning after first attempt
-            const attempts = getAttemptCount(questionId);
-            if (attempts === 0) return true;
-
-            // Check if previous attempt had a reason
-            const previousReason = classData.users[currentUsername]?.reasons?.[questionId];
-            // Handle case where reason might be stored as object instead of string
-            const reasonStr = typeof previousReason === 'string' ? previousReason :
-                              (previousReason?.value || previousReason?.reason || '');
-            return reasonStr && reasonStr.trim().length > 0;
+            if (_quizIsFrq(questionId)) return true;
+            if (_quizRetryStatus(questionId) === 'pending') return false;
+            const attempts = _quizEffectiveAttempts(questionId);
+            return attempts === 0 || (attempts === 1 && !firstAnswerWasCorrect(questionId));
         }
         // Replace the entire detectUnitAndLessons function:
         function detectUnitAndLessons(questions) {
@@ -6954,48 +7048,46 @@ function renderLessonSelector(unitInfo) {
             }
 
             // Add reasoning section in main column (ONLY for MCQs, not FRQs)
+            // QUIZ_FIRST_ANSWER_SPEC v2: first answer → (if wrong) one explained retry → settled.
             if (question.type !== 'free-response') {
+                const form = _quizFormState(question.id);
+                const savedReason = getReasonString(classData.users[currentUsername]?.reasons?.[question.id]);
                 html += `
                         <div class="answer-section">
                             <div class="reason-wrapper">
-                                <label class="reason-label">
-                                    ${attempts > 0 && !canRetryQuestion ?
-                                        'Your explanation (required for retry):' :
-                                        'Explain your reasoning (optional but enables retry):'}
-                                </label>
+                                <label class="reason-label" id="reason-label-${question.id}">${form.label}</label>
                                 <textarea
                                     id="reason-${question.id}"
-                                    class="reason-textarea ${attempts > 0 && canRetryQuestion ? 'required' : ''}"
-                                    placeholder="${attempts > 0 && !canRetryQuestion ?
-                                        'Previous attempt did not include reasoning. Add reasoning to enable retry.' :
-                                        'Explain why you chose this answer...'}"
-                                >${getReasonString(classData.users[currentUsername]?.reasons?.[question.id])}</textarea>
+                                    class="reason-textarea ${form.mode === 'retry' ? 'required' : ''}"
+                                    placeholder="${form.placeholder}"
+                                    ${form.mode === 'settled' ? 'readonly' : ''}
+                                >${form.mode === 'retry' ? '' : savedReason}</textarea>
                             </div>
                             <div>
                                 <button
                                     id="submit-${question.id}"
                                     class="submit-button"
                                     onclick="submitAnswer('${question.id}', '${question.type}')"
-                                    ${!canRetryQuestion && isAnswered ? 'disabled' : ''}
+                                    ${form.buttonDisabled ? 'disabled' : ''}
+                                    style="${form.mode === 'settled' ? 'display:none;' : ''}"
                                 >
-                                    ${isAnswered ? (canRetryQuestion ? 'Update Answer' : 'Add Reasoning to Retry') : 'Submit Answer'}
+                                    ${form.buttonText}
                                 </button>
-
-                                ${isAnswered && !canRetryQuestion && !getReasonString(classData.users[currentUsername]?.reasons?.[question.id]).trim() ? `
-                                    <button
-                                        id="add-explanation-${question.id}"
-                                        class="add-explanation-button"
-                                        onclick="addExplanationToRetry('${question.id}')"
-                                        style="margin-left: 10px; background: #28a745; color: white;"
-                                    >
-                                        Add Explanation to Retry
-                                    </button>
-                                ` : ''}
+                                <span id="grade-lock-${question.id}" class="grade-lock-msg" style="${form.lockText ? '' : 'display:none;'}">${form.lockText}</span>
 
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
                         </div>
+                        <!-- Answer key + class chart hosts: filled by displayAnswerKey / showDotplot once settled -->
+                        <div id="answer-key-${question.id}" class="answer-key-section" style="display:none;">
+                            <div class="answer-key-content">
+                                <h4>Answer Key</h4>
+                                <div id="correct-answer-${question.id}" class="correct-answer"></div>
+                                <div id="official-explanation-${question.id}" class="official-explanation"></div>
+                            </div>
+                        </div>
+                        <div id="dotplot-section-${question.id}" class="dotplot-section"></div>
                 `;
             } else {
                 // For FRQs: check if regular FRQ (submit in sidebar) or special type (submit here)
@@ -7157,7 +7249,10 @@ function renderLessonSelector(unitInfo) {
                 if (typeof window.renderChartWizardPreview === 'function') {
                     window.renderChartWizardPreview(question.id);
                 }
-                if (isAnswered) {
+                if (isAnswered && question.type !== 'free-response') {
+                    // MCQ: one state→DOM refresh (form, key, chart, peers) — spec v2
+                    _refreshAfterReveal(question.id);
+                } else if (isAnswered) {
                     populatePeerResponses(question.id, question.type);
 
                     // Check if answer was correct and should show College Board explanation
@@ -7173,7 +7268,7 @@ function renderLessonSelector(unitInfo) {
 
                         console.log(`DEBUG: On load - isCorrect: ${isCorrect}, hasExplanation: ${hasExplanation}`);
 
-                        // Show College Board explanation if conditions are met
+                        // Show College Board explanation if conditions are met (FRQ path)
                         if (isCorrect && hasExplanation) {
                             displayCollegeBoardExplanation(question.id);
                             // Also change textarea border to gold
@@ -7190,22 +7285,304 @@ function renderLessonSelector(unitInfo) {
             return { html, chartTasks };
         }
 
-        // QUIZ_FIRST_ANSWER_SPEC §2 (teacher 2026-09-29): classmates' LETTERS are hidden until this
-        // question's answer key is revealed; only their reasoning and votes show before that. The
-        // first committed answer is the grade (server rule), so once the key is out nothing shown
-        // here can change a grade.
-        function answerKeyRevealedFor(questionId) {
-            const answerKeySection = document.getElementById(`answer-key-${questionId}`);
-            const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
-            const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
-            return !!((answerKeySection && answerKeySection.style.display === 'block') ||
-                      (cbSection && cbSection.style.display === 'block') ||
-                      (frqSolutionSection && frqSolutionSection.style.display !== 'none'));
+        // ── QUIZ_FIRST_ANSWER_SPEC v2 (teacher 2026-09-29) ───────────────────────────────────
+        // A multiple-choice item is SETTLED once the student has answered AND either the first
+        // answer was correct or their one retry was ACCEPTED by the roster server. A retry that is
+        // still in flight / queued offline is PENDING: nothing is revealed until the server says
+        // yes (a 409 reverts it). Nothing from classmates (cards, letters, chart, consensus line)
+        // and no answer key shows before settlement; once settled everything appears at once.
+        // FRQs are unchanged (always "settled").
+        var QUIZ_PEERS_LOCKED_TEXT = 'Answer (and, if you were wrong, retry with an explanation) to see what classmates wrote.';
+        var QUIZ_RETRY_PENDING_TEXT = 'Retry saved \u2014 waiting for the server / connection.';
+        var QUIZ_RETRY_CHECKING_TEXT = 'Checking your retry with the server\u2026';
+
+        // Classmates' text (names, letters, explanations) is untrusted: never render it as HTML.
+        function _escHtml(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
-        // Re-render the surfaces the gate hides, right when the key is revealed (no reload needed).
+        // A JS string literal safe inside an HTML attribute (onclick="fn(..., ${_escJsArg(x)})").
+        function _escJsArg(value) {
+            return _escHtml(JSON.stringify(String(value === null || value === undefined ? '' : value)));
+        }
+        // A classmate's FRQ chart: the element id comes from a hex slug of the name (never the name
+        // itself), and the chart's own text fields are escaped before any HTML is built from them.
+        function _peerChartId(questionId, username) {
+            const slug = Array.from(String(username === null || username === undefined ? '' : username))
+                .map(ch => ch.codePointAt(0).toString(16))
+                .join('-');
+            return `peer-${String(questionId).replace(/[^A-Za-z0-9_-]/g, '_')}-u${slug}`;
+        }
+        function _safePeerChart(parsed) {
+            if (!parsed || typeof parsed !== 'object') return parsed;
+            const copy = JSON.parse(JSON.stringify(parsed));
+            if (typeof copy.chartType !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]*$/.test(copy.chartType)) {
+                delete copy.chartType;   // not a chart we can draw: shown as escaped text instead
+            }
+            if (copy.title !== undefined) copy.title = _escHtml(copy.title);
+            if (copy.chartConfig && typeof copy.chartConfig === 'object' && copy.chartConfig.description !== undefined) {
+                copy.chartConfig.description = _escHtml(copy.chartConfig.description);
+            }
+            return copy;
+        }
+
+        // Retry state, persisted per student in localStorage (classData is rebuilt from IDB on load
+        // and would drop it): firstAnswers[qid] = the first letter; retries[qid] = { state:
+        // 'pending'|'accepted', value, submittedAt, before } where `before` is the pre-retry
+        // snapshot used to revert a refused retry.
+        var _quizRetryStateCache = {};
+        function _quizRetryState(username) {
+            const user = username || currentUsername;
+            if (!user) return { firstAnswers: {}, retries: {} };
+            if (_quizRetryStateCache[user]) return _quizRetryStateCache[user];
+            const state = { firstAnswers: {}, retries: {} };
+            try {
+                const saved = JSON.parse(localStorage.getItem(`quizRetryState_${user}`) || 'null');
+                if (saved && typeof saved === 'object') {
+                    Object.assign(state.firstAnswers, saved.firstAnswers || {});
+                    Object.assign(state.retries, saved.retries || {});
+                }
+            } catch (_) { /* localStorage may be blocked */ }
+            _quizRetryStateCache[user] = state;
+            return state;
+        }
+        function _saveQuizRetryState(username) {
+            const user = username || currentUsername;
+            if (!user) return;
+            try {
+                localStorage.setItem(`quizRetryState_${user}`, JSON.stringify(_quizRetryState(user)));
+            } catch (_) { /* localStorage may be blocked */ }
+        }
+        function _quizRetryStatus(questionId, username) {
+            const retry = _quizRetryState(username).retries[questionId];
+            return retry ? retry.state : null;
+        }
+
+        function _quizQuestionFor(questionId) {
+            const fromCurrent = (typeof currentQuestions !== 'undefined' && Array.isArray(currentQuestions))
+                ? currentQuestions.find(q => q && q.id === questionId) : null;
+            if (fromCurrent) return fromCurrent;
+            return (typeof EMBEDDED_CURRICULUM !== 'undefined' && Array.isArray(EMBEDDED_CURRICULUM))
+                ? (EMBEDDED_CURRICULUM.find(q => q && q.id === questionId) || null) : null;
+        }
+
+        function _quizIsFrq(questionId) {
+            const q = _quizQuestionFor(questionId);
+            return !!(q && q.type === 'free-response');
+        }
+
+        // Same fields as getCorrectAnswer(), without its debug logging (called on every render).
+        function _quizKeyFor(questionId) {
+            const q = _quizQuestionFor(questionId);
+            if (!q) return null;
+            return q.answerKey || q.correct_answer || q.answer || null;
+        }
+
+        function _quizAnswerMatchesKey(questionId, value) {
+            const key = _quizKeyFor(questionId);
+            if (key === null || key === undefined) return false;
+            if (value === null || value === undefined || value === '') return false;
+            return String(value).toLowerCase().trim() === String(key).toLowerCase().trim();
+        }
+
+        // An answered item counts as at least one attempt (restored answers may lack a count).
+        function _quizEffectiveAttempts(questionId) {
+            const attempts = getAttemptCount(questionId);
+            if (attempts > 0) return attempts;
+            return isQuestionAnswered(questionId) ? 1 : 0;
+        }
+
+        function _currentAnswerValue(questionId) {
+            const current = classData.users[currentUsername]?.answers?.[questionId];
+            return (current && typeof current === 'object') ? current.value : current;
+        }
+
+        // Correctness of the FIRST answer: the recorded first answer when we have it, else the
+        // current answer while only one attempt exists (it IS the first answer then).
+        function firstAnswerWasCorrect(questionId) {
+            let first = _quizRetryState().firstAnswers[questionId];
+            if (first === undefined || first === null) {
+                if (_quizEffectiveAttempts(questionId) !== 1) return false;
+                first = _currentAnswerValue(questionId);
+            }
+            return _quizAnswerMatchesKey(questionId, first);
+        }
+
+        function quizSettledFor(questionId) {
+            if (_quizIsFrq(questionId)) return true;
+            if (!isQuestionAnswered(questionId)) return false;
+            const retryStatus = _quizRetryStatus(questionId);
+            if (retryStatus === 'pending') return false;
+            if (retryStatus === 'accepted') return true;
+            // Correct-first exception FIRST: a correct first answer is the grade and there is no retry
+            // to check (the local key decides; works signed out).
+            if (firstAnswerWasCorrect(questionId)) return true;
+            // A second attempt settles ONLY with an explicit accepted record. Two local attempts with
+            // no record (a pre-v2 profile, or lost retry state) stay closed until the ledger restore
+            // reconciles them with the server ("checking").
+            return false;
+        }
+
+        // Answered twice, but no local record of the retry's outcome: wait for the server.
+        function _quizRetryUnknown(questionId) {
+            return !_quizIsFrq(questionId)
+                && isQuestionAnswered(questionId)
+                && _quizRetryStatus(questionId) === null
+                && _quizEffectiveAttempts(questionId) >= 2
+                && !firstAnswerWasCorrect(questionId);   // correct first answer: nothing to check
+        }
+
+        // The retry button enables at 3+ words (tokens with a letter or digit — the server's rule).
+        function retryReasoningReady(text) {
+            if (typeof text !== 'string') return false;
+            return text.trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length >= 3;
+        }
+
+        // A classmate's card appears only when they wrote an explanation (spec §1.6).
+        function _peerExplained(peer) {
+            return !!(peer && typeof peer.reason === 'string' && peer.reason.trim());
+        }
+
+        function _explainedCountText(n) {
+            return `${n} ${n === 1 ? 'classmate' : 'classmates'} explained`;
+        }
+
+        // Form state for an MCQ: 'first' (not answered), 'retry' (one explained retry open),
+        // 'pending' (retry sent, server has not answered) or 'settled' (this answer is the grade).
+        function _quizFormState(questionId) {
+            if (!isQuestionAnswered(questionId)) {
+                return {
+                    mode: 'first',
+                    label: 'Explain your reasoning (optional; classmates only see answers that come with an explanation):',
+                    placeholder: 'Explain why you chose this answer...',
+                    buttonText: 'Submit Answer',
+                    buttonDisabled: false,
+                    lockText: ''
+                };
+            }
+            if (_quizRetryUnknown(questionId)) {
+                return {
+                    mode: 'checking',
+                    label: 'Your explanation:',
+                    placeholder: '',
+                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonDisabled: true,
+                    lockText: QUIZ_RETRY_CHECKING_TEXT
+                };
+            }
+            if (_quizRetryStatus(questionId) === 'pending') {
+                return {
+                    mode: 'pending',
+                    label: 'Your retry explanation:',
+                    placeholder: '',
+                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonDisabled: true,
+                    lockText: QUIZ_RETRY_PENDING_TEXT
+                };
+            }
+            if (canRetry(questionId)) {
+                return {
+                    mode: 'retry',
+                    label: 'You were not correct. One retry: explain what changed your mind.',
+                    placeholder: 'What changed your mind? (at least 3 words)',
+                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonDisabled: true,
+                    lockText: ''
+                };
+            }
+            return {
+                mode: 'settled',
+                label: 'Your explanation:',
+                placeholder: '',
+                buttonText: 'Submit Answer',
+                buttonDisabled: true,
+                lockText: 'This answer is your grade.'
+            };
+        }
+
+        // Bring an already-rendered MCQ form in line with its state (after a submit, a revert, a
+        // server answer or a restore): choices, stored selection, textarea, button, lock line.
+        function _applyQuizFormState(questionId, { clearReason = false } = {}) {
+            if (_quizIsFrq(questionId)) return;
+            const form = _quizFormState(questionId);
+            const locked = form.mode === 'settled' || form.mode === 'pending' || form.mode === 'checking';
+            const stored = _currentAnswerValue(questionId);
+            document.querySelectorAll(`input[name="choice-${questionId}"]`).forEach(radio => {
+                radio.disabled = locked;
+                if (stored !== undefined && stored !== null && stored !== '') radio.checked = radio.value === stored;
+            });
+            document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
+                div.classList.toggle('disabled', locked);
+                const radio = div.querySelector('input[type="radio"]');
+                if (radio) div.classList.toggle('selected', !!radio.checked);
+            });
+            const label = document.getElementById(`reason-label-${questionId}`);
+            if (label) label.textContent = form.label;
+            const textarea = document.getElementById(`reason-${questionId}`);
+            if (textarea) {
+                textarea.placeholder = form.placeholder;
+                textarea.readOnly = locked;
+                textarea.classList.toggle('required', form.mode === 'retry');
+                if (clearReason && form.mode === 'retry') textarea.value = '';
+            }
+            const button = document.getElementById(`submit-${questionId}`);
+            if (button) {
+                button.textContent = form.buttonText;
+                button.style.display = locked ? 'none' : '';
+                button.disabled = form.mode === 'retry'
+                    ? !retryReasoningReady(textarea ? textarea.value : '')
+                    : form.buttonDisabled;
+            }
+            const lockLine = document.getElementById(`grade-lock-${questionId}`);
+            if (lockLine) {
+                lockLine.textContent = form.lockText;
+                lockLine.style.display = form.lockText ? '' : 'none';
+            }
+        }
+
+        // Live enable of the retry button: re-checked on EVERY keystroke (v1's bug was rendering
+        // the disabled state once and never re-checking it). Delegated, so re-renders are covered.
+        function _onQuizReasonInput(event) {
+            const target = event && event.target;
+            if (!target || typeof target.id !== 'string' || !target.id.startsWith('reason-')) return;
+            const questionId = target.id.slice('reason-'.length);
+            if (_quizFormState(questionId).mode !== 'retry') return;
+            const button = document.getElementById(`submit-${questionId}`);
+            if (button) button.disabled = !retryReasoningReady(target.value);
+        }
+        if (!window.__quizRetryInputWired) {
+            window.__quizRetryInputWired = true;
+            document.addEventListener('input', _onQuizReasonInput);
+        }
+
+        // Bring every gated surface of one MCQ in line with its state: the form, the answer key +
+        // College Board explanation (real renderers), the class chart and the peer panel. Used at
+        // the moment an item settles, after a revert, after a restore and on reload.
         function _refreshAfterReveal(questionId) {
-            try { if (typeof renderMCQDistribution === 'function') renderMCQDistribution(questionId); } catch (_) {}
-            try { if (typeof populatePeerReasoningSection === 'function') populatePeerReasoningSection(questionId); } catch (_) {}
+            const q = _quizQuestionFor(questionId);
+            const type = q ? q.type : 'multiple-choice';
+            if (type === 'free-response') {
+                try { if (typeof populatePeerResponses === 'function') populatePeerResponses(questionId, type); } catch (_) {}
+                return;
+            }
+            try { _applyQuizFormState(questionId); } catch (_) {}
+            const answered = isQuestionAnswered(questionId);
+            const settled = answered && quizSettledFor(questionId);
+            const keySection = document.getElementById(`answer-key-${questionId}`);
+            const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
+            if (settled) {
+                try { displayAnswerKey(questionId); } catch (_) {}
+            } else {
+                if (keySection) keySection.style.display = 'none';
+                if (cbSection) cbSection.style.display = 'none';
+            }
+            // The chart host shows once answered; renderMCQDistribution itself keeps it locked until settled.
+            try { if (answered && typeof showDotplot === 'function') showDotplot(questionId, type); } catch (_) {}
+            try { if (typeof populatePeerResponses === 'function') populatePeerResponses(questionId, type); } catch (_) {}
         }
 
         // Populate peer reasoning section with peer response cards
@@ -7215,16 +7592,28 @@ function renderLessonSelector(unitInfo) {
 
             if (!peerReasoningContent) return;
 
-            // Filter out current user's responses for peer display
-            const peerResponses = contributors.filter(c => c.username !== currentUsername);
+            // QUIZ_FIRST_ANSWER_SPEC v2 §1.4: nothing from classmates until this MCQ is settled.
+            const isFrqPeers = _quizIsFrq(questionId);
+            if (!isFrqPeers && !quizSettledFor(questionId)) {
+                if (peerCountSpan) peerCountSpan.textContent = '';
+                peerReasoningContent.innerHTML = `<div class="peer-hint">${QUIZ_PEERS_LOCKED_TEXT}</div>`;
+                return;
+            }
+
+            // Filter out current user's responses; MCQ cards only for classmates who explained (§1.6)
+            const peerResponses = contributors.filter(c => c.username !== currentUsername && (isFrqPeers || _peerExplained(c)));
 
             // Update peer count
             if (peerCountSpan) {
-                peerCountSpan.textContent = peerResponses.length > 0 ? `${peerResponses.length} peers` : 'No peers yet';
+                peerCountSpan.textContent = isFrqPeers
+                    ? (peerResponses.length > 0 ? `${peerResponses.length} peers` : 'No peers yet')
+                    : _explainedCountText(peerResponses.length);
             }
 
             if (peerResponses.length === 0) {
-                peerReasoningContent.innerHTML = '<div class="peer-hint">No peer responses yet. Be the first to answer!</div>';
+                peerReasoningContent.innerHTML = isFrqPeers
+                    ? '<div class="peer-hint">No peer responses yet. Be the first to answer!</div>'
+                    : '<div class="peer-hint">No classmate has explained this one yet.</div>';
                 return;
             }
 
@@ -7255,7 +7644,7 @@ function renderLessonSelector(unitInfo) {
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
             const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
             const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
-            const answerKeyRevealed = answerKeyRevealedFor(questionId);
+            const answerKeyRevealed = quizSettledFor(questionId);
 
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeySection exists: ${!!answerKeySection}, cbSection exists: ${!!cbSection}`);
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeyRevealed: ${answerKeyRevealed}`);
@@ -7305,15 +7694,15 @@ function renderLessonSelector(unitInfo) {
                 console.log(`DEBUG: Peer ${peer.username} - answer: ${peer.choice || peer.response}, isCorrect: ${isCorrect}, answerKeyRevealed: ${answerKeyRevealed}`);
 
                 html += `
-                    <div class="peer-response-card ${answerKeyRevealedFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''} ${isCollegeBoard ? 'college-board-official' : ''}" data-consensus="${consensusLevel}">
+                    <div class="peer-response-card ${quizSettledFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''} ${isCollegeBoard ? 'college-board-official' : ''}" data-consensus="${consensusLevel}">
                         ${rankBadge ? `<div class="answer-rank">${rankBadge}</div>` : ''}
                         <div class="peer-name">
-                            ${isCollegeBoard ? '🏛️ College Board (Official)' : peer.username}
+                            ${isCollegeBoard ? '🏛️ College Board (Official)' : _escHtml(peer.username)}
                             ${isCorrect || isCollegeBoard ? '✓' : ''}
                         </div>
-                        ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response}</div>` : ''}
+                        ${quizSettledFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${_escHtml(peer.choice || peer.response)}</div>` : ''}
                         ${hasReason ? `
-                            <div class="peer-reasoning-text ${isCollegeBoard ? 'official-explanation' : ''}">${peer.reason}</div>
+                            <div class="peer-reasoning-text ${isCollegeBoard ? 'official-explanation' : ''}">${_escHtml(peer.reason)}</div>
                         ` : '<div class="peer-reasoning-text" style="color: #999; font-style: italic;">No explanation provided</div>'}
 
                         ${peer.helpfulVotes > 0 ? `
@@ -7324,18 +7713,18 @@ function renderLessonSelector(unitInfo) {
 
                         ${peer.response && !isCollegeBoard ? `
                             <div class="peer-voting-buttons">
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'helpful')" class="vote-btn helpful ${votedHelpful ? 'voted' : ''}">
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(peer.username)}, 'helpful')" class="vote-btn helpful ${votedHelpful ? 'voted' : ''}">
                                     <i class="fas fa-thumbs-up"></i>
                                     <span class="vote-count">${peer.helpfulVotes}</span>
                                     ${peer.helpfulVotes > 0 ? `<span class="vote-percentage">(${votePercentage}%)</span>` : ''}
                                 </button>
                                 ${votedHelpful ? '<span class="your-vote-badge">Your vote!</span>' : ''}
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'unclear')" class="vote-btn unclear ${votedUnclear ? 'voted' : ''}">
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(peer.username)}, 'unclear')" class="vote-btn unclear ${votedUnclear ? 'voted' : ''}">
                                     <i class="fas fa-question-circle"></i>
                                     <span class="vote-count">${peer.unclearVotes}</span>
                                 </button>
                                 ${votedUnclear ? '<span class="your-vote-badge unclear">Your vote</span>' : ''}
-                                <button onclick="voteFRQ('${questionId}', '${peer.username}', 'contradicts')" class="vote-btn contradicts ${votedContradicts ? 'voted' : ''}">
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(peer.username)}, 'contradicts')" class="vote-btn contradicts ${votedContradicts ? 'voted' : ''}">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     <span class="vote-count">${peer.contradictsVotes}</span>
                                 </button>
@@ -7605,10 +7994,12 @@ function renderLessonSelector(unitInfo) {
             // Get current attempt count
             const attempts = getAttemptCount(questionId);
 
-            // Check if can retry - only check reasoning requirement for MCQ
-            if (attempts > 0 && !isFRQ && !canRetry(questionId)) {
+            // MCQ: one explained retry after a wrong first answer, nothing after that (spec v2)
+            if (!isFRQ && !canRetry(questionId)) {
                 if (errorSpan) {
-                    errorSpan.textContent = 'Please provide reasoning with your previous answer to enable retry.';
+                    errorSpan.textContent = _quizRetryStatus(questionId) === 'pending'
+                        ? QUIZ_RETRY_PENDING_TEXT
+                        : (_quizRetryUnknown(questionId) ? QUIZ_RETRY_CHECKING_TEXT : 'This answer is already your grade.');
                     errorSpan.classList.add('show');
                 }
                 return;
@@ -7692,10 +8083,10 @@ function renderLessonSelector(unitInfo) {
                 reasonTextarea = document.getElementById(`reason-${questionId}`);
                 reason = reasonTextarea ? reasonTextarea.value.trim() : '';
 
-                // If this is a retry (attempts > 0), reason is required for MCQ
-                if (attempts > 0 && !reason) {
+                // A retry needs an explanation of the change of mind (3+ words, as the server enforces)
+                if (_quizEffectiveAttempts(questionId) > 0 && !retryReasoningReady(reason)) {
                     if (errorSpan) {
-                        errorSpan.textContent = 'Reasoning is required for retry attempts.';
+                        errorSpan.textContent = 'One retry: explain what changed your mind (at least 3 words).';
                         errorSpan.classList.add('show');
                     }
                     if (reasonTextarea) {
@@ -7723,26 +8114,64 @@ function renderLessonSelector(unitInfo) {
             // Create timestamp as number for consistency
             const timestampNow = Date.now();
 
-            classData.users[currentUsername].answers[questionId] = {
+            // The student this submit belongs to (a later rollback must not follow currentUsername).
+            const submitUsername = currentUsername;
+            const userRecord = classData.users[submitUsername];
+            const retryState = _quizRetryState(submitUsername);
+            const ledgerAttempt = isFRQ ? 1 : _quizEffectiveAttempts(questionId) + 1;
+
+            // Keep the FIRST answer so its correctness survives the retry (spec v2 §4).
+            if (!isFRQ && ledgerAttempt === 1) {
+                retryState.firstAnswers[questionId] = value;
+                _saveQuizRetryState(submitUsername);
+            }
+
+            // A retry is PENDING until the roster server accepts it; the snapshot reverts a refusal.
+            if (!isFRQ && ledgerAttempt === 2) {
+                let submitStudentId = null;
+                try { submitStudentId = window.rosterClient && typeof window.rosterClient.studentId === 'function' ? window.rosterClient.studentId() : null; } catch (_) {}
+                retryState.retries[questionId] = {
+                    state: 'pending',
+                    value: value,
+                    studentId: submitStudentId,
+                    submittedAt: timestampNow,
+                    before: {
+                        answer: userRecord.answers[questionId],
+                        reason: userRecord.reasons ? userRecord.reasons[questionId] : undefined,
+                        attempts: userRecord.attempts ? userRecord.attempts[questionId] : undefined,
+                        timestamp: userRecord.timestamps ? userRecord.timestamps[questionId] : undefined
+                    }
+                };
+                _saveQuizRetryState(submitUsername);
+            }
+
+            userRecord.answers[questionId] = {
                 value: value,
                 timestamp: timestampNow
             };
 
             // Only save reasoning for non-FRQ questions
             if (!isFRQ) {
-                classData.users[currentUsername].reasons[questionId] = reason;
+                userRecord.reasons[questionId] = reason;
             }
 
-            classData.users[currentUsername].timestamps[questionId] = new Date().toISOString();
-            classData.users[currentUsername].attempts[questionId] = attempts + 1;
+            userRecord.timestamps[questionId] = new Date().toISOString();
+            userRecord.attempts[questionId] = isFRQ ? attempts + 1 : ledgerAttempt;
 
-            // Save to both classData and IDB
-            saveClassData();
+            // Save to both classData and IDB (tracked: a revert waits for these writes to land)
+            _trackQuizWrite(submitUsername, questionId, saveClassData());
 
             // DN2d gradebook ledger feeder -- wired into the LIVE submit path
             // (s123 P1: this was orphaned in the never-called saveAnswerWithTracking,
-            // so quiz/PC grades never reached the ledger).
-            recordToGradebookLedger(questionId, value);
+            // so quiz/PC grades never reached the ledger). MCQ: attempt 1 = first answer,
+            // attempt 2 = the explained retry; a 409 from the server reverts this submit.
+            recordToGradebookLedger(questionId, value, {
+                attempt: ledgerAttempt,
+                reasoning: isFRQ ? undefined : reason,
+                onOutcome: (!isFRQ && ledgerAttempt === 2)
+                    ? (outcome, detail) => _settleQuizRetry(submitUsername, questionId, outcome, detail)
+                    : null
+            });
 
             // Also save to answers_username format for localStorage compatibility
             try {
@@ -7759,9 +8188,9 @@ function renderLessonSelector(unitInfo) {
 
             // Save directly to IDB for durability
             if (typeof saveAnswer === 'function') {
-                saveAnswer(currentUsername, questionId, value, timestampNow)
+                _trackQuizWrite(submitUsername, questionId, saveAnswer(submitUsername, questionId, value, timestampNow)
                     .then(() => console.log(`✅ Answer saved to IDB: ${questionId}`))
-                    .catch(e => console.warn('IDB save failed:', e));
+                    .catch(e => console.warn('IDB save failed:', e)));
             }
 
             // Sync to Supabase if turbo mode is active
@@ -7769,7 +8198,8 @@ function renderLessonSelector(unitInfo) {
                 // PHASE 2 OPTIMIZATION: Use batching queue instead of immediate sync
                 if (window.submitAnswerViaRailway) {
                     // Railway has its own batching, use it directly
-                    window.submitAnswerViaRailway(currentUsername, questionId, value, timestampNow)
+                    // Tracked: a rollback must not send its clear before this POST has landed.
+                    _trackQuizWrite(submitUsername, questionId, window.submitAnswerViaRailway(currentUsername, questionId, value, timestampNow, isFRQ ? undefined : reason)
                         .then(success => {
                             if (success) {
                                 console.log(`✅ Answer synced via Railway for ${questionId}`);
@@ -7778,7 +8208,7 @@ function renderLessonSelector(unitInfo) {
                         })
                         .catch(error => {
                             console.log(`⚠️ Failed to sync answer via Railway: ${error.message}`);
-                        });
+                        }));
                 } else {
                     // Use batching queue for Supabase
                     queueAnswerForSync(currentUsername, questionId, value, timestampNow);
@@ -7807,16 +8237,11 @@ function renderLessonSelector(unitInfo) {
             const submitBtn = document.getElementById(`submit-${questionId}`);
             const qContainer = document.querySelector(`[data-question-id="${questionId}"]`);
 
-            // Update button
-            if (submitBtn) {
-                if (!isFRQ && !canRetry(questionId)) {
-                    // MCQ only: needs reasoning to retry
-                    submitBtn.textContent = 'Add Reasoning to Retry';
-                    submitBtn.disabled = true;
-                } else {
-                    // FRQ or retryable MCQ: keep enabled
-                    submitBtn.textContent = 'Update Answer';
-                }
+            // Update the form: MCQ → retry form (wrong first answer) or locked (settled); FRQ → Update Answer
+            if (!isFRQ) {
+                _applyQuizFormState(questionId, { clearReason: true });
+            } else if (submitBtn) {
+                submitBtn.textContent = 'Update Answer';
             }
 
             // Show success message with correctness feedback
@@ -7830,6 +8255,12 @@ function renderLessonSelector(unitInfo) {
                 if (isCorrect) {
                     successSpan.textContent = '✅ Correct answer submitted!';
                     successSpan.style.color = '#27ae60';
+                } else if (!isFRQ && canRetry(questionId)) {
+                    successSpan.textContent = 'Not correct. You get one retry: explain what changed your mind, then submit.';
+                    successSpan.style.color = '#c0392b';
+                } else if (!isFRQ && _quizRetryStatus(questionId) === 'pending') {
+                    successSpan.textContent = QUIZ_RETRY_PENDING_TEXT;
+                    successSpan.style.color = '#3498db';
                 } else {
                     successSpan.textContent = '📝 Answer submitted successfully!';
                     successSpan.style.color = '#3498db';
@@ -7883,13 +8314,13 @@ function renderLessonSelector(unitInfo) {
             // Render the appropriate visualization with a small delay to ensure DOM is ready
             setTimeout(() => {
                 if (questionType === 'multiple-choice') {
-                    renderMCQDistribution(questionId);
+                    // Form, key, chart and peers in one pass — all behind quizSettledFor.
+                    _refreshAfterReveal(questionId);
                 } else {
                     renderFRQResponses(questionId);
+                    // Populate peer reasoning after chart rendering
+                    populatePeerResponses(questionId, questionType);
                 }
-
-                // Populate peer reasoning after chart rendering
-                populatePeerResponses(questionId, questionType);
 
                 // Trigger AI grading for FRQ answers
                 // Solution/rubric will only be shown if AI grading fails
@@ -7996,11 +8427,13 @@ function renderLessonSelector(unitInfo) {
         function renderMCQDistribution(questionId) {
             const canvas = document.getElementById(`dotplot-${questionId}`);
             if (!canvas) return;
-            // QUIZ_FIRST_ANSWER_SPEC §2: the class distribution IS the crowd's letter — wait for the key.
+            // QUIZ_FIRST_ANSWER_SPEC v2 §1.4: the class distribution IS the crowd's letter — wait until settled.
             const consensusGate = document.getElementById(`consensus-${questionId}`);
-            if (!answerKeyRevealedFor(questionId)) {
+            if (!quizSettledFor(questionId)) {
                 canvas.style.display = 'none';
-                if (consensusGate) consensusGate.innerHTML = '<div class="consensus-msg no-consensus">Class results unlock with the answer key.</div>';
+                if (consensusGate) consensusGate.innerHTML = `<div class="consensus-msg no-consensus">${QUIZ_PEERS_LOCKED_TEXT}</div>`;
+                const lockedContributors = document.getElementById(`contributors-${questionId}`);
+                if (lockedContributors) lockedContributors.innerHTML = '';
                 return;
             }
             canvas.style.display = '';
@@ -8174,14 +8607,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 let html = '<h4 style="margin-top: 10px;">Individual Responses:</h4>';
                 contributors.forEach(c => {
                     const isCurrentUser = c.username === currentUsername;
+                    // Spec §1.6: a classmate with no explanation gets no entry (still counted in the chart).
+                    if (!isCurrentUser && !_peerExplained(c)) return;
                     const badges = calculateBadges(c.username);
                     const badgeText = badges.length > 0 ? ` ${badges.join(' ')}` : '';
 
                     // CRITICAL: Always show the reason if it exists
                     html += `
                         <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
-                            <span class="contributor-choice">${c.username}${badgeText}${answerKeyRevealedFor(questionId) ? ` → Choice ${c.choice}` : ''}</span>
-                            ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; padding: 8px; background: #f9f9f9; border-left: 3px solid #2196F3; font-style: italic;">"${c.reason}"</div>` : '<div style="color: #999; font-style: italic; margin-top: 5px;">No explanation provided</div>'}
+                            <span class="contributor-choice">${_escHtml(c.username)}${badgeText}${quizSettledFor(questionId) ? ` → Choice ${_escHtml(c.choice)}` : ''}</span>
+                            ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; padding: 8px; background: #f9f9f9; border-left: 3px solid #2196F3; font-style: italic;">"${_escHtml(c.reason)}"</div>` : '<div style="color: #999; font-style: italic; margin-top: 5px;">No explanation provided</div>'}
                         </div>
                     `;
                 });
@@ -8225,10 +8660,18 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             if (!peerReasoningContent) return;
 
-            // Update peer count
+            // QUIZ_FIRST_ANSWER_SPEC v2 §1.4: nothing from classmates until this MCQ is settled.
+            const isFrqPeers = _quizIsFrq(questionId);
+            if (!isFrqPeers && !quizSettledFor(questionId)) {
+                if (peerCount) peerCount.textContent = '';
+                peerReasoningContent.innerHTML = `<div class="peer-hint">${QUIZ_PEERS_LOCKED_TEXT}</div>`;
+                return;
+            }
+
+            // Update peer count (MCQ: only classmates who explained, spec §1.6)
             if (peerCount) {
-                const totalPeers = contributors.filter(c => c.username !== currentUsername).length;
-                peerCount.textContent = `${totalPeers} peers`;
+                const totalPeers = contributors.filter(c => c.username !== currentUsername && (isFrqPeers || _peerExplained(c))).length;
+                peerCount.textContent = isFrqPeers ? `${totalPeers} peers` : _explainedCountText(totalPeers);
             }
 
             if (contributors.length === 0) {
@@ -8236,9 +8679,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 return;
             }
 
-            // Filter out current user and sort by reasoning quality
+            // Filter out current user (and, for MCQ, classmates with no explanation); sort by reasoning
             const peerResponses = contributors
-                .filter(c => c.username !== currentUsername)
+                .filter(c => c.username !== currentUsername && (isFrqPeers || _peerExplained(c)))
                 .sort((a, b) => {
                     // Sort: those with reasons first, then alphabetically
                     if (a.reason && !b.reason) return -1;
@@ -8247,7 +8690,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 });
 
             if (peerResponses.length === 0) {
-                peerReasoningContent.innerHTML = '<div class="peer-hint">You\'re the first to answer this question!</div>';
+                peerReasoningContent.innerHTML = isFrqPeers
+                    ? '<div class="peer-hint">You\'re the first to answer this question!</div>'
+                    : '<div class="peer-hint">No classmate has explained this one yet.</div>';
                 return;
             }
 
@@ -8279,30 +8724,30 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 if (isFRQ) {
                     let answerHtml = '';
                     try {
-                        const parsed = JSON.parse(peer.response);
+                        const parsed = _safePeerChart(JSON.parse(peer.response));
                         if (parsed.chartType) {
-                            const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
+                            const canvasId = _peerChartId(questionId, peer.username);
                             if (typeof window.charts?.getChartHtml === 'function') {
                                 answerHtml = `<div class="peer-chart-container">${window.charts.getChartHtml(parsed, canvasId)}</div>`;
                             } else {
-                                answerHtml = `<div id="chart-container-${canvasId}" class="peer-chart-container"></div>`;
+                                answerHtml = `<div id="chart-container-${_escHtml(canvasId)}" class="peer-chart-container"></div>`;
                             }
                         } else {
-                            answerHtml = peer.response;
+                            answerHtml = _escHtml(peer.response);
                         }
                     } catch(e) {
-                        answerHtml = peer.response;
+                        answerHtml = _escHtml(peer.response);
                     }
 
                     return `
-                        <div class="peer-name">${peer.username}${badgeText}</div>
+                        <div class="peer-name">${_escHtml(peer.username)}${badgeText}</div>
                         <div class="peer-frq-answer">${answerHtml}</div>
                         ${peer.username !== currentUsername ? `
                             <div class="frq-vote-widget">
                                 ${[1,2,3,4,5].map(score => `
                                     <span class="star ${currentUserVote >= score ? 'active' : ''}"
                                           data-question-id="${questionId}"
-                                          data-username="${peer.username}"
+                                          data-username="${_escHtml(peer.username)}"
                                           data-score="${score}"
                                           title="${score} star${score > 1 ? 's' : ''}">
                                         <i class="fas fa-star"></i>
@@ -8317,10 +8762,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     `;
                 } else {
                     return `
-                        <div class="peer-name">${peer.username}${badgeText}</div>
-                        ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>` : ''}
+                        <div class="peer-name">${_escHtml(peer.username)}${badgeText}</div>
+                        ${quizSettledFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${_escHtml(peer.choice || peer.response)} ${isCorrect ? '✓' : ''}</div>` : ''}
                         ${hasReason ?
-                            `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+                            `<div class="peer-reasoning-text">"${_escHtml(peer.reason)}"</div>` :
                             '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
                         }
                     `;
@@ -8345,7 +8790,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         const isCorrect = badgeText.includes('🏆') || badgeText.includes('⭐');
 
                         // Update classes
-                        el.className = `peer-response-card ${isFRQ ? 'frq' : (isCorrect ? 'correct' : 'incorrect')}`;
+                        el.className = `peer-response-card ${isFRQ ? 'frq' : (quizSettledFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : '')}`;
 
                         // Update content
                         el.innerHTML = buildPeerCardHtml(peer);
@@ -8365,9 +8810,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                         // Schedule chart rendering if needed
                         if (isFRQ) {
                             try {
-                                const parsed = JSON.parse(peer.response);
+                                const parsed = _safePeerChart(JSON.parse(peer.response));
                                 if (parsed.chartType) {
-                                    const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
+                                    const canvasId = _peerChartId(questionId, peer.username);
                                     if (typeof window.charts?.renderChartNow === 'function') {
                                         requestAnimationFrame(() => {
                                             window.charts.renderChartNow(parsed, canvasId);
@@ -8399,16 +8844,16 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     if (isFRQ) {
                         let answerHtml = '';
                         try {
-                            const parsed = JSON.parse(peer.response);
+                            const parsed = _safePeerChart(JSON.parse(peer.response));
                             if (parsed.chartType) {
-                                const canvasId = `peer-${questionId}-${peer.username.replace(/\s+/g, '-')}`;
+                                const canvasId = _peerChartId(questionId, peer.username);
                                 if (typeof window.charts?.getChartHtml === 'function') {
                                     answerHtml = `<div class="peer-chart-container">${window.charts.getChartHtml(parsed, canvasId)}</div>`;
                                     requestAnimationFrame(() => {
                                         window.charts.renderChartNow(parsed, canvasId);
                                     });
                                 } else {
-                                    answerHtml = `<div id="chart-container-${canvasId}" class="peer-chart-container"></div>`;
+                                    answerHtml = `<div id="chart-container-${_escHtml(canvasId)}" class="peer-chart-container"></div>`;
                                     setTimeout(() => {
                                         const container = document.querySelector(`#chart-container-${canvasId}`);
                                         if (container && typeof renderChart === 'function') {
@@ -8417,15 +8862,15 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                     }, 100);
                                 }
                             } else {
-                                answerHtml = peer.response;
+                                answerHtml = _escHtml(peer.response);
                             }
                         } catch(e) {
-                            answerHtml = peer.response;
+                            answerHtml = _escHtml(peer.response);
                         }
 
                         html += `
-                            <div class="peer-response-card frq" data-key="${peer.username}">
-                                <div class="peer-name">${peer.username}${badgeText}</div>
+                            <div class="peer-response-card frq" data-key="${_escHtml(peer.username)}">
+                                <div class="peer-name">${_escHtml(peer.username)}${badgeText}</div>
                                 <div class="peer-frq-answer">${answerHtml}</div>
                                 ${peer.username !== currentUsername ? `
                                     <div class="frq-vote-widget">
@@ -8440,7 +8885,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                                             return `
                                                 <span class="star ${currentUserVote >= score ? 'active' : ''}"
                                                       data-question-id="${questionId}"
-                                                      data-username="${peer.username}"
+                                                      data-username="${_escHtml(peer.username)}"
                                                       data-score="${score}"
                                                       title="${score} star${score > 1 ? 's' : ''}">
                                                     <i class="fas fa-star"></i>
@@ -8458,11 +8903,11 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     } else {
                         const hasReason = peer.reason && peer.reason.trim().length > 0;
                         html += `
-                            <div class="peer-response-card ${answerKeyRevealedFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''}" data-key="${peer.username}">
-                                <div class="peer-name">${peer.username}${badgeText}</div>
-                                ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>` : ''}
+                            <div class="peer-response-card ${quizSettledFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''}" data-key="${_escHtml(peer.username)}">
+                                <div class="peer-name">${_escHtml(peer.username)}${badgeText}</div>
+                                ${quizSettledFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${_escHtml(peer.choice || peer.response)} ${isCorrect ? '✓' : ''}</div>` : ''}
                                 ${hasReason ?
-                                    `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
+                                    `<div class="peer-reasoning-text">"${_escHtml(peer.reason)}"</div>` :
                                     '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
                                 }
                             </div>
@@ -8530,21 +8975,21 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     const userVotes = classData.users[currentUsername]?.votes?.[questionId]?.[r.username] || {};
                     html += `
                         <div class="contributor-item">
-                            <strong>${r.username}:</strong>
+                            <strong>${_escHtml(r.username)}:</strong>
                             <div style="margin-top: 5px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
-                                ${r.response}
+                                ${_escHtml(r.response)}
                             </div>
-                            ${r.reason ? `<div class="contributor-reason">${r.reason}</div>` : ''}
+                            ${r.reason ? `<div class="contributor-reason">${_escHtml(r.reason)}</div>` : ''}
                             <div style="margin-top: 10px;">
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'helpful')"
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(r.username)}, 'helpful')"
                                         class="vote-btn ${userVotes.type === 'helpful' ? 'active' : ''}">
                                     💡 Helpful (${getVoteCount(questionId, r.username, 'helpful')})
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'unclear')"
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(r.username)}, 'unclear')"
                                         class="vote-btn ${userVotes.type === 'unclear' ? 'active' : ''}">
                                     🤔 Unclear (${getVoteCount(questionId, r.username, 'unclear')})
                                 </button>
-                                <button onclick="voteFRQ('${questionId}', '${r.username}', 'contradicts')"
+                                <button onclick="voteFRQ('${questionId}', ${_escJsArg(r.username)}, 'contradicts')"
                                         class="vote-btn ${userVotes.type === 'contradicts' ? 'active' : ''}">
                                     ⚔️ Contradicts (${getVoteCount(questionId, r.username, 'contradicts')})
                                 </button>
@@ -8615,101 +9060,6 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // Re-render the FRQ responses to update UI
             renderFRQResponses(questionId);
         };
-
-        // Add explanation retroactively to enable retry
-        window.addExplanationToRetry = function(questionId) {
-            const reasonTextarea = document.getElementById(`reason-${questionId}`);
-            const addExplanationBtn = document.getElementById(`add-explanation-${questionId}`);
-            const submitBtn = document.getElementById(`submit-${questionId}`);
-            const errorSpan = document.getElementById(`error-${questionId}`);
-            const successSpan = document.getElementById(`success-${questionId}`);
-
-            // Clear previous messages
-            if (errorSpan) {
-                errorSpan.textContent = '';
-                errorSpan.classList.remove('show');
-            }
-            if (successSpan) {
-                successSpan.textContent = '';
-                successSpan.classList.remove('show');
-            }
-
-            // Check if explanation is provided
-            const explanation = reasonTextarea ? reasonTextarea.value.trim() : '';
-            if (!explanation) {
-                if (errorSpan) {
-                    errorSpan.textContent = 'Please provide an explanation first.';
-                    errorSpan.classList.add('show');
-                }
-                // Focus on the textarea
-                if (reasonTextarea) {
-                    reasonTextarea.focus();
-                    reasonTextarea.classList.add('required');
-                }
-                return;
-            }
-
-            // Save the explanation
-            if (!classData.users[currentUsername]) {
-                classData.users[currentUsername] = {
-                    answers: {},
-                    reasons: {},
-                    timestamps: {},
-                    attempts: {}
-                };
-            }
-
-            classData.users[currentUsername].reasons[questionId] = explanation;
-            saveClassData();
-
-            // Update UI to enable retry
-            if (addExplanationBtn) {
-                addExplanationBtn.style.display = 'none';
-            }
-
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Update Answer';
-            }
-
-            // Re-enable form inputs for answer changes
-            // Enable radio buttons for multiple choice
-            const radioButtons = document.querySelectorAll(`input[name="choice-${questionId}"]`);
-            radioButtons.forEach(radio => {
-                radio.disabled = false;
-            });
-
-            // Enable FRQ textarea
-            const frqTextarea = document.getElementById(`frq-${questionId}`);
-            if (frqTextarea) {
-                frqTextarea.disabled = false;
-            }
-
-            // Remove disabled styling from choice divs
-            const choiceDivs = document.querySelectorAll(`[data-question-id="${questionId}"] .choice.disabled`);
-            choiceDivs.forEach(choiceDiv => {
-                choiceDiv.classList.remove('disabled');
-            });
-
-            // Show success message
-            if (successSpan) {
-                successSpan.textContent = 'Explanation added! You can now change your answer and retry.';
-                successSpan.classList.add('show');
-                setTimeout(() => {
-                    successSpan.classList.remove('show');
-                }, 4000);
-            }
-
-            // Remove required styling from textarea
-            if (reasonTextarea) {
-                reasonTextarea.classList.remove('required');
-            }
-
-            // Update placeholder text
-            if (reasonTextarea) {
-                reasonTextarea.placeholder = 'Explanation saved. You can now update your answer.';
-            }
-        }
 
         // Get correct answer from curriculum data
         function getCorrectAnswer(questionId) {
@@ -10691,7 +11041,7 @@ Respond with JSON:
 
                 // Sync to server if turbo mode is active
                 if (turboModeActive && window.submitAnswerViaRailway) {
-                    await window.submitAnswerViaRailway(currentUsername, questionId, answerValue, newTimestamp);
+                    await window.submitAnswerViaRailway(currentUsername, questionId, answerValue, newTimestamp, reason);
                     console.log(`✅ Reasoning shared for ${questionId}`);
                 }
 
@@ -10705,11 +11055,7 @@ Respond with JSON:
                 showMessage('Your reasoning has been shared with your peers!', 'success');
 
                 // Refresh peer display to show own reasoning
-                if (typeof populatePeerReasoningSection === 'function') {
-                    populatePeerReasoningSection(questionId);
-                } else if (typeof populateFRQPeerReasoningSection === 'function') {
-                    populateFRQPeerReasoningSection(questionId);
-                }
+                _refreshAfterReveal(questionId);
 
             } catch (error) {
                 console.error('Failed to share reasoning:', error);
@@ -10738,29 +11084,14 @@ Respond with JSON:
                 return; // Skip MCQ timing logic
             }
 
-            // For MCQs: Check if AI grading succeeded - if so, skip showing answer key
-            const mcqGradingResult = window.gradingResults?.[questionId];
-            if (mcqGradingResult?._aiGraded && !mcqGradingResult?._error) {
-                console.log(`Answer key hidden for ${questionId} - AI grading is providing feedback`);
-                return; // AI is working, don't show answer key
-            }
+            // For MCQs the key follows ONLY the settled rule below (spec v2 §1.5: once settled, the key
+            // and College Board explanation show at once — an earlier AI review no longer hides them).
 
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
             const correctAnswerDiv = document.getElementById(`correct-answer-${questionId}`);
             const officialExplanationDiv = document.getElementById(`official-explanation-${questionId}`);
 
             if (!answerKeySection) return;
-
-            // Clear any existing timers for this question
-            if (window.answerKeyTimers && window.answerKeyTimers[questionId]) {
-                clearTimeout(window.answerKeyTimers[questionId]);
-                delete window.answerKeyTimers[questionId];
-            }
-
-            // Initialize timers object if needed
-            if (!window.answerKeyTimers) {
-                window.answerKeyTimers = {};
-            }
 
             // Get correct answer and explanation
             const correctAnswer = getCorrectAnswer(questionId);
@@ -10775,65 +11106,16 @@ Respond with JSON:
                 officialExplanationDiv.innerHTML = `<strong>Official Explanation:</strong><br>${officialExplanation}`;
             }
 
-            // Apply timer logic based on user's performance
-            if (attemptNumber === 1) {
-                // First attempt
-                if (isCorrect && hasExplanation) {
-                    // ✅ Correct + Explanation: Immediate answer key and College Board explanation
-                    answerKeySection.style.display = 'block';
-                    _refreshAfterReveal(questionId);
-                    displayCollegeBoardExplanation(questionId);
-                    console.log(`Answer key shown immediately: correct with explanation for ${questionId}`);
-                } else if (isCorrect && !hasExplanation) {
-                    // ⏰ Correct + No Explanation: 15-minute timer
-                    console.log(`Starting 15-minute timer for ${questionId} (correct, no explanation)`);
-                    window.answerKeyTimers[questionId] = setTimeout(() => {
-                        answerKeySection.style.display = 'block';
-                        _refreshAfterReveal(questionId);
-                        displayCollegeBoardExplanation(questionId);
-                        showMessage('Answer key revealed after 15 minutes (correct answer)', 'info');
-                    }, 15 * 60 * 1000); // 15 minutes
-                } else {
-                    // ❌ Incorrect: No answer key until explanation provided
-                    console.log(`Answer key blocked for ${questionId} (incorrect answer)`);
-                }
-            } else if (attemptNumber === 2) {
-                // Second attempt
-                if (isCorrect && hasExplanation) {
-                    // ✅ Correct on retry + Explanation: Immediate answer key and College Board explanation
-                    answerKeySection.style.display = 'block';
-                    _refreshAfterReveal(questionId);
-                    displayCollegeBoardExplanation(questionId);
-                    console.log(`Answer key shown immediately: correct on retry with explanation for ${questionId}`);
-                } else if (isCorrect && !hasExplanation) {
-                    // ⏰ Correct on retry + No Explanation: 15-minute timer
-                    console.log(`Starting 15-minute timer for ${questionId} (correct on retry, no explanation)`);
-                    window.answerKeyTimers[questionId] = setTimeout(() => {
-                        answerKeySection.style.display = 'block';
-                        _refreshAfterReveal(questionId);
-                        displayCollegeBoardExplanation(questionId);
-                        showMessage('Answer key revealed after 15 minutes (correct on retry)', 'info');
-                    }, 15 * 60 * 1000); // 15 minutes
-                }
-            } else if (attemptNumber >= 3) {
-                // Third attempt reached
-                if (!isCorrect) {
-                    // Still wrong after 3 attempts: 5-minute timer
-                    console.log(`Starting 5-minute timer for ${questionId} (wrong after 3 attempts)`);
-                    window.answerKeyTimers[questionId] = setTimeout(() => {
-                        answerKeySection.style.display = 'block';
-                        _refreshAfterReveal(questionId);
-                        displayCollegeBoardExplanation(questionId);
-                        showMessage('Answer key revealed after 5 minutes (3 incorrect attempts)', 'warning');
-                    }, 5 * 60 * 1000); // 5 minutes
-                } else if (hasExplanation) {
-                    // ✅ Correct on retry + Explanation: Immediate answer key and College Board explanation
-                    answerKeySection.style.display = 'block';
-                    _refreshAfterReveal(questionId);
-                    displayCollegeBoardExplanation(questionId);
-                    console.log(`Answer key shown immediately: correct on retry with explanation for ${questionId}`);
-                }
+            // QUIZ_FIRST_ANSWER_SPEC v2 §1.5: no reveal timers. Hidden until the item is settled
+            // (correct first answer, or the one retry ACCEPTED by the server), then shown at once
+            // with the College Board explanation. The chart + peer panel follow via _refreshAfterReveal.
+            if (!quizSettledFor(questionId)) {
+                answerKeySection.style.display = 'none';
+                console.log(`Answer key hidden for ${questionId} (not settled)`);
+                return;
             }
+            answerKeySection.style.display = 'block';
+            displayCollegeBoardExplanation(questionId);
         }
 
         // Function to show/hide answer key manually (for testing or override)
@@ -10912,9 +11194,9 @@ Respond with JSON:
                             dotplotSection.style.opacity = '1';
                         }
 
-                        // Now render the visualization
+                        // Now render the visualization (MCQ: form, key, chart, peers behind the gate)
                         if (questionType === 'multiple-choice') {
-                            renderMCQDistribution(qId);
+                            _refreshAfterReveal(qId);
                         } else {
                             renderFRQResponses(qId);
                         }
@@ -10927,12 +11209,10 @@ Respond with JSON:
                     const submitBtn = document.getElementById(`submit-${qId}`);
                     if (submitBtn) {
                         const isFRQ = questionType === 'free-response';
-                        if (!isFRQ && !canRetry(qId)) {
-                            // MCQ only: needs reasoning to retry
-                            submitBtn.textContent = 'Add Reasoning to Retry';
-                            submitBtn.disabled = true;
+                        if (!isFRQ) {
+                            // MCQ: retry form or locked, per QUIZ_FIRST_ANSWER_SPEC v2
+                            _applyQuizFormState(qId);
                         } else {
-                            // FRQ or retryable MCQ: keep enabled
                             submitBtn.textContent = 'Update Answer';
                         }
                     }
@@ -11609,14 +11889,233 @@ Respond with JSON:
             };
         }
 
+        // ── Quiz retry outcome (QUIZ_FIRST_ANSWER_SPEC v2) ─────────────────────────────────────
+        // A retry (attempt 2) stays PENDING until the roster server answers. accepted → settled
+        // (reveal); queued offline → still pending (the replay decides later); refused (409) or a
+        // final failure → the local submit is rolled back in order, and the student is told why.
+        var QUIZ_RETRY_REFUSED_TEXT = {
+            'correct-first': 'Your first answer was correct, so it is already your grade. No retry.',
+            'already-retried': 'You already used your one retry. That answer is your grade.',
+            'no-first-answer': 'The gradebook has no first answer from you on this question, so this retry was not saved.',
+            'explanation-required': 'A retry needs an explanation of what changed your mind (at least 3 words).',
+            'no-more-attempts': 'No more attempts on this question. Your answer is final.',
+            'invalid-attempt': 'This retry was not accepted by the gradebook.'
+        };
+        var QUIZ_RETRY_FAILED_TEXT = 'Your retry could not be saved to the gradebook (check that you are signed in), so it was undone. Try again.';
+
+        // Local writes started by a submit; a rollback waits for them so a late save can never
+        // restore the rejected answer after the revert.
+        var _quizPendingWrites = {};
+        function _trackQuizWrite(username, questionId, promise) {
+            if (!promise || typeof promise.then !== 'function') return;
+            const key = `${username}|${questionId}`;
+            const list = _quizPendingWrites[key] || (_quizPendingWrites[key] = []);
+            list.push(Promise.resolve(promise).catch(() => {}));
+        }
+        async function _awaitQuizWrites(username, questionId) {
+            const key = `${username}|${questionId}`;
+            const list = _quizPendingWrites[key] || [];
+            delete _quizPendingWrites[key];
+            await Promise.all(list);
+        }
+
+        // One handler for the online result AND a replayed offline write.
+        function _settleQuizRetry(username, questionId, outcome, detail) {
+            const retry = _quizRetryState(username).retries[questionId];
+            if (!retry || retry.state !== 'pending') return Promise.resolve();
+            if (outcome === 'queued') {
+                if (username === currentUsername) _refreshAfterReveal(questionId);
+                return Promise.resolve();
+            }
+            if (outcome === 'accepted') {
+                _quizRetryState(username).retries[questionId] = { state: 'accepted', value: retry.value, submittedAt: retry.submittedAt };
+                _saveQuizRetryState(username);
+                if (username === currentUsername) _refreshAfterReveal(questionId);
+                return Promise.resolve();
+            }
+            return _revertRefusedRetry(username, questionId, retry, outcome === 'refused' ? detail : null, outcome);
+        }
+
+        // Ordered rollback of a refused/failed retry: wait for the submit's own writes, restore the
+        // in-memory state, the IDB stores and the localStorage mirror, drop the refused answer from
+        // the sync outbox, re-sync the answer that counts, then repaint.
+        // The ledger restore (or a replay) settled this item as ACCEPTED while a rollback was in
+        // flight: that accepted value is the grade. Put it back everywhere and repaint.
+        async function _applyAcceptedRetry(username, questionId, accepted) {
+            if (!classData.users[username]) classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+            const user = classData.users[username];
+            const ts = accepted.submittedAt || Date.now();
+            if (!user.answers) user.answers = {};
+            if (!user.attempts) user.attempts = {};
+            if (!user.timestamps) user.timestamps = {};
+            user.answers[questionId] = { value: accepted.value, timestamp: ts };
+            user.attempts[questionId] = 2;
+            user.timestamps[questionId] = ts;
+            try {
+                const key = `answers_${username}`;
+                const mirror = JSON.parse(localStorage.getItem(key) || '{}');
+                mirror[questionId] = { value: accepted.value, timestamp: ts };
+                localStorage.setItem(key, JSON.stringify(mirror));
+            } catch (_) { /* localStorage may be blocked */ }
+            if (username === currentUsername && typeof saveClassData === 'function') {
+                try { await saveClassData(); } catch (_) {}
+            }
+            if (typeof saveAnswer === 'function') {
+                try { await saveAnswer(username, questionId, accepted.value, Date.now()); } catch (_) {}
+            }
+            if (username === currentUsername) _refreshAfterReveal(questionId);
+        }
+
+        async function _revertRefusedRetry(username, questionId, retry, detail, outcome) {
+            try {
+                await _awaitQuizWrites(username, questionId);
+                const state = _quizRetryState(username);
+                // Re-read the CURRENT record after the wait: the ledger restore may have accepted
+                // this item meanwhile (never delete an accepted record), or a newer retry replaced it.
+                const current = state.retries[questionId];
+                if (current && current.state === 'accepted') {
+                    await _applyAcceptedRetry(username, questionId, current);
+                    return;
+                }
+                if (!current || current.submittedAt !== retry.submittedAt) return;   // superseded / already handled
+                retry = current;
+                // The server already holds an accepted retry for this item (seen by the ledger
+                // restore): the refused local value must never stay as the grade — restore THAT.
+                const serverAccepted = retry && retry.serverAccepted !== undefined;
+                const before = serverAccepted
+                    ? {
+                        answer: { value: retry.serverAccepted, timestamp: retry.serverAcceptedAt || Date.now() },
+                        reason: retry.serverAcceptedReasoning || '',
+                        attempts: 2,
+                        timestamp: retry.serverAcceptedAt || Date.now()
+                    }
+                    : ((retry && retry.before) || {});
+                let ownAccepted = null;
+                if (serverAccepted) {
+                    ownAccepted = { state: 'accepted', value: retry.serverAccepted, submittedAt: retry.serverAcceptedAt || 0 };
+                    state.retries[questionId] = ownAccepted;
+                } else {
+                    delete state.retries[questionId];
+                }
+                _saveQuizRetryState(username);
+                // After every await below: if an accepted record appeared that we did not write
+                // (the restore settled the item mid-rollback), stop and apply it instead.
+                const settledElsewhere = async () => {
+                    const now = _quizRetryState(username).retries[questionId];
+                    if (!now || now === ownAccepted) return false;
+                    if (now.state === 'accepted') await _applyAcceptedRetry(username, questionId, now);
+                    return true;   // accepted elsewhere, or a newer pending retry: this rollback is over
+                };
+
+                if (!classData.users[username]) classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
+                const user = classData.users[username];
+                const restore = (bucket, value) => {
+                    if (!user[bucket]) user[bucket] = {};
+                    if (value === undefined) delete user[bucket][questionId];
+                    else user[bucket][questionId] = value;
+                };
+                restore('answers', before.answer);
+                restore('reasons', before.reason);
+                restore('attempts', before.attempts);
+                restore('timestamps', before.timestamp);
+                try {
+                    const key = `answers_${username}`;
+                    const mirror = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (before.answer === undefined) delete mirror[questionId];
+                    else mirror[questionId] = before.answer;
+                    localStorage.setItem(key, JSON.stringify(mirror));
+                } catch (_) { /* localStorage may be blocked */ }
+
+                const prevValue = before.answer && typeof before.answer === 'object' ? before.answer.value : before.answer;
+                // '' (not undefined): the refused retry's explanation must be CLEARED on the peer server.
+                const prevReason = getReasonString(before.reason) || '';
+                if (username === currentUsername && typeof saveClassData === 'function') {
+                    try { await saveClassData(); } catch (_) { /* best-effort */ }
+                }
+                if (await settledElsewhere()) return;
+                try {
+                    if (typeof waitForStorage === 'function') {
+                        const storage = await waitForStorage();
+                        // This student's own IDB stores (saveClassData only writes the signed-in user).
+                        if (before.reason === undefined) await storage.remove('reasons', [username, questionId]);
+                        else await storage.set('reasons', [username, questionId], { username, questionId, value: before.reason, updatedAt: Date.now() });
+                        if (before.attempts === undefined) await storage.remove('attempts', [username, questionId]);
+                        else await storage.set('attempts', [username, questionId], { username, questionId, count: before.attempts, updatedAt: Date.now() });
+                        if (typeof storage.getOutboxAll === 'function' && typeof storage.removeOutboxItem === 'function') {
+                            const ops = await storage.getOutboxAll();
+                            for (const op of (ops || [])) {
+                                const payload = op && op.payload;
+                                if (op && op.opType === 'answer_submit' && payload
+                                    && payload.username === username && payload.questionId === questionId
+                                    && payload.timestamp === retry.submittedAt) {
+                                    await storage.removeOutboxItem(op.id);
+                                }
+                            }
+                        }
+                    }
+                } catch (_) { /* best-effort: the classData restore above already holds */ }
+                if (await settledElsewhere()) return;
+                // Put classmates' view back on the answer that counts (IDB + outbox + live).
+                if (prevValue !== undefined && typeof saveAnswer === 'function') {
+                    try { await saveAnswer(username, questionId, prevValue, Date.now()); } catch (_) {}
+                }
+                if (await settledElsewhere()) return;
+                // The clear carries the CURRENT time: the cr server ignores any older write (a late
+                // original retry POST) for this (username, question).
+                if (prevValue !== undefined && turboModeActive && window.submitAnswerViaRailway) {
+                    window.submitAnswerViaRailway(username, questionId, prevValue, Date.now(), prevReason).catch(() => {});
+                }
+
+                if (username !== currentUsername) return;
+                _refreshAfterReveal(questionId);
+                const message = outcome === 'refused'
+                    ? (QUIZ_RETRY_REFUSED_TEXT[detail] || 'This retry was not accepted by the gradebook.')
+                    : QUIZ_RETRY_FAILED_TEXT;
+                const errorSpan = document.getElementById(`error-${questionId}`);
+                if (errorSpan) {
+                    errorSpan.textContent = message;
+                    errorSpan.classList.add('show');
+                }
+                if (typeof showMessage === 'function') showMessage(message, 'error');
+            } catch (_) { /* never throw from a background write */ }
+        }
+
+        // Which local student queued this pending retry? Bound by the roster studentId the retry
+        // was captured under — never by whoever happens to be signed in when the replay lands.
+        function _quizRetryOwner(studentId, itemId) {
+            if (!studentId || !itemId) return null;
+            const names = new Set(Object.keys(_quizRetryStateCache));
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.indexOf('quizRetryState_') === 0) names.add(key.slice('quizRetryState_'.length));
+                }
+            } catch (_) { /* localStorage may be blocked */ }
+            for (const name of names) {
+                const retry = _quizRetryState(name).retries[itemId];
+                if (retry && retry.state === 'pending' && String(retry.studentId) === String(studentId)) return name;
+            }
+            return null;
+        }
+
+        // A queued retry replayed later by gradebook-client.js (accepted or refused then).
+        window.addEventListener('gradebook:quiz-retry-outcome', (event) => {
+            const detail = (event && event.detail) || {};
+            if (!detail.itemId) return;
+            const owner = _quizRetryOwner(detail.studentId, String(detail.itemId));
+            if (!owner) return;
+            _settleQuizRetry(owner, String(detail.itemId), detail.outcome, detail.reason || null);
+        });
+
         // Gradebook ledger feeder (DN2d). Fire-and-forget, no-ops without a
         // roster token; questionId IS the manifest item_id. source by id shape,
         // matching the work-manifest classifier. Wrapped so it can NEVER
         // throw/block cr's submit path. Called from the LIVE submitAnswer path
         // (s123 P1 fix -- previously this only lived inside the never-called
         // saveAnswerWithTracking, so quiz/PC grades never reached the ledger).
-        function recordToGradebookLedger(questionId, answer) {
+        function recordToGradebookLedger(questionId, answer, options) {
             try {
+                var ledgerOpts = options || {};
                 if (window.gradebookClient && window.gradebookClient.record && questionId) {
                     // PC ids are U#-PC26-... (makeup) or the legacy U#-PC-...; both
                     // route to source='pc' → the gradebook client posts them to the
@@ -11629,8 +12128,12 @@ Respond with JSON:
                         itemId: questionId,
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: answer,
-                        attempt: 1
+                        attempt: (!isPc && ledgerOpts.attempt) ? ledgerOpts.attempt : 1
                     };
+                    // Quiz retry explanation (QUIZ_FIRST_ANSWER_SPEC v2): stored on the ledger row.
+                    if (!isPc && typeof ledgerOpts.reasoning === 'string' && ledgerOpts.reasoning.trim()) {
+                        rec.reasoning = ledgerOpts.reasoning.trim();
+                    }
                     if (isPc) {
                         // Part rides from the open PC (U5's MCQ-A lives in its REST
                         // bank, so it is NOT derivable from the id); fall back to the
@@ -11645,11 +12148,30 @@ Respond with JSON:
                     // it once so the student knows to sign in again instead of losing
                     // grades silently. Still fire-and-forget — never blocks the submit.
                     if (_p && typeof _p.then === 'function') {
-                        _p.then(function (r) { if (r && r.reason === 'auth-expired') _notifyAuthExpired(); })
-                          .catch(function () {});
+                        _p.then(function (r) {
+                            if (r && r.reason === 'auth-expired') _notifyAuthExpired();
+                            _reportLedgerOutcome(ledgerOpts, r);
+                        }).catch(function () { _reportLedgerOutcome(ledgerOpts, null); });
+                    } else {
+                        _reportLedgerOutcome(ledgerOpts, null);
                     }
+                } else {
+                    _reportLedgerOutcome(ledgerOpts, null);   // no gradebook client: nothing was saved
                 }
             } catch (_) { /* never block cr's submit */ }
+        }
+
+        // record() result → the retry outcome the page acts on (spec v2 pending model).
+        function _reportLedgerOutcome(ledgerOpts, r) {
+            try {
+                if (!ledgerOpts || typeof ledgerOpts.onOutcome !== 'function') return;
+                let outcome = 'failed';
+                if (r && r.ok && !r.queued) outcome = 'accepted';
+                else if (r && r.queued) outcome = 'queued';
+                else if (r && r.reason === 'retry-not-allowed') outcome = 'refused';
+                else if (r && r.reason === 'read-only') outcome = 'accepted';   // teacher view-as: nothing to protect
+                ledgerOpts.onOutcome(outcome, (r && r.detail) || null);
+            } catch (_) { /* never throw from a background write */ }
         }
 
         // One-time "your session expired — sign in again" notice. Guarded + idempotent.

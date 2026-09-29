@@ -712,103 +712,74 @@ describe('Conditional Solution Display', () => {
 });
 
 /**
- * MCQ Retry Policy Tests
+ * MCQ Retry Policy Tests (QUIZ_FIRST_ANSWER_SPEC v2, 2026-09-29)
  *
- * Tests for unlimited MCQ attempts with reasoning requirement:
- * - No max attempt limit (removed the 3-attempt cap)
- * - Reasoning required after first attempt to enable retry
- * - FRQs always allow unlimited retries (no reasoning requirement)
+ * - First answer always allowed.
+ * - Exactly ONE retry, and only after a WRONG first answer.
+ * - The retry needs an explanation of at least 3 words.
+ * - No retry after a correct first answer; no third attempt, ever.
+ * - FRQs always allow unlimited retries (no reasoning requirement).
  */
 describe('MCQ Retry Policy', () => {
     /**
      * Mock implementation of canRetry logic
      * Mirrors the canRetry() function in index.html
      */
-    function canRetry(questionId, questionType, attempts, hasReason) {
-        // QUIZ_FIRST_ANSWER_SPEC (2026-09-29): the first answer is the grade, so retries are
-        // always allowed and reasoning is optional (it only speeds up the answer-key reveal).
-        return true;
+    function canRetry(questionType, attempts, firstCorrect) {
+        if (questionType === 'free-response') return true;
+        return attempts === 0 || (attempts === 1 && !firstCorrect);
+    }
+
+    /**
+     * Mirrors retryReasoningReady() in index.html: the retry button enables at 3+ words.
+     */
+    function retryReasoningReady(text) {
+        if (typeof text !== 'string') return false;
+        return text.trim().split(/\s+/).filter(Boolean).length >= 3;
     }
 
     describe('MCQ Retry Logic', () => {
-        it('should allow first MCQ attempt without reasoning', () => {
-            expect(canRetry('Q1', 'multiple-choice', 0, false)).toBe(true);
+        it('should allow the first MCQ attempt', () => {
+            expect(canRetry('multiple-choice', 0, false)).toBe(true);
         });
 
-        it('should allow MCQ retry with reasoning provided', () => {
-            expect(canRetry('Q1', 'multiple-choice', 1, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 2, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 5, true)).toBe(true);
+        it('allows exactly one retry after a WRONG first answer', () => {
+            expect(canRetry('multiple-choice', 1, false)).toBe(true);
         });
 
-        it('allows an MCQ retry WITHOUT reasoning (first answer is the grade; teacher 2026-09-29)', () => {
-            expect(canRetry('Q1', 'multiple-choice', 1, false)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 2, false)).toBe(true);
+        it('allows no retry after a CORRECT first answer', () => {
+            expect(canRetry('multiple-choice', 1, true)).toBe(false);
         });
 
-        it('should allow unlimited MCQ attempts with reasoning (no max limit)', () => {
-            // Previously capped at 3, now unlimited
-            expect(canRetry('Q1', 'multiple-choice', 3, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 5, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 10, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 100, true)).toBe(true);
-        });
-
-        it('should NOT have a max attempt limit anymore', () => {
-            // This test explicitly verifies the removal of the 3-attempt cap
-            // With reasoning, attempts 4+ should be allowed
-            expect(canRetry('Q1', 'multiple-choice', 4, true)).toBe(true);
-            expect(canRetry('Q1', 'multiple-choice', 50, true)).toBe(true);
+        it('never allows a third attempt', () => {
+            expect(canRetry('multiple-choice', 2, false)).toBe(false);
+            expect(canRetry('multiple-choice', 2, true)).toBe(false);
+            expect(canRetry('multiple-choice', 5, false)).toBe(false);
         });
     });
 
     describe('FRQ Retry Logic', () => {
         it('should always allow FRQ retry regardless of attempts', () => {
-            expect(canRetry('Q1', 'free-response', 0, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 1, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 5, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 100, false)).toBe(true);
-        });
-
-        it('should allow FRQ retry without reasoning requirement', () => {
-            expect(canRetry('Q1', 'free-response', 3, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 10, false)).toBe(true);
+            expect(canRetry('free-response', 0, false)).toBe(true);
+            expect(canRetry('free-response', 1, true)).toBe(true);
+            expect(canRetry('free-response', 5, false)).toBe(true);
+            expect(canRetry('free-response', 100, true)).toBe(true);
         });
     });
 
     describe('Reasoning Requirement', () => {
-        it('should require reasoning only for MCQ retries (not first attempt)', () => {
-            // First attempt: no reasoning required
-            expect(canRetry('Q1', 'multiple-choice', 0, false)).toBe(true);
-
-            // Retry without reasoning: allowed since 2026-09-29 (first answer is the grade)
-            expect(canRetry('Q1', 'multiple-choice', 1, false)).toBe(true);
-
-            // Retry with reasoning: allowed
-            expect(canRetry('Q1', 'multiple-choice', 1, true)).toBe(true);
+        it('a retry needs an explanation of at least 3 words', () => {
+            expect(retryReasoningReady('')).toBe(false);
+            expect(retryReasoningReady('   ')).toBe(false);
+            expect(retryReasoningReady('oops')).toBe(false);
+            expect(retryReasoningReady('oops sorry')).toBe(false);
+            expect(retryReasoningReady('I misread it')).toBe(true);
+            expect(retryReasoningReady('  I   misread   the axis ')).toBe(true);
         });
 
-        it('should not require reasoning for FRQs at any attempt', () => {
-            expect(canRetry('Q1', 'free-response', 0, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 1, false)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 5, false)).toBe(true);
-        });
-    });
-
-    describe('Edge Cases', () => {
-        it('should handle high attempt counts without issues', () => {
-            expect(canRetry('Q1', 'multiple-choice', 999, true)).toBe(true);
-            expect(canRetry('Q1', 'free-response', 999, false)).toBe(true);
-        });
-
-        it('empty-string reasoning no longer blocks a retry (2026-09-29)', () => {
-            expect(canRetry('Q1', 'multiple-choice', 1, '')).toBe(true);
-        });
-
-        it('should treat whitespace-only reasoning as having reasoning (truthy)', () => {
-            // Note: actual implementation trims, but the canRetry function
-            // receives a boolean after the check. This test uses truthy value.
-            expect(canRetry('Q1', 'multiple-choice', 1, true)).toBe(true);
+        it('rejects non-string reasoning', () => {
+            expect(retryReasoningReady(undefined)).toBe(false);
+            expect(retryReasoningReady(null)).toBe(false);
         });
     });
 });

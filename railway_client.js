@@ -236,7 +236,8 @@
                       username: data.username,
                       question_id: data.question_id,
                       answer_value: data.answer_value,
-                      timestamp: data.timestamp
+                      timestamp: data.timestamp,
+                      reasoning: data.reasoning   // additive (spec v2 §3); undefined when absent
                   }
               }));
               break;
@@ -262,7 +263,9 @@
   }
 
   // Railway-enhanced answer submission
-  async function submitAnswerViaRailway(username, questionId, answerValue, timestamp) {
+  // `reasoning` (optional): the student's explanation, stored in answers.reasoning so classmates'
+  // cards can show it (QUIZ_FIRST_ANSWER_SPEC v2 §3). undefined = omitted; '' = clear it.
+  async function submitAnswerViaRailway(username, questionId, answerValue, timestamp, reasoning) {
       const fallbackSubmit = typeof window.originalPushAnswer === 'function'
           ? window.originalPushAnswer
           : null;
@@ -278,6 +281,11 @@
               answer_value: answerValue,
               timestamp: timestamp
           };
+          // A string is sent as-is (trimmed): '' explicitly CLEARS a stored explanation (a refused
+          // retry's rollback). undefined leaves the stored explanation untouched.
+          if (typeof reasoning === 'string') {
+              payload.reasoning = reasoning.trim();
+          }
           console.log(`[Railway] submit ${questionId}: payload ready (${typeof answerValue})`);
           const response = await fetch(`${RAILWAY_SERVER_URL}/api/submit-answer`, {
               method: 'POST',
@@ -323,12 +331,17 @@
           const peerData = {};
           result.data.forEach(answer => {
               if (!peerData[answer.username]) {
-                  peerData[answer.username] = { answers: {} };
+                  peerData[answer.username] = { answers: {}, reasons: {} };
               }
               peerData[answer.username].answers[answer.question_id] = {
                   value: answer.answer_value,
                   timestamp: answer.timestamp
               };
+              // answers.reasoning (migration 0003) → the peer cards' explanation (spec v2 §3).
+              // Present-but-empty/null CLEARS a cached explanation; absent (no column) leaves it.
+              if (Object.prototype.hasOwnProperty.call(answer, 'reasoning')) {
+                  peerData[answer.username].reasons[answer.question_id] = (typeof answer.reasoning === 'string' && answer.reasoning.trim()) ? answer.reasoning : '';
+              }
           });
 
           // Update local storage (for backward compatibility)

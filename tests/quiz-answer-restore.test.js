@@ -27,11 +27,12 @@ describe('quiz own-answer restore — wiring', () => {
     expect(INDEX).toContain("/ledger/student/");
     expect(INDEX).toMatch(/r\.source !== 'curriculum_quiz'/);
   });
-  it('timestamp-max guard so live local work is never clobbered', () => {
-    expect(INDEX).toMatch(/if \(u\.answers\[qid\] && ts <= existingTs\) return;/);
+  it('timestamp-max guard so live local work is never clobbered (FRQ / unkeyed items)', () => {
+    // Keyed MCQs are reconciled to the server instead (QUIZ_FIRST_ANSWER_SPEC v2): see quiz-settled-dom.test.js.
+    expect(INDEX).toMatch(/if \(u\.answers\[qid\] && tsOf\(row\) <= existingTs\) return;/);
   });
   it('hydrates the classData store renderQuestion reads (users[user].answers)', () => {
-    expect(INDEX).toMatch(/u\.answers\[qid\]\s*=\s*\{\s*value:\s*val,\s*timestamp:\s*ts\s*\}/);
+    expect(INDEX).toMatch(/u\.answers\[qid\]\s*=\s*\{\s*value:\s*parseResponse\(row\.response\),\s*timestamp:\s*tsOf\(row\)\s*\}/);
   });
   it('acceptUsername calls it on sign-in AND reload (fire-and-forget)', () => {
     expect(AUTH).toMatch(/window\.restoreOwnAnswersFromLedger\(\)\.catch/);

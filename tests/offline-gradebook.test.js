@@ -257,3 +257,68 @@ describe('parked answer notification', () => {
     } finally { win.document.defaultView.close(); }
   });
 });
+
+// QUIZ_FIRST_ANSWER_SPEC v2: a quiz retry (attempt 2) captured offline must replay WITH its
+// explanation (the roster server refuses attempt 2 without one), and the replay's final answer
+// (accepted / refused 409) must reach the page, which keeps the retry PENDING until then.
+describe('quiz retry replay (spec v2)', () => {
+  function bootWithEvents() {
+    const win = boot({ offline: true });
+    const events = [];
+    win.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = init && init.detail; } };
+    win.dispatchEvent = (event) => { events.push(event); return true; };
+    return { win, events };
+  }
+  const retry = (over = {}) => ({ source: 'curriculum_quiz', itemId: 'U1-L1-Q01', response: 'B', attempt: 2, reasoning: 'I misread the axis', ...over });
+
+  it('the queued retry keeps reasoning + attempt, and the replayed POST carries them', async () => {
+    const { win } = bootWithEvents();
+    win.fetch = vi.fn();
+    await win.gradebookClient.record(retry());
+    const queued = await win.OfflineQueue.all();
+    expect(queued[0]).toMatchObject({ attempt: 2, reasoning: 'I misread the axis' });
+
+    win.OFFLINE_MODE = undefined;
+    win.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, ledgerId: 'L1' }) });
+    await win.gradebookClient.syncOfflineQueue();
+    const body = JSON.parse(win.fetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({ source: 'curriculum_quiz', attempt: 2, reasoning: 'I misread the axis' });
+  });
+
+  it('an accepted replay tells the page (gradebook:quiz-retry-outcome accepted)', async () => {
+    const { win, events } = bootWithEvents();
+    win.fetch = vi.fn();
+    await win.gradebookClient.record(retry());
+    win.OFFLINE_MODE = undefined;
+    win.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, ledgerId: 'L1' }) });
+    await win.gradebookClient.syncOfflineQueue();
+    expect(events.map(e => [e.type, e.detail.outcome, e.detail.itemId])).toEqual([['gradebook:quiz-retry-outcome', 'accepted', 'U1-L1-Q01']]);
+    expect(await win.OfflineQueue.all()).toHaveLength(0);
+  });
+
+  it('a 409 replay is final: the row leaves the queue and the page is told why', async () => {
+    const { win, events } = bootWithEvents();
+    win.fetch = vi.fn();
+    await win.gradebookClient.record(retry());
+    win.OFFLINE_MODE = undefined;
+    win.fetch = vi.fn().mockResolvedValue({ ok: false, status: 409,
+      json: async () => ({ ok: false, error: 'retry not allowed', reason: 'correct-first' }) });
+    await win.gradebookClient.syncOfflineQueue();
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toMatchObject({ outcome: 'refused', reason: 'correct-first', itemId: 'U1-L1-Q01' });
+    expect(await win.OfflineQueue.all()).toHaveLength(0);
+    // a second sync sends nothing (it can never succeed)
+    await win.gradebookClient.syncOfflineQueue();
+    expect(win.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('an online 409 comes back as retry-not-allowed with the server reason, and is not queued', async () => {
+    const { win } = bootWithEvents();
+    win.OFFLINE_MODE = undefined;
+    win.fetch = vi.fn().mockResolvedValue({ ok: false, status: 409,
+      json: async () => ({ ok: false, error: 'retry not allowed', reason: 'already-retried' }) });
+    const r = await win.gradebookClient.record(retry());
+    expect(r).toMatchObject({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });
+    expect(await win.OfflineQueue.all()).toHaveLength(0);
+  });
+});

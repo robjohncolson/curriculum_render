@@ -1,41 +1,74 @@
-# Quiz: first answer is the grade; peers show reasoning, not letters (spec + build, 2026-09-29)
+# Quiz answers: one retry after a wrong answer, explained; peers only once your answer is settled (spec v2, 2026-09-29)
 
-Status: BUILT 2026-09-29 (teacher decision in session: "1st plus 2nd"). Grade-affecting on the roster server
-(only in the honest direction). Client changes in this repo.
+Status: BUILT 2026-09-29 (Opus 5.5 implemented; three Codex gpt-6-astra review rounds folded; Fable gated) — supersedes v1 (first-answer-only + letters hidden, shipped `27fc3574` /
+`f9dcf61` / `72e1bac`). Grade-affecting on the roster server. Reasoning sync becomes part of this build.
 
-## Why
+Teacher (2026-09-29, in session): "if a student gets a wrong answer, they get one retry but they have to explain
+their mind change. No grade window. They can't see peer answers until then. The 2nd answer becomes THE grade, and the
+peer answers are revealed. Only display student answers if they have an explanation."
 
-Once peer answers actually loaded (the peer pull had been dead since the Supabase library race — see cr
-`753159d`/`e8c3597`), the teacher saw the exploit at once: the peer panel opens after your FIRST answer and shows
-every classmate's letter; "Update Answer" is allowed after any reasoning text; the grade engine scores the LATEST
-row per item. So: answer anything, type "idk", read the crowd, switch. Consensus for free.
+## 1. The rule, per multiple-choice quiz item
 
-## 1. Server (roster-server `ledger.js`, `POST /ledger/record`)
+1. **First answer.** The app tells the student right away whether it was correct (it already can — the key is
+   local).
+2. **Correct first answer** → that is the grade (full credit). The item is *settled*.
+3. **Wrong first answer** → exactly **one retry**, and the retry requires an explanation of the change of mind (a
+   few words, not one character). The second answer is **THE grade** whatever it is. The item is then *settled*.
+   No third attempt, ever.
+4. **Nothing from classmates is visible until the item is settled**: no peer cards, no letters, no distribution
+   chart, no consensus line. The panel says "Answer (and, if you were wrong, retry with an explanation) to see what
+   classmates wrote."
+5. **Once settled**, the peer panel and chart show in full (letters included — nothing shown can move the grade
+   any more), and the answer key + College Board explanation show at once (the old 5/15-minute reveal timers go).
+6. **Explanation filter.** A classmate's card appears only if they wrote an explanation. The count reads
+   "N classmates explained". A classmate with no explanation is simply absent (still counted in the chart).
+7. Free-response items are unchanged (unlimited revisions, AI/peer flow as today).
 
-For `source: 'curriculum_quiz'`: once a ledger row for (student, item, attempt) holds a non-empty response, later
-writes KEEP the stored response and score (mirrors the FRQ durable floor). The reply carries
-`firstAnswerKept: true`. Nothing else changes: the engine still scores "latest row per item" — the latest row is now
-always the first answer. PC items are untouched (own route). Test: `roster-server/tests/ledger.test.js`.
+## 2. Server (roster-server `ledger.js`, `POST /ledger/record`, `source: 'curriculum_quiz'`)
 
-## 2. Client (this repo, `index.html`)
+- The client sends `attempt: 1` for the first answer and `attempt: 2` for the retry. Rows are keyed
+  (student, item, attempt), so both are kept; the grade engine already scores the LATEST row per item, which is the
+  retry when it exists.
+- **Server enforcement (can't be bypassed by a modified client):**
+  - `attempt: 1` — accepted only if no attempt-1 row with a real response exists; otherwise the stored row is kept
+    (`firstAnswerKept: true`, as v1).
+  - `attempt: 2` — accepted only if an attempt-1 row exists, no attempt-2 row exists, the attempt-1 response was
+    **wrong** against the server's answer key, and the body carries a non-empty `reasoning` (≥ 3 words). Otherwise
+    the write is refused with `{ ok:false, error:'retry not allowed' }` (correct first answer / already retried /
+    no explanation) — the client shows that plainly.
+  - any `attempt > 2` — refused.
+- `reasoning` is stored on the ledger row (new nullable column `reasoning text` on `item_ledger` — migration
+  USER-RUN) and echoed in the ledger reads the quiz app uses for restore.
 
-- `answerKeyRevealedFor(questionId)` is the one gate. It is true only when the question's answer-key section is
-  showing (the existing post-answer timer logic decides when) or the College Board section is present.
-- While NOT revealed: every peer card shows the classmate's **reasoning and votes only** — no "Answer: C", no
-  "→ Choice C", no correct/incorrect tint, no ✓. The MCQ distribution chart and the "Consensus reached on choice
-  C" line are replaced by "Class results unlock with the answer key."
-- When the key is revealed (same rules as before): letters, ✓ marks, the chart and the consensus line come back,
-  and the reveal function re-renders the peer panel + chart so they appear without a reload. Since the grade is
-  already fixed by then (§1), nothing shown can change it.
-- Reasoning still travels with the answer only locally today (the server has no reasoning column — separate open
-  bug), so peers mostly see "No explanation provided". That is the next fix, not this one.
+## 3. Reasoning sync (curriculum_render + cr railway-server)
 
-## 3. What students should be told
+- cr Supabase `answers` table gains `reasoning text null` (USER-RUN). `POST /api/submit-answer` accepts and stores
+  `reasoning`; `/api/peer-data` returns it; the WebSocket answer broadcast carries it.
+- The quiz page sends `reasoning` with every answer submit, and "Share My Reasoning" sends the reasoning (today it
+  re-sends the letter). Pulled peer rows populate `classData.users[peer].reasons[questionId]`.
 
-"Your first answer is the one that counts. After you answer you can read what classmates wrote and change your
-mind to learn, but the grade is already recorded."
+## 4. Client (curriculum_render `index.html`)
 
-## 4. Tests
+- `quizSettledFor(questionId)`: answered AND (first answer correct OR attempts ≥ 2). Replaces the v1
+  `answerKeyRevealedFor` gate everywhere (peer cards, letters, tint, chart, consensus line, key reveal).
+- After a wrong first answer: choices re-enable, the reasoning box is **required** and the Update Answer button
+  enables the moment ≥ 3 words are typed (live `input` listener — v1's "button stays disabled" bug came from
+  rendering the disabled state once and never re-checking). Label: "You were not correct. One retry: explain what
+  changed your mind."
+- After the retry (or a correct first answer): choices lock for good ("This answer is your grade."), peers + chart +
+  key appear.
+- Peer cards: only classmates whose `reasons[questionId]` is non-empty; count "N classmates explained".
+- The v1 retry-always change (`canRetry` → true) is replaced by: `attempts === 0 || (attempts === 1 && !firstCorrect)`.
 
-`tests/peer-letters-hidden.test.js` (source pins: gate function, four letter sites, chart gate, reveal refresh) +
-`roster-server/tests/ledger.test.js` (first answer kept, response + score; a fresh item records normally).
+## 5. Tests
+
+- roster-server `ledger.test.js`: attempt-1 kept; attempt-2 accepted only after a wrong attempt-1 with reasoning;
+  refused after a correct first answer, without reasoning, or as a third attempt; engine scores the retry.
+- cr: `peer-letters-hidden.test.js` → `quiz-settled-gate.test.js` (gate, filter, no timers, live enable of the
+  retry button); `peer-pull-client.test.js` + `peer-data-paging.test.js` extended for `reasoning`.
+
+## 6. What students are told
+
+"Answer. If you're right, that's your grade and you'll see what classmates wrote. If you're wrong, you get one
+retry — but you have to explain what changed your mind, and that second answer is your grade. Only classmates who
+explained their answer show up."

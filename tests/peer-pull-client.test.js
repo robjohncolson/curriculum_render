@@ -112,6 +112,80 @@ describe('quiz page peer pull (the one that really runs)', () => {
     expect(sandbox.lastPeerDataTimestamp).toBe(700);                // cursor advanced from peers only
   });
 
+  it('delegation keeps pulled explanations: a Railway row with reasoning lands in reasons (spec v2 §3)', async () => {
+    const sandbox = {
+      turboModeActive: false, supabaseClient: null, lastPeerDataTimestamp: 0,
+      window: {
+        currentUsername: 'Me', USE_RAILWAY: true,
+        pullPeerDataFromRailway: async () => ({
+          peer: { answers: { 'U1-L7-Q1': { value: 'B', timestamp: 500 } }, reasons: { 'U1-L7-Q1': 'the median resists outliers' } },
+        }),
+      },
+      safeGetItem: () => 'Me', console: { log() {} },
+    };
+    vm.createContext(sandbox);
+    const result = await vm.runInContext('(' + fnSrc('pullPeerDataFromSupabase') + ')()', sandbox);
+    expect(result.peer.reasons['U1-L7-Q1']).toBe('the median resists outliers');
+  });
+
+  it('the direct Supabase fallback also carries answers.reasoning into reasons', async () => {
+    const table = [
+      { username: 'peer', question_id: 'U1-L7-Q1', answer_value: 'B', timestamp: 10, reasoning: 'the median resists outliers' },
+      { username: 'peer', question_id: 'U1-L7-Q2', answer_value: 'C', timestamp: 9 },
+    ];
+    const { result } = await run(table);
+    expect(result.peer.reasons['U1-L7-Q1']).toBe('the median resists outliers');
+    expect(result.peer.reasons['U1-L7-Q2']).toBeUndefined();
+  });
+
+  it('railway_client.js pull turns a row reasoning into reasons[questionId]', async () => {
+    const rc = readFileSync(resolve(ROOT, 'railway_client.js'), 'utf8');
+    const store = {};
+    const sandbox = {
+      console: { log() {}, warn() {}, error() {} },
+      localStorage: { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } },
+      document: { addEventListener() {} },
+      fetch: async () => ({ json: async () => ({ filtered: 2, cached: false, data: [
+        { username: 'peer', question_id: 'U1-L7-Q1', answer_value: 'B', timestamp: 10, reasoning: 'the median resists outliers' },
+        { username: 'peer', question_id: 'U1-L7-Q2', answer_value: 'C', timestamp: 9, reasoning: '   ' },
+      ] }) }),
+    };
+    sandbox.window = { USE_RAILWAY: true, RAILWAY_SERVER_URL: 'https://example.test' };
+    vm.createContext(sandbox);
+    vm.runInContext(rc, sandbox);
+    const peerData = await sandbox.window.railwayClient.pullPeerData();
+    expect(peerData.peer.answers['U1-L7-Q1'].value).toBe('B');
+    expect(peerData.peer.reasons['U1-L7-Q1']).toBe('the median resists outliers');
+    expect(peerData.peer.reasons['U1-L7-Q2']).toBe('');   // present but blank: CLEARS a cached explanation
+  });
+
+  it('railway_client.js submit sends reasoning only when there is one', async () => {
+    const rc = readFileSync(resolve(ROOT, 'railway_client.js'), 'utf8');
+    const bodies = [];
+    const sandbox = {
+      console: { log() {}, warn() {}, error() {} },
+      document: { addEventListener() {} },
+      fetch: async (_url, opts) => { bodies.push(JSON.parse(opts.body)); return { json: async () => ({ success: true, broadcast: 0 }) }; },
+    };
+    sandbox.window = { USE_RAILWAY: true, RAILWAY_SERVER_URL: 'https://example.test' };
+    vm.createContext(sandbox);
+    vm.runInContext(rc, sandbox);
+    await sandbox.window.railwayClient.submitAnswer('Me', 'U1-L7-Q1', 'B', 1, '  I misread the axis ');
+    await sandbox.window.railwayClient.submitAnswer('Me', 'U1-L7-Q1', 'B', 2);
+    await sandbox.window.railwayClient.submitAnswer('Me', 'U1-L7-Q1', 'C', 3, '');
+    expect(bodies[0].reasoning).toBe('I misread the axis');
+    expect('reasoning' in bodies[1]).toBe(false);    // absent: the stored explanation is untouched
+    expect(bodies[2].reasoning).toBe('');            // explicit '': clear it (a refused retry's rollback)
+  });
+
+  it('source pin: mergePeerDataIntoStores merges pulled reasons into classData and the reasons_ mirror', () => {
+    const start = html.indexOf('function mergePeerDataIntoStores(peerData)');
+    const fn = html.slice(start, html.indexOf('window.restoreOwnAnswersFromLedger', start));
+    expect(fn).toContain('const pulledReasons = userData.reasons || {};');
+    expect(fn).toContain('Object.assign(classData.users[username].reasons, pulledReasons);');
+    expect(fn).toContain('const reasonsKey = `reasons_${username}`;');
+  });
+
   it('source pin: initializeTurboMode pulls peers at startup even when the Supabase client is missing', () => {
     const start = html.indexOf('async function initializeTurboMode()');
     const end = html.indexOf('async function', start + 10);

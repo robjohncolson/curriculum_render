@@ -122,9 +122,10 @@ function fnBodyAssigned(src, name) {
 // INSIDE saveAnswerWithTracking -- a function that is never called. This asserts
 // the feeder is reached from the LIVE submit path.
 describe('DN2d — feeder wired into the LIVE submit path', () => {
-  it('window.submitAnswer calls recordToGradebookLedger(questionId, value)', () => {
+  it('window.submitAnswer calls recordToGradebookLedger(questionId, value, ...)', () => {
     const body = fnBodyAssigned(html, 'submitAnswer');
-    expect(body).toMatch(/recordToGradebookLedger\s*\(\s*questionId\s*,\s*value\s*\)/);
+    // QUIZ_FIRST_ANSWER_SPEC v2: a third options arg carries attempt + reasoning + the 409 revert.
+    expect(body).toMatch(/recordToGradebookLedger\s*\(\s*questionId\s*,\s*value\s*[,)]/);
   });
   it('recordToGradebookLedger is a top-level function (callable from submitAnswer)', () => {
     expect(html).toMatch(/function\s+recordToGradebookLedger\s*\(/);
@@ -182,7 +183,7 @@ function makeFeeder() {
   };
   createContext(sandbox);
   runInContext(
-    'this.feed = function (questionId, answer) {\n' + snippet + '\n};', sandbox);
+    'this.feed = function (questionId, answer, options) {\n' + snippet + '\n};', sandbox);
   return { feed: sandbox.feed, calls, sandbox };
 }
 
@@ -195,6 +196,15 @@ describe('DN2d runtime — feeder source/itemId/unit derivation', () => {
       source: 'curriculum_quiz', itemId: 'U1-L2-Q01', unit: 'U1',
       response: 'B', attempt: 1,
     });
+  });
+
+  it('quiz retry (spec v2): attempt + reasoning ride along; PC stays attempt 1 without reasoning', () => {
+    const f = makeFeeder();
+    f.feed('U1-L2-Q01', 'C', { attempt: 2, reasoning: '  I misread the axis ' });
+    expect(f.calls[0]).toMatchObject({ source: 'curriculum_quiz', attempt: 2, reasoning: 'I misread the axis' });
+    f.feed('U3-PC-MCQ-A-Q05', 'C', { attempt: 2, reasoning: 'ignored for pc rows' });
+    expect(f.calls[1].attempt).toBe(1);
+    expect(f.calls[1].reasoning).toBeUndefined();
   });
 
   it('progress-check id → source pc', () => {
@@ -218,7 +228,7 @@ describe('DN2d runtime — feeder source/itemId/unit derivation', () => {
     const snippet = body.slice(start, body.indexOf(endMarker) + endMarker.length);
     const sandbox = { window: {} };           // no gradebookClient
     createContext(sandbox);
-    runInContext('this.feed = function (questionId, answer) {\n' + snippet + '\n};', sandbox);
+    runInContext('this.feed = function (questionId, answer, options) {\n' + snippet + '\n};', sandbox);
     expect(() => sandbox.feed('U1-L2-Q01', 'A')).not.toThrow();
   });
 });
