@@ -43,6 +43,13 @@ describe('peer letters hidden until the answer key is revealed', () => {
     expect(fn).toContain('Class results unlock with the answer key');
   });
 
+  it('retries are always allowed — no "add reasoning before you may retry" brake (first answer is the grade)', () => {
+    const fn = fnSrc('canRetry');
+    const body = fn.slice(fn.indexOf('{') + 1);
+    const firstStatement = body.split('\n').map(l => l.trim()).find(l => l && !l.startsWith('//'));
+    expect(firstStatement).toBe('return true;');
+  });
+
   it('revealing the key re-renders the peer panel and the chart', () => {
     const fn = fnSrc('_refreshAfterReveal');
     expect(fn).toContain('renderMCQDistribution(questionId)');

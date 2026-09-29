@@ -4620,7 +4620,12 @@ window.submitManualMerge = submitManualMerge;
 
         // Check if can retry (has reason in previous attempt - no max attempt limit)
         function canRetry(questionId) {
-            // Detect question type - FRQs always allow unlimited retries
+            // QUIZ_FIRST_ANSWER_SPEC (teacher 2026-09-29): the FIRST answer is the grade, so a retry can
+            // never buy points and the old "add reasoning before you may retry" brake only left students
+            // stuck on a wrong answer they wanted to fix. Retries are always allowed; reasoning stays
+            // optional (it still speeds up the answer-key reveal).
+            return true;
+            // eslint-disable-next-line no-unreachable
             const q = currentQuestions.find(q => q.id === questionId) ||
                       EMBEDDED_CURRICULUM.find(q => q.id === questionId);
             const isFRQ = q && q.type === 'free-response';
