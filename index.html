@@ -7185,6 +7185,24 @@ function renderLessonSelector(unitInfo) {
             return { html, chartTasks };
         }
 
+        // QUIZ_FIRST_ANSWER_SPEC §2 (teacher 2026-09-29): classmates' LETTERS are hidden until this
+        // question's answer key is revealed; only their reasoning and votes show before that. The
+        // first committed answer is the grade (server rule), so once the key is out nothing shown
+        // here can change a grade.
+        function answerKeyRevealedFor(questionId) {
+            const answerKeySection = document.getElementById(`answer-key-${questionId}`);
+            const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
+            const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
+            return !!((answerKeySection && answerKeySection.style.display === 'block') ||
+                      (cbSection && cbSection.style.display === 'block') ||
+                      (frqSolutionSection && frqSolutionSection.style.display !== 'none'));
+        }
+        // Re-render the surfaces the gate hides, right when the key is revealed (no reload needed).
+        function _refreshAfterReveal(questionId) {
+            try { if (typeof renderMCQDistribution === 'function') renderMCQDistribution(questionId); } catch (_) {}
+            try { if (typeof populatePeerReasoningSection === 'function') populatePeerReasoningSection(questionId); } catch (_) {}
+        }
+
         // Populate peer reasoning section with peer response cards
         function populatePeerReasoning(questionId, contributors) {
             const peerReasoningContent = document.getElementById(`peer-reasoning-content-${questionId}`);
@@ -7232,9 +7250,7 @@ function renderLessonSelector(unitInfo) {
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
             const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
             const frqSolutionSection = document.getElementById(`frq-solution-${questionId}`);
-            const answerKeyRevealed = (answerKeySection && answerKeySection.style.display === 'block') ||
-                                    (cbSection && cbSection.style.display === 'block') ||
-                                    (frqSolutionSection && frqSolutionSection.style.display !== 'none');
+            const answerKeyRevealed = answerKeyRevealedFor(questionId);
 
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeySection exists: ${!!answerKeySection}, cbSection exists: ${!!cbSection}`);
             console.log(`DEBUG populatePeerReasoning: ${questionId} - answerKeyRevealed: ${answerKeyRevealed}`);
@@ -7284,13 +7300,13 @@ function renderLessonSelector(unitInfo) {
                 console.log(`DEBUG: Peer ${peer.username} - answer: ${peer.choice || peer.response}, isCorrect: ${isCorrect}, answerKeyRevealed: ${answerKeyRevealed}`);
 
                 html += `
-                    <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'} ${isCollegeBoard ? 'college-board-official' : ''}" data-consensus="${consensusLevel}">
+                    <div class="peer-response-card ${answerKeyRevealedFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''} ${isCollegeBoard ? 'college-board-official' : ''}" data-consensus="${consensusLevel}">
                         ${rankBadge ? `<div class="answer-rank">${rankBadge}</div>` : ''}
                         <div class="peer-name">
                             ${isCollegeBoard ? '🏛️ College Board (Official)' : peer.username}
                             ${isCorrect || isCollegeBoard ? '✓' : ''}
                         </div>
-                        <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response}</div>
+                        ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response}</div>` : ''}
                         ${hasReason ? `
                             <div class="peer-reasoning-text ${isCollegeBoard ? 'official-explanation' : ''}">${peer.reason}</div>
                         ` : '<div class="peer-reasoning-text" style="color: #999; font-style: italic;">No explanation provided</div>'}
@@ -7975,6 +7991,14 @@ function renderLessonSelector(unitInfo) {
         function renderMCQDistribution(questionId) {
             const canvas = document.getElementById(`dotplot-${questionId}`);
             if (!canvas) return;
+            // QUIZ_FIRST_ANSWER_SPEC §2: the class distribution IS the crowd's letter — wait for the key.
+            const consensusGate = document.getElementById(`consensus-${questionId}`);
+            if (!answerKeyRevealedFor(questionId)) {
+                canvas.style.display = 'none';
+                if (consensusGate) consensusGate.innerHTML = '<div class="consensus-msg no-consensus">Class results unlock with the answer key.</div>';
+                return;
+            }
+            canvas.style.display = '';
 
             // Fix canvas dimensions to prevent cropping
             const container = canvas.parentElement;
@@ -8151,7 +8175,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     // CRITICAL: Always show the reason if it exists
                     html += `
                         <div class="contributor-item" style="${isCurrentUser ? 'background: #e3f2fd;' : ''}">
-                            <span class="contributor-choice">${c.username}${badgeText} → Choice ${c.choice}</span>
+                            <span class="contributor-choice">${c.username}${badgeText}${answerKeyRevealedFor(questionId) ? ` → Choice ${c.choice}` : ''}</span>
                             ${c.reason ? `<div class="contributor-reason" style="margin-top: 5px; padding: 8px; background: #f9f9f9; border-left: 3px solid #2196F3; font-style: italic;">"${c.reason}"</div>` : '<div style="color: #999; font-style: italic; margin-top: 5px;">No explanation provided</div>'}
                         </div>
                     `;
@@ -8289,7 +8313,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 } else {
                     return `
                         <div class="peer-name">${peer.username}${badgeText}</div>
-                        <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
+                        ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>` : ''}
                         ${hasReason ?
                             `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
                             '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
@@ -8429,9 +8453,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     } else {
                         const hasReason = peer.reason && peer.reason.trim().length > 0;
                         html += `
-                            <div class="peer-response-card ${isCorrect ? 'correct' : 'incorrect'}" data-key="${peer.username}">
+                            <div class="peer-response-card ${answerKeyRevealedFor(questionId) ? (isCorrect ? 'correct' : 'incorrect') : ''}" data-key="${peer.username}">
                                 <div class="peer-name">${peer.username}${badgeText}</div>
-                                <div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>
+                                ${answerKeyRevealedFor(questionId) ? `<div class="peer-answer"><strong>Answer:</strong> ${peer.choice || peer.response} ${isCorrect ? '✓' : ''}</div>` : ''}
                                 ${hasReason ?
                                     `<div class="peer-reasoning-text">"${peer.reason}"</div>` :
                                     '<div class="peer-reasoning-text" style="color: #999;">No explanation provided</div>'
@@ -10752,6 +10776,7 @@ Respond with JSON:
                 if (isCorrect && hasExplanation) {
                     // ✅ Correct + Explanation: Immediate answer key and College Board explanation
                     answerKeySection.style.display = 'block';
+                    _refreshAfterReveal(questionId);
                     displayCollegeBoardExplanation(questionId);
                     console.log(`Answer key shown immediately: correct with explanation for ${questionId}`);
                 } else if (isCorrect && !hasExplanation) {
@@ -10759,6 +10784,7 @@ Respond with JSON:
                     console.log(`Starting 15-minute timer for ${questionId} (correct, no explanation)`);
                     window.answerKeyTimers[questionId] = setTimeout(() => {
                         answerKeySection.style.display = 'block';
+                        _refreshAfterReveal(questionId);
                         displayCollegeBoardExplanation(questionId);
                         showMessage('Answer key revealed after 15 minutes (correct answer)', 'info');
                     }, 15 * 60 * 1000); // 15 minutes
@@ -10771,6 +10797,7 @@ Respond with JSON:
                 if (isCorrect && hasExplanation) {
                     // ✅ Correct on retry + Explanation: Immediate answer key and College Board explanation
                     answerKeySection.style.display = 'block';
+                    _refreshAfterReveal(questionId);
                     displayCollegeBoardExplanation(questionId);
                     console.log(`Answer key shown immediately: correct on retry with explanation for ${questionId}`);
                 } else if (isCorrect && !hasExplanation) {
@@ -10778,6 +10805,7 @@ Respond with JSON:
                     console.log(`Starting 15-minute timer for ${questionId} (correct on retry, no explanation)`);
                     window.answerKeyTimers[questionId] = setTimeout(() => {
                         answerKeySection.style.display = 'block';
+                        _refreshAfterReveal(questionId);
                         displayCollegeBoardExplanation(questionId);
                         showMessage('Answer key revealed after 15 minutes (correct on retry)', 'info');
                     }, 15 * 60 * 1000); // 15 minutes
@@ -10789,12 +10817,14 @@ Respond with JSON:
                     console.log(`Starting 5-minute timer for ${questionId} (wrong after 3 attempts)`);
                     window.answerKeyTimers[questionId] = setTimeout(() => {
                         answerKeySection.style.display = 'block';
+                        _refreshAfterReveal(questionId);
                         displayCollegeBoardExplanation(questionId);
                         showMessage('Answer key revealed after 5 minutes (3 incorrect attempts)', 'warning');
                     }, 5 * 60 * 1000); // 5 minutes
                 } else if (hasExplanation) {
                     // ✅ Correct on retry + Explanation: Immediate answer key and College Board explanation
                     answerKeySection.style.display = 'block';
+                    _refreshAfterReveal(questionId);
                     displayCollegeBoardExplanation(questionId);
                     console.log(`Answer key shown immediately: correct on retry with explanation for ${questionId}`);
                 }
