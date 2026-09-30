@@ -2948,9 +2948,13 @@
                 saveClassData();
             }
             updatePeerDataTimestamp();
-            const qid = getCurrentQuestionId();
-            if (qid && typeof refreshQuestionIfVisible === 'function') {
-                refreshQuestionIfVisible(qid);
+            // Refresh EVERY rendered question, not just the current one: the pulled rows can
+            // touch any of them, and one that stayed stale kept its pre-load placeholder.
+            if (typeof refreshQuestionIfVisible === 'function') {
+                (currentQuestions || []).forEach(function (q) {
+                    if (!q || !document.querySelector(`[data-question-id="${q.id}"]`)) return;
+                    refreshQuestionIfVisible(q.id);
+                });
             }
         }
 
@@ -3439,7 +3443,11 @@ function refreshQuestionIfVisible(questionId) {
 
     console.log(`[UI Refresh] Question ${questionId} is visible. Refreshing...`);
     try {
-        if (question.type === 'multiple-choice' && typeof renderMCQDistribution === 'function') {
+        // MCQ: the full state→DOM refresh (form, key, chart AND peer panel). Chart-only left the
+        // peer panel on its "Answer the question" placeholder after a reload (2026-09-29).
+        if (question.type === 'multiple-choice' && typeof _refreshAfterReveal === 'function') {
+            _refreshAfterReveal(questionId);
+        } else if (question.type === 'multiple-choice' && typeof renderMCQDistribution === 'function') {
             renderMCQDistribution(questionId);
         } else if (question.type === 'free-response' && typeof renderFRQResponses === 'function') {
             renderFRQResponses(questionId);
@@ -11737,7 +11745,7 @@ Respond with JSON:
                         setTimeout(() => {
                             const questionType = question.type;
                             if (questionType === 'multiple-choice') {
-                                renderMCQDistribution(qId);
+                                _refreshAfterReveal(qId);
                             } else {
                                 renderFRQResponses(qId);
                             }

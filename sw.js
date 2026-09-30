@@ -14,7 +14,7 @@
 // KILL SWITCH: deploy an sw.js whose body just skipWaiting()s on install and, on
 // activate, deletes all caches + clients.claim() — pages then fall back to network.
 
-const BUILD = '2026-09-29-bfao'; // scripts/bump-build.mjs replaces this stamp
+const BUILD = '2026-09-30-lodv'; // scripts/bump-build.mjs replaces this stamp
 const CACHE = 'apstats-quiz-pwa-' + BUILD;
 
 const CORE = [
