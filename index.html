@@ -7089,13 +7089,7 @@ function renderLessonSelector(unitInfo) {
                             </div>
                         </div>
                         <!-- Answer key + class chart hosts: filled by displayAnswerKey / showDotplot once settled -->
-                        <div id="answer-key-${question.id}" class="answer-key-section" style="display:none;">
-                            <div class="answer-key-content">
-                                <h4>Answer Key</h4>
-                                <div id="correct-answer-${question.id}" class="correct-answer"></div>
-                                <div id="official-explanation-${question.id}" class="official-explanation"></div>
-                            </div>
-                        </div>
+                        <div id="answer-key-${question.id}" class="answer-key-section" style="display:none;"></div>
                         <div id="dotplot-section-${question.id}" class="dotplot-section"></div>
                 `;
             } else {
@@ -11597,38 +11591,67 @@ Respond with JSON:
                 return; // Skip MCQ timing logic
             }
 
-            // For MCQs the key follows ONLY the settled rule below (spec v2 §1.5: once settled, the key
-            // and College Board explanation show at once — an earlier AI review no longer hides them).
-
+            // MCQ (QUIZ_MCQ_REVEAL_SPEC): hidden until settled, then ONE box — never the College Board box.
             const answerKeySection = document.getElementById(`answer-key-${questionId}`);
-            const correctAnswerDiv = document.getElementById(`correct-answer-${questionId}`);
-            const officialExplanationDiv = document.getElementById(`official-explanation-${questionId}`);
-
+            const cbSection = document.getElementById(`college-board-explanation-${questionId}`);
+            if (cbSection) cbSection.style.display = 'none';
             if (!answerKeySection) return;
 
-            // Get correct answer and explanation
-            const correctAnswer = getCorrectAnswer(questionId);
-            const officialExplanation = getOfficialExplanation(questionId);
-
-            // Populate answer key content (but we'll primarily show this in peer section now)
-            if (correctAnswerDiv && correctAnswer) {
-                correctAnswerDiv.innerHTML = `<strong>Correct Answer:</strong> ${correctAnswer}`;
-            }
-
-            if (officialExplanationDiv && officialExplanation) {
-                officialExplanationDiv.innerHTML = `<strong>Official Explanation:</strong><br>${officialExplanation}`;
-            }
-
-            // QUIZ_FIRST_ANSWER_SPEC v2 §1.5: no reveal timers. Hidden until the item is settled
-            // (correct first answer, or the one retry ACCEPTED by the server), then shown at once
-            // with the College Board explanation. The chart + peer panel follow via _refreshAfterReveal.
             if (!quizSettledFor(questionId)) {
                 answerKeySection.style.display = 'none';
-                console.log(`Answer key hidden for ${questionId} (not settled)`);
                 return;
             }
+
+            const html = _mcqRevealHtml(questionId);
+            if (!html) {
+                answerKeySection.style.display = 'none';
+                return;
+            }
+
+            // Repaints are frequent: rewrite only when the content changed, so an opened
+            // "Why this is right" stays open.
+            const answeredCorrectly = _quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId));
+            answerKeySection.classList.toggle('mcq-reveal-quiet', answeredCorrectly);
+            if (answerKeySection.dataset.revealHtml !== html) {
+                answerKeySection.dataset.revealHtml = html;
+                answerKeySection.innerHTML = html;
+                if (window.MathJax?.typesetPromise) {
+                    MathJax.typesetPromise([answerKeySection]).catch(() => {});
+                }
+            }
             answerKeySection.style.display = 'block';
-            displayCollegeBoardExplanation(questionId);
+        }
+
+        // The settled MCQ box: correct → a collapsed "Why this is right" (only when an explanation
+        // exists); wrong → the correct letter plus the explanation when there is one.
+        function _mcqRevealHtml(questionId) {
+            const key = _quizKeyFor(questionId);
+            if (key === null || key === undefined) return '';
+            const explanation = _mcqExplanationFor(questionId);
+            const isCorrect = _quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId));
+
+            if (isCorrect) {
+                if (!explanation) return '';
+                return '<details class="mcq-why">'
+                    + '<summary>Why this is right</summary>'
+                    + `<div class="mcq-why-text">${explanation}</div>`
+                    + '</details>';
+            }
+
+            let html = `<div class="mcq-correct-answer"><strong>Correct answer:</strong> ${_escHtml(key)}</div>`;
+            if (explanation) {
+                html += `<div class="mcq-why-text">${explanation}</div>`;
+            }
+            return html;
+        }
+
+        // The item's written explanation (trusted curriculum text), or '' when it has none.
+        function _mcqExplanationFor(questionId) {
+            const q = _quizQuestionFor(questionId);
+            if (!q) return '';
+            const candidates = [q.explanation, q.rationale, q.reasoning];
+            const found = candidates.find(text => typeof text === 'string' && text.trim());
+            return found ? found.trim() : '';
         }
 
         // Function to show/hide answer key manually (for testing or override)

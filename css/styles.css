@@ -3150,6 +3150,57 @@ details.sync-section summary:hover {
     margin-bottom: 8px;
 }
 
+/* QUIZ_MCQ_REVEAL_SPEC: settled MCQ box. Correct answer = one quiet "Why this is right" line. */
+.answer-key-section.mcq-reveal-quiet {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin-top: 12px;
+}
+
+.mcq-why summary {
+    cursor: pointer;
+    color: #d68910;
+    font-weight: 600;
+}
+
+.mcq-why[open] summary {
+    margin-bottom: 8px;
+}
+
+.mcq-correct-answer {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.mcq-correct-answer strong {
+    color: #d68910;
+}
+
+.mcq-why-text {
+    background: white;
+    border: 1px solid #f39c12;
+    border-radius: 6px;
+    padding: 12px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+body.dark-theme .answer-key-section.mcq-reveal-quiet {
+    background: none;
+}
+
+body.dark-theme .mcq-why summary,
+body.dark-theme .mcq-correct-answer strong {
+    color: #f39c12;
+}
+
+body.dark-theme .mcq-why-text {
+    background: #1a252f;
+    color: #ecf0f1;
+}
+
 /* Dark mode answer key styling */
 body.dark-theme .answer-key-section {
     background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);

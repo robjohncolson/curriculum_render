@@ -153,9 +153,11 @@ function expectLocked(v) {
 }
 
 function expectRevealed(w, v) {
+  // QUIZ_MCQ_REVEAL_SPEC: ONE box (the fixture has an explanation, so it always shows); the
+  // College Board box is never used for an MCQ.
   expect(v.keyShown).toBe(true);
-  expect(v.keyText).toContain('B');
-  expect(v.cbShown).toBe(true);
+  expect(v.keyText).toContain('Because B is right.');
+  expect(v.cbShown).toBe(false);
   expect(v.draws).toBeGreaterThan(0);
   expect(v.peerLetters).toBeGreaterThan(0);
   expect(v.tinted).toBeGreaterThan(0);
@@ -168,13 +170,11 @@ function expectRevealed(w, v) {
 }
 
 describe('the MCQ template hosts the key and the chart (DOM-host claim verified)', () => {
-  it('renderQuestion emits answer-key (with correct-answer + official-explanation) and dotplot-section hosts', () => {
+  it('renderQuestion emits the answer-key and dotplot-section hosts', () => {
     const w = boot();
     render(w);
     const d = w.document;
     expect(d.getElementById(`answer-key-${QID}`)).not.toBeNull();
-    expect(d.getElementById(`correct-answer-${QID}`)).not.toBeNull();
-    expect(d.getElementById(`official-explanation-${QID}`)).not.toBeNull();
     expect(d.getElementById(`dotplot-section-${QID}`)).not.toBeNull();
     expect(d.getElementById(`answer-key-${QID}`).style.display).toBe('none');
   });
@@ -695,5 +695,84 @@ describe('ledger restore repaints the question', () => {
     await w.restoreOwnAnswersFromLedger();
     await tick(200);
     expect(w.document.getElementById(`frq-${FRQ}`).value).toBe('My restored FRQ answer');
+  });
+});
+
+// QUIZ_MCQ_REVEAL_SPEC (teacher 2026-09-29): one box, no repeated letter, no filler.
+describe('settled MCQ reveal: one box', () => {
+  const acceptedWrong = JSON.stringify({ firstAnswers: { [QID]: 'A' }, retries: { [QID]: { state: 'accepted', value: 'C', submittedAt: 9 } } });
+
+  function withoutExplanation(w) {
+    w.eval(`currentQuestions[0].explanation = undefined;`);
+  }
+
+  function keyBox(w) {
+    return w.document.getElementById(`answer-key-${QID}`);
+  }
+
+  it('correct + explanation: a collapsed "Why this is right" line, no letter, no College Board box', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(300);
+    const box = keyBox(w);
+    expect(box.style.display).toBe('block');
+    const details = box.querySelector('details.mcq-why');
+    expect(details).not.toBeNull();
+    expect(details.open).toBe(false);
+    expect(details.querySelector('summary').textContent).toBe('Why this is right');
+    expect(box.textContent).toContain('Because B is right.');
+    expect(box.textContent).not.toContain('Correct answer');
+    expect(box.textContent).not.toContain('Answer Key');
+    expect(box.classList.contains('mcq-reveal-quiet')).toBe(true);
+    expect(view(w).cbShown).toBe(false);
+  });
+
+  it('correct + no explanation: nothing shows', async () => {
+    const w = boot();
+    withoutExplanation(w);
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(300);
+    expect(keyBox(w).style.display).toBe('none');
+    expect(view(w).cbShown).toBe(false);
+    expect(w.document.getElementById('host').textContent).not.toContain('Official explanation not available');
+  });
+
+  it('wrong (retry accepted) + explanation: the correct letter and the explanation, one box', async () => {
+    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
+    seedMine(w, { answer: 'C', attempts: 2 });
+    render(w);
+    await tick(300);
+    const box = keyBox(w);
+    expect(box.style.display).toBe('block');
+    expect(box.textContent).toContain('Correct answer: B');
+    expect(box.textContent).toContain('Because B is right.');
+    expect(box.querySelector('details')).toBeNull();
+    expect(box.classList.contains('mcq-reveal-quiet')).toBe(false);
+    expect(view(w).cbShown).toBe(false);
+  });
+
+  it('wrong (retry accepted) + no explanation: the letter only, no filler', async () => {
+    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
+    withoutExplanation(w);
+    seedMine(w, { answer: 'C', attempts: 2 });
+    render(w);
+    await tick(300);
+    const box = keyBox(w);
+    expect(box.style.display).toBe('block');
+    expect(box.textContent.trim()).toBe('Correct answer: B');
+    expect(w.document.getElementById('host').textContent).not.toContain('Official explanation not available');
+  });
+
+  it('an opened "Why this is right" stays open through a repaint', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 1 });
+    render(w);
+    await tick(300);
+    keyBox(w).querySelector('details.mcq-why').open = true;
+    w.eval(`_refreshAfterReveal('${QID}')`);
+    await tick(200);
+    expect(keyBox(w).querySelector('details.mcq-why').open).toBe(true);
   });
 });
