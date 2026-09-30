@@ -7565,6 +7565,67 @@ function renderLessonSelector(unitInfo) {
             document.addEventListener('input', _onQuizReasonInput);
         }
 
+        // ── MCQ AI-area restore ──────────────────────────────────────────────────────────────
+        // gradeMCQAnswer runs at submit time only, so a reload, a reopened topic (new DOM) or a
+        // ledger restore that changes the answer left the AI area stale ("Submit an answer"
+        // hint, no feedback header, no Verify button). The feedback host is stamped with the
+        // state it shows (answer + settled); _refreshAfterReveal redraws only when that differs,
+        // so a plain peer repaint is a no-op and never overwrites a Verify/appeal result.
+        function _mcqFeedbackKey(questionId, answer) {
+            return `${answer}|${quizSettledFor(questionId) ? 'settled' : 'open'}`;
+        }
+
+        function _stampMcqFeedback(questionId, answer) {
+            const host = document.getElementById(`grading-feedback-${questionId}`);
+            if (host) host.dataset.mcqState = _mcqFeedbackKey(questionId, answer);
+        }
+
+        // An AI (Verify / re-eval / appeal) result for this exact answer is kept, never replaced
+        // by an auto-grade. Auto entries are the ones gradeMCQAnswer writes (_autoGraded).
+        function _aiResultForAnswer(questionId, answer) {
+            const prior = (window.gradingResults || {})[questionId];
+            if (!prior) return null;
+            if (prior._autoGraded && !prior._aiGraded) return null;
+            if (String(prior.answer) !== String(answer)) return null;
+            return prior;
+        }
+
+        // Pure DOM: no network, no appeal counter. Stamped FIRST so a renderer that throws is
+        // not retried on every peer repaint (the hint stays hidden either way).
+        function _showSavedAiResult(questionId, answer, result) {
+            _stampMcqFeedback(questionId, answer);
+            const escalation = document.getElementById(`escalation-${questionId}`);
+            if (escalation) escalation.style.display = 'block';
+            const hint = document.getElementById(`ai-section-hint-${questionId}`);
+            if (hint) hint.style.display = 'none';
+
+            if (result._appealProcessed) {
+                displayAppealResult(questionId, result, { score: result._previousScore });
+                return;
+            }
+            displayGradingFeedback(questionId, result);
+            if (result.score !== 'E' && _appealAllowedFor(questionId, 'multiple-choice')) {
+                const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
+                if (appealBtn) appealBtn.style.display = 'inline-block';
+            }
+        }
+
+        function _restoreMcqFeedback(questionId) {
+            if (!isQuestionAnswered(questionId)) return;
+            const host = document.getElementById(`grading-feedback-${questionId}`);
+            if (!host) return;
+            const answer = _currentAnswerValue(questionId);
+            if (host.dataset.mcqState === _mcqFeedbackKey(questionId, answer)) return;   // plain repaint
+
+            const saved = _aiResultForAnswer(questionId, answer);
+            if (saved) {
+                _showSavedAiResult(questionId, answer, saved);
+                return;
+            }
+            const isCorrect = _quizAnswerMatchesKey(questionId, answer);
+            Promise.resolve(gradeMCQAnswer(questionId, answer, isCorrect)).catch(() => {});
+        }
+
         // Bring every gated surface of one MCQ in line with its state: the form, the answer key +
         // College Board explanation (real renderers), the class chart and the peer panel. Used at
         // the moment an item settles, after a revert, after a restore and on reload.
@@ -7577,6 +7638,7 @@ function renderLessonSelector(unitInfo) {
             }
             try { _applyQuizFormState(questionId); } catch (_) {}
             try { _renderTalkItThrough(questionId); } catch (_) {}
+            try { _restoreMcqFeedback(questionId); } catch (_) {}
             const answered = isQuestionAnswered(questionId);
             const settled = answered && quizSettledFor(questionId);
             const keySection = document.getElementById(`answer-key-${questionId}`);
@@ -10032,8 +10094,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             if (result.score === 'E' && result._aiGraded) {
                 const shareBtn = document.getElementById(`btn-share-reasoning-${questionId}`);
                 // Only show if user provided reasoning during AI review
-                const userReason = classData.users[currentUsername]?.reasons?.[questionId];
-                if (shareBtn && userReason && userReason.trim().length > 0) {
+                const userReason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
+                if (shareBtn && userReason.trim().length > 0) {
                     shareBtn.style.display = 'inline-block';
                 }
             }
@@ -10631,8 +10693,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
             // For correct answers, show positive feedback but also offer AI understanding check
             if (isCorrect) {
                 // Check if reasoning was provided
-                const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
-                const hasReasoning = reason && reason.trim().length > 0;
+                const reason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
+                const hasReasoning = reason.trim().length > 0;
 
                 // Store result (correct = E for auto-grade, but reasoning not verified)
                 window.gradingResults[questionId] = {
@@ -10668,6 +10730,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     aiReviewBtn.textContent = '🤖 Verify My Understanding';
                     aiReviewBtn.style.display = 'inline-block';
                 }
+                _stampMcqFeedback(questionId, answer);
                 return;
             }
 
@@ -10682,7 +10745,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 score: 'I',
                 feedback: 'Incorrect answer selected.',
                 answer: answer,
-                questionType: 'multiple-choice'
+                questionType: 'multiple-choice',
+                _autoGraded: true
             };
 
             // Show initial feedback
@@ -10702,6 +10766,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                     </div>
                 `;
             }
+            _stampMcqFeedback(questionId, answer);
         }
 
         // Re-evaluate with Groq (Railway) - used when LAN grading was imprecise
@@ -10727,7 +10792,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
             const questionType = question.type || 'multiple-choice';
             const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
             const answer = userAnswer?.value || userAnswer;
-            const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
+            const reason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
 
             // Show loading state
             const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
@@ -10776,6 +10841,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 result._aiGraded = true;
                 result._provider = 'groq';
                 result._model = 'llama-3.3-70b (Groq)';
+                // The server does not echo these; the reopen restore matches on .answer.
+                result.answer = answer;
+                result.questionType = questionType;
+                delete result._autoGraded;
 
                 // Store and display result
                 window.gradingResults = window.gradingResults || {};
@@ -10874,8 +10943,8 @@ if (chartInstances[`dotplot-${questionId}`]) {
 
             const userAnswer = classData.users[currentUsername]?.answers?.[questionId];
             const answer = userAnswer?.value || userAnswer;
-            const reason = classData.users[currentUsername]?.reasons?.[questionId] || '';
-            console.log('🤖 Answer:', answer, 'Reason:', reason?.substring(0, 50) + '...');
+            const reason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
+            console.log('🤖 Answer:', answer, 'Reason:', reason.substring(0, 50) + '...');
 
             // Show loading state
             const feedbackContainer = document.getElementById(`grading-feedback-${questionId}`);
@@ -11212,9 +11281,9 @@ Respond with JSON:
         // Show reasoning form (for AI review) - or go directly if reasoning exists
         window.showReasoningForm = function(questionId, questionType) {
             // Check if reasoning already exists
-            const existingReasoning = classData.users[currentUsername]?.reasons?.[questionId];
+            const existingReasoning = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
 
-            if (existingReasoning && existingReasoning.trim()) {
+            if (existingReasoning.trim()) {
                 // Reasoning exists - go directly to AI review
                 requestAIReview(questionId, questionType);
                 return;
@@ -11365,10 +11434,13 @@ Respond with JSON:
                 if (result.success) {
                     captureQuizVerdictReceipt(result.receipt, questionId);
 
-                    // Update stored result
+                    // Update stored result. No longer an auto-grade; keep the score it replaced
+                    // so a reopened topic can re-show the same appeal notice.
                     window.gradingResults[questionId] = {
                         ...window.gradingResults[questionId],
-                        ...result
+                        ...result,
+                        _autoGraded: false,
+                        _previousScore: previousResult?.score
                     };
 
                     // Count this appeal toward the per-item cap (3/item).
@@ -11487,8 +11559,8 @@ Respond with JSON:
             // Show share reasoning button if appeal resulted in E score
             if (result.score === 'E') {
                 const shareBtn = document.getElementById(`btn-share-reasoning-${questionId}`);
-                const userReason = classData.users[currentUsername]?.reasons?.[questionId];
-                if (shareBtn && userReason && userReason.trim().length > 0) {
+                const userReason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
+                if (shareBtn && userReason.trim().length > 0) {
                     shareBtn.style.display = 'inline-block';
                 }
             }
@@ -11496,7 +11568,7 @@ Respond with JSON:
 
         // Share reasoning with peers after getting E score from AI
         window.shareReasoningWithPeers = async function(questionId) {
-            const reason = classData.users[currentUsername]?.reasons?.[questionId];
+            const reason = getReasonString(classData.users[currentUsername]?.reasons?.[questionId]);
             if (!reason || reason.trim().length === 0) {
                 showMessage('No reasoning to share. Please explain your answer during AI review first.', 'error');
                 return;
