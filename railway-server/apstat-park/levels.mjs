@@ -1,15 +1,93 @@
 // Original board-sized layouts based on PICO PARK's cooperative rules.
-export const PARK_LEVEL_COUNT = 6;
+export const PARK_LEVEL_COUNT = 7;
 export const PARK_HOUR_MS = 60 * 60 * 1000;
+// Protocol 4 is the legacy board client (levels 0-5). Protocol 5 adds level 6's
+// schema: latches, party-conditional geometry, catch zones, idle tracking.
 export const PARK_PROTOCOL = 4;
+export const PARK_PROTOCOL_LATEST = 5;
 const tile = (x,y,w,h=16) => ({x,y,w,h});
+export const parkLevelMinProtocol = index => index === 6 ? 5 : PARK_PROTOCOL;
+
+// PICO PARK stage_jump01 map (recovered/lua_archive_sources/stage/stage_jump01.lua), stored
+// column by column like the Lua (each string is one column, top row first), run-length encoded.
+// Codes: N=MC_NON (empty) A=MC_WAR C=MC_FLC L=MC_FLL R=MC_FLR W=MC_WAL I=MC_INC; all but N are solid.
+export const JUMP01_TILE_CODES = { N: 1, C: 3, L: 4, R: 5, W: 9, A: 10, I: 11 };
+const JUMP01_COLUMNS = [[1,'AAAAAAAAAA'],[16,'NNNNNNNNNC'],[1,'NNNNNNNNNR'],[1,'NNNNNNNNNN'],[1,'NNNNNNNNNL'],
+  [11,'NNNNNNNNNC'],[1,'NNNNNNNNNR'],[5,'NNNNNNNNNN'],[1,'NNNNNNNNNL'],[17,'NNNNNNNNNC'],[1,'NNNNLWWWWI'],
+  [5,'NNNNCIIIII'],[1,'WWWWIIIIII']].flatMap(([count, column]) => Array(count).fill(column));
+
+// Build-time compiler: solid tiles -> vertical runs per column -> runs merged across
+// neighbouring columns with identical runs. Few rectangles, no per-tile collision.
+export function compileTileMap(columns, size) {
+  const runsOf = column => {
+    const runs = [];
+    for (let row = 0; row < column.length; row++) {
+      if (column[row] === 'N') continue;
+      const last = runs.at(-1);
+      if (last && last.end === row) last.end++; else runs.push({ start: row, end: row + 1 });
+    }
+    return runs;
+  };
+  const rects = [], open = new Map();
+  columns.forEach((column, col) => {
+    const seen = new Set();
+    for (const run of runsOf(column)) {
+      const id = run.start + ':' + run.end;
+      seen.add(id);
+      if (open.has(id) && open.get(id).last === col - 1) open.get(id).last = col;
+      else { if (open.has(id)) rects.push(open.get(id)); open.set(id, { ...run, first: col, last: col }); }
+    }
+    for (const [id, rect] of open) if (!seen.has(id)) { rects.push(rect); open.delete(id); }
+  });
+  rects.push(...open.values());
+  return rects.sort((a, b) => a.first - b.first || a.start - b.start)
+    .map(r => ({ x: r.first * size, y: r.start * size, w: (r.last - r.first + 1) * size, h: (r.end - r.start) * size, kind: 'tile' }));
+}
+
+// Level 6: PICO PARK 1-1 at half scale. Measured values are in original pixels in the
+// CONTINUATION notes; everything here is halved. Poses (and the pose anchors key/goal/switch/
+// spawn/exit/checkpoints) are the top-left of the 16x23 body; feet = y + body.h.
+function jump01() {
+  const T = 24, floor = 216, body = { w: 16, h: 23 };
+  const stand = (cx, feet) => ({ x: cx - body.w / 2, y: feet - body.h });
+  const spawnSlots = Array.from({ length: 8 }, (_, i) => stand(50 + 25 * i, floor));   // Lua Player rows x 100..450
+  const catchZones = [
+    { id: 'pit-1', x: 384, y: 240, w: 120, h: 48, to: stand(360, -24) },   // Warp 768+240 -> (720,-48)
+    { id: 'pit-2', x: 768, y: 240, w: 216, h: 48, to: stand(696, -24) },   // Warp 1536+432 -> (1392,-48)
+  ];
+  return {
+    id: 'pico-1-1-v5', title: 'Jump together', reference: 'PICO PARK 1-1',
+    index: 6, protocol: 5, minProtocol: 5, minPlayers: 1, physics: 'pico', width: 62 * T, height: 10 * T,
+    body, reach: 32, idleMs: 120000, resetWhenAbandoned: true,
+    tiles: { size: T, codes: JUMP01_TILE_CODES, columns: JUMP01_COLUMNS },
+    spawn: spawnSlots[0], spawnSlots, exit: stand(34, floor), checkpoint: spawnSlots[0],
+    checkpoints: [...spawnSlots, ...catchZones.map(zone => zone.to)],
+    platforms: [
+      ...compileTileMap(JUMP01_COLUMNS, T),
+      { x: 856, y: floor, w: 80, h: 12, kind: 'bridge' },                          // resting bridge, always there
+      { x: 648, y: 192, w: 120, h: 24, kind: 'block', party: { min: 0, max: 6 } },  // step A
+      { x: 672, y: 168, w: 96, h: 24, kind: 'block', party: { min: 0, max: 4 } },   // step B, on top of A
+    ],
+    switches: [{ id: 'bridge', ...stand(960, floor), latch: true }],
+    gates: [{ id: 'bridge', latch: ['bridge'], party: { min: 1, max: 1 },
+      terrain: [{ x: 746, y: floor, w: 110, h: 12 }], extend: { from: 856, to: 746, speed: 60 } }],
+    boxes: [], hazards: [], lift: null,
+    weightedLifts: [{ id: 'lift', x: 1219, w: 98, h: 14.5, rest: 201.5, home: 201.5, top: 105.5, bottom: 201.5,
+      speed: 30, minRiders: 2, partyScaled: true, stack: { max: 7, slack: 17 } }],
+    catchZones, catchStack: 25,
+    key: { id: 'key', ...stand(1176, 96 + body.h / 2) }, goal: stand(1440, 96),
+    hint: 'Help each other across. Step on the far switch, ride the lift together, then bring the key to the door.',
+  };
+}
+
 export function createParkLevel(index = 0) {
   if (!Number.isInteger(index) || index < 0 || index >= PARK_LEVEL_COUNT) throw new Error('Unknown park level');
+  if (index === 6) return jump01();
   const level = {
     id: ['hello','switchback','lift-relay','moving-walls','upstairs-downstairs','weight-together'][index]+'-v4',
     title: ['Hello together','Switchback','Lift relay','Moving walls','Upstairs / downstairs','Weight together'][index],
     reference: ['World 1-1','Paired buttons','Two-person lift','World 1-2','World 1-3','World 1-4'][index],
-    index, protocol: PARK_PROTOCOL, width: 960, height: 220,
+    index, protocol: PARK_PROTOCOL, minProtocol: PARK_PROTOCOL, minPlayers: 2, physics: 'legacy', width: 960, height: 220,
     spawn:{x:90,y:146},exit:{x:43,y:146},checkpoint:{x:90,y:146},
     platforms:[], switches:[], gates:[], boxes:[], weightedLifts:[], hazards:[],
     key:{id:'key',x:675,y:146},goal:{x:910,y:40}, lift:null

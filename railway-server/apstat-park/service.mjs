@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { ParkSession } from './session.mjs';
-import { PARK_PROTOCOL, PARK_LEVEL_COUNT } from './levels.mjs';
+import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_lobby', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
@@ -65,8 +65,9 @@ export function createParkService({ registry, send, now = () => performance.now(
         // Empty by choice → rotate at the next hour boundary right away. Empty by a dropped socket or
         // a closed lid → keep the attempt for ABANDON_MS, then treat it as abandoned; otherwise every
         // period after the first inherited the previous hour's finished puzzle.
+        // emptySince is tracked for both; only level 6 resets on it (rotateIfReady), after ABANDON_MS.
         if (voluntary) binding.room.allowEmptyRotation = true;
-        else if (binding.room.emptySince == null) binding.room.emptySince = now();
+        if (binding.room.emptySince == null) binding.room.emptySince = now();
       }
     }
   }
@@ -104,8 +105,12 @@ export function createParkService({ registry, send, now = () => performance.now(
           return reply({ levels });
         }
         const joining = message.type === 'park_join' || message.type === 'park_resume';
-        if (joining && message.protocol !== PARK_PROTOCOL) return { type: 'park_error', requestId: message.requestId,
-          code: 'PARK_UPDATE_REQUIRED', message: 'Reload the calendar to enter the updated park.' };
+        const updateRequired = () => ({ type: 'park_error', requestId: message.requestId,
+          code: 'PARK_UPDATE_REQUIRED', message: 'Reload the calendar to enter the updated park.' });
+        // Protocol 4 clients keep levels 0-5; level 6 needs protocol 5 or later.
+        if (joining && !(Number.isInteger(message.protocol) && message.protocol >= PARK_PROTOCOL)) return updateRequired();
+        if (joining && Number.isInteger(message.levelIndex ?? 0) && (message.levelIndex ?? 0) >= 0 && (message.levelIndex ?? 0) < PARK_LEVEL_COUNT
+          && message.protocol < parkLevelMinProtocol(message.levelIndex ?? 0)) return updateRequired();
         // Validate before allocating a room or member slot.
         if (joining && (typeof message.clientId !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(message.clientId))) throw new Error('Invalid park client');
         sweep();
@@ -126,7 +131,7 @@ export function createParkService({ registry, send, now = () => performance.now(
           if (prior && prior.room !== room) unbind(ws);
           syncPresence(room);
           const abandoned = room.emptySince != null && now() - room.emptySince >= ABANDON_MS;
-          for (const event of room.session.rotateIfReady({ empty: room.allowEmptyRotation || abandoned })) broadcast(room, event);
+          for (const event of room.session.rotateIfReady({ empty: room.allowEmptyRotation || abandoned, abandoned })) broadcast(room, event);
           const activeKeys = new Set([...bindings.values()].filter(binding => binding.room === room).map(binding => binding.key));
           const requestedKey = JSON.stringify([who.username, message.clientId]);
           const shared = [...bindings].some(([socket, binding]) => socket !== ws && binding.room === room && binding.key === requestedKey);
