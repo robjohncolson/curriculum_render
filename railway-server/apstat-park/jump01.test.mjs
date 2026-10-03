@@ -60,7 +60,7 @@ test('party-conditional stairs for active parties 1-64', () => {
   const level = createParkLevel(LEVEL);
   const blocks = party => solidsFor(level, party).filter(p => p.kind === 'block').map(p => [p.x, p.y, p.w]);
   const A = [648, 192, 120], B = [672, 168, 96];
-  for (const [party, expected] of [[1, [A, B]], [4, [A, B]], [5, [A]], [6, [A]], [7, []], [8, []], [9, [A, B]], [30, [A, B]], [64, [A, B]]]) assert.deepEqual(blocks(party), expected, 'party ' + party);
+  for (const [party, expected] of [[1, [A, B]], [4, [A, B]], [5, [A]], [6, [A]], [7, [A]], [8, [A]], [9, [A, B]], [30, [A, B]], [64, [A, B]]]) assert.deepEqual(blocks(party), expected, 'party ' + party);
   // JSON-safe (no Infinity) so clients receive the same ranges.
   assert.deepEqual(JSON.parse(JSON.stringify(level.platforms)), level.platforms);
 });
@@ -637,8 +637,8 @@ function crossingFrames(solids, k, feet0) {
   return [...frames].sort((a, b) => a - b);
 }
 
-test('pit 2 is crossable for every active party 1-64 with at most 3 students', () => {
-  const results = {};
+test('pit 2 is crossable by a pair for every active party 1-64', () => {
+  const results = {}, windows = {};
   for (let party = 1; party <= 64; party++) {
     const { level, solids } = geometry(party);
     if (party === 1) {
@@ -650,12 +650,18 @@ test('pit 2 is crossable for every active party 1-64 with at most 3 students', (
     const feet0 = steps.length ? Math.min(...steps.map(p => p.y)) : 216;
     const key = feet0 + '';
     results[key] ??= [2, 3].map(k => crossingFrames(solids, k, feet0));
-    const k = results[key][0].length ? 2 : results[key][1].length ? 3 : Infinity;
-    assert.ok(k <= Math.min(3, party), `party ${party}: needs a ${k}-high stack from feet ${feet0}`);
+    windows[party] = results[key][0];
+    assert.ok(windows[party].length, `party ${party}: a pair cannot cross from feet ${feet0}`);
   }
-  // Without steps (7-8, the original rule) a pair cannot cross; a 3-high stack can, but only in a
-  // 6-frame jump window (frames 8-13; a pair on step A has 11, on step B 19). Recorded so a physics change that closes it fails here.
-  assert.deepEqual(results['216'][0], []);
-  assert.ok(results['216'][1].length >= 5, JSON.stringify(results['216'][1]));
-  assert.ok(results['168'][0].length > results['216'][1].length && results['192'][0].length > results['216'][1].length);
+  // Pair jump windows (frames after the carrier leaves the edge). Step B (2-4, 9+): 19 frames;
+  // step A only (5-8): 11 frames. Pinned so a physics or geometry change that narrows them fails.
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  for (const party of [2, 3, 4, 9, 30, 64]) assert.deepEqual(windows[party], range(4, 22), 'party ' + party);
+  for (const party of [5, 6, 7, 8]) assert.deepEqual(windows[party], range(8, 18), 'party ' + party);
+  // Why step A stays for 7-8 (the original's <= 6 rule): with no step a pair cannot cross at all,
+  // and a 3-high stack only in a 6-frame (~100 ms) window.
+  const { level } = geometry(7), bare = level.platforms.filter(p => !p.party);
+  bare.push({ x: level.weightedLifts[0].x, y: 201.5, w: level.weightedLifts[0].w, h: level.weightedLifts[0].h });
+  assert.deepEqual(crossingFrames(bare, 2, 216), []);
+  assert.deepEqual(crossingFrames(bare, 3, 216), range(8, 13));
 });

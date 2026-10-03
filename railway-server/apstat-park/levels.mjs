@@ -68,9 +68,10 @@ function jump01() {
     platforms: [
       ...compileTileMap(JUMP01_COLUMNS, T),
       { x: 856, y: floor, w: 80, h: 12, kind: 'bridge' },                          // resting bridge, always there
-      // Original: step A for <= 6 players, step B for <= 4 (8 players max). Rooms above 8 get both
-      // steps back. 7-8 keep the original no-step rule: a 3-high stack crosses (jump01.test.mjs).
-      { x: 648, y: 192, w: 120, h: 24, kind: 'block', party: [{ min: 0, max: 6 }, { min: 9, max: 64 }] },  // step A
+      // Original: step A for <= 6 players, step B for <= 4 (8 players max). Rooms above 8 get step B back.
+      // Deliberate deviation: step A is always present (original <= 6), because without it 7-8 need a
+      // 3-high stack jumping in a ~100 ms window, too tight over a 2 Hz relay (jump01.test.mjs).
+      { x: 648, y: 192, w: 120, h: 24, kind: 'block', party: { min: 0, max: 64 } },  // step A
       { x: 672, y: 168, w: 96, h: 24, kind: 'block', party: [{ min: 0, max: 4 }, { min: 9, max: 64 }] },   // step B, on A
     ],
     // Fires with cx within 14 of 960 and feet at most 4 px above the floor, even airborne.
