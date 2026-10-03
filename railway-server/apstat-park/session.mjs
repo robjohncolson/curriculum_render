@@ -2,8 +2,10 @@ import { createParkLevel } from './levels.mjs';
 
 const HISTORY_LIMIT = 128;
 const STREAMS_PER_MEMBER = 4;
-// Clients send at most every 500 ms; accept from 450 ms so arrival jitter cannot drop good updates.
-const MOTION_INTERVAL_MS = 450;
+// Motion budget per member: a token bucket refilled every 500 ms, holding at most 2, plus a 100 ms
+// minimum gap. Over any 10 s window at most 21 updates are accepted (long-run 2/s, the relay's hard
+// limit), but a 500 ms sender with up to +-200 ms arrival jitter loses none (gaps can be 100 ms).
+const MOTION_REFILL_MS = 500, MOTION_BURST = 2, MOTION_MIN_GAP_MS = 100;
 const copy = value => structuredClone(value);
 const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
 // A party condition is one {min,max} range or an array of them.
@@ -31,6 +33,7 @@ export class ParkSession {
     this.pushes = new Map();
     this.done = false;
     this.lastActive = new Map();
+    this.motionBudget = new Map();
     this.level = createParkLevel(levelIndex);
     this.attempt = 1;
     this.progress = this.emptyProgress();
@@ -85,7 +88,7 @@ export class ParkSession {
         requireValue(inactive, 'Close another park tab before joining here');
         this.streams.delete(inactive[0]);
       }
-      this.streams.set(key, { id: this.nextStreamId++, member, clientId, sequence: 0, receipts: [], motionSequence: 0, lastMotionAt: -Infinity });
+      this.streams.set(key, { id: this.nextStreamId++, member, clientId, sequence: 0, receipts: [], motionSequence: 0 });
     }
     return key;
   }
@@ -159,7 +162,8 @@ export class ParkSession {
   expireHolds() {
     let changed = false;
     for (const [key, held] of this.holds) {
-      if (!this.running || !this.online.includes(held.member) || this.progress.arrived.includes(held.member) || this.now() >= held.until) {
+      if (!this.running || !this.online.includes(held.member) || this.progress.arrived.includes(held.member) || this.now() >= held.until
+        || (this.progress.idle ?? []).includes(held.member)) {
         this.holds.delete(key); changed = true;
       }
     }
@@ -189,6 +193,14 @@ export class ParkSession {
     if (JSON.stringify(idle) === JSON.stringify(this.progress.idle)) return [];
     this.progress.idle = idle;
     const events = [this.emit('idle', { idle })];
+    // An idle member's leases (lift rider, under-lift) lapse, so an AFK student cannot block the lift.
+    let dropped = false;
+    for (const [key, held] of this.holds) if (idle.includes(held.member)) { this.holds.delete(key); dropped = true; }
+    if (dropped) {
+      this.progress.holds = this.heldState();
+      this.progress.switches = Object.keys(this.progress.holds);
+      events.push(this.emit('holds', { holds: this.progress.holds }));
+    }
     // An idle key holder drops the key (it returns to its spot), as an offline one does.
     if (this.progress.keyHolder && idle.includes(this.progress.keyHolder) && !this.progress.doorOpen) {
       this.progress.keyHolder = null;
@@ -298,9 +310,11 @@ export class ParkSession {
     if (packet?.epoch !== this.epoch || packet.level !== this.level.id || !this.running || this.done) return null;
     if (!Number.isSafeInteger(packet.sequence) || packet.sequence <= stream.motionSequence || !this.validPose(packet.pose)) return null;
     const at = this.now();
-    if (at - stream.lastMotionAt < MOTION_INTERVAL_MS) return null;
+    const budget = this.motionBudget.get(stream.member) ?? { tokens: MOTION_BURST, at, last: -Infinity };
+    const tokens = Math.min(MOTION_BURST, budget.tokens + (at - budget.at) / MOTION_REFILL_MS);
+    if (at - budget.last < MOTION_MIN_GAP_MS || tokens < 1 - 1e-9) return null;
+    this.motionBudget.set(stream.member, { tokens: tokens - 1, at, last: at });
     stream.motionSequence = packet.sequence;
-    stream.lastMotionAt = at;
     this.lastActive.set(stream.member, at);
     const pose = Object.fromEntries(['x', 'y', 'vx', 'vy'].map(key => [key, Math.round(packet.pose[key] * 10) / 10]));
     this.poses.set(stream.member, pose);
@@ -319,8 +333,11 @@ export class ParkSession {
     if (packet.sequence !== stream.sequence + 1) return { status: 'gap', sequence: stream.sequence, revision: this.revision, events: [] };
     // Consume rejected commands too, so one stale action cannot block the outbox.
     stream.sequence = packet.sequence;
-    this.lastActive.set(stream.member, this.now());
+    // Accepted commands count as input for the idle rule, except `quiet` ones: renewing a live
+    // lease, a no-op press or release, and any press from a member who is already idle.
+    let quiet = false;
     const finish = (status, events = [], reason) => {
+      if (status === 'accepted' && !quiet) this.lastActive.set(stream.member, this.now());
       const receipt = { status, sequence: packet.sequence, revision: this.revision, ...(reason ? { reason } : {}) };
       stream.receipts.push(receipt);
       if (stream.receipts.length > 16) stream.receipts.shift();
@@ -346,6 +363,9 @@ export class ParkSession {
       const active = packet.kind === 'switch' ? true : packet.active;
       if (typeof active !== 'boolean') return reject('Invalid pressure state');
       if (active && this.progress.arrived.includes(stream.member)) return reject('Leave the exit before helping');
+      // Only real input (motion, a new action) brings an idle member back; their client's lease
+      // renewals are ignored so they cannot hold the lift or block it while away.
+      if (active && (this.progress.idle ?? []).includes(stream.member)) { quiet = true; return finish('accepted'); }
       // A stacking lift also accepts riders standing k bodies above its surface (on teammates),
       // with the stack allowed to drift `slack` px sideways per level.
       let onLift = false;
@@ -368,11 +388,12 @@ export class ParkSession {
       if (active && !(pad ? near(pad) : lift ? onLift : beneath)) return reject('Stand on the pressure surface');
       if (pad?.latch) {
         // A latch switch is pressed once and stays down; release and renewals are no-ops.
-        if (!active || this.progress.latches[pad.id] != null) return finish('accepted');
+        if (!active || this.progress.latches[pad.id] != null) { quiet = true; return finish('accepted'); }
         this.progress.latches[pad.id] = this.sceneClock();
         return finish('accepted', this.refreshMechanisms(true));
       }
-      const holdKey = JSON.stringify([stream.member, packet.target]);
+      const holdKey = JSON.stringify([stream.member, packet.target]), live = this.holds.get(holdKey);
+      if (active ? live && live.until > this.now() : !live) quiet = true;   // renewal, or release of nothing
       if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000, ...(under ? { y: packet.pose.y } : {}) });
       else this.holds.delete(holdKey);
       const holds = this.heldState(), events = [];

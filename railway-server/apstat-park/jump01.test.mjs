@@ -171,10 +171,15 @@ test('lift: riders = min(8, active party), travel and descent scale with it, sta
 });
 
 test('idle members do not count toward the lift threshold', () => {
-  const { s, act, advance } = setup(['a', 'b']);
+  const { s, keys, act, advance } = setup(['a', 'b']);
   act('a', 'hold', onLift(s), { target: 'lift', active: true });
   assert.equal(s.progress.lifts.lift.to, lift(s).home);
-  for (let t = 0; t < 120000; t += 2000) { act('a', 'hold', onLift(s), { target: 'lift', active: true }); advance(2000); }
+  // a keeps playing (motion is input); b does nothing.
+  for (let t = 0, m = 0; t < 120000; t += 2000) {
+    act('a', 'hold', onLift(s), { target: 'lift', active: true });
+    s.motion(keys.a, { epoch: s.epoch, level: s.level.id, sequence: ++m, pose: { ...still(onLift(s)), vx: 1 } });
+    advance(2000);
+  }
   assert.deepEqual(s.progress.idle, ['b']);
   assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1), 'b went AFK: one rider lifts');
   act('b', 'settle', s.level.spawn);   // b comes back
@@ -335,6 +340,63 @@ test('review 7: a room emptied by an identity purge still resets after 3 minutes
   service.close();
 });
 
+test('lease renewals are not input: an AFK student under the lift goes idle and the lift resumes', () => {
+  // The frontend review's afk.mjs: b stops playing under the descending lift, b's client keeps
+  // renewing lift-under every 2 s, a plays on.
+  const { s, keys, act, advance } = setup(['a', 'b']);
+  s.progress.lifts.lift = { from: 105.5, to: 201.5, at: 0, duration: 3200, rate: 30 };
+  let m = 0;
+  for (let t = 1000; t <= 125000; t += 1000) {
+    if (t % 2000 === 0) act('b', 'hold', { x: 1250, y: 193 }, { target: 'lift-under', active: true });
+    s.motion(keys.a, { epoch: s.epoch, level: s.level.id, sequence: ++m, pose: { x: 1100 + (t / 1000) % 50, y: 193, vx: 90, vy: 0 } });
+    advance(1000);
+  }
+  assert.deepEqual(s.progress.idle, ['b']);
+  assert.equal(s.progress.holds['lift-under'], undefined, 'idle member lease dropped');
+  assert.ok(liftY(s) > 193 - lift(s).h, 'lift resumed its descent');
+  // Further renewals from the AFK client are ignored: no lease, still idle.
+  assert.equal(act('b', 'hold', { x: 1250, y: 193 }, { target: 'lift-under', active: true }).status, 'accepted');
+  assert.equal(s.progress.holds['lift-under'], undefined);
+  advance(250); assert.deepEqual(s.progress.idle, ['b']);
+  // a can now ride alone (party 1 active) up to the top.
+  advance(10000);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1));
+  // Real input brings b back; a fresh lease then counts again.
+  s.motion(keys.b, { epoch: s.epoch, level: s.level.id, sequence: 1, pose: { x: 1000, y: 193, vx: 90, vy: 0 } });
+  advance(250); assert.deepEqual(s.progress.idle, []);
+});
+
+test('lease renewals are not input: an AFK rider on the lift and on the switch go idle', () => {
+  const { s, keys, act, advance } = setup(['a', 'b', 'c']);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  act('b', 'hold', onLift(s, 30), { target: 'lift', active: true });
+  const pad = s.level.switches[0];
+  act('c', 'switch', pad, { target: pad.id });   // latches the bridge
+  let m = 0;
+  for (let t = 0; t < 122000; t += 2000) {
+    act('a', 'hold', onLift(s), { target: 'lift', active: true });    // renewal only: AFK rider
+    act('b', 'hold', onLift(s, 30), { target: 'lift', active: true });
+    s.motion(keys.b, { epoch: s.epoch, level: s.level.id, sequence: ++m, pose: { ...still(onLift(s, 30)), vx: m % 2 } });
+    act('c', 'switch', pad, { target: pad.id });                         // no-op presses on a latched switch
+    advance(2000);
+  }
+  assert.deepEqual(s.progress.idle, ['a', 'c']);
+  assert.deepEqual(s.progress.holds.lift, ['b'], "a's rider lease lapsed");
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1), 'b (the only active student) rides alone');
+  // Starting a new lease or releasing one is input.
+  const fresh = setup(['a', 'b']);
+  fresh.advance(100000);
+  fresh.act('a', 'hold', onLift(fresh.s), { target: 'lift', active: true });
+  fresh.advance(25000);
+  assert.deepEqual(fresh.s.progress.idle, ['b'], 'a started a lease at 100 s: not idle at 125 s');
+  fresh.act('a', 'hold', onLift(fresh.s), { target: 'lift', active: true });   // lease had lapsed: new lease
+  fresh.advance(5000);
+  fresh.act('a', 'hold', onLift(fresh.s), { target: 'lift', active: false });  // release of a live lease at 130 s
+  fresh.advance(117000);
+  assert.deepEqual(fresh.s.progress.idle, ['b'], 'the release at 130 s was input too');
+});
+
 test('lone remaining player after the others arrive can still finish', () => {
   const { s, act, advance } = setup(['a', 'b', 'c', 'd']);
   act('a', 'key', s.level.key); act('a', 'unlock', s.level.goal);
@@ -388,14 +450,54 @@ test('validPose allows stacks and respawns above the screen down to -height', ()
   assert.equal(ok(10, 10, 90, 585), true);
 });
 
-test('motion: 450 ms after the last accepted update is accepted, 300 ms is not', () => {
-  const { s, keys, advance } = setup(['a', 'b']);
-  const packet = sequence => ({ epoch: s.epoch, level: s.level.id, sequence, pose: still(s.level.spawn) });
-  assert.ok(s.motion(keys.a, packet(1)));
-  advance(300);
-  assert.equal(s.motion(keys.a, packet(2)), null);
-  advance(150);
-  assert.ok(s.motion(keys.a, packet(3)));
+// Arrival times (ms) -> which motions the relay accepts, for one member on a fresh session.
+function acceptedAt(arrivals, levelIndex = LEVEL) {
+  let time = 0;
+  const s = new ParkSession({ epoch: 'motion', levelIndex, members: ['a', 'b'], now: () => time });
+  const key = s.open('a', 'browser_a');
+  s.setOnline(['a', 'b']);
+  const accepted = [];
+  arrivals.forEach((at, i) => {
+    time = at;
+    if (s.motion(key, { epoch: s.epoch, level: s.level.id, sequence: i + 1, pose: still(s.level.spawn) })) accepted.push(at);
+  });
+  return accepted;
+}
+const maxInWindow = (times, width) => Math.max(0, ...times.map(start => times.filter(t => t >= start && t < start + width).length));
+
+test('motion: token bucket (2 per 500 ms refill, burst 2, 100 ms gap) caps any 10 s window at 21', () => {
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const senders = {
+    'every frame': Array.from({ length: 1800 }, (_, i) => i * 1000 / 60),
+    'every 100 ms': Array.from({ length: 300 }, (_, i) => i * 100),
+    'every 250 ms': Array.from({ length: 120 }, (_, i) => i * 250),
+    'bursts after silence': Array.from({ length: 30 }, (_, i) => [0, 1, 2, 3, 100, 101, 200, 300].map(d => i * 1000 + d)).flat(),
+    'random flood': Array.from({ length: 600 }, () => rnd() * 30000).sort((a, b) => a - b),
+  };
+  for (const [name, arrivals] of Object.entries(senders)) {
+    for (const levelIndex of [0, LEVEL]) {
+      const accepted = acceptedAt(arrivals, levelIndex);
+      assert.ok(maxInWindow(accepted, 10000) <= 21, `${name}: ${maxInWindow(accepted, 10000)} in 10 s`);
+      for (let i = 1; i < accepted.length; i++) assert.ok(accepted[i] - accepted[i - 1] >= 100, name + ': gap');
+    }
+  }
+  // The worst case reaches exactly 21: a full bucket (2) plus 19 refills.
+  assert.equal(maxInWindow(acceptedAt(senders['every frame']), 10000), 21);
+});
+
+test('motion: a 500 ms sender with +-200 ms jitter loses none; late then on-time both pass', () => {
+  for (let trial = 1; trial <= 50; trial++) {
+    let seed = trial;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const arrivals = Array.from({ length: 240 }, (_, i) => 1000 + i * 500 + (rnd() * 400 - 200)).sort((a, b) => a - b);
+    assert.deepEqual(acceptedAt(arrivals), arrivals, 'trial ' + trial);
+  }
+  // Worst alternation: +200 then -200 (gaps of 100 and 900 ms).
+  const zigzag = Array.from({ length: 100 }, (_, i) => 1000 + i * 500 + (i % 2 ? -200 : 200)).sort((a, b) => a - b);
+  assert.deepEqual(acceptedAt(zigzag), zigzag);
+  assert.deepEqual(acceptedAt([0, 900, 1000]), [0, 900, 1000], 'a late packet then an on-time one');
+  assert.deepEqual(acceptedAt([0, 50, 100]), [0, 100], 'closer than 100 ms is dropped');
 });
 
 test('an idle student does not block completion; arriving clears idleness', () => {

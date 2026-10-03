@@ -12,7 +12,7 @@ test('a lost final motion anchor and lost stop event recover through reliable re
   observer.resume(session.resume(bob));
   const moving = { epoch: session.epoch, level: session.level.id, sequence: 1, pose: { x: 260, y: 146, vx: 120, vy: 0 } };
   observer.peerMotion({ member: 'alice', ...session.motion(alice, moving) });
-  clock = 449;
+  clock = 50;
   const rest = { x: 279, y: 146, vx: 0, vy: 0 };
   assert.equal(session.motion(alice, { ...moving, sequence: 2, pose: rest }), null, 'jitter can suppress the final motion');
   const packet = { ...moving, sequence: 1, kind: 'settle', target: 'rest', pose: rest };

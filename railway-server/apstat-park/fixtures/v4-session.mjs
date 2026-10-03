@@ -1,11 +1,15 @@
 // Frozen copy of apstat-park/session.mjs at 525c4bc (before level 6), for legacy-differential.test.mjs.
-// Only the two deliberate relay-wide changes are applied: motion accepted from 450 ms (was 500) and
-// poses allowed down to y = -level.height (was -100). Do not edit otherwise.
+// Only the deliberate relay-wide changes are applied: motion acceptance uses the per-member token
+// bucket (was: one update per stream per 500 ms) and poses may reach y = -level.height (was -100).
+// Do not edit otherwise.
 import { createParkLevel } from './v4-levels.mjs';
 
 const HISTORY_LIMIT = 128;
 const STREAMS_PER_MEMBER = 4;
-const MOTION_INTERVAL_MS = 450;
+// Motion budget per member: a token bucket refilled every 500 ms, holding at most 2, plus a 100 ms
+// minimum gap. Over any 10 s window at most 21 updates are accepted (long-run 2/s, the relay's hard
+// limit), but a 500 ms sender with up to +-200 ms arrival jitter loses none (gaps can be 100 ms).
+const MOTION_REFILL_MS = 500, MOTION_BURST = 2, MOTION_MIN_GAP_MS = 100;
 const copy = value => structuredClone(value);
 const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
 
@@ -29,6 +33,7 @@ export class ParkSession {
     this.holds = new Map();
     this.pushes = new Map();
     this.done = false;
+    this.motionBudget = new Map();
     this.level = createParkLevel(levelIndex);
     this.attempt = 1;
     this.progress = this.emptyProgress();
@@ -221,9 +226,11 @@ export class ParkSession {
     if (packet?.epoch !== this.epoch || packet.level !== this.level.id || !this.running || this.done) return null;
     if (!Number.isSafeInteger(packet.sequence) || packet.sequence <= stream.motionSequence || !this.validPose(packet.pose)) return null;
     const at = this.now();
-    if (at - stream.lastMotionAt < MOTION_INTERVAL_MS) return null;
+    const budget = this.motionBudget.get(stream.member) ?? { tokens: MOTION_BURST, at, last: -Infinity };
+    const tokens = Math.min(MOTION_BURST, budget.tokens + (at - budget.at) / MOTION_REFILL_MS);
+    if (at - budget.last < MOTION_MIN_GAP_MS || tokens < 1 - 1e-9) return null;
+    this.motionBudget.set(stream.member, { tokens: tokens - 1, at, last: at });
     stream.motionSequence = packet.sequence;
-    stream.lastMotionAt = at;
     const pose = Object.fromEntries(['x', 'y', 'vx', 'vy'].map(key => [key, Math.round(packet.pose[key] * 10) / 10]));
     this.poses.set(stream.member, pose);
     // Deliberately ephemeral: no revision/history, no movement backlog on resume.
