@@ -8,7 +8,8 @@ import { createParkService } from './service.mjs';
 // Level 6: PICO PARK 1-1 at half scale. Poses are the top-left of the 16x23 body.
 const LEVEL = 6;
 const still = point => ({ x: point.x, y: point.y, vx: 0, vy: 0 });
-const inRange = (range, n) => n >= range.min && n <= range.max;
+// A party condition is one {min,max} range or an array of them, evaluated on the ACTIVE party.
+const inRange = (range, n) => [].concat(range).some(r => n >= r.min && n <= r.max);
 const solidsFor = (level, party) => level.platforms.filter(p => !p.party || inRange(p.party, party));
 
 function setup(members, { online = members } = {}) {
@@ -55,11 +56,13 @@ test('compiled tile map: walls, floor, pits and goal ledge', () => {
   for (const x of [431, 456, 767, 888, 1319]) assert.equal(floorAt(x), true, 'floor at ' + x);
 });
 
-test('party-conditional stairs for parties of 1, 4, 5, 6, 7 and 8', () => {
+test('party-conditional stairs for active parties 1-64', () => {
   const level = createParkLevel(LEVEL);
   const blocks = party => solidsFor(level, party).filter(p => p.kind === 'block').map(p => [p.x, p.y, p.w]);
   const A = [648, 192, 120], B = [672, 168, 96];
-  for (const [party, expected] of [[1, [A, B]], [4, [A, B]], [5, [A]], [6, [A]], [7, []], [8, []]]) assert.deepEqual(blocks(party), expected, 'party ' + party);
+  for (const [party, expected] of [[1, [A, B]], [4, [A, B]], [5, [A]], [6, [A]], [7, []], [8, []], [9, [A, B]], [30, [A, B]], [64, [A, B]]]) assert.deepEqual(blocks(party), expected, 'party ' + party);
+  // JSON-safe (no Infinity) so clients receive the same ranges.
+  assert.deepEqual(JSON.parse(JSON.stringify(level.platforms)), level.platforms);
 });
 
 test('catch zones cover both pits and land on the near side', () => {
@@ -197,23 +200,139 @@ test('a player beneath stops the descending lift at their head; it resumes 4 fra
   assert.equal(liftY(s), head - lift(s).h);
   for (let i = 0; i < 5; i++) { act('c', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: true }); advance(2000); }
   assert.equal(liftY(s), head - lift(s).h, 'waits indefinitely while the lease is renewed');
-  // A head reported late (lift already lower): the lift is put back above it, never inside.
-  act('b', 'hold', { x: 1260, y: head - 4 }, { target: 'lift-under', active: true });
-  assert.equal(liftY(s), head - 4 - lift(s).h);
-  act('b', 'hold', { x: 1260, y: head - 4 }, { target: 'lift-under', active: false });
+  // A head that is not a body on the floor or on a stack is refused.
+  assert.equal(act('b', 'hold', { x: 1260, y: head - 4 }, { target: 'lift-under', active: true }).status, 'rejected');
   act('c', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: false });
   const state = s.progress.lifts.lift;
   assert.equal(state.blocked, undefined);
   assert.equal(state.at, clock() + 67);
-  advance(60); assert.equal(liftY(s), head - 4 - lift(s).h, 'still waiting 4 frames');
+  advance(60); assert.equal(liftY(s), head - lift(s).h, 'still waiting 4 frames');
   advance(2000); assert.ok(liftY(s) > head - lift(s).h);
   // Lease expiry (client gone without a release) also frees it.
   const t = setup(['a']);
-  assert.equal(t.act('a', 'hold', { x: 1240, y: 100 }, { target: 'lift-under', active: true }).status, 'rejected', 'head above the lift');
-  assert.equal(t.act('a', 'hold', { x: 1240, y: 200 }, { target: 'lift-under', active: true }).status, 'accepted');
+  assert.equal(t.act('a', 'hold', { x: 1240, y: 193 }, { target: 'lift-under', active: true }).status, 'rejected', 'nobody fits under the resting lift');
+  t.act('a', 'hold', onLift(t.s), { target: 'lift', active: true }); t.advance(5000);
+  t.act('a', 'hold', onLift(t.s), { target: 'lift', active: false });
+  assert.equal(t.act('a', 'hold', { x: 1240, y: 60 }, { target: 'lift-under', active: true }).status, 'rejected', 'head above the lift');
+  assert.equal(t.act('a', 'hold', { x: 1240, y: 193 }, { target: 'lift-under', active: true }).status, 'accepted');
   assert.ok(t.s.progress.holds['lift-under']);
   t.advance(6001);
   assert.equal(t.s.progress.holds['lift-under'], undefined);
+});
+
+test('review 4: lift-under cannot ratchet the lift upward', () => {
+  const { s, act, advance } = setup(['a', 'b']);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  act('b', 'hold', onLift(s, 30), { target: 'lift', active: true });
+  advance(5000);
+  const top = topFor(lift(s), 2);
+  act('a', 'hold', onLift(s), { target: 'lift', active: false });
+  advance(1000);
+  const start = liftY(s);
+  // Hostile renewals from ever higher (stack-plausible) heads, as in the review repro.
+  for (let i = 0; i < 10; i++) {
+    const y = liftY(s), head = [...Array(8).keys()].map(k => 193 - 23 * k).filter(h => h >= y - 2).at(-1);
+    if (head != null) act('b', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: true });
+    act('b', 'hold', { x: 1240, y: Math.max(-240, y - 2) }, { target: 'lift-under', active: true });
+    advance(1000);
+    assert.ok(liftY(s) >= top, 'never above the top');
+  }
+  assert.ok(liftY(s) >= start - 2, 'at most 2 px above where it was: ' + start + ' -> ' + liftY(s));
+  // An honest late report (lift already 3 px into the head) moves it back by at most 2 px.
+  const t = setup(['a', 'b', 'c']);
+  t.act('a', 'hold', onLift(t.s), { target: 'lift', active: true });
+  t.act('b', 'hold', onLift(t.s, 30), { target: 'lift', active: true });
+  t.act('c', 'hold', onLift(t.s, 50), { target: 'lift', active: true });
+  t.advance(5000);
+  t.act('a', 'hold', onLift(t.s), { target: 'lift', active: false });
+  for (let i = 0; i < 400 && liftY(t.s) < 193 - lift(t.s).h + 3; i++) t.advance(10);
+  const late = liftY(t.s);
+  assert.equal(t.act('c', 'hold', { x: 1240, y: 193 }, { target: 'lift-under', active: true }).status, 'accepted');
+  assert.ok(Math.abs(liftY(t.s) - (late - 2)) < 1e-9, 'moved back exactly 2 px, not to the head');
+  assert.equal(t.s.progress.lifts.lift.blocked, true);
+});
+
+test('review 5: a claimed stack rider needs carriers holding the lift (ledge exploit)', () => {
+  const { s, act } = setup(['a', 'b', 'c']);
+  for (const x of [1320, 1360, 1398, 1305]) assert.equal(act('a', 'hold', { x, y: 73 }, { target: 'lift', active: true }).status, 'rejected', 'ledge x ' + x);
+  assert.equal(act('a', 'hold', onLift(s, 10, 1), { target: 'lift', active: true }).status, 'rejected', 'no carrier yet');
+  assert.equal(act('b', 'hold', onLift(s), { target: 'lift', active: true }).status, 'accepted');
+  assert.equal(act('a', 'hold', onLift(s, 10, 1), { target: 'lift', active: true }).status, 'accepted', 'one carrier, 1-high');
+  assert.equal(act('c', 'hold', onLift(s, 10, 3), { target: 'lift', active: true }).status, 'rejected', '3-high needs 3 carriers');
+  assert.equal(act('c', 'hold', onLift(s, 10, 2), { target: 'lift', active: true }).status, 'accepted');
+});
+
+test('review 1: an idle key holder drops the key so the others can finish', () => {
+  const { s, act, advance } = setup(['a', 'b']);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  act('b', 'hold', onLift(s, 30), { target: 'lift', active: true });
+  advance(5000);
+  assert.equal(act('a', 'key', s.level.key).status, 'accepted');
+  let events = [];
+  for (let t = 0; t < 130000; t += 2000) { act('b', 'settle', { x: 1330 + (t / 2000 % 2), y: 73 }); events.push(...advance(2000)); }
+  assert.deepEqual(s.progress.idle, ['a']);
+  assert.equal(s.progress.keyHolder, null);
+  assert.ok(events.some(e => e.kind === 'key' && e.holder === null));
+  assert.equal(act('b', 'key', s.level.key).status, 'accepted');
+  assert.equal(act('b', 'unlock', s.level.goal).status, 'accepted');
+  assert.equal(act('b', 'arrive', s.level.goal).status, 'accepted');
+  assert.equal(s.progress.complete, true);
+});
+
+test('review 2: idle members do not count toward the steps or the party-of-one bridge', () => {
+  const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+  const { s, act, advance } = setup(names);
+  assert.equal(s.progress.gates.includes('bridge'), false);
+  for (let t = 0; t < 121000; t += 2000) { act('a', 'settle', { x: 100 + (t / 2000 % 2), y: 193 }); act('b', 'settle', { x: 130 + (t / 2000 % 2), y: 193 }); advance(2000); }
+  assert.equal(s.activeParty().length, 2);
+  const level = s.level;
+  assert.equal(solidsFor(level, s.activeParty().length).filter(p => p.kind === 'block').length, 2, 'both steps for the two active students');
+  for (let t = 0; t < 121000; t += 2000) { act('a', 'settle', { x: 100 + (t / 2000 % 2), y: 193 }); advance(2000); }
+  assert.deepEqual(s.activeParty(), ['a']);
+  assert.ok(s.progress.gates.includes('bridge'), 'the lone active student gets the bridge aid');
+});
+
+test('review 6: a returning idle member reopens a completed room; joiners do not reset an ongoing attempt', () => {
+  const names = Array.from({ length: 5 }, (_, i) => 'p' + i);
+  const { s, act, advance } = setup(names);
+  for (let t = 0; t < 121000; t += 2000) { act('p0', 'settle', { x: 960 + (t / 2000 % 2), y: 193 }); advance(2000); }
+  act('p0', 'hold', onLift(s), { target: 'lift', active: true }); advance(5000);
+  act('p0', 'key', s.level.key); act('p0', 'unlock', s.level.goal); act('p0', 'arrive', s.level.goal);
+  assert.equal(s.progress.complete, true);
+  const id = s.level.id;
+  // A joiner arriving at the door while idle students are still in the room joins the attempt.
+  s.addMember('late');
+  assert.deepEqual(s.enter('late'), []);
+  assert.deepEqual(s.enter('p0'), [], 'an arrived member keeps their arrival');
+  assert.equal(s.level.id, id); assert.deepEqual(s.progress.arrived, ['p0']);
+  // p3 was standing still mid-level; any input brings them back and reopens the room.
+  act('p3', 'settle', { x: 700, y: 169 });
+  const events = advance(250);
+  assert.ok(events.some(e => e.kind === 'idle') && events.some(e => e.kind === 'complete' && e.complete === false));
+  assert.equal(s.progress.complete, false);
+  assert.deepEqual(s.progress.arrived, ['p0']);
+  // When nobody online is still playing, a completed room resets on entry as before.
+  const solo = setup(['x']);
+  solo.act('x', 'key', solo.s.level.key); solo.act('x', 'unlock', solo.s.level.goal); solo.act('x', 'arrive', solo.s.level.goal);
+  assert.equal(solo.s.progress.complete, true);
+  assert.equal(solo.s.enter('x')[0].kind, 'level');
+});
+
+test('review 7: a room emptied by an identity purge still resets after 3 minutes', () => {
+  let time = 0;
+  const registry = createClassroomRegistry(), ws = {}, other = {};
+  registry.join(ws, 'B', 'alice', 'student', 0);
+  const service = createParkService({ registry, now: () => time, send() {} });
+  const first = service.handle(ws, { type: 'park_join', protocol: 5, levelIndex: LEVEL, clientId: 'browser_one' });
+  // alice's socket moves to another period without a park_leave: the old binding is purged.
+  registry.join(ws, 'E', 'alice', 'student', 0);
+  registry.join(other, 'B', 'bob', 'student', 0);
+  service.handle(other, { type: 'park_lobby' });   // presence sweep purges the stale binding
+  time += 181000;
+  registry.join(ws, 'B', 'alice', 'student', 0);
+  const again = service.handle(ws, { type: 'park_join', protocol: 5, levelIndex: LEVEL, clientId: 'browser_one' });
+  assert.notEqual(again.level.id, first.level.id);
+  service.close();
 });
 
 test('lone remaining player after the others arrive can still finish', () => {
@@ -493,4 +612,50 @@ test('no dead ends: every resting surface has a way back to the route', () => {
       assert.ok(hop(fall, solids, () => ({}), { jump: false }).ground);
     }
   }
+});
+
+// Falling-stack crossing of pit 2: a k-high stack stands on the highest surface left of the pit,
+// walks right in step, the bottom walks off (x 768) and falls carrying the rest vertically, and
+// the top rider jumps (full, steering right) once the stack has fallen `th` px. Returns the
+// frames (after leaving the edge) at which the jump lands on the resting bridge or beyond.
+function crossingFrames(solids, k, feet0) {
+  const frames = new Set();
+  for (let th = 0; th <= 80; th += 0.5) {
+    const bottom = body(740, feet0);
+    let fell = 0, frame = 0;
+    for (let f = 0; f < 300 && bottom.y + H <= 240; f++) {
+      step(bottom, solids, { dir: 1 });
+      if (!bottom.ground) { fell = bottom.y + H - feet0; frame++; }
+      if (fell < th) continue;
+      const top = Object.assign(body(bottom.x, bottom.y + H - (k - 1) * H), { ground: true });
+      step(top, solids, { jump: true });
+      for (let g = 0; g < 400 && top.y + H <= 240; g++) { step(top, solids, { dir: 1, hold: true }); if (top.ground) break; }
+      if (top.ground && top.y + H === 216 && top.x + W > 856) frames.add(frame);
+      break;
+    }
+  }
+  return [...frames].sort((a, b) => a - b);
+}
+
+test('pit 2 is crossable for every active party 1-64 with at most 3 students', () => {
+  const results = {};
+  for (let party = 1; party <= 64; party++) {
+    const { level, solids } = geometry(party);
+    if (party === 1) {
+      const r = hop(body(740, 168), solids, () => ({ dir: 1 }), { jump: false });
+      assert.ok(r.feet === 216 && r.x > 768, 'alone: walk onto the extended bridge');
+      continue;
+    }
+    const steps = solidsFor(level, party).filter(p => p.kind === 'block');
+    const feet0 = steps.length ? Math.min(...steps.map(p => p.y)) : 216;
+    const key = feet0 + '';
+    results[key] ??= [2, 3].map(k => crossingFrames(solids, k, feet0));
+    const k = results[key][0].length ? 2 : results[key][1].length ? 3 : Infinity;
+    assert.ok(k <= Math.min(3, party), `party ${party}: needs a ${k}-high stack from feet ${feet0}`);
+  }
+  // Without steps (7-8, the original rule) a pair cannot cross; a 3-high stack can, but only in a
+  // 6-frame jump window (frames 8-13; a pair on step A has 11, on step B 19). Recorded so a physics change that closes it fails here.
+  assert.deepEqual(results['216'][0], []);
+  assert.ok(results['216'][1].length >= 5, JSON.stringify(results['216'][1]));
+  assert.ok(results['168'][0].length > results['216'][1].length && results['192'][0].length > results['216'][1].length);
 });

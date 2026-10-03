@@ -68,8 +68,10 @@ function jump01() {
     platforms: [
       ...compileTileMap(JUMP01_COLUMNS, T),
       { x: 856, y: floor, w: 80, h: 12, kind: 'bridge' },                          // resting bridge, always there
-      { x: 648, y: 192, w: 120, h: 24, kind: 'block', party: { min: 0, max: 6 } },  // step A
-      { x: 672, y: 168, w: 96, h: 24, kind: 'block', party: { min: 0, max: 4 } },   // step B, on top of A
+      // Original: step A for <= 6 players, step B for <= 4 (8 players max). Rooms above 8 get both
+      // steps back. 7-8 keep the original no-step rule: a 3-high stack crosses (jump01.test.mjs).
+      { x: 648, y: 192, w: 120, h: 24, kind: 'block', party: [{ min: 0, max: 6 }, { min: 9, max: 64 }] },  // step A
+      { x: 672, y: 168, w: 96, h: 24, kind: 'block', party: [{ min: 0, max: 4 }, { min: 9, max: 64 }] },   // step B, on A
     ],
     // Fires with cx within 14 of 960 and feet at most 4 px above the floor, even airborne.
     switches: [{ id: 'bridge', ...stand(960, floor), latch: true, trigger: { cx: 960, halfWidth: 14, feetMin: 212, feetMax: 216 } }],
@@ -81,7 +83,7 @@ function jump01() {
     // Port: n = min(cap, active party). Half scale: top = rest - (92 + 2n), rise 30 px/s, descent 36 - 3n px/s.
     // Solid from below, 9.5 thick; a 'lift-under' lease from a player beneath stops its descent at
     // that player's head; it resumes resumeMs after the last lease ends (4 frames).
-    weightedLifts: [{ id: 'lift', x: 1222, w: 92, h: 9.5, rest: 201.5, home: 201.5, bottom: 201.5, speed: 30,
+    weightedLifts: [{ id: 'lift', x: 1222, w: 92, h: 9.5, rest: 201.5, home: 201.5, bottom: 201.5, speed: 30, floor,
       perParty: { cap: 8, travelBase: 92, travelPer: 2, descentBase: 36, descentPer: -3 },
       blockId: 'lift-under', resumeMs: 67, stack: { max: 7, slack: 17 } }],
     catchZones, catchStack: 25,

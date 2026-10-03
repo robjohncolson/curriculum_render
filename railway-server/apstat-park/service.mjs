@@ -23,6 +23,12 @@ export function createParkService({ registry, send, now = () => performance.now(
     return entry;
   }
 
+  // Bindings also vanish when an identity check fails (here and in syncPresence), not only in
+  // unbind. Whichever path empties a room starts its abandon clock (used by level 6).
+  function markEmpty(room) {
+    if (room.emptySince == null && ![...bindings.values()].some(binding => binding.room === room)) room.emptySince = now();
+  }
+
   function broadcast(room, event) {
     const cache = new Map();
     for (const [ws, binding] of bindings) {
@@ -34,6 +40,7 @@ export function createParkService({ registry, send, now = () => performance.now(
       if (ws.bufferedAmount > 32768) continue;
       send(ws, { type: 'park_event', ...event });
     }
+    markEmpty(room);
   }
 
   function syncPresence(room) {
@@ -46,6 +53,7 @@ export function createParkService({ registry, send, now = () => performance.now(
       online.push(binding.member);
     }
     for (const event of room.session.setOnline(online)) broadcast(room, event);
+    markEmpty(room);
   }
 
   function sweep() {
@@ -120,7 +128,8 @@ export function createParkService({ registry, send, now = () => performance.now(
         let room = joining ? rooms.get(roomKey) : bindings.get(ws)?.room;
         if (room && room.section !== who.section) room = null;
         if (!room && joining) {
-          if (rooms.size >= 32) throw new Error('The park is busy. Try entering again shortly.');
+          // Seven levels per period; rooms are small (bounded history), so the cap is generous.
+          if (rooms.size >= 128) throw new Error('The park is busy. Try entering again shortly.');
           room = { section: who.section, lastActivity: now(), session: new ParkSession({ epoch: randomUUID(), levelIndex, now, wallNow }) };
           rooms.set(roomKey, room);
         }

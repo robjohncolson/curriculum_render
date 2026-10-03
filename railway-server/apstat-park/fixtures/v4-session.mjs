@@ -1,14 +1,13 @@
-import { createParkLevel } from './levels.mjs';
+// Frozen copy of apstat-park/session.mjs at 525c4bc (before level 6), for legacy-differential.test.mjs.
+// Only the two deliberate relay-wide changes are applied: motion accepted from 450 ms (was 500) and
+// poses allowed down to y = -level.height (was -100). Do not edit otherwise.
+import { createParkLevel } from './v4-levels.mjs';
 
 const HISTORY_LIMIT = 128;
 const STREAMS_PER_MEMBER = 4;
-// Clients send at most every 500 ms; accept from 450 ms so arrival jitter cannot drop good updates.
 const MOTION_INTERVAL_MS = 450;
 const copy = value => structuredClone(value);
 const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
-// A party condition is one {min,max} range or an array of them.
-const inRange = (range, n) => [].concat(range).some(r => n >= r.min && n <= r.max);
-const LEGACY_BODY = { w: 20, h: 24 };
 
 // The relay owns shared milestones, not a continuously simulated world.
 // No tick loop, physics snapshots, engine memory or server audio state.
@@ -30,7 +29,6 @@ export class ParkSession {
     this.holds = new Map();
     this.pushes = new Map();
     this.done = false;
-    this.lastActive = new Map();
     this.level = createParkLevel(levelIndex);
     this.attempt = 1;
     this.progress = this.emptyProgress();
@@ -45,30 +43,15 @@ export class ParkSession {
     return [this.emit('members', { members: this.members })];
   }
 
-  // Protocol-5 levels (level 6) are party-aware: party size changes geometry and lift thresholds.
-  get partyAware() { return this.level.minProtocol >= 5; }
-
-  // Party = online members who have not arrived; clients compute the same from online/arrived.
-  party() { return this.online.filter(member => !this.progress.arrived.includes(member)); }
-
-  // Active party also leaves out idle members, so an AFK student cannot block the lift, the steps
-  // or the party-of-one bridge. Clients derive it from replicated online/arrived/idle; all
-  // party-conditional geometry (platform.party, gate.party) is evaluated against it.
-  activeParty() { return this.party().filter(member => !(this.progress.idle ?? []).includes(member)); }
-
   emptyProgress() {
-    const extra = {};
-    // Latch switches stay pressed; the value is the scene clock (ms) at which each latched.
-    if (this.level.switches.some(item => item.latch)) extra.latches = {};
-    if (this.level.idleMs) extra.idle = [];
     return { switches: [], arrived: [], bridgeOpen: false, keyHolder: null, doorOpen: false, complete: false,
-      holds: {}, gates: [], ...extra,
+      holds: {}, gates: [],
       boxes: Object.fromEntries(this.level.boxes.map(box => {
         const point = box.nodes[box.start];
         return [box.id, { from: point, to: point, at: this.sceneClock(), duration: 0, node: box.start }];
       })),
       lifts: Object.fromEntries(this.level.weightedLifts.map(lift => {
-        const y = lift.descend ? lift.top : lift.rest ?? lift.bottom;
+        const y = lift.descend ? lift.top : lift.bottom;
         return [lift.id, { from: y, to: y, at: this.sceneClock(), duration: 0 }];
       }))
     };
@@ -106,7 +89,6 @@ export class ParkSession {
   setOnline(members) {
     const online = this.members.filter(member => members.includes(member));
     if (JSON.stringify(online) === JSON.stringify(this.online)) return [];
-    for (const member of online) if (!this.online.includes(member)) this.lastActive.set(member, this.now());
     this.online = online;
     const events = [this.emit('presence', { online })];
     if (this.progress.keyHolder && !online.includes(this.progress.keyHolder) && !this.progress.doorOpen) {
@@ -118,20 +100,14 @@ export class ParkSession {
   }
 
   checkCompletion() {
-    // Idle members (protocol-5 levels only) who have not arrived do not block the others.
-    const idle = this.progress.idle ?? [], arrived = this.progress.arrived;
-    const active = this.online.filter(member => arrived.includes(member) || !idle.includes(member));
-    let complete = this.progress.complete || active.length >= this.level.minPlayers && active.every(member => arrived.includes(member));
-    // Protocol 5: completion is sticky only while nobody active is still playing. An idle member who
-    // comes back (or a student who resumes) reopens the room and carries on where they are.
-    if (this.partyAware && complete && this.online.some(member => !arrived.includes(member) && !idle.includes(member))) complete = false;
+    const complete = this.progress.complete || this.online.length >= 2 && this.online.every(member => this.progress.arrived.includes(member));
     if (complete === this.progress.complete) return [];
     this.progress.complete = complete;
     return [this.emit('complete', { complete })];
   }
 
   adaptParty() {
-    const running = this.online.length >= this.level.minPlayers;
+    const running = this.online.length >= 2;
     if (running === this.running) return [];
     if (running) { this.pausedMs += this.now() - this.pausedAt; this.pausedAt = null; }
     else this.pausedAt = this.now();
@@ -177,42 +153,22 @@ export class ParkSession {
         events.push(this.emit('box', { id, state: this.progress.boxes[id] }));
       }
     }
-    return [...events, ...this.refreshMechanisms(), ...this.refreshIdle()];
+    return [...events, ...this.refreshMechanisms()];
   }
 
-  // An online member with no accepted motion or command for level.idleMs is idle.
-  refreshIdle() {
-    if (!this.level.idleMs) return [];
-    const at = this.now();
-    const idle = this.online.filter(member => !this.progress.arrived.includes(member)
-      && at - (this.lastActive.get(member) ?? at) >= this.level.idleMs).sort();
-    if (JSON.stringify(idle) === JSON.stringify(this.progress.idle)) return [];
-    this.progress.idle = idle;
-    const events = [this.emit('idle', { idle })];
-    // An idle key holder drops the key (it returns to its spot), as an offline one does.
-    if (this.progress.keyHolder && idle.includes(this.progress.keyHolder) && !this.progress.doorOpen) {
-      this.progress.keyHolder = null;
-      events.push(this.emit('key', { holder: null }));
-    }
-    return [...events, ...this.refreshMechanisms(), ...this.checkCompletion()];
-  }
-
-  refreshMechanisms(force = false) {
-    const p = this.progress, at = this.sceneClock(), party = this.activeParty().length;
-    // gate.party forces a gate open while the party size is in range (level 6: full bridge when alone).
-    const gates = this.level.gates.filter(gate => gate.party && inRange(gate.party, party) || (gate.latch
-      ? gate.latch.some(id => p.latches?.[id] != null)
-      : gate.holds ? gate.holds.some(id => (p.holds[id] || []).length)
+  refreshMechanisms() {
+    const p = this.progress, at = this.sceneClock();
+    const gates = this.level.gates.filter(gate => gate.holds
+      ? gate.holds.some(id => (p.holds[id] || []).length)
       : gate.boxes.every(id => {
         const box = this.level.boxes.find(box => box.id === id), state = p.boxes[id];
         const point = this.valueAt(state), dock = box.nodes.at(-1);
         return Math.hypot(point.x-dock.x,point.y-dock.y)<1;
-      }))).map(gate => gate.id);
-    let changed = force || JSON.stringify(gates) !== JSON.stringify(p.gates);
+      })).map(gate => gate.id);
+    let changed = JSON.stringify(gates) !== JSON.stringify(p.gates);
     p.gates = gates;
     p.bridgeOpen = gates.includes('bridge');
     for (const lift of this.level.weightedLifts) {
-      if (lift.perParty) { changed = this.refreshPartyLift(lift, at) || changed; continue; }
       const riders = (p.holds[lift.id] || []).length;
       // Four riders fit the board-sized shelter; larger classes take turns.
       const half = Math.max(1, Math.min(4, Math.ceil(this.online.length / 2)));
@@ -221,35 +177,12 @@ export class ParkSession {
       const active = riders >= min && riders <= max;
       const state = p.lifts[lift.id], current = this.valueAt(state);
       const target = !this.running ? current : lift.descend
-        ? active ? lift.bottom : lift.top : active ? lift.top : lift.home ?? lift.bottom;
+        ? active ? lift.bottom : lift.top : active ? lift.top : lift.bottom;
       if (Math.abs(target - state.to) < 0.01) continue;
-      p.lifts[lift.id] = { from: current, to: target, at, duration: Math.abs(target-current) / (lift.speed || 35) * 1000 };
+      p.lifts[lift.id] = { from: current, to: target, at, duration: Math.abs(target-current) / 35 * 1000 };
       changed = true;
     }
-    const latches = p.latches ? { latches: p.latches } : {};
-    return changed ? [this.emit('mechanisms', { gates: p.gates, lifts: p.lifts, bridgeOpen: p.bridgeOpen, ...latches })] : [];
-  }
-
-  // Level 6 lift: n = min(cap, active party) riders raise it by travelBase + travelPer*n at `speed`;
-  // otherwise it descends to home at descentBase + descentPer*n px/s. Live 'lift-under' leases stop
-  // the descent at the highest reported head; it resumes resumeMs after the last lease ends. A lease
-  // only stops a descent: it may lift the lift back by at most 2 px (a head reported late) and never
-  // above the current top, so renewals cannot ratchet it upward.
-  refreshPartyLift(lift, at) {
-    const p = this.progress, rule = lift.perParty, state = p.lifts[lift.id], current = this.valueAt(state);
-    const n = Math.max(1, Math.min(rule.cap, this.activeParty().length));
-    const top = lift.rest - (rule.travelBase + rule.travelPer * n);
-    let to = !this.running ? current : (p.holds[lift.id] || []).length >= n ? top : lift.home;
-    const heads = [...this.holds.values()].filter(held => held.target === lift.blockId).map(held => held.y);
-    const stop = heads.length ? Math.min(...heads) - lift.h : Infinity;
-    const blocked = this.running && to > current && stop < to;
-    if (blocked) to = Math.max(stop, current - 2, top);
-    const from = blocked && to < current ? to : current;   // never stay inside a head that was reported late
-    const rate = to < from ? lift.speed : rule.descentBase + rule.descentPer * n;
-    if (Math.abs(to - state.to) < 0.01 && state.rate === rate && !!state.blocked === blocked && Math.abs(from - current) < 0.01) return false;
-    const resume = state.blocked && !blocked ? lift.resumeMs || 0 : 0;
-    p.lifts[lift.id] = { from, to, at: at + resume, duration: Math.abs(to - from) / rate * 1000, rate, ...(blocked ? { blocked: true } : {}) };
-    return true;
+    return changed ? [this.emit('mechanisms', { gates: p.gates, lifts: p.lifts, bridgeOpen: p.bridgeOpen })] : [];
   }
 
   resetAttempt() {
@@ -257,33 +190,23 @@ export class ParkSession {
     this.level.id += '-attempt-' + ++this.attempt;
     this.clockBase = this.now(); this.pausedMs = 0; this.pausedAt = this.running ? null : this.now();
     this.holds.clear(); this.pushes.clear(); this.progress = this.emptyProgress(); this.poses.clear();
-    for (const member of this.online) this.lastActive.set(member, this.now());
     return [this.emit('level', { level: this.level, progress: this.progress, clockMs: this.sceneClock() })];
   }
 
   enter(member) {
     // Explicit doorway entry starts a fresh completed attempt. Socket resumes
     // never call this, so a connection drop cannot reset anyone's puzzle.
-    // Protocol 5: a completed room resets only when nobody online is still playing; otherwise the
-    // joiner joins the ongoing attempt and arrived members keep their arrival.
-    if (this.progress.complete) {
-      if (!this.partyAware || !this.online.some(name => !this.progress.arrived.includes(name))) return this.resetAttempt();
-      return [];
-    }
+    if (this.progress.complete) return this.resetAttempt();
     if (!this.progress.arrived.includes(member)) return [];
     this.progress.arrived = this.progress.arrived.filter(name => name !== member);
     this.poses.delete(member);
-    this.lastActive.set(member, this.now());
-    const events = [this.emit('reentered', { member })];
-    return this.partyAware ? [...events, ...this.refreshMechanisms(), ...this.refreshIdle()] : events;
+    return [this.emit('reentered', { member })];
   }
 
   // No hourly timer or forced reset mid-puzzle. A status/join advances only
   // after everyone still here has finished (with celebration time), or the room empties.
-  // Levels 0-5 keep their attempt indefinitely. Level 6 resets a room that has been empty
-  // for the service's ABANDON_MS, so a stranded attempt (stale saved spots) cannot persist.
-  rotateIfReady({ empty = false, abandoned = false } = {}) {
-    if (abandoned && this.level.resetWhenAbandoned && !this.online.length) return this.resetAttempt();
+  rotateIfReady({ empty = false } = {}) {
+    // Keep the first level stable while students learn it. No hourly reset.
     return [];
   }
 
@@ -301,7 +224,6 @@ export class ParkSession {
     if (at - stream.lastMotionAt < MOTION_INTERVAL_MS) return null;
     stream.motionSequence = packet.sequence;
     stream.lastMotionAt = at;
-    this.lastActive.set(stream.member, at);
     const pose = Object.fromEntries(['x', 'y', 'vx', 'vy'].map(key => [key, Math.round(packet.pose[key] * 10) / 10]));
     this.poses.set(stream.member, pose);
     // Deliberately ephemeral: no revision/history, no movement backlog on resume.
@@ -319,7 +241,6 @@ export class ParkSession {
     if (packet.sequence !== stream.sequence + 1) return { status: 'gap', sequence: stream.sequence, revision: this.revision, events: [] };
     // Consume rejected commands too, so one stale action cannot block the outbox.
     stream.sequence = packet.sequence;
-    this.lastActive.set(stream.member, this.now());
     const finish = (status, events = [], reason) => {
       const receipt = { status, sequence: packet.sequence, revision: this.revision, ...(reason ? { reason } : {}) };
       stream.receipts.push(receipt);
@@ -328,10 +249,9 @@ export class ParkSession {
     };
     const reject = reason => finish('rejected', [], reason);
     if (packet.level !== this.level.id) return reject('Level changed');
-    if ((!this.running && packet.kind !== 'settle') || this.done) return reject(this.level.minPlayers === 2 ? 'Wait for at least two players' : 'Wait for the park to start');
+    if ((!this.running && packet.kind !== 'settle') || this.done) return reject('Wait for at least two players');
     if (!this.validPose(packet.pose)) return reject('Invalid position');
-    const reach = this.level.reach ?? 24, body = this.level.body ?? LEGACY_BODY;
-    const near = item => Math.hypot(packet.pose.x - item.x, packet.pose.y - item.y) <= reach;
+    const near = item => Math.hypot(packet.pose.x - item.x, packet.pose.y - item.y) <= 24;
     let event;
     if (packet.kind === 'settle') {
       if (packet.pose.vx !== 0 || packet.pose.vy !== 0) return reject('A resting anchor must be stationary');
@@ -340,40 +260,16 @@ export class ParkSession {
     } else if (packet.kind === 'hold' || packet.kind === 'switch') {
       const pad = this.level.switches.find(item => item.id === packet.target);
       const lift = this.level.weightedLifts.find(item => item.id === packet.target);
-      const under = this.level.weightedLifts.find(item => item.blockId && item.blockId === packet.target);
-      if (!pad && !lift && !under) return reject('Unknown pressure surface');
+      if (!pad && !lift) return reject('Unknown pressure surface');
       // The original switch command is a pressure-down intent, never a permanent latch.
       const active = packet.kind === 'switch' ? true : packet.active;
       if (typeof active !== 'boolean') return reject('Invalid pressure state');
       if (active && this.progress.arrived.includes(stream.member)) return reject('Leave the exit before helping');
-      // A stacking lift also accepts riders standing k bodies above its surface (on teammates),
-      // with the stack allowed to drift `slack` px sideways per level.
-      let onLift = false;
-      if (lift) {
-        const surface = this.valueAt(this.progress.lifts[lift.id]), feet = packet.pose.y + body.h;
-        const level = lift.stack ? Math.min(lift.stack.max, Math.max(0, Math.round((surface - feet) / body.h))) : 0;
-        const slack = level * (lift.stack?.slack ?? 0);
-        // A k-high rider needs k other members already holding the lift beneath them.
-        const carriers = (this.progress.holds[lift.id] || []).filter(name => name !== stream.member).length;
-        onLift = packet.pose.x + body.w > lift.x - slack && packet.pose.x < lift.x + lift.w + slack
-          && Math.abs(feet + level * body.h - surface) < 16 && carriers >= level;
-      }
-      // Under-lift lease: the body is within the lift's span and its head is below the lift surface.
-      // The feet must be on the floor or on a k-high stack of bodies on it (within 3 px).
-      const stacked = under && (under.floor - packet.pose.y - body.h) / body.h;
-      const beneath = under && packet.pose.x + body.w > under.x && packet.pose.x < under.x + under.w
-        && packet.pose.y >= this.valueAt(this.progress.lifts[under.id]) - 2
-        && Math.round(stacked) >= 0 && Math.round(stacked) <= (under.stack?.max ?? 0)
-        && Math.abs(stacked - Math.round(stacked)) * body.h <= 3;
-      if (active && !(pad ? near(pad) : lift ? onLift : beneath)) return reject('Stand on the pressure surface');
-      if (pad?.latch) {
-        // A latch switch is pressed once and stays down; release and renewals are no-ops.
-        if (!active || this.progress.latches[pad.id] != null) return finish('accepted');
-        this.progress.latches[pad.id] = this.sceneClock();
-        return finish('accepted', this.refreshMechanisms(true));
-      }
+      const onLift = lift && packet.pose.x + 20 > lift.x && packet.pose.x < lift.x + lift.w
+        && Math.abs(packet.pose.y + 24 - this.valueAt(this.progress.lifts[lift.id])) < 16;
+      if (active && !(pad ? near(pad) : onLift)) return reject('Stand on the pressure surface');
       const holdKey = JSON.stringify([stream.member, packet.target]);
-      if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000, ...(under ? { y: packet.pose.y } : {}) });
+      if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000 });
       else this.holds.delete(holdKey);
       const holds = this.heldState(), events = [];
       if (JSON.stringify(holds) !== JSON.stringify(this.progress.holds)) {
@@ -422,8 +318,6 @@ export class ParkSession {
       if (this.progress.arrived.includes(stream.member)) return finish('accepted');
       this.progress.arrived.push(stream.member);
       event = this.emit('arrived', { member: stream.member, complete: this.progress.arrived.length === this.members.length });
-      // Arrival shrinks the party: holds drop now, and stairs/bridge/lift threshold follow.
-      if (this.partyAware) return finish('accepted', [event, ...this.expireHolds(), ...this.checkCompletion()]);
     } else return reject('Unknown park action');
     return finish('accepted', [event, ...this.checkCompletion()]);
   }
