@@ -24,6 +24,9 @@ function setup(members, { online = members } = {}) {
 const lift = s => s.level.weightedLifts[0];
 const liftY = s => s.valueAt(s.progress.lifts[lift(s).id]);
 const onLift = (s, dx = 10, stack = 0) => ({ x: lift(s).x + dx, y: liftY(s) - s.level.body.h * (stack + 1) });
+// Top surface / descent rate for an active party of n (capped at perParty.cap), from the level data.
+const topFor = (item, n) => { const r = item.perParty, k = Math.max(1, Math.min(r.cap, n)); return item.rest - (r.travelBase + r.travelPer * k); };
+const descentFor = (item, n) => { const r = item.perParty, k = Math.max(1, Math.min(r.cap, n)); return r.descentBase + r.descentPer * k; };
 
 test('level 6 is protocol 5, solo-capable, and levels 0-5 keep their schema', () => {
   assert.equal(PARK_LEVEL_COUNT, 7);
@@ -32,7 +35,10 @@ test('level 6 is protocol 5, solo-capable, and levels 0-5 keep their schema', ()
   assert.deepEqual([level.width, level.height, level.tiles.size, level.minPlayers, level.minProtocol, level.protocol, level.physics],
     [1488, 240, 24, 1, 5, 5, 'pico']);
   assert.equal(level.spawnSlots.length, 8);
-  assert.deepEqual(level.spawnSlots.map(p => p.x + 8), [50, 75, 100, 125, 150, 175, 200, 225]);
+  assert.deepEqual(level.spawnSlots.map(p => p.x + 8), [56, 81, 106, 131, 156, 181, 206, 231]);
+  // Frontend exit radius is 22 px (pose distance): slot 0 must spawn outside it.
+  assert.ok(Math.hypot(level.spawn.x - level.exit.x, level.spawn.y - level.exit.y) > 22);
+  assert.ok(level.exit.x >= 24, 'exit stays clear of the wall');
   assert.ok(level.spawnSlots.every(p => p.y + 23 === 216));
   for (let i = 0; i < 6; i++) {
     const old = createParkLevel(i);
@@ -74,9 +80,9 @@ test('solo milestone run: one student opens the level alone and completes it', (
   assert.equal(s.running, true);
   assert.ok(s.progress.gates.includes('bridge'), 'party of one: bridge fully extended');
   assert.equal(act('solo', 'hold', onLift(s), { target: 'lift', active: true }).status, 'accepted');
-  assert.equal(s.progress.lifts.lift.to, lift(s).top, 'threshold is 1 when alone');
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1), 'threshold is 1 when alone');
   advance(4000);
-  assert.equal(liftY(s), lift(s).top);
+  assert.equal(liftY(s), 107.5);
   assert.equal(act('solo', 'key', s.level.key).status, 'accepted');
   assert.equal(act('solo', 'hold', onLift(s), { target: 'lift', active: false }).status, 'accepted');
   assert.equal(act('solo', 'unlock', s.level.goal).status, 'accepted');
@@ -92,12 +98,14 @@ function teamRun(count) {
   const pad = s.level.switches[0];
   assert.equal(act('p1', 'switch', pad, { target: pad.id }).status, 'accepted');
   assert.ok(s.progress.gates.includes('bridge'));
-  // Two riders (one stacked on the other) raise the lift for any party of 2+.
-  act('p0', 'hold', onLift(s), { target: 'lift', active: true });
-  assert.equal(s.progress.lifts.lift.to, lift(s).home);
-  act('p1', 'hold', onLift(s, 12, 1), { target: 'lift', active: true });
-  assert.equal(s.progress.lifts.lift.to, lift(s).top);
-  advance(4000);
+  // min(8, party) riders, stacked two high, raise the lift.
+  const needed = Math.min(8, count);
+  for (let i = 0; i < needed; i++) {
+    assert.equal(act(names[i], 'hold', onLift(s, 4 + 10 * (i >> 1), i & 1), { target: 'lift', active: true }).status, 'accepted');
+    assert.equal(s.progress.lifts.lift.to, i + 1 < needed ? lift(s).home : topFor(lift(s), count), 'after ' + (i + 1) + ' riders');
+  }
+  advance(5000);
+  assert.equal(liftY(s), topFor(lift(s), count));
   assert.equal(act('p1', 'key', s.level.key).status, 'accepted');
   assert.equal(act('p1', 'unlock', s.level.goal).status, 'accepted');
   for (const name of names) {
@@ -109,6 +117,7 @@ function teamRun(count) {
 }
 test('two-player run to completion', () => { teamRun(2); });
 test('eight-player run to completion', () => { teamRun(8); });
+test('thirty students need eight riders', () => { teamRun(30); });
 
 test('switch is a latch: pressed once, extends from a relay timestamp, never releases', () => {
   const { s, act, advance, clock } = setup(['a', 'b']);
@@ -131,35 +140,117 @@ test('switch is a latch: pressed once, extends from a relay timestamp, never rel
   assert.equal('latches' in new ParkSession({ epoch: 'x', levelIndex: 0 }).progress, false);
 });
 
-test('lift threshold is min(2, party) and stacked riders count', () => {
+test('lift: riders = min(8, active party), travel and descent scale with it, stacked riders count', () => {
+  const item = createParkLevel(LEVEL).weightedLifts[0];
+  // 184 + 4n travel, 1.2 - 0.1n px/frame descent (original) -> halved.
+  assert.deepEqual([1, 2, 4, 8, 30].map(n => topFor(item, n)), [107.5, 105.5, 101.5, 93.5, 93.5]);
+  assert.deepEqual([1, 2, 4, 8].map(n => descentFor(item, n)), [33, 30, 24, 12]);
   const { s, act, advance } = setup(['a', 'b', 'c']);
   assert.equal(act('a', 'hold', onLift(s), { target: 'lift', active: true }).status, 'accepted');
-  assert.equal(s.progress.lifts.lift.to, lift(s).home);
+  assert.equal(act('b', 'hold', onLift(s, 20, 1), { target: 'lift', active: true }).status, 'accepted');
+  assert.equal(s.progress.lifts.lift.to, lift(s).home, 'two of three is not enough');
   // Off to the side of the lift by more than the stack drift is not a rider.
-  assert.equal(act('b', 'hold', { x: lift(s).x - 60, y: liftY(s) - 46 }, { target: 'lift', active: true }).status, 'rejected');
-  assert.equal(act('b', 'hold', { x: lift(s).x + 4, y: liftY(s) - 2 * 23 }, { target: 'lift', active: true }).status, 'accepted');
-  assert.equal(s.progress.lifts.lift.to, lift(s).top, 'rider on top of a rider counts');
+  assert.equal(act('c', 'hold', { x: lift(s).x - 60, y: liftY(s) - 46 }, { target: 'lift', active: true }).status, 'rejected');
+  assert.equal(act('c', 'hold', onLift(s, 30, 2), { target: 'lift', active: true }).status, 'accepted');
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 3), 'three-high stack counts');
   advance(1000);
-  const mid = liftY(s);
-  assert.ok(mid < lift(s).rest && mid > lift(s).top);
-  assert.ok(Math.abs(lift(s).rest - mid - 30) < 1e-9, '0.5 px/frame = 30 px/s');
-  // Stacked rider standing on a carrier on the moving lift.
-  assert.equal(act('c', 'hold', { x: lift(s).x + 20, y: liftY(s) - 2 * 23 }, { target: 'lift', active: true }).status, 'accepted');
-  act('b', 'hold', onLift(s), { target: 'lift', active: false });
+  assert.ok(Math.abs(lift(s).rest - liftY(s) - 30) < 1e-9, 'rise 1 px/frame original = 30 px/s');
   act('c', 'hold', onLift(s), { target: 'lift', active: false });
-  assert.equal(s.progress.lifts.lift.to, lift(s).home, 'one rider of a party of 3 descends');
-  // b and c arrive: the party is now a, so one rider suffices again.
-  act('b', 'key', s.level.key); act('b', 'unlock', s.level.goal);
-  act('b', 'arrive', s.level.goal); act('c', 'arrive', s.level.goal);
-  assert.equal(s.progress.lifts.lift.to, lift(s).top);
-  assert.ok(s.progress.gates.includes('bridge'), 'alone again: bridge aid');
-  const legacy = createParkLevel(2).weightedLifts[0];
-  assert.equal(legacy.partyScaled, undefined);
+  const from = liftY(s);
+  assert.equal(s.progress.lifts.lift.to, lift(s).home);
+  assert.equal(s.progress.lifts.lift.rate, descentFor(lift(s), 3));
+  advance(1000);
+  assert.ok(Math.abs(liftY(s) - from - descentFor(lift(s), 3)) < 1e-9);
+  // c arrives: party 2, the two riders suffice again; the target and speed follow the new n.
+  act('c', 'key', s.level.key); act('c', 'unlock', s.level.goal); act('c', 'arrive', s.level.goal);
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 2));
+  assert.equal(s.progress.lifts.lift.rate, 30);
 });
 
-test('lift rest and home heights are level data', () => {
+test('idle members do not count toward the lift threshold', () => {
+  const { s, act, advance } = setup(['a', 'b']);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  assert.equal(s.progress.lifts.lift.to, lift(s).home);
+  for (let t = 0; t < 120000; t += 2000) { act('a', 'hold', onLift(s), { target: 'lift', active: true }); advance(2000); }
+  assert.deepEqual(s.progress.idle, ['b']);
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1), 'b went AFK: one rider lifts');
+  act('b', 'settle', s.level.spawn);   // b comes back
+  advance(250);
+  assert.deepEqual(s.progress.idle, []);
+  assert.equal(s.progress.lifts.lift.to, lift(s).home, 'b is back: two riders needed again');
+});
+
+test('a player beneath stops the descending lift at their head; it resumes 4 frames after', () => {
+  const { s, act, advance, clock } = setup(['a', 'b', 'c']);
+  act('a', 'hold', onLift(s), { target: 'lift', active: true });
+  act('b', 'hold', onLift(s, 20, 1), { target: 'lift', active: true });
+  act('c', 'hold', onLift(s, 40, 2), { target: 'lift', active: true });
+  advance(5000);
+  const top = topFor(lift(s), 3), head = 193;   // c walks under the raised lift on the floor
+  assert.equal(liftY(s), top);
+  assert.equal(act('c', 'hold', { x: 1200, y: head }, { target: 'lift-under', active: true }).status, 'rejected', 'not beneath');
+  assert.equal(act('c', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: true }).status, 'accepted');
+  act('a', 'hold', onLift(s), { target: 'lift', active: false });
+  assert.equal(s.progress.lifts.lift.to, head - lift(s).h, 'descends only to the head');
+  assert.equal(s.progress.lifts.lift.blocked, true);
+  advance(10000);
+  assert.equal(liftY(s), head - lift(s).h);
+  for (let i = 0; i < 5; i++) { act('c', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: true }); advance(2000); }
+  assert.equal(liftY(s), head - lift(s).h, 'waits indefinitely while the lease is renewed');
+  // A head reported late (lift already lower): the lift is put back above it, never inside.
+  act('b', 'hold', { x: 1260, y: head - 4 }, { target: 'lift-under', active: true });
+  assert.equal(liftY(s), head - 4 - lift(s).h);
+  act('b', 'hold', { x: 1260, y: head - 4 }, { target: 'lift-under', active: false });
+  act('c', 'hold', { x: 1240, y: head }, { target: 'lift-under', active: false });
+  const state = s.progress.lifts.lift;
+  assert.equal(state.blocked, undefined);
+  assert.equal(state.at, clock() + 67);
+  advance(60); assert.equal(liftY(s), head - 4 - lift(s).h, 'still waiting 4 frames');
+  advance(2000); assert.ok(liftY(s) > head - lift(s).h);
+  // Lease expiry (client gone without a release) also frees it.
+  const t = setup(['a']);
+  assert.equal(t.act('a', 'hold', { x: 1240, y: 100 }, { target: 'lift-under', active: true }).status, 'rejected', 'head above the lift');
+  assert.equal(t.act('a', 'hold', { x: 1240, y: 200 }, { target: 'lift-under', active: true }).status, 'accepted');
+  assert.ok(t.s.progress.holds['lift-under']);
+  t.advance(6001);
+  assert.equal(t.s.progress.holds['lift-under'], undefined);
+});
+
+test('lone remaining player after the others arrive can still finish', () => {
+  const { s, act, advance } = setup(['a', 'b', 'c', 'd']);
+  act('a', 'key', s.level.key); act('a', 'unlock', s.level.goal);
+  for (const name of ['a', 'b', 'c']) act(name, 'arrive', s.level.goal);
+  assert.deepEqual(s.party(), ['d']);
+  assert.ok(s.progress.gates.includes('bridge'), 'bridge aid');
+  act('d', 'hold', onLift(s), { target: 'lift', active: true });
+  assert.equal(s.progress.lifts.lift.to, topFor(lift(s), 1));
+  advance(5000);
+  assert.equal(act('d', 'arrive', s.level.goal).status, 'accepted');
+  assert.equal(s.progress.complete, true);
+});
+
+test('published trigger boxes are never stricter than the relay bounds', () => {
+  const level = createParkLevel(LEVEL);
+  const corners = (cxs, feets) => cxs.flatMap(cx => feets.map(feet => ({ x: cx - 8, y: feet - 23 })));
+  const { key, goal } = level, sw = level.switches[0];
+  const cases = [
+    [key, corners([key.pickup.cx - key.pickup.halfWidth, key.pickup.cx + key.pickup.halfWidth], [key.pickup.feetMin, key.pickup.feetMax])],
+    [sw, corners([sw.trigger.cx - sw.trigger.halfWidth, sw.trigger.cx + sw.trigger.halfWidth], [sw.trigger.feetMin, sw.trigger.feetMax])],
+    [goal, corners([goal.enter.cxMin, goal.enter.cxMax, goal.unlockKeyX + key.trail], [96])],
+  ];
+  for (const [anchor, poses] of cases) for (const pose of poses) assert.ok(Math.hypot(pose.x - anchor.x, pose.y - anchor.y) <= level.reach, JSON.stringify(pose));
+  assert.equal(level.gates[0].extend.delayMs, 33);
+  // And through the relay itself: the far corners of each box are accepted.
+  const { act } = setup(['a']);
+  assert.equal(act('a', 'switch', cases[1][1][3], { target: 'bridge' }).status, 'accepted');
+  assert.equal(act('a', 'key', cases[0][1][0]).status, 'accepted');
+  assert.equal(act('a', 'unlock', cases[2][1][2]).status, 'accepted');
+  assert.equal(act('a', 'arrive', cases[2][1][1]).status, 'accepted');
+});
+
+test('lift heights and rates are level data', () => {
   const level = createParkLevel(LEVEL), item = level.weightedLifts[0];
-  assert.deepEqual([item.rest, item.home, item.top, item.speed], [201.5, 201.5, 105.5, 30]);
+  assert.deepEqual([item.x, item.w, item.h, item.rest, item.home, item.speed, item.blockId, item.resumeMs], [1222, 92, 9.5, 201.5, 201.5, 30, 'lift-under', 67]);
   assert.equal(216 - item.rest, 14.5);
   const s = new ParkSession({ epoch: 'home', levelIndex: LEVEL, members: ['a'], now: () => 0 });
   s.level.weightedLifts[0].home = 168;  // a correction needs no code change
@@ -313,28 +404,32 @@ test('solo route is physically possible at half scale', () => {
   assert.notEqual(r.feet, item.rest, 'tap jump does not board');
   r = hop(body(1190, 216), solids, right);
   assert.equal(r.feet, item.rest);
-  // Raised lift: a hop left from its edge touches the key (art centre 1176,96; 16x28).
-  const raised = geometry(1, { bridge: 'open', liftSurface: item.top }).solids;
-  const key = { x: 1168, y: 82, w: 16, h: 28 };
-  const grabs = [];
-  for (let held = 0; held <= 13; held++) for (let left = 0; left <= 40; left++) {
-    let touched = false, relayNear = false;
-    const grabber = body(item.x - W + 2, item.top);
-    const end = hop(grabber, raised, f => ({ dir: f < left ? -1 : 1, hold: f < held }), { onFrame: b => {
-      const hit = overlapsX(b, key) && b.y + H > key.y && b.y < key.y + key.h;
-      touched ||= hit;
-      relayNear ||= hit && Math.hypot(b.x - level.key.x, b.y - level.key.y) <= level.reach;
-    } });
-    if (touched) grabs.push({ held, left, relayNear, landed: end.feet });
+  for (const n of [1, 2, 8]) {
+    const top = topFor(item, n), raised = geometry(n, { bridge: 'open', liftSurface: top }).solids;
+    // Raised lift: a hop left from its edge enters the measured key pickup box.
+    const box = level.key.pickup, grabs = [];
+    for (let held = 0; held <= 13; held++) for (let left = 0; left <= 40; left++) {
+      let touched = false, relayNear = false;
+      const end = hop(body(item.x - W + 2, top), raised, f => ({ dir: f < left ? -1 : 1, hold: f < held }), { onFrame: b => {
+        const hit = Math.abs(b.x + W / 2 - box.cx) <= box.halfWidth && b.y + H >= box.feetMin && b.y + H <= box.feetMax;
+        touched ||= hit;
+        relayNear ||= hit && Math.hypot(b.x - level.key.x, b.y - level.key.y) <= level.reach;
+      } });
+      if (touched) grabs.push({ relayNear, landed: end.feet });
+    }
+    assert.ok(grabs.length && grabs.every(g => g.relayNear), 'key reachable from the lift, p=' + n);
+    // As in the original, the holder drops to the floor with the key and rides up again.
+    assert.ok(grabs.every(g => g.landed === 216 || g.landed === top));
+    // Lift top -> goal ledge: held jump at p=1 (11.5 below), tap at p=2 (9.5 below), walk at p=8 (2.5 above).
+    const start = () => body(item.x + item.w - W, top);
+    r = n === 8 ? hop(start(), raised, right, { jump: false }) : hop(start(), raised, right);
+    assert.equal(r.feet, 96, 'ledge at p=' + n); assert.ok(r.x >= 1320 - W);
+    const tap = hop(start(), raised, () => ({ dir: 1, hold: false }));
+    if (n === 2) assert.equal(tap.feet, 96, 'tap suffices at p=2');
+    if (n === 1) assert.notEqual(tap.feet, 96, 'tap is 0.2 px short at p=1');
   }
-  assert.ok(grabs.length && grabs.every(g => g.relayNear), 'key reachable, and every touch is within the relay reach');
-  // As in the original, the holder drops to the floor with the key, waits for the lift to
-  // come home (threshold 1 when alone) and boards it again (full jump, checked above).
-  assert.ok(grabs.every(g => g.landed === 216 || g.landed === item.top));
-  // Lift top (105.5) -> goal ledge (96).
-  r = hop(body(item.x + item.w - W, item.top), raised, right);
-  assert.equal(r.feet, 96); assert.ok(r.x >= 1320 - W);
-  assert.ok(Math.hypot(1432 - level.goal.x, (96 - H) - level.goal.y) <= level.reach);
+  // The door's entry range is on the ledge.
+  assert.ok(level.goal.enter.cxMin > 1320 && level.goal.enter.cxMax <= 1464 - W / 2);
 });
 
 test('two-player crossing: rider jumps off the falling carrier onto the resting bridge', () => {
@@ -378,6 +473,20 @@ test('no dead ends: every resting surface has a way back to the route', () => {
     const down = body(1330, 96);
     const r = hop(down, solids, () => ({ dir: -1 }), { jump: false, frames: 400 });
     assert.ok(r.ground && r.feet > 96);
+    // Under the raised lift: nothing blocks walking out sideways, and the gap at rest
+    // (5 px) is too small to be caught under it.
+    const item = level.weightedLifts[0];
+    assert.ok(216 - (item.rest + item.h) < H);
+    const under = body(1260, 216);
+    hop(under, geometry(party, { liftSurface: topFor(item, party) }).solids, () => ({ dir: -1 }), { jump: false, frames: 60 });
+    assert.ok(under.x + W <= item.x, "walked out from under the lift (the ledge wall blocks the right side)");
+    // Off the ledge side with the lift at any height: lands on the lift or the floor, or (lift
+    // above the ledge) can hop onto it.
+    for (const surface of [item.rest, 150, 120, topFor(item, party)]) {
+      const off = body(1330, 96);
+      const end = hop(off, geometry(party, { liftSurface: surface }).solids, () => ({ dir: -1 }), { jump: surface < 96, frames: 400 });
+      assert.ok(end.ground && end.feet >= Math.min(surface, 96), 'ledge -> lift/floor with lift at ' + surface);
+    }
     // Catch respawns land on solid ground.
     for (const zone of level.catchZones) {
       const fall = Object.assign(body(0, 0), { x: zone.to.x, y: zone.to.y, ground: false });

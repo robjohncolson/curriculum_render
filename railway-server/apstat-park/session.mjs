@@ -50,6 +50,9 @@ export class ParkSession {
   // Party = online members who have not arrived; clients compute the same from online/arrived.
   party() { return this.online.filter(member => !this.progress.arrived.includes(member)); }
 
+  // Active party also leaves out idle members, so an AFK student cannot hold the lift down.
+  activeParty() { return this.party().filter(member => !(this.progress.idle ?? []).includes(member)); }
+
   emptyProgress() {
     const extra = {};
     // Latch switches stay pressed; the value is the scene clock (ms) at which each latched.
@@ -179,7 +182,7 @@ export class ParkSession {
       && at - (this.lastActive.get(member) ?? at) >= this.level.idleMs).sort();
     if (JSON.stringify(idle) === JSON.stringify(this.progress.idle)) return [];
     this.progress.idle = idle;
-    return [this.emit('idle', { idle }), ...this.checkCompletion()];
+    return [this.emit('idle', { idle }), ...this.refreshMechanisms(), ...this.checkCompletion()];
   }
 
   refreshMechanisms(force = false) {
@@ -197,6 +200,7 @@ export class ParkSession {
     p.gates = gates;
     p.bridgeOpen = gates.includes('bridge');
     for (const lift of this.level.weightedLifts) {
+      if (lift.perParty) { changed = this.refreshPartyLift(lift, at) || changed; continue; }
       const riders = (p.holds[lift.id] || []).length;
       // Four riders fit the board-sized shelter; larger classes take turns.
       const half = Math.max(1, Math.min(4, Math.ceil(this.online.length / 2)));
@@ -213,6 +217,25 @@ export class ParkSession {
     }
     const latches = p.latches ? { latches: p.latches } : {};
     return changed ? [this.emit('mechanisms', { gates: p.gates, lifts: p.lifts, bridgeOpen: p.bridgeOpen, ...latches })] : [];
+  }
+
+  // Level 6 lift: n = min(cap, active party) riders raise it by travelBase + travelPer*n at `speed`;
+  // otherwise it descends to home at descentBase + descentPer*n px/s. Live 'lift-under' leases stop
+  // the descent at the highest reported head; it resumes resumeMs after the last lease ends.
+  refreshPartyLift(lift, at) {
+    const p = this.progress, rule = lift.perParty, state = p.lifts[lift.id], current = this.valueAt(state);
+    const n = Math.max(1, Math.min(rule.cap, this.activeParty().length));
+    const top = lift.rest - (rule.travelBase + rule.travelPer * n);
+    let to = !this.running ? current : (p.holds[lift.id] || []).length >= n ? top : lift.home;
+    const heads = [...this.holds.values()].filter(held => held.target === lift.blockId).map(held => held.y);
+    const blocked = this.running && to > current && heads.length > 0 && Math.min(...heads) - lift.h < to;
+    if (blocked) to = Math.min(...heads) - lift.h;
+    const from = blocked && to < current ? to : current;   // never stay inside a head that was reported late
+    const rate = to < from ? lift.speed : rule.descentBase + rule.descentPer * n;
+    if (Math.abs(to - state.to) < 0.01 && state.rate === rate && !!state.blocked === blocked && Math.abs(from - current) < 0.01) return false;
+    const resume = state.blocked && !blocked ? lift.resumeMs || 0 : 0;
+    p.lifts[lift.id] = { from, to, at: at + resume, duration: Math.abs(to - from) / rate * 1000, rate, ...(blocked ? { blocked: true } : {}) };
+    return true;
   }
 
   resetAttempt() {
@@ -298,7 +321,8 @@ export class ParkSession {
     } else if (packet.kind === 'hold' || packet.kind === 'switch') {
       const pad = this.level.switches.find(item => item.id === packet.target);
       const lift = this.level.weightedLifts.find(item => item.id === packet.target);
-      if (!pad && !lift) return reject('Unknown pressure surface');
+      const under = this.level.weightedLifts.find(item => item.blockId && item.blockId === packet.target);
+      if (!pad && !lift && !under) return reject('Unknown pressure surface');
       // The original switch command is a pressure-down intent, never a permanent latch.
       const active = packet.kind === 'switch' ? true : packet.active;
       if (typeof active !== 'boolean') return reject('Invalid pressure state');
@@ -313,7 +337,10 @@ export class ParkSession {
         onLift = packet.pose.x + body.w > lift.x - slack && packet.pose.x < lift.x + lift.w + slack
           && Math.abs(feet + level * body.h - surface) < 16;
       }
-      if (active && !(pad ? near(pad) : onLift)) return reject('Stand on the pressure surface');
+      // Under-lift lease: the body is within the lift's span and its head is below the lift surface.
+      const beneath = under && packet.pose.x + body.w > under.x && packet.pose.x < under.x + under.w
+        && packet.pose.y >= this.valueAt(this.progress.lifts[under.id]) - 2;
+      if (active && !(pad ? near(pad) : lift ? onLift : beneath)) return reject('Stand on the pressure surface');
       if (pad?.latch) {
         // A latch switch is pressed once and stays down; release and renewals are no-ops.
         if (!active || this.progress.latches[pad.id] != null) return finish('accepted');
@@ -321,7 +348,7 @@ export class ParkSession {
         return finish('accepted', this.refreshMechanisms(true));
       }
       const holdKey = JSON.stringify([stream.member, packet.target]);
-      if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000 });
+      if (active) this.holds.set(holdKey, { member: stream.member, target: packet.target, until: this.now() + 6000, ...(under ? { y: packet.pose.y } : {}) });
       else this.holds.delete(holdKey);
       const holds = this.heldState(), events = [];
       if (JSON.stringify(holds) !== JSON.stringify(this.progress.holds)) {
