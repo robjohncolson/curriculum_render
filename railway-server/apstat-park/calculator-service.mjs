@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, WORLD, ROUND_MS } from './calculator-mission.mjs';
+import { createMission, advanceMission, pressMissionKey, WORLD, ROUND_MS } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 
-const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_leave', 'calculator_restart']);
+const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
 // Independent rooms on the existing classroom connection. No grade writes.
 export function createCalculatorService({ registry, send, now = () => performance.now() }) {
   const rooms = new Map(), bindings = new Map();
@@ -16,19 +16,31 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function roomFor(section) {
     if (!rooms.has(section)) rooms.set(section, {
-      epoch: randomUUID(), state: createMission(now()), members: new Map(), touched: now(),
-      engine: createCalculatorRuntime(),
+      epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(),
     });
     return rooms.get(section);
   }
-  function snapshot(room) {
-    return { type: 'calculator_state', epoch: room.epoch, ...room.state, clock: now(),
-      members: [...room.members].map(([name, member]) => ({ name, ...member })) };
+  function attemptFor(room, name) {
+    if (!room.attempts.has(name)) room.attempts.set(name, {
+      state: createMission(now()), engine: createCalculatorRuntime(),
+    });
+    return room.attempts.get(name);
+  }
+  function teamComplete(room) {
+    return room.members.size > 0 && [...room.members.keys()].every(name => attemptFor(room, name).state.complete);
+  }
+  function snapshot(room, name) {
+    const state = attemptFor(room, name).state;
+    const members = [...room.members].map(([name, member]) => ({
+      name, ...member, solved: attemptFor(room, name).state.complete,
+    }));
+    return { type: 'calculator_state', protocol: 2, epoch: room.epoch, ...state, clock: now(),
+      solved: state.complete, complete: teamComplete(room),
+      readyCount: members.filter(member => member.solved).length, members };
   }
   function broadcast(room) {
-    const packet = snapshot(room);
     for (const [ws, binding] of bindings) {
-      if (binding.room === room && (ws.bufferedAmount || 0) < 32768) send(ws, packet);
+      if (binding.room === room && (ws.bufferedAmount || 0) < 32768) send(ws, snapshot(room, binding.name));
     }
   }
   function detached(ws) {
@@ -37,7 +49,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     bindings.delete(ws);
     if (![...bindings.values()].some(other => other.room === binding.room && other.name === binding.name)) {
       binding.room.members.delete(binding.name);
-      binding.room.state.holdAt = null;
+      attemptFor(binding.room, binding.name).state.holdAt = null;
     }
     broadcast(binding.room);
   }
@@ -46,14 +58,16 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const who = identity(ws);
       if (message.type === 'calculator_leave') { detached(ws); return null; }
       if (message.type === 'calculator_join') {
+        if (message.protocol !== 2) throw new Error('Reload the page to use individual calculators.');
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         const room = roomFor(who.section);
         bindings.set(ws, { room, section: who.section, name: who.username });
         if (!room.members.has(who.username)) {
-          if (!room.members.size) room.state.startedAt = now();
+          const attempt = attemptFor(room, who.username);
+          attempt.state.startedAt = now();
           room.members.set(who.username, { pose: { x: 70, y: 646 }, at: now(), revision: -1 });
-          room.state.holdAt = null;
+          attempt.state.holdAt = null;
         }
         room.touched = now(); broadcast(room); return null;
       }
@@ -62,13 +76,27 @@ export function createCalculatorService({ registry, send, now = () => performanc
         detached(ws); throw new Error('Rejoin the calculator room.');
       }
       const { room } = binding;
-      if (message.epoch !== room.epoch || message.revision !== room.state.revision) {
-        send(ws, snapshot(room)); return null;
+      const { state, engine } = attemptFor(room, binding.name);
+      if (message.epoch !== room.epoch || message.revision !== state.revision) {
+        send(ws, snapshot(room, binding.name)); return null;
       }
       if (message.type === 'calculator_restart') {
-        if (!room.state.complete) return null;
-        room.epoch = randomUUID(); room.state = createMission(now());
+        if (!teamComplete(room)) return null;
+        room.epoch = randomUUID(); room.attempts.clear();
         for (const member of room.members.values()) member.revision = -1;
+        broadcast(room); return null;
+      }
+      if (message.type === 'calculator_press') {
+        // Enforce the personal deadline even if the press arrives between ticks.
+        const time = now();
+        if (!state.complete && time - state.startedAt >= ROUND_MS) {
+          advanceMission(state, [room.members.get(binding.name)], time, {},
+            engine.transitions({ ...state, keys: state.checkpointKeys }));
+        } else {
+          pressMissionKey(state, message.key, time, engine.transitions(state));
+        }
+        room.members.get(binding.name).at = time;
+        room.touched = time;
         broadcast(room); return null;
       }
       const { x, y } = message.pose || {};
@@ -92,10 +120,14 @@ export function createCalculatorService({ registry, send, now = () => performanc
         continue;
       }
       const time = now();
-      const transitions = room.engine.transitions(room.state);
-      const checkpointTransitions = time - room.state.startedAt >= ROUND_MS
-        ? room.engine.transitions({ ...room.state, keys: room.state.checkpointKeys }) : transitions;
-      advanceMission(room.state, [...room.members.values()], time, transitions, checkpointTransitions);
+      for (const [name, member] of room.members) {
+        const { state, engine } = attemptFor(room, name);
+        if (state.complete) continue;
+        const transitions = engine.transitions(state);
+        const checkpointTransitions = time - state.startedAt >= ROUND_MS
+          ? engine.transitions({ ...state, keys: state.checkpointKeys }) : transitions;
+        advanceMission(state, [member], time, transitions, checkpointTransitions);
+      }
       broadcast(room);
     }
   }

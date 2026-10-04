@@ -76,6 +76,13 @@ export function advanceMission(state, members, now, transitions = {}, checkpoint
     state.holdAt = now; state.holdStep = choice; return false;
   }
   if (now - state.holdAt < HOLD_MS) return false;
+  return pressMissionKey(state, key, now, transitions);
+}
+// Clicks and optional standing holds use the same engine-validated input path.
+export function pressMissionKey(state, key, now, transitions = {}) {
+  if (state.complete || !tilesFor(state.step).some(tile => tile.key === key)) return false;
+  const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step)]: state.step + 1 };
+  const nextStep = valid[key];
   if (state.step < ROUTE.length) state.keys.push(key);
   state.lastPress = { key, advanced: nextStep != null };
   state.revision++;
