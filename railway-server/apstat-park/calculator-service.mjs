@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, pressMissionKey, WORLD, ROUTE, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
+import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 
-const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
+const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 export function createCalculatorService({ registry, send, now = () => performance.now() }) {
@@ -18,6 +19,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function roomFor(section) {
     if (!rooms.has(section)) rooms.set(section, {
       epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
+      lobby: createLobby(now()),
     });
     return rooms.get(section);
   }
@@ -28,26 +30,67 @@ export function createCalculatorService({ registry, send, now = () => performanc
     return room.attempts.get(name);
   }
   function teamComplete(room) {
-    return room.members.size > 0 && [...room.members.keys()].every(name => attemptFor(room, name).state.complete);
+    return room.lobby.roster.length > 0 && room.lobby.roster.every(name => attemptFor(room, name).state.complete);
   }
   function snapshot(room, name) {
     const state = attemptFor(room, name).state;
-    const members = [...room.members].map(([name, member]) => ({
-      name, ...member, solved: attemptFor(room, name).state.complete,
+    const members = room.lobby.roster.map(name => ({
+      name, ...(room.members.get(name) || { pose: { x: 65, y: WORLD.floor - 24 } }),
+      online: room.members.has(name), solved: attemptFor(room, name).state.complete,
     }));
-    return { type: 'calculator_state', protocol: 4, epoch: room.epoch, ...state, clock: now(),
+    return { type: 'calculator_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch, ...state, clock: now(),
+      teamSize: room.lobby.roster.length,
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
       readyCount: members.filter(member => member.solved).length, members };
   }
   function broadcast(room) {
+    const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
-      if (binding.room === room && (ws.bufferedAmount || 0) < 32768) send(ws, snapshot(room, binding.name));
+      if (binding.room !== room || (ws.bufferedAmount || 0) >= 32768) continue;
+      send(ws, lobby);
+      if (room.lobby.phase === 'active' && room.members.has(binding.name)) send(ws, snapshot(room, binding.name));
+    }
+  }
+  function lobbySnapshot(room) {
+    const lobby = room.lobby;
+    return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
+      phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers, roster: lobby.roster,
+      members: [...lobby.members].map(([name, member]) => ({ name, ...member })) };
+  }
+  function receiveLobby(ws, who, message) {
+    if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
+    const { x, y } = message.pose || {};
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1420 || y < 0 || y > WORLD.floor) return null;
+    const old = bindings.get(ws);
+    if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
+    const room = roomFor(who.section);
+    bindings.set(ws, { room, section: who.section, name: who.username });
+    room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
+      ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
+    room.touched = now();
+    send(ws, lobbySnapshot(room));
+    return null;
+  }
+  function startTeam(room) {
+    const lobby = room.lobby;
+    if (lobby.phase !== 'assembling' || !lobby.roster.every(name => {
+      const member = lobby.members.get(name);
+      return member?.ready && now() - member.at < 1500;
+    })) return;
+    lobby.phase = 'active';
+    for (const name of lobby.roster) {
+      const member = lobby.members.get(name);
+      attemptFor(room, name).state.startedAt = now();
+      room.members.set(name, { pose: { x: member.pose.x - 720, y: member.pose.y }, at: now(), revision: -1, ready: false });
     }
   }
   function resetRoom(room, reason) {
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
-    if (reason.type === 'door') room.attempts.clear();
+    if (reason.type === 'door' || reason.type === 'abandoned') {
+      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now());
+      return;
+    }
     else for (const attempt of room.attempts.values()) {
       const previous = attempt.state;
       attempt.state = createMission(now());
@@ -64,7 +107,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function checkDeadline(room, time) {
     if (room.failure) return true;
-    for (const name of room.members.keys()) {
+    for (const name of room.lobby.roster) {
       const state = attemptFor(room, name).state;
       if (state.complete || time - state.startedAt < timeLimitFor(state)) continue;
       room.failure = { name, at: time, until: time + DEATH_MS };
@@ -78,7 +121,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
     bindings.delete(ws);
     if (![...bindings.values()].some(other => other.room === binding.room && other.name === binding.name)) {
       binding.room.members.delete(binding.name);
-      attemptFor(binding.room, binding.name).state.holdAt = null;
+      binding.room.lobby.members.delete(binding.name);
+      const attempt = binding.room.attempts.get(binding.name);
+      if (attempt) attempt.state.holdAt = null;
     }
     broadcast(binding.room);
   }
@@ -86,11 +131,15 @@ export function createCalculatorService({ registry, send, now = () => performanc
     try {
       const who = identity(ws);
       if (message.type === 'calculator_leave') { detached(ws); return null; }
+      if (message.type === 'calculator_lobby') return receiveLobby(ws, who, message);
       if (message.type === 'calculator_join') {
-        if (message.protocol !== 4) throw new Error('Reload the page to use the team restart rules.');
+        if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         const room = roomFor(who.section);
+        if (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username)) {
+          send(ws, lobbySnapshot(room)); return null;
+        }
         bindings.set(ws, { room, section: who.section, name: who.username });
         if (!room.members.has(who.username)) {
           const attempt = attemptFor(room, who.username);
@@ -104,6 +153,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
         detached(ws); throw new Error('Rejoin the calculator room.');
       }
       const { room } = binding;
+      if (room.lobby.phase !== 'active' || !room.members.has(binding.name)) {
+        send(ws, lobbySnapshot(room)); return null;
+      }
       if (message.type === 'calculator_press') checkDeadline(room, now());
       if (room.failure) {
         // Keep presence alive during the death animation, but freeze all inputs.
@@ -138,15 +190,28 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function tick() {
     for (const [ws, binding] of bindings) {
       const who = registry._wsEntry(ws);
-      const member = binding.room.members.get(binding.name);
-      if (!who || who.section !== binding.section || who.username !== binding.name || now() - (member?.at ?? 0) > 5000) detached(ws);
+      const seenAt = Math.max(binding.room.lobby.members.get(binding.name)?.at ?? -Infinity,
+        binding.room.members.get(binding.name)?.at ?? -Infinity);
+      if (!who || who.section !== binding.section || who.username !== binding.name || now() - seenAt > 5000) detached(ws);
     }
     for (const [section, room] of rooms) {
-      if (!room.members.size) {
+      const emptyTeam = room.lobby.phase === 'active' ? !room.members.size
+        : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
+      if (!emptyTeam) room.emptyTeamAt = null;
+      else {
+        room.emptyTeamAt ??= now();
+        if (now() - room.emptyTeamAt >= 30000) {
+          resetRoom(room, { type: 'abandoned' }); broadcast(room);
+        }
+      }
+      if (!room.lobby.members.size && !room.members.size) {
         if (now() - room.touched > 2 * 60 * 60 * 1000) rooms.delete(section);
         continue;
       }
       const time = now();
+      advanceLobby(room.lobby, time);
+      startTeam(room);
+      if (room.lobby.phase !== 'active') { broadcast(room); continue; }
       if (room.failure && time >= room.failure.until) {
         resetRoom(room, { type: 'timeout', name: room.failure.name });
         broadcast(room); continue;

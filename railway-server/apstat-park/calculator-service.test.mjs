@@ -3,16 +3,17 @@ import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
 import { ROUTE, SUMMARY, ROUND_MS, BOXPLOT_MS } from './calculator-mission.mjs';
+import { TEAM_BLOCK, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 
 function setup() {
-  let time = 0;
-  const registry = createClassroomRegistry(), packets = new Map();
+  let time = -12000;
+  const registry = createClassroomRegistry(), packets = new Map(), lobbies = new Map();
   const service = createCalculatorService({ registry, now: () => time,
-    send: (ws, packet) => packets.set(ws, packet) });
+    send: (ws, packet) => (packet.type === 'calculator_lobby_state' ? lobbies : packets).set(ws, packet) });
   const a = {}, b = {};
   function join(ws, name) {
     registry.join(ws, 'B', name, 'student', time);
-    return service.handle(ws, { type: 'calculator_join', protocol: 4 });
+    return service.handle(ws, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL });
   }
   function send(ws, type, extra = {}) {
     const state = packets.get(ws);
@@ -23,8 +24,19 @@ function setup() {
     for (const ws of [a, b]) send(ws, 'calculator_pose', { pose: { x: 70, y: 676 }, ready: false });
   }
   join(a, 'alice'); join(b, 'bob');
+  for (const ws of [a, b]) service.handle(ws, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL,
+    pose: { x: TEAM_BLOCK.start - 20, y: 676 }, pushing: true });
+  while (lobbies.get(a).phase === 'gathering') {
+    for (const ws of [a, b]) service.handle(ws, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL,
+      pose: { x: lobbies.get(a).blockX - 20, y: 676 }, pushing: true });
+    time += 100; service.tick();
+  }
+  time = 0;
+  for (const ws of [a, b]) service.handle(ws, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL,
+    epoch: lobbies.get(ws).epoch, pose: { x: TEAM_BLOCK.dock - 20, y: 676 }, ready: true });
+  service.tick();
   return { a, b, service, join, send, press, heartbeat,
-    state: ws => packets.get(ws), clock: value => { time = value; } };
+    state: ws => packets.get(ws), lobby: ws => lobbies.get(ws), clock: value => { time = value; } };
 }
 
 test('independent routes produce matching boxplots; the door waits for everyone', () => {
@@ -49,11 +61,11 @@ test('independent routes produce matching boxplots; the door waits for everyone'
     assert.equal(f.state(f.b).complete, true);
     assert.notDeepEqual(f.state(f.a).keys, f.state(f.b).keys);
     f.send(f.b, 'calculator_restart');
-    assert.notEqual(f.state(f.a).epoch, epoch);
+    assert.notEqual(f.lobby(f.a).epoch, epoch);
     for (const ws of [f.a, f.b]) {
-      assert.equal(f.state(ws).step, 0);
-      assert.equal(f.state(ws).solved, false);
-      assert.equal(f.state(ws).readyCount, 0);
+      assert.equal(f.lobby(ws).phase, 'gathering');
+      assert.deepEqual(f.lobby(ws).roster, []);
+      assert.equal(f.lobby(ws).blockX, TEAM_BLOCK.start);
     }
   } finally { f.service.close(); }
 });
@@ -93,12 +105,14 @@ test('personal deadlines, reconnects, duplicate presses, and invalid input stay 
   } finally { f.service.close(); }
 });
 
-test('completion follows current participants and retains returning students\' work', () => {
+test('the locked team retains absent students and their returning work', () => {
   const f = setup();
   try {
     f.press(f.a, [...ROUTE, ...SUMMARY.map(String)]);
     f.service.detached(f.b);
-    assert.equal(f.state(f.a).complete, true);
+    assert.equal(f.state(f.a).complete, false);
+    assert.equal(f.state(f.a).teamSize, 2);
+    assert.equal(f.state(f.a).members.find(member => member.name === 'bob').online, false);
     f.join(f.b, 'bob');
     assert.equal(f.state(f.a).complete, false);
     assert.equal(f.state(f.a).solved, true);
@@ -176,8 +190,25 @@ test('boxplot expiry respawns the team at earned checkpoints with fresh plot tim
     assert.equal(f.state(f.a).complete, true);
     f.send(f.a, 'calculator_restart');
     for (const ws of [f.a, f.b]) {
-      assert.equal(f.state(ws).step, 0, 'the reset door clears earned checkpoints');
-      assert.deepEqual(f.state(ws).keys, []);
+      assert.equal(f.lobby(ws).phase, 'gathering', 'the reset door clears earned checkpoints and the team');
+      assert.deepEqual(f.lobby(ws).roster, []);
     }
+  } finally { f.service.close(); }
+});
+
+test('an abandoned team releases the block after 30 seconds, not during a brief reconnect', () => {
+  const f = setup();
+  try {
+    f.service.detached(f.a); f.service.detached(f.b); f.service.tick();
+    f.clock(29999); f.service.tick();
+    f.join(f.a, 'alice');
+    assert.equal(f.lobby(f.a).phase, 'active');
+    assert.equal(f.state(f.a).teamSize, 2);
+    f.service.detached(f.a); f.service.tick();
+    f.clock(59999); f.service.tick();
+    f.join(f.a, 'alice');
+    assert.equal(f.lobby(f.a).phase, 'gathering');
+    assert.deepEqual(f.lobby(f.a).roster, []);
+    assert.equal(f.lobby(f.a).blockX, TEAM_BLOCK.start);
   } finally { f.service.close(); }
 });
