@@ -35,7 +35,8 @@ test('forward shortcuts work, but different destination states do not form conse
   assert.equal(state.step, 5); assert.equal(state.keys.at(-1), 'UP');
 });
 test('timeout restores the current checkpoint and repeats every 30 seconds', () => {
-  const state = { ...createMission(0), step: 4, keys: ['STAT', 'RIGHT', '1', 'ENTER'] };
+  const state = { ...createMission(0), step: 4, keys: ['STAT', 'RIGHT', '1', 'ENTER'],
+    checkpointKeys: ['STAT', 'RIGHT', '1', 'ENTER'] };
   const transitions = createCalculatorRuntime().transitions(state);
   const members = [member('RIGHT', state, ROUND_MS)];
   advanceMission(state, members, ROUND_MS, transitions);
@@ -44,4 +45,58 @@ test('timeout restores the current checkpoint and repeats every 30 seconds', () 
   assert.equal(state.revision, 1); assert.equal(state.timeoutCount, 1);
   advanceMission(state, members, ROUND_MS * 2, transitions);
   assert.equal(state.timeoutCount, 2); assert.equal(state.revision, 2);
+});
+
+test('wrong keys get a full hold, commit real input, and can be corrected without resetting', () => {
+  const state = createMission(0), engine = createCalculatorRuntime();
+  const members = [member('MATH', state, 0), member('MATH', state, 0)];
+  const valid = engine.transitions(state);
+  advanceMission(state, members, 0, valid);
+  assert.equal(state.holdAt, 0, 'wrong-key timer starts');
+  advanceMission(state, members, HOLD_MS - 1, valid);
+  assert.deepEqual(state.keys, []);
+  advanceMission(state, members, HOLD_MS, valid);
+  assert.deepEqual(state.keys, ['MATH']); assert.equal(state.step, 0);
+  assert.deepEqual(state.lastPress, { key: 'MATH', advanced: false });
+  assert.equal(state.startedAt, 0); assert.equal(state.bonus, 0);
+  advanceMission(state, members, HOLD_MS + 1, engine.transitions(state));
+  assert.equal(state.holdAt, null, 'old poses cannot repeat the press');
+  // Follow the engine's real exit path: CLEAR back home, then STAT.
+  for (const [key, now] of [['CLEAR', 1000], ['STAT', 2000]]) {
+    const recovery = engine.transitions(state), next = [member(key, state, now)];
+    advanceMission(state, next, now, recovery);
+    advanceMission(state, next, now + HOLD_MS, recovery);
+  }
+  assert.equal(state.step, 1); assert.deepEqual(state.keys, ['MATH', 'CLEAR', 'STAT']);
+});
+
+test('timeout discards wrong inputs and derives hints from the restored checkpoint', () => {
+  const state = { ...createMission(0), step: 4,
+    keys: ['STAT', 'RIGHT', '1', 'ENTER'], checkpointKeys: ['STAT', 'RIGHT', '1', 'ENTER'] };
+  const engine = createCalculatorRuntime(), transitions = engine.transitions(state);
+  const members = [member('CLEAR', state, 0)];
+  advanceMission(state, members, 0, transitions);
+  advanceMission(state, members, HOLD_MS, transitions);
+  assert.equal(state.keys.at(-1), 'CLEAR');
+  const wrong = engine.transitions(state);
+  const restored = engine.transitions({ ...state, keys: state.checkpointKeys });
+  advanceMission(state, members, ROUND_MS, wrong, restored);
+  assert.deepEqual(state.keys, ['STAT', 'RIGHT', '1', 'ENTER']);
+  assert.deepEqual(state.hintKeys.sort(), ['DOWN', 'ENTER']);
+  assert.equal(state.lastPress, null); assert.equal(state.step, 4);
+});
+
+test('changing a wrong key restarts the hold; incorrect summary choices commit without credit', () => {
+  const state = createMission(0);
+  advanceMission(state, [member('MATH', state, 0)], 0);
+  advanceMission(state, [member('CLEAR', state, 500)], 500);
+  assert.equal(state.holdAt, 500);
+  advanceMission(state, [member('CLEAR', state, 900)], 900);
+  assert.equal(state.keys.length, 0);
+  const summary = { ...createMission(0), step: 7 };
+  const choice = { pose: { x: 120, y: 576 }, at: 0, revision: 0 }; // 14, not minimum 4
+  advanceMission(summary, [choice], 0);
+  advanceMission(summary, [choice], HOLD_MS);
+  assert.deepEqual(summary.lastPress, { key: '14', advanced: false });
+  assert.equal(summary.step, 7); assert.equal(summary.bonus, 0);
 });

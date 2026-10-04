@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, WORLD } from './calculator-mission.mjs';
+import { createMission, advanceMission, WORLD, ROUND_MS } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 
 const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_leave', 'calculator_restart']);
@@ -91,7 +91,11 @@ export function createCalculatorService({ registry, send, now = () => performanc
         if (now() - room.touched > 2 * 60 * 60 * 1000) rooms.delete(section);
         continue;
       }
-      advanceMission(room.state, [...room.members.values()], now(), room.engine.transitions(room.state));
+      const time = now();
+      const transitions = room.engine.transitions(room.state);
+      const checkpointTransitions = time - room.state.startedAt >= ROUND_MS
+        ? room.engine.transitions({ ...room.state, keys: room.state.checkpointKeys }) : transitions;
+      advanceMission(room.state, [...room.members.values()], time, transitions, checkpointTransitions);
       broadcast(room);
     }
   }

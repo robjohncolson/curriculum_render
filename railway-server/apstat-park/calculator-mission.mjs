@@ -45,14 +45,17 @@ export function tileAt(pose, step) {
 }
 export function createMission(now) {
   return { step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
-    bonus: 0, complete: false, keys: [], timeoutCount: 0, hintKeys: [] };
+    bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
+    timeoutCount: 0, hintKeys: [] };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
-export function advanceMission(state, members, now, transitions = {}) {
+export function advanceMission(state, members, now, transitions = {}, checkpointTransitions = transitions) {
   if (state.complete) return false;
   const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step)]: state.step + 1 };
   if (members.length && now - state.startedAt >= ROUND_MS) {
-    state.hintKeys = Object.keys(valid);
+    state.keys = state.checkpointKeys.slice();
+    state.lastPress = null;
+    state.hintKeys = Object.keys(state.step < ROUTE.length ? checkpointTransitions : valid);
     state.timeoutCount++;
     state.revision++;
     state.startedAt = now;
@@ -61,21 +64,30 @@ export function advanceMission(state, members, now, transitions = {}) {
   }
   const key = tileAt(members[0]?.pose, state.step);
   const nextStep = valid[key];
-  const correct = members.length > 0 && members.every(member =>
+  // Every physical key can be pressed. Different keys can also form consensus
+  // when the engine confirms they reach the same next learning checkpoint.
+  const choice = nextStep == null ? 'key:' + key : 'goal:' + nextStep;
+  const agreed = key != null && members.length > 0 && members.every(member =>
     member.ready !== false && member.revision === state.revision && now - member.at < 1500
-    && nextStep != null && valid[tileAt(member.pose, state.step)] === nextStep);
-  if (!correct) { state.holdAt = null; state.holdStep = null; return false; }
-  if (state.holdAt === null || state.holdStep !== nextStep) {
-    state.holdAt = now; state.holdStep = nextStep; return false;
+    && (tileAt(member.pose, state.step) === key
+      || (nextStep != null && valid[tileAt(member.pose, state.step)] === nextStep)));
+  if (!agreed) { state.holdAt = null; state.holdStep = null; return false; }
+  if (state.holdAt === null || state.holdStep !== choice) {
+    state.holdAt = now; state.holdStep = choice; return false;
   }
   if (now - state.holdAt < HOLD_MS) return false;
-  if (!state.hintKeys.length) state.bonus += nextStep - state.step;
   if (state.step < ROUTE.length) state.keys.push(key);
-  state.step = nextStep;
+  state.lastPress = { key, advanced: nextStep != null };
   state.revision++;
-  state.startedAt = now;
   state.holdAt = null;
   state.holdStep = null;
+  // Incorrect/no-op presses still reach the engine and require a fresh hold.
+  // They do not renew the 30-second deadline or award progress.
+  if (nextStep == null) return true;
+  if (!state.hintKeys.length) state.bonus += nextStep - state.step;
+  state.step = nextStep;
+  state.checkpointKeys = state.keys.slice();
+  state.startedAt = now;
   state.hintKeys = [];
   state.complete = state.step === ROUTE.length + SUMMARY.length;
   return true;
