@@ -2,8 +2,35 @@
 export const CALCULATOR_LEVELS = [
   {
     "id": "one-var-stats",
+    "procedureId": "one-var-stats",
     "title": "1-Var Stats",
     "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-09-22",
       "E": "2026-09-23"
@@ -84,8 +111,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "histogram",
+    "procedureId": "histogram",
     "title": "Histogram",
     "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-09-15",
       "E": "2026-09-16"
@@ -224,8 +266,35 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "modified-boxplot",
+    "procedureId": "modified-boxplot",
     "title": "Modified Boxplot",
     "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-09-22",
       "E": "2026-09-23"
@@ -376,8 +445,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "normalcdf",
+    "procedureId": "normalcdf",
     "title": "normalcdf",
     "topic": "1.10",
+    "coverage": [
+      {
+        "topic": "1.10",
+        "dates": {
+          "B": "2026-11-12",
+          "E": "2026-11-16"
+        },
+        "worksheet": "u1_lesson10_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-11-12",
       "E": "2026-11-16"
@@ -450,8 +534,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "invnorm",
+    "procedureId": "invnorm",
     "title": "invNorm",
     "topic": "1.10",
+    "coverage": [
+      {
+        "topic": "1.10",
+        "dates": {
+          "B": "2026-11-12",
+          "E": "2026-11-16"
+        },
+        "worksheet": "u1_lesson10_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-11-12",
       "E": "2026-11-16"
@@ -516,8 +615,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "linreg-a-plus-bx",
+    "procedureId": "linreg-a-plus-bx",
     "title": "LinReg(a+bx)",
     "topic": "2.8",
+    "coverage": [
+      {
+        "topic": "2.8",
+        "dates": {
+          "B": "2027-03-09",
+          "E": "2027-03-10"
+        },
+        "worksheet": "u2_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-03-09",
       "E": "2027-03-10"
@@ -637,8 +751,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "scatterplot",
+    "procedureId": "scatterplot",
     "title": "Scatterplot",
     "topic": "2.4",
+    "coverage": [
+      {
+        "topic": "2.4",
+        "dates": {
+          "B": "2027-03-02",
+          "E": "2027-03-05"
+        },
+        "worksheet": "u2_lesson4_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-03-02",
       "E": "2027-03-05"
@@ -802,8 +931,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "residual-plot",
+    "procedureId": "residual-plot",
     "title": "Residual plot",
     "topic": "2.7",
+    "coverage": [
+      {
+        "topic": "2.7",
+        "dates": {
+          "B": "2027-03-08",
+          "E": "2027-03-08"
+        },
+        "worksheet": "u2_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-03-08",
       "E": "2027-03-08"
@@ -973,8 +1117,22 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "binompdf",
+    "procedureId": "binompdf",
     "title": "binompdf",
     "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-09",
+          "E": "2026-11-09"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-11-09",
       "E": "2026-11-09"
@@ -1050,8 +1208,22 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "binomcdf",
+    "procedureId": "binomcdf",
     "title": "binomcdf",
     "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-09",
+          "E": "2026-11-09"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-11-09",
       "E": "2026-11-09"
@@ -1129,8 +1301,20 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "geometpdf",
+    "procedureId": "geometpdf",
     "title": "geometpdf",
     "topic": "4.12",
+    "coverage": [
+      {
+        "topic": "4.12",
+        "dates": {
+          "B": null,
+          "E": null
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": []
+      }
+    ],
     "dates": {
       "B": null,
       "E": null
@@ -1181,8 +1365,20 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "geometcdf",
+    "procedureId": "geometcdf",
     "title": "geometcdf",
     "topic": "4.12",
+    "coverage": [
+      {
+        "topic": "4.12",
+        "dates": {
+          "B": null,
+          "E": null
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": []
+      }
+    ],
     "dates": {
       "B": null,
       "E": null
@@ -1233,8 +1429,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "normalcdf-sampling",
+    "procedureId": "normalcdf-sampling",
     "title": "normalcdf for sampling distribution",
     "topic": "5.7",
+    "coverage": [
+      {
+        "topic": "5.7",
+        "dates": {
+          "B": "2027-01-25",
+          "E": "2027-01-27"
+        },
+        "worksheet": "u5_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-25",
       "E": "2027-01-27"
@@ -1310,8 +1521,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "invnorm-sampling",
+    "procedureId": "invnorm-sampling",
     "title": "invNorm for sampling distribution",
     "topic": "5.7",
+    "coverage": [
+      {
+        "topic": "5.7",
+        "dates": {
+          "B": "2027-01-25",
+          "E": "2027-01-27"
+        },
+        "worksheet": "u5_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-25",
       "E": "2027-01-27"
@@ -1383,8 +1609,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "one-propztest",
+    "procedureId": "one-propztest",
     "title": "1-PropZTest",
     "topic": "6.4",
+    "coverage": [
+      {
+        "topic": "6.4",
+        "dates": {
+          "B": "2026-12-08",
+          "E": "2026-12-11"
+        },
+        "worksheet": "u6_lesson4_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-12-08",
       "E": "2026-12-11"
@@ -1465,8 +1706,22 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "one-propzint",
+    "procedureId": "one-propzint",
     "title": "1-PropZInt",
     "topic": "6.2",
+    "coverage": [
+      {
+        "topic": "6.2",
+        "dates": {
+          "B": "2026-12-04",
+          "E": "2026-12-07"
+        },
+        "worksheet": "u6_lesson1-2_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-12-04",
       "E": "2026-12-07"
@@ -1537,8 +1792,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "two-propztest",
+    "procedureId": "two-propztest",
     "title": "2-PropZTest",
     "topic": "6.10",
+    "coverage": [
+      {
+        "topic": "6.10",
+        "dates": {
+          "B": "2027-01-04",
+          "E": "2027-01-06"
+        },
+        "worksheet": "u6_lesson10_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-04",
       "E": "2027-01-06"
@@ -1630,8 +1900,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "two-propzint",
+    "procedureId": "two-propzint",
     "title": "2-PropZInt",
     "topic": "6.8",
+    "coverage": [
+      {
+        "topic": "6.8",
+        "dates": {
+          "B": "2026-12-21",
+          "E": "2026-12-23"
+        },
+        "worksheet": "u6_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-12-21",
       "E": "2026-12-23"
@@ -1724,8 +2009,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "t-test-stats",
+    "procedureId": "t-test-stats",
     "title": "T-Test (Stats input)",
     "topic": "7.4",
+    "coverage": [
+      {
+        "topic": "7.4",
+        "dates": {
+          "B": "2027-02-01",
+          "E": "2027-02-03"
+        },
+        "worksheet": "u7_lesson4_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-02-01",
       "E": "2027-02-03"
@@ -1820,8 +2120,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "t-test-data",
+    "procedureId": "t-test-data",
     "title": "T-Test (Data input)",
     "topic": "7.4",
+    "coverage": [
+      {
+        "topic": "7.4",
+        "dates": {
+          "B": "2027-02-01",
+          "E": "2027-02-03"
+        },
+        "worksheet": "u7_lesson4_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-02-01",
       "E": "2027-02-03"
@@ -1922,8 +2237,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "t-interval-stats",
+    "procedureId": "t-interval-stats",
     "title": "TInterval (Stats input)",
     "topic": "7.2",
+    "coverage": [
+      {
+        "topic": "7.2",
+        "dates": {
+          "B": "2027-01-28",
+          "E": "2027-01-29"
+        },
+        "worksheet": "u7_lesson2_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-28",
       "E": "2027-01-29"
@@ -2016,8 +2346,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "t-interval-data",
+    "procedureId": "t-interval-data",
     "title": "TInterval (Data input)",
     "topic": "7.2",
+    "coverage": [
+      {
+        "topic": "7.2",
+        "dates": {
+          "B": "2027-01-28",
+          "E": "2027-01-29"
+        },
+        "worksheet": "u7_lesson2_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-28",
       "E": "2027-01-29"
@@ -2104,8 +2449,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "two-samp-ttest",
+    "procedureId": "two-samp-ttest",
     "title": "2-SampTTest",
     "topic": "7.8",
+    "coverage": [
+      {
+        "topic": "7.8",
+        "dates": {
+          "B": "2027-02-11",
+          "E": "2027-02-22"
+        },
+        "worksheet": "u7_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-02-11",
       "E": "2027-02-22"
@@ -2229,8 +2589,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "two-samp-tint",
+    "procedureId": "two-samp-tint",
     "title": "2-SampTInt",
     "topic": "7.6",
+    "coverage": [
+      {
+        "topic": "7.6",
+        "dates": {
+          "B": "2027-02-08",
+          "E": "2027-02-10"
+        },
+        "worksheet": "u7_lesson6_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-02-08",
       "E": "2027-02-10"
@@ -2357,8 +2732,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "matrix-entry",
+    "procedureId": "matrix-entry",
     "title": "Enter matrix",
     "topic": "8.5",
+    "coverage": [
+      {
+        "topic": "8.5",
+        "dates": {
+          "B": "2027-01-12",
+          "E": "2027-01-13"
+        },
+        "worksheet": "u8_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-12",
       "E": "2027-01-13"
@@ -2479,8 +2869,20 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "chi-square-gof-test",
+    "procedureId": "chi-square-gof-test",
     "title": "χ²GOF-Test",
     "topic": "8.2",
+    "coverage": [
+      {
+        "topic": "8.2",
+        "dates": {
+          "B": null,
+          "E": null
+        },
+        "worksheet": "u8_lesson2_live.html",
+        "sources": []
+      }
+    ],
     "dates": {
       "B": null,
       "E": null
@@ -2565,8 +2967,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "chi-square-test",
+    "procedureId": "chi-square-test",
     "title": "χ²-Test",
     "topic": "8.5",
+    "coverage": [
+      {
+        "topic": "8.5",
+        "dates": {
+          "B": "2027-01-12",
+          "E": "2027-01-13"
+        },
+        "worksheet": "u8_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2027-01-12",
       "E": "2027-01-13"
@@ -2662,8 +3079,20 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "linreg-ttest",
+    "procedureId": "linreg-ttest",
     "title": "LinRegTTest",
     "topic": "9.5",
+    "coverage": [
+      {
+        "topic": "9.5",
+        "dates": {
+          "B": null,
+          "E": null
+        },
+        "worksheet": "u9_lesson5_live.html",
+        "sources": []
+      }
+    ],
     "dates": {
       "B": null,
       "E": null
@@ -2801,8 +3230,20 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "linreg-tint",
+    "procedureId": "linreg-tint",
     "title": "LinRegTInt",
     "topic": "9.2",
+    "coverage": [
+      {
+        "topic": "9.2",
+        "dates": {
+          "B": null,
+          "E": null
+        },
+        "worksheet": "u9_lesson2_live.html",
+        "sources": []
+      }
+    ],
     "dates": {
       "B": null,
       "E": null
@@ -2984,8 +3425,23 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "randint-sampling",
+    "procedureId": "randint-sampling",
     "title": "randIntNoRep (random sample)",
     "topic": "3.3",
+    "coverage": [
+      {
+        "topic": "3.3",
+        "dates": {
+          "B": "2026-10-01",
+          "E": "2026-09-30"
+        },
+        "worksheet": "u3_lesson3_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-10-01",
       "E": "2026-09-30"
@@ -3061,8 +3517,22 @@ export const CALCULATOR_LEVELS = [
   },
   {
     "id": "randint-assignment",
+    "procedureId": "randint-assignment",
     "title": "randIntNoRep (random assignment)",
     "topic": "3.6",
+    "coverage": [
+      {
+        "topic": "3.6",
+        "dates": {
+          "B": "2026-10-06",
+          "E": "2026-10-07"
+        },
+        "worksheet": "u3_lesson6-7_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
     "dates": {
       "B": "2026-10-06",
       "E": "2026-10-07"
@@ -3136,5 +3606,151 @@ export const CALCULATOR_LEVELS = [
       "randIntNoRep(1,12,12)",
       "{9 10 4 5 6 3 8 7 12 2 1 11}"
     ]
+  },
+  {
+    "id": "dotplot",
+    "procedureId": "histogram",
+    "challenge": "dotplot",
+    "title": "Histogram to dot plot",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Create a histogram of the following test scores to examine the shape of the distribution: 72, 85, 91, 64, 78, 88, 69, 95, 82, 76, 55, 83, 90, 67, 74.",
+    "values": {
+      "data": [
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        4,
+        4,
+        5,
+        5
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          4,
+          4,
+          5,
+          5
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose DOWN.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "Choose TRACE.",
+      "Choose RIGHT."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 1,
+          "upper": 2,
+          "y": 2
+        },
+        {
+          "x": 2,
+          "upper": 3,
+          "y": 3
+        },
+        {
+          "x": 3,
+          "upper": 4,
+          "y": 1
+        },
+        {
+          "x": 4,
+          "upper": 5,
+          "y": 2
+        },
+        {
+          "x": 5,
+          "upper": 6,
+          "y": 2
+        }
+      ],
+      "stats": {
+        "xbar": 2.9,
+        "sumX": 29,
+        "sumX2": 105,
+        "Sx": 1.5238839267549948,
+        "sigmaX": 1.445683229480096,
+        "n": 10,
+        "minX": 1,
+        "Q1": 2,
+        "Med": 2.5,
+        "Q3": 4,
+        "maxX": 5
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 2,
+        "upper": 3,
+        "y": 3
+      }
+    }
   }
 ];

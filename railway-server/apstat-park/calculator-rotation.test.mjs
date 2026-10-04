@@ -36,6 +36,17 @@ function fixture(date = '2026-10-04T16:00:00Z', section = 'PeriodB') {
   };
 }
 
+test('parked/teacher section uses the cumulative Period E worksheet and quiz pool', () => {
+  const f = fixture('2026-10-04T16:00:00Z', 'PeriodX');
+  try {
+    f.lobby(f.players[0], 65);
+    assert.equal(f.lobbies.get(f.players[0]).eligibleCount, 5);
+    assert.equal(f.lobbies.get(f.players[0]).missionId, 'dotplot');
+    f.dock();
+    assert.equal(f.states.get(f.players[0]).missionId, 'dotplot');
+  } finally { f.service.close(); }
+});
+
 test('server selects a shared taught skill, retains it through death, and rotates only at the door', () => {
   const f = fixture();
   try {
@@ -76,7 +87,7 @@ test('an empty calendar waits without a timer; the lesson date unlocks the assem
     assert.equal(f.states.size, 0);
     assert.equal(f.lobbies.get(f.players[0]).eligibleCount, 0);
     f.date('2026-09-15T16:00:00Z'); f.advance(100);
-    assert.equal(f.states.get(f.players[0]).missionId, 'histogram');
+    assert.equal(f.states.get(f.players[0]).missionId, 'dotplot');
     assert.equal(f.states.get(f.players[0]).failure, null);
   } finally { f.service.close(); }
 });

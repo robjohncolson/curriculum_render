@@ -10,11 +10,15 @@ export function schoolDate(time = Date.now()) {
 }
 
 export function eligibleLevels(section, date = schoolDate(), levels = CALCULATOR_LEVELS) {
-  const period = { PeriodB: 'B', PeriodE: 'E', B: 'B', E: 'E' }[section];
+  // Match Desk/lesson-grade: parked and teacher accounts follow Period E.
+  const period = { PERIODB: 'B', PERIODE: 'E', PERIODX: 'E', B: 'B', E: 'E' }[String(section).trim().toUpperCase()];
   if (!period) return [];
   return levels.filter(level => {
-    const taught = level.dates[period];
-    return typeof taught === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(taught) && taught <= date;
+    const lessons = level.coverage || [{ dates: level.dates }];
+    return lessons.some(lesson => {
+      const taught = lesson.dates[period];
+      return typeof taught === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(taught) && taught <= date;
+    });
   });
 }
 
@@ -48,7 +52,13 @@ const round = value => Number(Number(value).toPrecision(5));
 export function challengeFor(level = DEFAULT_LEVEL) {
   const { id, computed: c, finalView: graph, values: v } = level;
   let kind, title, labels, answers, note;
-  if (id === 'one-var-stats' || id === 'modified-boxplot') {
+  if (level.challenge === 'dotplot') {
+    kind = 'dotplot'; title = 'BUILD THE DOT PLOT';
+    const positions = [...new Set(v.data)].sort((a, b) => a - b);
+    labels = positions.map(value => 'Dots at ' + value);
+    answers = positions.map(value => v.data.filter(observation => observation === value).length);
+    note = 'Each dot represents one observation. Stack equal values.';
+  } else if (id === 'one-var-stats' || id === 'modified-boxplot') {
     kind = 'boxplot'; title = id === 'modified-boxplot' ? 'BUILD THE MODIFIED BOXPLOT' : 'BUILD THE BOXPLOT';
     const stats = c || graph.stats;
     answers = [stats.minX, stats.Q1, stats.Med, stats.Q3, stats.maxX];
@@ -105,7 +115,8 @@ export function challengeFor(level = DEFAULT_LEVEL) {
 export function answerTiles(level, index) {
   const challenge = challengeFor(level), answer = challenge.answers[index];
   let options;
-  if (level.id === 'one-var-stats') options = [14, 4, 20, 7, 11];
+  if (challenge.kind === 'dotplot') options = [3, 0, 5, 1, 4, 2];
+  else if (level.id === 'one-var-stats') options = [14, 4, 20, 7, 11];
   else {
     const delta = Math.max(Math.abs(answer || 1) * .2, .01);
     options = [...new Set([...challenge.answers, round(answer + delta), round(answer - delta), 0, 1])];
