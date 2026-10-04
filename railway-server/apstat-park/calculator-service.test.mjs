@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
-import { createCalculatorService } from './calculator-service.mjs';
+import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
 import { ROUTE, SUMMARY, ROUND_MS } from './calculator-mission.mjs';
 
 function setup() {
@@ -12,7 +12,7 @@ function setup() {
   const a = {}, b = {};
   function join(ws, name) {
     registry.join(ws, 'B', name, 'student', time);
-    return service.handle(ws, { type: 'calculator_join', protocol: 2 });
+    return service.handle(ws, { type: 'calculator_join', protocol: 3 });
   }
   function send(ws, type, extra = {}) {
     const state = packets.get(ws);
@@ -68,15 +68,26 @@ test('personal deadlines, reconnects, duplicate presses, and invalid input stay 
     assert.deepEqual(f.state(f.a).keys, ['STAT', 'RIGHT', 'ENTER']);
     f.send(f.a, 'calculator_press', { key: '__proto__' });
     assert.equal(f.state(f.a).revision, 3);
-    f.clock(ROUND_MS); f.heartbeat(); f.service.tick();
-    assert.equal(f.state(f.b).timeoutCount, 1);
-    assert.deepEqual(f.state(f.b).keys, []);
-    assert.equal(f.state(f.a).timeoutCount, 0);
-    assert.equal(f.state(f.a).step, 3);
     f.service.detached(f.a); f.join(f.a, 'alice');
     assert.equal(f.state(f.a).step, 3);
-    assert.deepEqual(f.state(f.a).keys, ['STAT', 'RIGHT', 'ENTER']);
-    assert.equal(f.state(f.b).step, 0);
+    assert.equal(f.state(f.a).startedAt, 10000, 'rejoin does not renew a deadline');
+    f.clock(ROUND_MS); f.heartbeat(); f.service.tick();
+    assert.equal(f.state(f.b).failure.name, 'bob');
+    assert.equal(f.state(f.a).failure.name, 'bob');
+    const failedEpoch = f.state(f.a).epoch;
+    f.press(f.a, ['DOWN']);
+    assert.equal(f.state(f.a).step, 3, 'all input freezes during death');
+    f.clock(ROUND_MS + DEATH_MS); f.heartbeat(); f.service.tick();
+    for (const ws of [f.a, f.b]) {
+      assert.notEqual(f.state(ws).epoch, failedEpoch);
+      assert.equal(f.state(ws).step, 0);
+      assert.deepEqual(f.state(ws).keys, []);
+      assert.equal(f.state(ws).bonus, 0);
+      assert.equal(f.state(ws).failure, null);
+      assert.equal(f.state(ws).resetReason.type, 'timeout');
+    }
+    f.service.handle(f.a, message);
+    assert.equal(f.state(f.a).step, 0, 'an old attempt cannot replay after reset');
   } finally { f.service.close(); }
 });
 
@@ -89,6 +100,26 @@ test('completion follows current participants and retains returning students\' w
     f.join(f.b, 'bob');
     assert.equal(f.state(f.a).complete, false);
     assert.equal(f.state(f.a).solved, true);
+    assert.equal(f.state(f.b).step, 0);
+  } finally { f.service.close(); }
+});
+
+test('wrong keys and no-ops keep the deadline; only an engine-verified advance renews it', () => {
+  const f = setup();
+  try {
+    f.clock(5000); f.press(f.a, ['MATH']);
+    assert.equal(f.state(f.a).startedAt, 0);
+    f.clock(9000); f.press(f.a, ['MATH', 'CLEAR']);
+    assert.equal(f.state(f.a).startedAt, 0);
+    f.clock(12000); f.press(f.a, ['STAT']);
+    assert.equal(f.state(f.a).startedAt, 12000);
+    f.clock(15000); f.press(f.a, ['STAT']);
+    assert.equal(f.state(f.a).startedAt, 12000, 'reopening the same menu is not progress');
+    f.clock(20000); f.press(f.a, ['RIGHT']);
+    assert.equal(f.state(f.a).startedAt, 20000);
+    f.clock(ROUND_MS); f.heartbeat();
+    f.press(f.b, ['STAT']);
+    assert.equal(f.state(f.b).failure.name, 'bob', 'a press at expiry cannot save the attempt');
     assert.equal(f.state(f.b).step, 0);
   } finally { f.service.close(); }
 });
