@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createCalculatorService } from './calculator-service.mjs';
+import { createCampaignService } from './campaign-service.mjs';
 import { ParkSession } from './session.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
 
@@ -12,6 +13,7 @@ const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, 
 export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {} }) {
   const rooms = new Map(), bindings = new Map();
   const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow });
+  const campaign = createCampaignService({ registry, send, now });
 
   function identity(ws, cache) {
     const entry = registry._wsEntry(ws);
@@ -91,9 +93,10 @@ export function createParkService({ registry, send, now = () => performance.now(
   maintenance.unref?.();
 
   return {
-    accepts: message => types.has(message?.type) || calculator.accepts(message),
+    accepts: message => types.has(message?.type) || calculator.accepts(message) || campaign.accepts(message),
     handle(ws, message) {
       if (calculator.accepts(message)) return calculator.handle(ws, message);
+      if (campaign.accepts(message)) return campaign.handle(ws, message);
       if (!types.has(message?.type)) return null;
       const reply = value => ({ type: 'park_result', requestId: message.requestId, ...value });
       try {
@@ -113,7 +116,7 @@ export function createParkService({ registry, send, now = () => performance.now(
             if (room) syncPresence(room);
             levels.push({ levelIndex, online: room ? [...room.session.online].sort() : [] });
           }
-          return reply({ levels });
+          return reply({ levels, campaign: { levelIndex: 7, online: campaign.occupants(who.section) } });
         }
         const joining = message.type === 'park_join' || message.type === 'park_resume';
         const updateRequired = () => ({ type: 'park_error', requestId: message.requestId,
@@ -182,7 +185,7 @@ export function createParkService({ registry, send, now = () => performance.now(
         return { type: 'park_error', requestId: message.requestId, message: error.message };
       }
     },
-    detached(ws) { unbind(ws); calculator.detached(ws); },
-    close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); calculator.close(); },
+    detached(ws) { unbind(ws); calculator.detached(ws); campaign.detached(ws); },
+    close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); calculator.close(); campaign.close(); },
   };
 }
