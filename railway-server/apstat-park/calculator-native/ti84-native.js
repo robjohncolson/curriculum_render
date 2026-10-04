@@ -727,7 +727,17 @@
     };
     var alphaActive = false;
 
+    // The park sends printed key legends; the trainer sends button IDs.
+    // Both refer to the same physical keys, before ALPHA/2ND translation.
+    var KEY_ALIASES = {
+      'Y=': 'Y_EQUALS', 'x\u207b\u00b9': 'X_INVERSE', '^': 'POWER',
+      'x\u00b2': 'SQUARE', ',': 'COMMA', '(': 'LPAREN', ')': 'RPAREN',
+      '.': 'DECIMAL', '(\u2212)': 'NEGATIVE', 'STO\u2192': 'STO',
+      '\u00f7': 'DIVIDE', '\u00d7': 'MULTIPLY', '\u2212': 'SUBTRACT', '+': 'ADD'
+    };
+
     function pressKey(key) {
+      key = KEY_ALIASES[key] || key;
       bus.emit('key-press', { key: key, handled: true, blocked: false });
 
       // 1a. Handle ALPHA modifier
@@ -758,7 +768,7 @@
       // 2. If 2ND was active, resolve the secondary function
       if (secondActive) {
         secondActive = false;
-        var resolved = SECOND_MAP[key];
+        var resolved = SECOND_MAP[key] || SECOND_MAP[HOME_KEY_CHARS[key]];
 
         if (resolved === '2ND_VARS') {
           openMenu('distr-menu');
@@ -869,6 +879,7 @@
         return;
       }
       var ch = HOME_KEY_CHARS[key];
+      if (ch === undefined && /^[0-9]$/.test(key)) ch = key;
       if (ch !== undefined) {
         homeEntry += ch;
         return;
@@ -1188,7 +1199,8 @@
           homeLines: homeLines.slice(),
           lists: JSON.parse(JSON.stringify(lists)),
           matrices: JSON.parse(JSON.stringify(matrices)),
-          secondActive: secondActive
+          secondActive: secondActive,
+          alphaActive: alphaActive
         };
       },
 

@@ -8,11 +8,18 @@ export function createMissionEngine(createCalculator, data, route, keys) {
     const calculator = createCalculator(null, { renderer });
     calculator.setList('L1', data);
     for (const key of history) calculator.pressKey(key);
-    return { calculator, fingerprint: () => JSON.stringify({
-      screen: calculator.save().screen, rendered,
-      values: calculator.getWizardValues(), computed: calculator.getComputedValues(),
-      lists: calculator.save().lists, second: calculator.save().secondActive,
-    }) };
+    return { calculator, fingerprint() {
+      const snapshot = calculator.save();
+      // Milestones describe the task's visible state, not unrelated stored lists.
+      // Results still have to match the calculation for the supplied dataset.
+      // Dormant results must not prevent navigating back through a menu/wizard.
+      return JSON.stringify({
+        screen: snapshot.screen, rendered,
+        values: calculator.getWizardValues(),
+        computed: snapshot.screen.type === 'result' ? calculator.getComputedValues() : null,
+        second: snapshot.secondActive, alpha: snapshot.alphaActive,
+      });
+    } };
   }
   const targets = route.map((_, i) => replay(route.slice(0, i + 1)).fingerprint());
   let cachedHistory = null, cachedTransitions = null;

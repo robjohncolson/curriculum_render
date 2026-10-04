@@ -51,7 +51,10 @@
           'A:PowerReg',
           'B:Logistic',
           'C:SinReg',
-          'D:Manual-Fit'
+          'D:Manual-Fit',
+          // OS 5.8.2 normal STAT descriptor 0x08709A: CALC has 15 entries.
+          // The 14-entry program-editor descriptor is a different menu.
+          'E:QuickPlot&Fit-EQ'
         ],
         cursor: 0
       },
