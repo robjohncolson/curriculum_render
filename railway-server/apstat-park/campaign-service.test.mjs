@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
-import { createCampaignService, CAMPAIGN_CLEAR_MS } from './campaign-service.mjs';
+import { createCampaignService, CAMPAIGN_CLEAR_MS, CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
 
 function fixture(count = 2) {
   let time = 0;
   const registry = createClassroomRegistry(), messages = new Map(), players = Array.from({ length: count }, () => ({}));
   const service = createCampaignService({ registry, now: () => time, send(ws, packet) { messages.set(ws, packet); } });
   players.forEach((ws, i) => registry.join(ws, 'PeriodB', 'p' + i, 'student', time));
-  const join = ws => service.handle(ws, { type: 'campaign_join', protocol: 1 });
+  const join = ws => service.handle(ws, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
   const state = () => { service.handle(players[0], { type: 'campaign_resume', epoch: messages.get(players[0]).epoch, from: 0 }); return messages.get(players[0]); };
   return { service, registry, players, messages, join, state,
     advance(ms) { time += ms; service.tick(); },
@@ -43,7 +43,8 @@ test('input is assigned by joined identity; retries and reconnects cannot skip a
     f.send(f.players[0], 'campaign_input', { bits: 48 }); f.advance(50);
     const replay = f.state();
     assert.deepEqual(replay.events.slice(1).map(event => event.inputs), [[48, 0], [16, 0]]);
-    assert.equal(f.service.handle({}, { type: 'campaign_join', protocol: 1 }).type, 'campaign_error');
+    assert.equal(f.service.handle({}, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL }).type, 'campaign_error');
+    assert.equal(f.service.handle(f.players[0], { type: 'campaign_join', protocol: 1 }).type, 'campaign_error');
     f.send(f.players[0], 'campaign_clear', { frame: 999999 }); assert.equal(f.state().phase, 'playing');
     f.service.detached(f.players[1]); f.advance(5000); f.join(f.players[1]);
     assert.equal(f.state().epoch, before.epoch);

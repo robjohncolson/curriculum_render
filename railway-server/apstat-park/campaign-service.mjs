@@ -1,6 +1,8 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 
-export const CAMPAIGN_PROTOCOL = 1;
+// Protocol 2 restores the verified stage-1-1 step collision surfaces.
+// Mixed physics versions must not participate in the same input replay.
+export const CAMPAIGN_PROTOCOL = 2;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
