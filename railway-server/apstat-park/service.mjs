@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createCalculatorService } from './calculator-service.mjs';
 import { ParkSession } from './session.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
 
@@ -10,6 +11,7 @@ const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, 
 // One self-directed park per classroom section, using the existing joined identity.
 export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now() }) {
   const rooms = new Map(), bindings = new Map();
+  const calculator = createCalculatorService({ registry, send, now });
 
   function identity(ws, cache) {
     const entry = registry._wsEntry(ws);
@@ -89,8 +91,9 @@ export function createParkService({ registry, send, now = () => performance.now(
   maintenance.unref?.();
 
   return {
-    accepts: message => types.has(message?.type),
+    accepts: message => types.has(message?.type) || calculator.accepts(message),
     handle(ws, message) {
+      if (calculator.accepts(message)) return calculator.handle(ws, message);
       if (!types.has(message?.type)) return null;
       const reply = value => ({ type: 'park_result', requestId: message.requestId, ...value });
       try {
@@ -179,7 +182,7 @@ export function createParkService({ registry, send, now = () => performance.now(
         return { type: 'park_error', requestId: message.requestId, message: error.message };
       }
     },
-    detached: unbind,
-    close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); },
+    detached(ws) { unbind(ws); calculator.detached(ws); },
+    close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); calculator.close(); },
   };
 }
