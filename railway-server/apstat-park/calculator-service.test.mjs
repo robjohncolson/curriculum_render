@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
-import { ROUTE, SUMMARY, ROUND_MS } from './calculator-mission.mjs';
+import { ROUTE, SUMMARY, ROUND_MS, BOXPLOT_MS } from './calculator-mission.mjs';
 
 function setup() {
   let time = 0;
@@ -12,7 +12,7 @@ function setup() {
   const a = {}, b = {};
   function join(ws, name) {
     registry.join(ws, 'B', name, 'student', time);
-    return service.handle(ws, { type: 'calculator_join', protocol: 3 });
+    return service.handle(ws, { type: 'calculator_join', protocol: 4 });
   }
   function send(ws, type, extra = {}) {
     const state = packets.get(ws);
@@ -33,8 +33,10 @@ test('independent routes produce matching boxplots; the door waits for everyone'
     f.press(f.a, ['STAT', 'ENTER', 'STAT', 'RIGHT', '1', 'ENTER', 'DOWN', 'ENTER', 'DOWN']);
     assert.equal(f.state(f.a).step, 7);
     assert.equal(f.state(f.b).step, 0);
-    f.press(f.a, ['14']);
-    assert.equal(f.state(f.a).step, 7, 'wrong minimum is rejected');
+    f.press(f.a, ['14', '7', '11', '4']);
+    assert.equal(f.state(f.a).step, 11, 'no individual value is rejected');
+    f.press(f.a, ['20']);
+    assert.equal(f.state(f.a).step, 7, 'only the finished incorrect plot is cleared');
     f.press(f.a, SUMMARY.map(String));
     assert.equal(f.state(f.a).solved, true);
     assert.equal(f.state(f.a).complete, false);
@@ -113,13 +115,56 @@ test('wrong keys and no-ops keep the deadline; only an engine-verified advance r
     assert.equal(f.state(f.a).startedAt, 0);
     f.clock(12000); f.press(f.a, ['STAT']);
     assert.equal(f.state(f.a).startedAt, 12000);
-    f.clock(15000); f.press(f.a, ['STAT']);
+    f.clock(13000); f.press(f.a, ['STAT']);
     assert.equal(f.state(f.a).startedAt, 12000, 'reopening the same menu is not progress');
-    f.clock(20000); f.press(f.a, ['RIGHT']);
-    assert.equal(f.state(f.a).startedAt, 20000);
+    f.clock(14000); f.press(f.a, ['RIGHT']);
+    assert.equal(f.state(f.a).startedAt, 14000);
     f.clock(ROUND_MS); f.heartbeat();
     f.press(f.b, ['STAT']);
     assert.equal(f.state(f.b).failure.name, 'bob', 'a press at expiry cannot save the attempt');
     assert.equal(f.state(f.b).step, 0);
+  } finally { f.service.close(); }
+});
+
+test('boxplot has one 30-second deadline across failed five-value attempts and rejoin', () => {
+  const f = setup();
+  try {
+    for (const ws of [f.a, f.b]) f.press(ws, ROUTE);
+    f.press(f.b, SUMMARY.map(String));
+    assert.equal(ROUND_MS, 15000); assert.equal(BOXPLOT_MS, 30000);
+    f.clock(16000); f.heartbeat(); f.service.tick();
+    assert.equal(f.state(f.a).failure, null, 'boxplot is allowed more than 15 seconds');
+    for (let i = 0; i < 4; i++) {
+      f.clock(17000 + i * 1000); f.press(f.a, ['20']);
+      assert.equal(f.state(f.a).step, 8 + i);
+      assert.equal(f.state(f.a).boxAttempts, 0);
+      assert.equal(f.state(f.a).startedAt, 0);
+    }
+    f.clock(22000); f.press(f.a, ['20']);
+    assert.equal(f.state(f.a).boxAttempts, 1);
+    assert.equal(f.state(f.a).step, 7);
+    assert.deepEqual(f.state(f.a).boxValues, []);
+    assert.deepEqual(f.state(f.a).lastPlot.values, [20,20,20,20,20]);
+    assert.deepEqual(f.state(f.a).keys, ROUTE, 'calculator work is preserved');
+    f.service.detached(f.a); f.join(f.a, 'alice');
+    assert.equal(f.state(f.a).startedAt, 0);
+    f.clock(29000); f.press(f.a, SUMMARY.map(String));
+    assert.equal(f.state(f.a).complete, true);
+    assert.equal(f.state(f.a).startedAt, 0);
+  } finally { f.service.close(); }
+});
+
+test('boxplot expiry still kills the character and restarts the whole team', () => {
+  const f = setup();
+  try {
+    for (const ws of [f.a, f.b]) f.press(ws, ROUTE);
+    f.press(f.b, SUMMARY.map(String));
+    f.clock(BOXPLOT_MS - 1); f.heartbeat(); f.press(f.a, ['20','4','7','11','14']);
+    assert.equal(f.state(f.a).boxAttempts, 1);
+    f.clock(BOXPLOT_MS); f.heartbeat(); f.press(f.a, ['4']);
+    assert.equal(f.state(f.a).failure.name, 'alice');
+    assert.deepEqual(f.state(f.a).boxValues, []);
+    f.clock(BOXPLOT_MS + DEATH_MS); f.heartbeat(); f.service.tick();
+    for (const ws of [f.a, f.b]) assert.equal(f.state(ws).step, 0);
   } finally { f.service.close(); }
 });

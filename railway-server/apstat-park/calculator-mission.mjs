@@ -11,7 +11,9 @@ export const HINTS = [
 export const SUMMARY = [4, 7, 11, 14, 20];
 export const LABELS = ['Minimum', 'Q1', 'Median', 'Q3', 'Maximum'];
 export const HOLD_MS = 900;
-export const ROUND_MS = 30000;
+export const ROUND_MS = 15000;
+export const BOXPLOT_MS = 30000;
+export const timeLimitFor = state => state.step < ROUTE.length ? ROUND_MS : BOXPLOT_MS;
 export const WORLD = { width: 720, height: 750, floor: 700 };
 const rows = [
   ['Y=', 'WINDOW', 'ZOOM', 'TRACE', 'GRAPH'],
@@ -46,22 +48,13 @@ export function tileAt(pose, step) {
 export function createMission(now) {
   return { step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
     bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
-    timeoutCount: 0, hintKeys: [] };
+    timeoutCount: 0, hintKeys: [], boxValues: [], boxAttempts: 0, lastPlot: null };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
-export function advanceMission(state, members, now, transitions = {}, checkpointTransitions = transitions) {
-  if (state.complete) return false;
+export function advanceMission(state, members, now, transitions = {}) {
+  // The room owns timeout deaths and team resets. Input never renews an expired timer.
+  if (state.complete || now - state.startedAt >= timeLimitFor(state)) return false;
   const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step)]: state.step + 1 };
-  if (members.length && now - state.startedAt >= ROUND_MS) {
-    state.keys = state.checkpointKeys.slice();
-    state.lastPress = null;
-    state.hintKeys = Object.keys(state.step < ROUTE.length ? checkpointTransitions : valid);
-    state.timeoutCount++;
-    state.revision++;
-    state.startedAt = now;
-    state.holdAt = null; state.holdStep = null;
-    return true;
-  }
   const key = tileAt(members[0]?.pose, state.step);
   const nextStep = valid[key];
   // Every physical key can be pressed. Different keys can also form consensus
@@ -80,7 +73,28 @@ export function advanceMission(state, members, now, transitions = {}, checkpoint
 }
 // Clicks and optional standing holds use the same engine-validated input path.
 export function pressMissionKey(state, key, now, transitions = {}) {
-  if (state.complete || !tilesFor(state.step).some(tile => tile.key === key)) return false;
+  if (state.complete || now - state.startedAt >= timeLimitFor(state)
+    || !tilesFor(state.step).some(tile => tile.key === key)) return false;
+  if (state.step >= ROUTE.length) {
+    state.boxValues.push(Number(key));
+    state.step++;
+    state.revision++;
+    state.holdAt = null; state.holdStep = null;
+    state.lastPress = { key, advanced: true };
+    if (state.boxValues.length < SUMMARY.length) return true;
+    const correct = state.boxValues.every((value, i) => value === SUMMARY[i]);
+    state.lastPlot = { values: state.boxValues.slice(), correct, at: now };
+    if (correct) {
+      state.complete = true;
+      state.bonus += SUMMARY.length;
+    } else {
+      state.boxAttempts++;
+      state.boxValues = [];
+      state.step = ROUTE.length;
+    }
+    // One deadline for the entire boxplot, including every failed five-value attempt.
+    return true;
+  }
   const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step)]: state.step + 1 };
   const nextStep = valid[key];
   if (state.step < ROUTE.length) state.keys.push(key);
@@ -89,7 +103,7 @@ export function pressMissionKey(state, key, now, transitions = {}) {
   state.holdAt = null;
   state.holdStep = null;
   // Incorrect/no-op presses still reach the engine and require a fresh hold.
-  // They do not renew the 30-second deadline or award progress.
+  // They do not renew the 15-second deadline or award progress.
   if (nextStep == null) return true;
   if (!state.hintKeys.length) state.bonus += nextStep - state.step;
   state.step = nextStep;

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, pressMissionKey, WORLD, ROUND_MS } from './calculator-mission.mjs';
+import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 
 const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
@@ -35,7 +35,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const members = [...room.members].map(([name, member]) => ({
       name, ...member, solved: attemptFor(room, name).state.complete,
     }));
-    return { type: 'calculator_state', protocol: 3, epoch: room.epoch, ...state, clock: now(),
+    return { type: 'calculator_state', protocol: 4, epoch: room.epoch, ...state, clock: now(),
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
       readyCount: members.filter(member => member.solved).length, members };
@@ -56,7 +56,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     if (room.failure) return true;
     for (const name of room.members.keys()) {
       const state = attemptFor(room, name).state;
-      if (state.complete || time - state.startedAt < ROUND_MS) continue;
+      if (state.complete || time - state.startedAt < timeLimitFor(state)) continue;
       room.failure = { name, at: time, until: time + DEATH_MS };
       return true;
     }
@@ -77,7 +77,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const who = identity(ws);
       if (message.type === 'calculator_leave') { detached(ws); return null; }
       if (message.type === 'calculator_join') {
-        if (message.protocol !== 3) throw new Error('Reload the page to use the team restart rules.');
+        if (message.protocol !== 4) throw new Error('Reload the page to use the team restart rules.');
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         const room = roomFor(who.section);
