@@ -358,6 +358,20 @@
     // Active sub-module instances
     var activeMenu = null;
     var activeWizard = null;
+    var listCursorRow = 0;
+    var listCursorCol = 0;
+    var listEntry = null;
+
+    function listEditorState() {
+      var columns = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'];
+      var count = Math.max.apply(null, columns.map(function (name) { return (lists[name] || []).length; }));
+      var rows = [];
+      for (var row = 0; row <= count; row++) {
+        rows.push(columns.map(function (name) { return (lists[name] || [])[row] ?? ''; }));
+      }
+      return { columns: columns, rows: rows, cursorRow: listCursorRow,
+        cursorCol: listCursorCol, entry: listEntry };
+    }
 
     // Home screen lines
     var homeLines = [];
@@ -512,7 +526,10 @@
           }
           break;
         case 'editor':
-          if (activeWizard) {
+          if (screen.id === 'stat-edit-lists') {
+            screen.state = listEditorState();
+            renderer.renderEditor(screen.state);
+          } else if (activeWizard) {
             var eState = activeWizard.getState();
             renderer.renderWizard({
               title: screen.id,
@@ -599,6 +616,13 @@
     // ── Open an editor ──────────────────────────────────────────────────
 
     function openEditor(editorId) {
+      if (editorId === 'stat-edit-lists') {
+        activeMenu = null;
+        activeWizard = null;
+        listCursorRow = 0; listCursorCol = 0; listEntry = null;
+        setScreen('editor', editorId, listEditorState());
+        return;
+      }
       try {
         activeWizard = FormEngine.create(editorId);
       } catch (e) {
@@ -979,6 +1003,39 @@
     // ── Editor screen key handler ───────────────────────────────────────
 
     function handleEditorKey(key) {
+      if (screen.id === 'stat-edit-lists') {
+        if (key === 'STAT') { openMenu('stat-menu'); return; }
+        var name = 'L' + (listCursorCol + 1);
+        var values = lists[name] || (lists[name] = []);
+        var digit = HOME_KEY_CHARS[key] || key;
+        if (/^[0-9]$/.test(digit)) {
+          listEntry = (listEntry === null ? '' : listEntry) + digit;
+        } else if (key === '.' || key === 'DECIMAL') {
+          if (listEntry === null) listEntry = '';
+          if (listEntry.indexOf('.') === -1) listEntry += '.';
+        } else if (key === 'NEGATIVE' || key === '(−)') {
+          listEntry = listEntry === null ? '-' : (listEntry[0] === '-' ? listEntry.slice(1) : '-' + listEntry);
+        } else if (key === 'CLEAR') {
+          listEntry = '';
+        } else if (key === 'DEL') {
+          if (listEntry !== null) listEntry = listEntry.slice(0, -1);
+          else values.splice(listCursorRow, 1);
+        } else if (['ENTER', 'UP', 'DOWN', 'LEFT', 'RIGHT'].indexOf(key) !== -1) {
+          if (listEntry !== null && listEntry !== '') {
+            var value = Number(listEntry);
+            if (!Number.isFinite(value)) return;
+            values[listCursorRow] = value;
+          }
+          listEntry = null;
+          if (key === 'UP') listCursorRow = Math.max(0, listCursorRow - 1);
+          if (key === 'DOWN' || key === 'ENTER') listCursorRow = Math.min(values.length, listCursorRow + 1);
+          if (key === 'LEFT') listCursorCol = Math.max(0, listCursorCol - 1);
+          if (key === 'RIGHT') listCursorCol = Math.min(5, listCursorCol + 1);
+          listCursorRow = Math.min(listCursorRow, (lists['L' + (listCursorCol + 1)] || []).length);
+        }
+        screen.state = listEditorState();
+        return;
+      }
       if (key === 'CLEAR') {
         goHome();
         return;
