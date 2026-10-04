@@ -45,6 +45,7 @@ test('input is assigned by joined identity; retries and reconnects cannot skip a
     assert.deepEqual(replay.events.slice(1).map(event => event.inputs), [[48, 0], [16, 0]]);
     assert.equal(f.service.handle({}, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL }).type, 'campaign_error');
     assert.equal(f.service.handle(f.players[0], { type: 'campaign_join', protocol: 1 }).type, 'campaign_error');
+    assert.equal(f.service.handle(f.players[0], { type: 'campaign_join', protocol: 2 }).type, 'campaign_error');
     f.send(f.players[0], 'campaign_clear', { frame: 999999 }); assert.equal(f.state().phase, 'playing');
     f.service.detached(f.players[1]); f.advance(5000); f.join(f.players[1]);
     assert.equal(f.state().epoch, before.epoch);
