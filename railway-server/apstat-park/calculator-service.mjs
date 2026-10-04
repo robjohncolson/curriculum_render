@@ -20,7 +20,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function roomFor(section) {
     if (!rooms.has(section)) {
-      const rotation = createLevelRotation(random);
+      const rotation = createLevelRotation(random, { varyProblems: available === eligibleLevels });
       rooms.set(section, {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
         lobby: createLobby(now()), section, rotation,

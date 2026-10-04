@@ -41,9 +41,9 @@ test('parked/teacher section uses the cumulative Period E worksheet and quiz poo
   try {
     f.lobby(f.players[0], 65);
     assert.equal(f.lobbies.get(f.players[0]).eligibleCount, 5);
-    assert.equal(f.lobbies.get(f.players[0]).missionId, 'dotplot');
+    assert.equal(levelById(f.lobbies.get(f.players[0]).missionId).skillId, 'dotplot');
     f.dock();
-    assert.equal(f.states.get(f.players[0]).missionId, 'dotplot');
+    assert.equal(levelById(f.states.get(f.players[0]).missionId).skillId, 'dotplot');
   } finally { f.service.close(); }
 });
 
@@ -60,7 +60,7 @@ test('server selects a shared taught skill, retains it through death, and rotate
     f.dock();
     const first = f.states.get(a).missionId, level = levelById(first);
     assert.equal(first, preview);
-    assert(eligibleLevels('B', '2026-10-04').some(level => level.id === first));
+    assert(eligibleLevels('B', '2026-10-04').some(candidate => candidate.id === level.skillId));
     assert.equal(f.states.get(b).missionId, first);
     for (const key of level.route) f.press(a, key);
     assert.equal(f.states.get(a).step, level.route.length);
@@ -87,7 +87,7 @@ test('an empty calendar waits without a timer; the lesson date unlocks the assem
     assert.equal(f.states.size, 0);
     assert.equal(f.lobbies.get(f.players[0]).eligibleCount, 0);
     f.date('2026-09-15T16:00:00Z'); f.advance(100);
-    assert.equal(f.states.get(f.players[0]).missionId, 'dotplot');
+    assert.equal(levelById(f.states.get(f.players[0]).missionId).skillId, 'dotplot');
     assert.equal(f.states.get(f.players[0]).failure, null);
   } finally { f.service.close(); }
 });

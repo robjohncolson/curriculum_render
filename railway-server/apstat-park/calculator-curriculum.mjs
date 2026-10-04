@@ -1,6 +1,6 @@
-const { CALCULATOR_LEVELS } = await import('./calculator-catalog.mjs' + new URL(import.meta.url).search);
-export { CALCULATOR_LEVELS };
-export const levelById = id => CALCULATOR_LEVELS.find(level => level.id === id);
+const { CALCULATOR_LEVELS, CALCULATOR_PROBLEMS } = await import('./calculator-catalog.mjs' + new URL(import.meta.url).search);
+export { CALCULATOR_LEVELS, CALCULATOR_PROBLEMS };
+export const levelById = id => CALCULATOR_PROBLEMS.find(level => level.id === id);
 export const DEFAULT_LEVEL = levelById('one-var-stats');
 
 export function schoolDate(time = Date.now()) {
@@ -24,8 +24,9 @@ export function eligibleLevels(section, date = schoolDate(), levels = CALCULATOR
 
 // A shuffled bag covers every available skill before repeating one. New lessons
 // enter the bag immediately; changing a date never admits an ineligible skill.
-export function createLevelRotation(random = Math.random) {
+export function createLevelRotation(random = Math.random, { varyProblems = true } = {}) {
   let remaining = [], seen = new Set(), last = null;
+  const lastProblem = new Map();
   return {
     next(eligible) {
       if (!eligible.length) return null;
@@ -38,7 +39,12 @@ export function createLevelRotation(random = Math.random) {
       const choices = candidates.length ? candidates : remaining;
       const id = choices[Math.min(choices.length - 1, Math.floor(random() * choices.length))];
       remaining.splice(remaining.indexOf(id), 1); last = id;
-      return eligible.find(level => level.id === id);
+      const level = eligible.find(level => level.id === id);
+      if (!varyProblems) return level;
+      const variants = CALCULATOR_PROBLEMS.filter(problem => problem.skillId === id && problem.id !== lastProblem.get(id));
+      const selected = variants.length ? variants[Math.min(variants.length - 1, Math.floor(random() * variants.length))] : level;
+      lastProblem.set(id, selected.id);
+      return selected;
     },
   };
 }
@@ -50,7 +56,8 @@ export function initializeCalculator(calculator, level = DEFAULT_LEVEL) {
 
 const round = value => Number(Number(value).toPrecision(5));
 export function challengeFor(level = DEFAULT_LEVEL) {
-  const { id, computed: c, finalView: graph, values: v } = level;
+  const { computed: c, finalView: graph, values: v } = level;
+  const id = level.procedureId || level.id;
   let kind, title, labels, answers, note;
   if (level.challenge === 'dotplot') {
     kind = 'dotplot'; title = 'BUILD THE DOT PLOT';
