@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
+import { createMission, advanceMission, pressMissionKey, WORLD, ROUTE, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 
 const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
@@ -46,7 +46,17 @@ export function createCalculatorService({ registry, send, now = () => performanc
     }
   }
   function resetRoom(room, reason) {
-    room.epoch = randomUUID(); room.attempts.clear(); room.failure = null; room.resetReason = reason;
+    room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
+    if (reason.type === 'door') room.attempts.clear();
+    else for (const attempt of room.attempts.values()) {
+      const previous = attempt.state;
+      attempt.state = createMission(now());
+      if (previous.step < ROUTE.length) continue;
+      // Reaching the summary earns a permanent checkpoint for this run.
+      // Team deaths clear the plot, not the calculator work that unlocked it.
+      Object.assign(attempt.state, { step: ROUTE.length, keys: previous.checkpointKeys.slice(),
+        checkpointKeys: previous.checkpointKeys.slice(), bonus: Math.min(previous.bonus, ROUTE.length) });
+    }
     for (const [name, member] of room.members) {
       attemptFor(room, name);
       Object.assign(member, { pose: { x: 65, y: WORLD.floor - 24 }, revision: -1, ready: false });

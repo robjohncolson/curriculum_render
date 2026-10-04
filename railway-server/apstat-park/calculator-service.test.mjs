@@ -154,7 +154,7 @@ test('boxplot has one 30-second deadline across failed five-value attempts and r
   } finally { f.service.close(); }
 });
 
-test('boxplot expiry still kills the character and restarts the whole team', () => {
+test('boxplot expiry respawns the team at earned checkpoints with fresh plot timers', () => {
   const f = setup();
   try {
     for (const ws of [f.a, f.b]) f.press(ws, ROUTE);
@@ -165,6 +165,19 @@ test('boxplot expiry still kills the character and restarts the whole team', () 
     assert.equal(f.state(f.a).failure.name, 'alice');
     assert.deepEqual(f.state(f.a).boxValues, []);
     f.clock(BOXPLOT_MS + DEATH_MS); f.heartbeat(); f.service.tick();
-    for (const ws of [f.a, f.b]) assert.equal(f.state(ws).step, 0);
+    for (const ws of [f.a, f.b]) {
+      assert.equal(f.state(ws).step, 7);
+      assert.deepEqual(f.state(ws).keys, ROUTE);
+      assert.deepEqual(f.state(ws).boxValues, []);
+      assert.equal(f.state(ws).startedAt, BOXPLOT_MS + DEATH_MS);
+      assert.equal(f.state(ws).solved, false);
+    }
+    for (const ws of [f.a, f.b]) f.press(ws, SUMMARY.map(String));
+    assert.equal(f.state(f.a).complete, true);
+    f.send(f.a, 'calculator_restart');
+    for (const ws of [f.a, f.b]) {
+      assert.equal(f.state(ws).step, 0, 'the reset door clears earned checkpoints');
+      assert.deepEqual(f.state(ws).keys, []);
+    }
   } finally { f.service.close(); }
 });
