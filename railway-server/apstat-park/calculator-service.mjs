@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, WORLD } from './calculator-mission.mjs';
+import { createCalculatorRuntime } from './calculator-runtime.mjs';
 
 const TYPES = new Set(['calculator_join', 'calculator_pose', 'calculator_leave', 'calculator_restart']);
 // Independent rooms on the existing classroom connection. No grade writes.
@@ -16,6 +17,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function roomFor(section) {
     if (!rooms.has(section)) rooms.set(section, {
       epoch: randomUUID(), state: createMission(now()), members: new Map(), touched: now(),
+      engine: createCalculatorRuntime(),
     });
     return rooms.get(section);
   }
@@ -49,6 +51,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
         const room = roomFor(who.section);
         bindings.set(ws, { room, section: who.section, name: who.username });
         if (!room.members.has(who.username)) {
+          if (!room.members.size) room.state.startedAt = now();
           room.members.set(who.username, { pose: { x: 70, y: 646 }, at: now(), revision: -1 });
           room.state.holdAt = null;
         }
@@ -88,7 +91,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
         if (now() - room.touched > 2 * 60 * 60 * 1000) rooms.delete(section);
         continue;
       }
-      advanceMission(room.state, [...room.members.values()], now());
+      advanceMission(room.state, [...room.members.values()], now(), room.engine.transitions(room.state));
       broadcast(room);
     }
   }

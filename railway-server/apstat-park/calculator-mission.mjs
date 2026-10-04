@@ -11,7 +11,7 @@ export const HINTS = [
 export const SUMMARY = [4, 7, 11, 14, 20];
 export const LABELS = ['Minimum', 'Q1', 'Median', 'Q3', 'Maximum'];
 export const HOLD_MS = 900;
-export const ROUND_MS = 10000;
+export const ROUND_MS = 30000;
 export const WORLD = { width: 720, height: 750, floor: 700 };
 const rows = [
   ['Y=', 'WINDOW', 'ZOOM', 'TRACE', 'GRAPH'],
@@ -44,22 +44,39 @@ export function tileAt(pose, step) {
     && Math.abs(pose.y + 24 - tile.y) <= 5)?.key ?? null;
 }
 export function createMission(now) {
-  return { step: 0, revision: 0, startedAt: now, holdAt: null, bonus: 0, complete: false };
+  return { step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
+    bonus: 0, complete: false, keys: [], timeoutCount: 0, hintKeys: [] };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
-export function advanceMission(state, members, now) {
+export function advanceMission(state, members, now, transitions = {}) {
   if (state.complete) return false;
+  const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step)]: state.step + 1 };
+  if (members.length && now - state.startedAt >= ROUND_MS) {
+    state.hintKeys = Object.keys(valid);
+    state.timeoutCount++;
+    state.revision++;
+    state.startedAt = now;
+    state.holdAt = null; state.holdStep = null;
+    return true;
+  }
+  const key = tileAt(members[0]?.pose, state.step);
+  const nextStep = valid[key];
   const correct = members.length > 0 && members.every(member =>
     member.ready !== false && member.revision === state.revision && now - member.at < 1500
-    && tileAt(member.pose, state.step) === expectedAt(state.step));
-  if (!correct) { state.holdAt = null; return false; }
-  if (state.holdAt === null) { state.holdAt = now; return false; }
+    && nextStep != null && valid[tileAt(member.pose, state.step)] === nextStep);
+  if (!correct) { state.holdAt = null; state.holdStep = null; return false; }
+  if (state.holdAt === null || state.holdStep !== nextStep) {
+    state.holdAt = now; state.holdStep = nextStep; return false;
+  }
   if (now - state.holdAt < HOLD_MS) return false;
-  if (now - state.startedAt <= ROUND_MS) state.bonus++;
-  state.step++;
+  if (!state.hintKeys.length) state.bonus += nextStep - state.step;
+  if (state.step < ROUTE.length) state.keys.push(key);
+  state.step = nextStep;
   state.revision++;
   state.startedAt = now;
   state.holdAt = null;
+  state.holdStep = null;
+  state.hintKeys = [];
   state.complete = state.step === ROUTE.length + SUMMARY.length;
   return true;
 }
