@@ -479,6 +479,11 @@
         return getState();
       }
 
+      if (field.type === 'list-selector' && (/^L[1-6]$/.test(normalizedKey) || normalizedKey === 'RESID')) {
+        values[field.label] = normalizedKey;
+        return getState();
+      }
+
       // ── ENTER ──
       if (normalizedKey === 'ENTER') {
         // Action fields trigger submit
@@ -504,6 +509,7 @@
               if (field.label === 'Inpt' && wizardDef.inputModes) {
                 applyInputModeChange(newChoiceVal);
               }
+              if (isEditor && field.label === 'Type') restorePlot(values);
             }
           }
           return getState();
@@ -538,6 +544,13 @@
             fireFieldChange(field.label, oldDelVal, values[field.label]);
           }
         }
+        return getState();
+      }
+
+      if (normalizedKey === 'EE' && field.type === 'number') {
+        var exponentValue = values[field.label] || '1';
+        if (exponentValue.indexOf('E') === -1) values[field.label] = exponentValue + 'E';
+        freshEntry = false;
         return getState();
       }
 
@@ -655,6 +668,17 @@
       return values[label] !== undefined ? values[label] : undefined;
     }
 
+    function restorePlot(settings) {
+      if (!isEditor || currentWizardId.indexOf('plot') !== 0) return;
+      var type = settings.Type || 'Scatter';
+      var definition = type === 'Histogram' ? EDITORS['plot1-editor-hist']
+        : ['ModBoxplot', 'Boxplot'].indexOf(type) !== -1 ? EDITORS['plot1-editor-modbox'] : EDITORS['plot1-editor-scatter'];
+      activeFields = cloneFields(definition.fields);
+      activeFields.forEach(function (field) {
+        values[field.label] = settings[field.label] === undefined ? getFieldDefault(field) : settings[field.label];
+      });
+    }
+
     function getAllValues() {
       var out = {};
       for (var i = 0; i < activeFields.length; i++) {
@@ -692,6 +716,7 @@
       getState: getState,
       getValue: getValue,
       getAllValues: getAllValues,
+      restorePlot: restorePlot,
       onFieldFocus: onFieldFocus,
       onFieldChange: onFieldChange,
       onSubmit: onSubmit

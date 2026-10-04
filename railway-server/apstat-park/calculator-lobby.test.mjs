@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createCalculatorService } from './calculator-service.mjs';
+import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
 import { TEAM_BLOCK, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { ROUTE, SUMMARY } from './calculator-mission.mjs';
 
 test('five pushers lock a five-person game; walk-ins and extra tabs cannot change it', () => {
   let now = 0;
   const registry = createClassroomRegistry(), lobbies = new Map(), states = new Map();
-  const service = createCalculatorService({ registry, now: () => now, send(ws, packet) {
+  const service = createCalculatorService({ registry, now: () => now, available: () => [DEFAULT_LEVEL], send(ws, packet) {
     (packet.type === 'calculator_state' ? states : lobbies).set(ws, packet);
   } });
   const players = Array.from({ length: 5 }, () => ({})), spectator = {}, duplicate = {};

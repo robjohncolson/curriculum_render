@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
 import { ROUTE, SUMMARY, ROUND_MS, BOXPLOT_MS } from './calculator-mission.mjs';
+import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
 import { TEAM_BLOCK, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 
 function setup() {
   let time = -12000;
   const registry = createClassroomRegistry(), packets = new Map(), lobbies = new Map();
-  const service = createCalculatorService({ registry, now: () => time,
+  const service = createCalculatorService({ registry, now: () => time, available: () => [DEFAULT_LEVEL],
     send: (ws, packet) => (packet.type === 'calculator_lobby_state' ? lobbies : packets).set(ws, packet) });
   const a = {}, b = {};
   function join(ws, name) {

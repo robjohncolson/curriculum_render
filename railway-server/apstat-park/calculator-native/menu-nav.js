@@ -41,7 +41,8 @@
     var order = tables().PREFIX_ORDER;
     var map = Object.create(null);
     for (var i = 0; i < items.length && i < order.length; i++) {
-      map[order[i]] = i;
+      var printed = /^([0-9A-H]):/.exec(items[i]);
+      map[printed ? printed[1] : order[i]] = i;
     }
     return map;
   }

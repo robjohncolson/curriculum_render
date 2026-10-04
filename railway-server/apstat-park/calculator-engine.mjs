@@ -6,7 +6,11 @@ export function createMissionEngine(createCalculator, data, route, keys) {
       .map(name => ['render' + name, value => { rendered = value; }]));
     renderer.clear = () => { rendered = null; };
     const calculator = createCalculator(null, { renderer });
-    calculator.setList('L1', data);
+    if (Array.isArray(data)) calculator.setList('L1', data);
+    else {
+      for (const [name, values] of Object.entries(data.lists || {})) calculator.setList(name, values);
+      for (const [name, values] of Object.entries(data.matrices || {})) calculator.setMatrix(name, values);
+    }
     for (const key of history) calculator.pressKey(key);
     return { calculator, fingerprint() {
       const snapshot = calculator.save();
@@ -16,7 +20,8 @@ export function createMissionEngine(createCalculator, data, route, keys) {
       return JSON.stringify({
         screen: snapshot.screen, rendered,
         values: calculator.getWizardValues(),
-        computed: snapshot.screen.type === 'result' ? calculator.getComputedValues() : null,
+        computed: ['result', 'home'].includes(snapshot.screen.type) ? calculator.getComputedValues() : null,
+        stored: Array.isArray(data) ? null : { lists: snapshot.lists, matrices: snapshot.matrices, plot: snapshot.plotSettings },
         second: snapshot.secondActive, alpha: snapshot.alphaActive,
       });
     } };
@@ -31,8 +36,10 @@ export function createMissionEngine(createCalculator, data, route, keys) {
       const transitions = {};
       for (const key of keys) {
         const candidate = replay(state.keys);
+        const before = candidate.fingerprint();
         candidate.calculator.pressKey(key);
         const result = candidate.fingerprint();
+        if (result === before) continue;
         // Digit shortcuts and other genuine forward shortcuts may skip a checkpoint.
         const target = targets.findIndex((value, i) => i >= state.step && value === result);
         if (target !== -1) transitions[key] = target + 1;

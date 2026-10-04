@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, pressMissionKey, WORLD, ROUTE, timeLimitFor } from './calculator-mission.mjs';
+import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
+
+import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
 
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
-export function createCalculatorService({ registry, send, now = () => performance.now() }) {
+export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels }) {
   const rooms = new Map(), bindings = new Map();
   function identity(ws) {
     const who = registry._wsEntry(ws);
@@ -19,13 +21,13 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function roomFor(section) {
     if (!rooms.has(section)) rooms.set(section, {
       epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
-      lobby: createLobby(now()),
+      lobby: createLobby(now()), section, level: null, rotation: createLevelRotation(random),
     });
     return rooms.get(section);
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
-      state: createMission(now()), engine: createCalculatorRuntime(),
+      state: createMission(now(), room.level), engine: createCalculatorRuntime(room.level),
     });
     return room.attempts.get(name);
   }
@@ -36,7 +38,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const state = attemptFor(room, name).state;
     const members = room.lobby.roster.map(name => ({
       name, ...(room.members.get(name) || { pose: { x: 65, y: WORLD.floor - 24 } }),
-      online: room.members.has(name), solved: attemptFor(room, name).state.complete,
+      online: room.members.has(name), step: attemptFor(room, name).state.step, solved: attemptFor(room, name).state.complete,
     }));
     return { type: 'calculator_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch, ...state, clock: now(),
       teamSize: room.lobby.roster.length,
@@ -55,6 +57,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function lobbySnapshot(room) {
     const lobby = room.lobby;
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
+      missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
       phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers, roster: lobby.roster,
       members: [...lobby.members].map(([name, member]) => ({ name, ...member })) };
   }
@@ -78,6 +81,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const member = lobby.members.get(name);
       return member?.ready && now() - member.at < 1500;
     })) return;
+    room.level ||= room.rotation.next(available(room.section, schoolDate(wallNow())));
+    if (!room.level) return;
     lobby.phase = 'active';
     for (const name of lobby.roster) {
       const member = lobby.members.get(name);
@@ -88,17 +93,17 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function resetRoom(room, reason) {
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
     if (reason.type === 'door' || reason.type === 'abandoned') {
-      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now());
+      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now()); room.level = null;
       return;
     }
     else for (const attempt of room.attempts.values()) {
       const previous = attempt.state;
-      attempt.state = createMission(now());
-      if (previous.step < ROUTE.length) continue;
+      attempt.state = createMission(now(), room.level);
+      if (previous.step < room.level.route.length) continue;
       // Reaching the summary earns a permanent checkpoint for this run.
       // Team deaths clear the plot, not the calculator work that unlocked it.
-      Object.assign(attempt.state, { step: ROUTE.length, keys: previous.checkpointKeys.slice(),
-        checkpointKeys: previous.checkpointKeys.slice(), bonus: Math.min(previous.bonus, ROUTE.length) });
+      Object.assign(attempt.state, { step: room.level.route.length, keys: previous.checkpointKeys.slice(),
+        checkpointKeys: previous.checkpointKeys.slice(), bonus: Math.min(previous.bonus, room.level.route.length) });
     }
     for (const [name, member] of room.members) {
       attemptFor(room, name);

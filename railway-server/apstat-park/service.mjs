@@ -9,9 +9,9 @@ const RETENTION_MS = 2 * 60 * 60 * 1000;
 const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
 
 // One self-directed park per classroom section, using the existing joined identity.
-export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now() }) {
+export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {} }) {
   const rooms = new Map(), bindings = new Map();
-  const calculator = createCalculatorService({ registry, send, now });
+  const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow });
 
   function identity(ws, cache) {
     const entry = registry._wsEntry(ws);

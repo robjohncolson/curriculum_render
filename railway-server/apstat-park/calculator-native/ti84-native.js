@@ -93,7 +93,8 @@
 
     // Helper: get the alternative hypothesis string from a choice field
     function getAlt(label) {
-      return fieldValues[label] || '\u2260';
+      var value = fieldValues[label] || '\u2260';
+      return value.charAt(0);
     }
 
     var result, resultScreenId, alt;
@@ -375,6 +376,9 @@
 
     // Home screen lines
     var homeLines = [];
+    var plotSettings = { 'On/Off': 'On', Type: 'Scatter', Xlist: 'L1', Ylist: 'L2', Freq: '1' };
+    var selectorReturn = null;
+    var matrixCursor = null;
 
     // Raw command entry on the home screen (U3 randomization substrate):
     // typed characters + pasted MATH▸PRB commands accumulate here until ENTER.
@@ -526,7 +530,9 @@
           }
           break;
         case 'editor':
-          if (screen.id === 'stat-edit-lists') {
+          if (matrixCursor && screen.id === 'matrix-editor') {
+            renderer.renderEditor(matrixPayload());
+          } else if (screen.id === 'stat-edit-lists') {
             screen.state = listEditorState();
             renderer.renderEditor(screen.state);
           } else if (activeWizard) {
@@ -547,6 +553,10 @@
     // ── Open a menu ─────────────────────────────────────────────────────
 
     function openMenu(menuId) {
+      if (screen.type === 'editor' && activeWizard) plotSettings = activeWizard.getAllValues();
+      if (activeWizard && ['list-names-menu', 'vars-menu'].indexOf(menuId) !== -1) {
+        selectorReturn = { wizard: activeWizard, type: screen.type, id: screen.id };
+      }
       activeMenu = MenuNav.create(menuId);
       activeWizard = null;
 
@@ -561,6 +571,20 @@
 
     function handleMenuSelect(evt) {
       var target = evt.targetScreen;
+      if (evt.menuId === 'zoom-menu' && evt.itemLabel === '9:ZoomStat') { openPlot(); return; }
+      if (evt.menuId === 'matrix-menu-edit') {
+        var matrixName = '[' + String.fromCharCode(65 + evt.itemIndex) + ']';
+        if (!matrices[matrixName] || !matrices[matrixName].length) matrices[matrixName] = [[0]];
+        matrixCursor = { name: matrixName, row: 0, col: 0, dimension: 0, entry: null };
+        activeMenu = null; activeWizard = null;
+        setScreen('editor', 'matrix-editor', {}); return;
+      }
+      if (selectorReturn && evt.menuId === 'list-names-menu') {
+        var returning = selectorReturn; selectorReturn = null;
+        activeWizard = returning.wizard; activeMenu = null;
+        activeWizard.handleKey(evt.itemIndex === 6 ? 'RESID' : 'L' + (evt.itemIndex + 1));
+        setScreen(returning.type, returning.id, activeWizard.getState()); return;
+      }
       if (!target) return; // no action mapped
 
       bus.emit('menu-select', {
@@ -625,6 +649,7 @@
       }
       try {
         activeWizard = FormEngine.create(editorId);
+        if (editorId.indexOf('plot') === 0) activeWizard.restorePlot(plotSettings);
       } catch (e) {
         // editor not defined in FormEngine, create a stub
         activeWizard = null;
@@ -769,6 +794,7 @@
       if (secondActive) {
         secondActive = false;
         var resolved = SECOND_MAP[key] || SECOND_MAP[HOME_KEY_CHARS[key]];
+        if (key === 'COMMA' && activeWizard) { activeWizard.handleKey('EE'); render(); return; }
 
         if (resolved === '2ND_VARS') {
           openMenu('distr-menu');
@@ -797,21 +823,8 @@
           return;
         }
 
-        // L1-L6: pass to wizard if in wizard/editor mode
-        if (resolved && resolved.charAt(0) === 'L' && resolved.length === 2) {
-          if (screen.type === 'wizard' && activeWizard) {
-            // Set the current field to the list name if it's a list-selector
-            var wState = activeWizard.getState();
-            if (wState.activeField && wState.activeField.type === 'list-selector') {
-              // Simulate setting the value by cycling to the right list
-              // We'll just directly manipulate via key events to match the list
-              // Actually, FormEngine does not expose setValue, so we rely on
-              // the field being a list-selector that cycles with LEFT/RIGHT.
-              // For now, emit the list name event for the trainer to use.
-            }
-          }
-          render();
-          return;
+        if (resolved && /^L[1-6]$/.test(resolved) && activeWizard) {
+          activeWizard.handleKey(resolved); render(); return;
         }
 
         // Unknown 2ND combo -- ignore
@@ -1014,6 +1027,7 @@
     // ── Editor screen key handler ───────────────────────────────────────
 
     function handleEditorKey(key) {
+      if (screen.id === 'matrix-editor') { handleMatrixKey(key); return; }
       if (screen.id === 'stat-edit-lists') {
         if (key === 'STAT') { openMenu('stat-menu'); return; }
         var name = 'L' + (listCursorCol + 1);
@@ -1062,6 +1076,72 @@
 
     // ── Graph screen key handler ────────────────────────────────────────
 
+
+    // Data-backed stat plots. ZoomStat fits the supplied lists, never example points.
+    function openPlot() {
+      var settings = plotSettings;
+      var xs = lists[settings.Xlist || 'L1'] || [];
+      var ys = lists[settings.Ylist || 'L2'] || [];
+      if (settings.Ylist === 'RESID') {
+        var regression = StatMath.linReg(lists.L1 || [], lists.L2 || []);
+        ys = (lists.L2 || []).map(function (y, i) { return y - regression.a - regression.b * lists.L1[i]; });
+      }
+      var type = settings.Type || 'Scatter';
+      var points = xs.map(function (x, i) { return { x: x, y: ys[i] || 0 }; });
+      var stats = xs.length ? StatMath.oneVarStats(xs) : null;
+      if (type === 'Histogram' && xs.length) {
+        var low = Math.min.apply(null, xs), high = Math.max.apply(null, xs);
+        var width = Math.max(1, (high - low) / Math.ceil(Math.sqrt(xs.length)));
+        points = Array.from({ length: Math.ceil((high - low) / width) + 1 }, function (_, i) {
+          return { x: low + i * width, upper: low + (i + 1) * width, y: 0 };
+        });
+        xs.forEach(function (x) { points[Math.floor((x - low) / width)].y++; });
+      }
+      graphState = { type: type, title: type, settings: Object.assign({}, settings), points: points,
+        stats: stats, traceMode: false, tracePosition: 0, traceInfo: null };
+      activeMenu = null; activeWizard = null;
+      setScreen('graph', 'graph', graphState);
+    }
+
+    function matrixPayload() {
+      var c = matrixCursor, rows = matrices[c.name];
+      return { name: c.name, dimensions: [rows.length, rows[0].length], dimension: c.dimension,
+        columns: rows[0].map(function (_, i) { return 'C' + (i + 1); }), rows: rows,
+        cursorRow: c.row, cursorCol: c.col, entry: c.entry };
+    }
+
+    function handleMatrixKey(key) {
+      var c = matrixCursor, rows = matrices[c.name];
+      var digit = HOME_KEY_CHARS[key] || key;
+      if (/^[0-9]$/.test(digit) || key === 'DECIMAL') {
+        c.entry = (c.entry === null ? '' : c.entry) + (key === 'DECIMAL' ? '.' : digit); return;
+      }
+      if (key === 'NEGATIVE') { c.entry = c.entry && c.entry[0] === '-' ? c.entry.slice(1) : '-' + (c.entry || ''); return; }
+      if (key === 'CLEAR') { c.entry = ''; return; }
+      if (key === 'DEL') { c.entry = (c.entry || '').slice(0, -1); return; }
+      if (['ENTER', 'RIGHT', 'LEFT', 'UP', 'DOWN'].indexOf(key) === -1) return;
+      if (c.entry !== null && c.entry !== '') {
+        var value = Number(c.entry);
+        if (!Number.isFinite(value)) return;
+        if (c.dimension !== null) {
+          if (!Number.isInteger(value) || value < 1 || value > 99) return;
+          var height = c.dimension === 0 ? value : rows.length;
+          var width = c.dimension === 1 ? value : rows[0].length;
+          matrices[c.name] = Array.from({ length: height }, function (_, r) {
+            return Array.from({ length: width }, function (_, col) { return rows[r]?.[col] || 0; });
+          });
+          rows = matrices[c.name];
+        } else rows[c.row][c.col] = value;
+      }
+      c.entry = null;
+      if (c.dimension !== null) { c.dimension = c.dimension === 0 ? 1 : null; return; }
+      if (key === 'ENTER') { c.col++; if (c.col === rows[0].length) { c.col = 0; c.row = (c.row + 1) % rows.length; } }
+      if (key === 'RIGHT') c.col = Math.min(rows[0].length - 1, c.col + 1);
+      if (key === 'LEFT') c.col = Math.max(0, c.col - 1);
+      if (key === 'DOWN') c.row = Math.min(rows.length - 1, c.row + 1);
+      if (key === 'UP') c.row = Math.max(0, c.row - 1);
+    }
+
     function handleGraphKey(key) {
       if (key === 'CLEAR') {
         goHome();
@@ -1070,7 +1150,7 @@
       if (key === 'TRACE') {
         graphState.traceMode = !graphState.traceMode;
         if (graphState.traceMode) {
-          graphState.traceInfo = { x: 0, y: 0 };
+          graphState.traceInfo = graphState.points?.[0] || { x: 0, y: 0 };
         } else {
           graphState.traceInfo = null;
         }
@@ -1078,12 +1158,12 @@
       }
       if (key === 'LEFT' && graphState.traceMode) {
         graphState.tracePosition = Math.max(0, graphState.tracePosition - 1);
-        graphState.traceInfo = { x: graphState.tracePosition, y: 0 };
+        graphState.traceInfo = graphState.points?.[graphState.tracePosition] || { x: graphState.tracePosition, y: 0 };
         return;
       }
       if (key === 'RIGHT' && graphState.traceMode) {
-        graphState.tracePosition++;
-        graphState.traceInfo = { x: graphState.tracePosition, y: 0 };
+        graphState.tracePosition = Math.min((graphState.points?.length || 100) - 1, graphState.tracePosition + 1);
+        graphState.traceInfo = graphState.points?.[graphState.tracePosition] || { x: graphState.tracePosition, y: 0 };
         return;
       }
     }
@@ -1199,6 +1279,7 @@
           homeLines: homeLines.slice(),
           lists: JSON.parse(JSON.stringify(lists)),
           matrices: JSON.parse(JSON.stringify(matrices)),
+          plotSettings: JSON.parse(JSON.stringify(plotSettings)),
           secondActive: secondActive,
           alphaActive: alphaActive
         };
