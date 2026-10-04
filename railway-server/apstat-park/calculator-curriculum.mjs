@@ -10,8 +10,10 @@ export function schoolDate(time = Date.now()) {
 }
 
 export function eligibleLevels(section, date = schoolDate(), levels = CALCULATOR_LEVELS) {
+  const period = { PeriodB: 'B', PeriodE: 'E', B: 'B', E: 'E' }[section];
+  if (!period) return [];
   return levels.filter(level => {
-    const taught = level.dates[section];
+    const taught = level.dates[period];
     return typeof taught === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(taught) && taught <= date;
   });
 }

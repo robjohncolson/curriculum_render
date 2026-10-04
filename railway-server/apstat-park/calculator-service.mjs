@@ -19,10 +19,14 @@ export function createCalculatorService({ registry, send, now = () => performanc
     return who;
   }
   function roomFor(section) {
-    if (!rooms.has(section)) rooms.set(section, {
-      epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
-      lobby: createLobby(now()), section, level: null, rotation: createLevelRotation(random),
-    });
+    if (!rooms.has(section)) {
+      const rotation = createLevelRotation(random);
+      rooms.set(section, {
+        epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
+        lobby: createLobby(now()), section, rotation,
+        level: rotation.next(available(section, schoolDate(wallNow()))),
+      });
+    }
     return rooms.get(section);
   }
   function attemptFor(room, name) {
@@ -93,7 +97,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function resetRoom(room, reason) {
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
     if (reason.type === 'door' || reason.type === 'abandoned') {
-      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now()); room.level = null;
+      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now());
+      room.level = room.rotation.next(available(room.section, schoolDate(wallNow())));
       return;
     }
     else for (const attempt of room.attempts.values()) {

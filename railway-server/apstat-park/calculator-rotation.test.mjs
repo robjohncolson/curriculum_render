@@ -5,7 +5,7 @@ import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
 import { CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { levelById, eligibleLevels, challengeFor } from './calculator-curriculum.mjs';
 
-function fixture(date = '2026-10-04T16:00:00Z', section = 'B') {
+function fixture(date = '2026-10-04T16:00:00Z', section = 'PeriodB') {
   let time = 0, wall = Date.parse(date);
   const registry = createClassroomRegistry(), players = [{}, {}], lobbies = new Map(), states = new Map();
   const service = createCalculatorService({ registry, now: () => time, wallNow: () => wall, random: () => .99,
@@ -26,7 +26,7 @@ function fixture(date = '2026-10-04T16:00:00Z', section = 'B') {
     const state = states.get(ws);
     return service.handle(ws, { type: 'calculator_press', epoch: state.epoch, revision: state.revision, key });
   }
-  return { service, states, lobbies, players, dock, press,
+  return { service, states, lobbies, players, dock, press, lobby,
     date(value) { wall = Date.parse(value); },
     advance(ms) {
       time += ms;
@@ -40,8 +40,15 @@ test('server selects a shared taught skill, retains it through death, and rotate
   const f = fixture();
   try {
     const [a, b] = f.players;
+    f.lobby(a, 65);
+    f.lobby(b, 65);
+    const preview = f.lobbies.get(a).missionId;
+    assert(preview, 'real roster section gets a mission preview before block travel');
+    assert.equal(f.lobbies.get(b).missionId, preview);
+    assert.equal(f.states.size, 0, 'preview must not start a timer');
     f.dock();
     const first = f.states.get(a).missionId, level = levelById(first);
+    assert.equal(first, preview);
     assert(eligibleLevels('B', '2026-10-04').some(level => level.id === first));
     assert.equal(f.states.get(b).missionId, first);
     for (const key of level.route) f.press(a, key);
@@ -75,7 +82,7 @@ test('an empty calendar waits without a timer; the lesson date unlocks the assem
 });
 
 test('the same date cannot unlock the later section early', () => {
-  const f = fixture('2026-09-15T16:00:00Z', 'E');
+  const f = fixture('2026-09-15T16:00:00Z', 'PeriodE');
   try { f.dock(); assert.equal(f.states.size, 0); }
   finally { f.service.close(); }
 });
