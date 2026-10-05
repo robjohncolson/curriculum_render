@@ -4,12 +4,13 @@ import { randomUUID } from 'node:crypto';
 export function createCalculatorRtc({ bindings, registry, send, now }) {
   const sessions = new WeakMap();
 
-  function optIn(ws, enabled) {
+  function optIn(ws, enabled, generation = 0) {
     const binding = bindings.get(ws);
     if (!enabled || !binding) { sessions.delete(ws); return; }
     const previous = sessions.get(ws);
-    if (previous?.room === binding.room) { previous.at = now(); return; }
-    sessions.set(ws, { id: randomUUID(), room: binding.room, at: now(), window: now(), count: 0 });
+    if (!Number.isSafeInteger(generation) || generation < 0) return;
+    if (previous?.room === binding.room && previous.generation === generation) { previous.at = now(); return; }
+    sessions.set(ws, { id: randomUUID(), room: binding.room, generation, at: now(), window: now(), count: 0 });
   }
 
   function selected(room) {
@@ -22,13 +23,15 @@ export function createCalculatorRtc({ bindings, registry, send, now }) {
       if (names.has(binding.name)) continue;
       names.add(binding.name);
       peers.push({ ws, binding, session });
-      if (peers.length === 4) break;
+      if (peers.length === 64) break;
     }
     return peers;
   }
 
   function peers(room) {
-    return selected(room).map(({ binding, session }) => ({ id: session.id, name: binding.name }));
+    const members = selected(room);
+    const hub = members.find(member => member.binding.teacher) || members[0];
+    return members.map(({ binding, session }) => ({ id: session.id, name: binding.name, hub: session.id === hub.session.id }));
   }
 
   function relay(ws, message) {
@@ -38,9 +41,18 @@ export function createCalculatorRtc({ bindings, registry, send, now }) {
     const source = members.find(member => member.ws === ws);
     const target = members.find(member => member.session.id === message.to && member.ws !== ws);
     if (!source || !target || message.from !== source.session.id) return;
+    const hub = members.find(member => member.binding.teacher) || members[0];
+    if (source !== hub && target !== hub) return;
     const session = source.session;
     if (now() - session.window >= 1000) { session.window = now(); session.count = 0; }
-    if (++session.count > 30 || (target.ws.bufferedAmount || 0) > 32768) return;
+    // A hub negotiates many connections at once; each pair still has a tight budget.
+    session.rates ||= new Map();
+    let rate = session.rates.get(target.session.id);
+    if (!rate || now() - rate.window >= 1000) {
+      if (session.rates.size >= 64) session.rates.delete(session.rates.keys().next().value);
+      rate = { window: now(), count: 0 }; session.rates.set(target.session.id, rate);
+    }
+    if (++session.count > 512 || ++rate.count > 30 || (target.ws.bufferedAmount || 0) > 32768) return;
     const signal = message.signal;
     if (!signal || typeof signal !== 'object') return;
     let clean;
@@ -56,5 +68,5 @@ export function createCalculatorRtc({ bindings, registry, send, now }) {
       from: session.id, to: target.session.id, signal: clean });
   }
 
-  return { optIn, peers, relay };
+  return { optIn, peers, relay, detached: ws => sessions.delete(ws) };
 }

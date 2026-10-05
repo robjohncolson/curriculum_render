@@ -78,7 +78,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
     const room = roomFor(who.section);
     bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
-    rtc.optIn(ws, message.rtc === true);
+    rtc.optIn(ws, message.rtc === 2, message.rtcGeneration);
     room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
@@ -134,6 +134,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function detached(ws) {
     const binding = bindings.get(ws);
     if (!binding) return;
+    rtc.detached(ws);
     bindings.delete(ws);
     if (![...bindings.values()].some(other => other.room === binding.room && other.name === binding.name)) {
       binding.room.members.delete(binding.name);
