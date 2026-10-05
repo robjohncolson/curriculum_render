@@ -1,8 +1,8 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 
-// Protocol 3 restores the native left/bottom anchors of stage-1-1 Warp sensors.
+// Protocol 5 enables unsupported numbered-box gravity in stage 1-3.
 // Mixed physics versions must not participate in the same input replay.
-export const CAMPAIGN_PROTOCOL = 4;
+export const CAMPAIGN_PROTOCOL = 5;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
@@ -121,7 +121,7 @@ export function createCampaignService({ registry, send, now = () => performance.
       broadcast(room, { type: 'campaign_frames', epoch: room.epoch, from, to: room.frame, events });
     }
   }
-  const timer = setInterval(tick, 50); timer.unref?.();
+  const timer = setInterval(tick, 16); timer.unref?.();
   return {
     accepts: message => TYPES.has(message?.type),
     occupants: section => [...new Set([...bindings.values()].filter(binding => binding.room.section === section).map(binding => binding.name))],
@@ -156,7 +156,8 @@ export function createCampaignService({ registry, send, now = () => performance.
         if (message.type === 'campaign_input') {
           if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 63) return null;
           const previous = room.inputs.get(name);
-          if (previous && now() - previous.at < 15) return null;
+          // Keep the latest held state even when packets arrive in a burst.
+          // Jump edges remain latched until the next authoritative frame.
           if (message.bits || (Number.isInteger(message.buddy) && (message.buddy & 63))) binding.activeAt = now();
           room.inputs.set(name, { bits: message.bits | (previous?.bits & 32),
             buddy: (Number.isInteger(message.buddy) ? message.buddy & 63 : 0) | (previous?.buddy & 32), at: now() });

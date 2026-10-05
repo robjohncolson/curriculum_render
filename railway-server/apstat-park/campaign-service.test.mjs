@@ -141,3 +141,14 @@ test('held game input keeps a teammate active, while all-idle rooms become waiti
     assert.deepEqual(f.state().roster, ['p0']);
   } finally { f.service.close(); }
 });
+
+test('rapid press and release preserve a jump edge without leaving movement held', () => {
+  const f = fixture(1);
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    f.send(f.players[0], 'campaign_input', { bits: 50, buddy: 50 });
+    f.send(f.players[0], 'campaign_input', { bits: 0, buddy: 0 });
+    f.advance(50);
+    assert.deepEqual(f.state().events.slice(1).map(event => event.inputs), [[32, 32], [0, 0]]);
+  } finally { f.service.close(); }
+});
