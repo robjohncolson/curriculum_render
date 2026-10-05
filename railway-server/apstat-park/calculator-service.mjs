@@ -3,6 +3,7 @@ import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } f
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
+import { createSnapshotPublisher } from './snapshot-publisher.mjs';
 
 import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
 
@@ -11,6 +12,7 @@ export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels }) {
   const rooms = new Map(), bindings = new Map();
+  const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
   const teacherIn = (room, name) => [...bindings.values()].some(binding => binding.room === room && binding.name === name && binding.teacher);
   function identity(ws) {
@@ -59,8 +61,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
       if (binding.room !== room || (ws.bufferedAmount || 0) >= 32768) continue;
-      send(ws, lobby);
-      if ((room.lobby.phase === 'active' || binding.teacher) && room.members.has(binding.name)) send(ws, snapshot(room, binding.name));
+      publish(ws, lobby);
+      if ((room.lobby.phase === 'active' || binding.teacher) && room.members.has(binding.name)) publish(ws, snapshot(room, binding.name));
     }
   }
   function lobbySnapshot(room) {
@@ -82,7 +84,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
     room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
-    send(ws, lobbySnapshot(room));
+    // The regular tick distributes movement to everyone. Do not echo a full
+    // class roster for each incoming pose; new/reconnecting clients hydrate now.
+    if (!old || old.room !== room || message.epoch !== room.epoch) publish(ws, lobbySnapshot(room), true);
     return null;
   }
   function startTeam(room) {
