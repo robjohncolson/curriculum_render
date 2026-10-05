@@ -140,6 +140,15 @@ export function createCampaignService({ registry, send, now = () => performance.
   const timer = setInterval(tick, 16); timer.unref?.();
   return {
     accepts: message => TYPES.has(message?.type),
+    // Reading a replay never binds a socket or refreshes player activity.
+    watch(section, request = {}) {
+      const active = [...rooms.values()].filter(room => room.section === section && members(room).length);
+      const room = active.find(room => room.id === request.team) || active[0];
+      const from = room && request.epoch === room.epoch && Number.isInteger(request.from)
+        && request.from >= 0 && request.from <= room.frame ? request.from : 0;
+      return { teams: active.map(room => ({ id: room.id, roster: room.roster, stageIndex: room.stageIndex })),
+        state: room ? snapshot(room, from) : null };
+    },
     occupants: section => [...new Set([...bindings.values()].filter(binding => binding.room.section === section).map(binding => binding.name))],
     handle(ws, message) {
       if (!TYPES.has(message?.type)) return null;

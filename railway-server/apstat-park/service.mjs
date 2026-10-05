@@ -6,6 +6,7 @@ import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_lobby', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
 const retired = new Set(['park_start', 'park_run', 'park_next', 'park_stop']);
+types.add('park_watch');
 const RETENTION_MS = 2 * 60 * 60 * 1000;
 const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
 
@@ -103,6 +104,15 @@ export function createParkService({ registry, send, now = () => performance.now(
         if (retired.has(message.type)) return { type: 'park_error', requestId: message.requestId,
           code: 'PARK_SELF_DIRECTED', message: 'Enter the park doorway on the calendar. Teacher groups are retired.' };
         const who = identity(ws);
+        if (message.type === 'park_watch') {
+          const classroom = registry.stateFor(who.section, 'teacher', who.username);
+          const member = classroom.members.find(member => member.username === who.username);
+          if (member?.role !== 'teacher') throw new Error('Teacher spectator access only.');
+          return { type: 'park_watch_state', section: who.section,
+            students: classroom.members.filter(member => member.role === 'student' && member.online !== false)
+              .map(({ username, hue, pos }) => ({ username, hue, pos })),
+            campaign: campaign.watch(who.section, message), calculator: calculator.watch(who.section) };
+        }
         if (message.type === 'park_leave') {
           // WebSocket ordering makes a leave during the initial handshake safe.
           // The client may not have received its epoch yet.

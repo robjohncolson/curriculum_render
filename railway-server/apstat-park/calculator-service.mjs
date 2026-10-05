@@ -239,5 +239,13 @@ export function createCalculatorService({ registry, send, now = () => performanc
   const timer = setInterval(tick, 100);
   timer.unref?.();
   return { accepts: message => TYPES.has(message?.type), handle, detached, tick,
+    // Do not call roomFor/attemptFor: watching must never create an attempt.
+    watch(section) {
+      const room = rooms.get(section);
+      if (!room || (!room.members.size && !room.lobby.members.size)) return null;
+      return { epoch: room.epoch, clock: now(), level: room.level, lobby: lobbySnapshot(room), failure: room.failure,
+        members: [...room.members].map(([name, member]) => ({ name, pose: member.pose,
+          state: room.attempts.get(name)?.state || null })) };
+    },
     close() { clearInterval(timer); rooms.clear(); bindings.clear(); } };
 }
