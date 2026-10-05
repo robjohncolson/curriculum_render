@@ -16,8 +16,8 @@ test('watching is read-only, teacher-only, and scoped to the joined class', asyn
     registry.join(alice, 'B', 'alice', 'student', 0);
     registry.join(other, 'C', 'other', 'student', 0);
     assert.equal(service.handle(alice, { type: 'park_watch' }).type, 'park_error');
-    service.handle(alice, { type: 'campaign_join', protocol: 6 });
-    service.handle(other, { type: 'campaign_join', protocol: 6 });
+    service.handle(alice, { type: 'campaign_join', protocol: 7 });
+    service.handle(other, { type: 'campaign_join', protocol: 7 });
     await new Promise(resolve => setTimeout(resolve, 1600));
     const before = service.handle(teacher, { type: 'park_watch' }).campaign.state;
     for (let i = 0; i < 10; i++) {

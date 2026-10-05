@@ -15,13 +15,16 @@ export function createParkRegistry(classrooms) {
       const member = classrooms.stateFor(entry.section, 'student', entry.username)?.members
         .find(member => member.username === entry.username);
       if (!member || member.online === false) return null;
-      return { ...entry, classroomSection: entry.section, section: parkSection(entry.section) };
+      const teacher = member.role === 'teacher';
+      const section = teacher && ['PeriodX', 'X'].includes(entry.section) ? SHARED_PARK : parkSection(entry.section);
+      return { ...entry, role: member.role, classroomSection: entry.section, section };
     },
     stateFor(section) {
-      const sections = section === SHARED_PARK ? SHARED_CLASSES : [section];
+      const sections = section === SHARED_PARK ? [...SHARED_CLASSES, 'PeriodX', 'X'] : [section];
       const members = new Map();
       for (const source of sections) {
         for (const member of classrooms.stateFor(source, 'student')?.members || []) {
+          if (section === SHARED_PARK && ['PeriodX', 'X'].includes(source) && member.role !== 'teacher') continue;
           const previous = members.get(member.username);
           if (previous?.online && !member.online) continue;
           const { username, role, online, hue, pos } = member;

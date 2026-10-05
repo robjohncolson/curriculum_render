@@ -15,7 +15,7 @@ test('B and E share campaign inputs, calculator lobby, and teacher view; other c
   try {
     for (const [ws, section, username, role] of [[b, 'PeriodB', 'bee', 'student'], [e, 'PeriodE', 'eve', 'student'],
       [x, 'PeriodX', 'ex', 'student'], [teacher, 'PeriodB', 'teacher', 'teacher']]) registry.join(ws, section, username, role, 0);
-    for (const ws of [b, e, x]) service.handle(ws, { type: 'campaign_join', protocol: 6, section: 'PeriodB' });
+    for (const ws of [b, e, x]) service.handle(ws, { type: 'campaign_join', protocol: 7, section: 'PeriodB' });
     await new Promise(resolve => setTimeout(resolve, 1600));
     const view = service.handle(teacher, { type: 'park_watch' });
     assert.deepEqual(view.campaign.state.roster, ['bee', 'eve']);
@@ -42,7 +42,7 @@ test('B and E share campaign inputs, calculator lobby, and teacher view; other c
     assert.equal(registry.stateFor('PeriodB').gate.armed, true);
     assert.ok(!registry.stateFor('PeriodE').gate?.armed);
     const forged = {}; registry.join(forged, SHARED_PARK, 'forged', 'student', 0);
-    assert.equal(service.handle(forged, { type: 'campaign_join', protocol: 6 }).type, 'campaign_error');
+    assert.equal(service.handle(forged, { type: 'campaign_join', protocol: 7 }).type, 'campaign_error');
   } finally { service.close(); }
 });
 

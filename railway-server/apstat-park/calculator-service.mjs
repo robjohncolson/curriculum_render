@@ -10,6 +10,7 @@ export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels }) {
   const rooms = new Map(), bindings = new Map();
+  const teacherIn = (room, name) => [...bindings.values()].some(binding => binding.room === room && binding.name === name && binding.teacher);
   function identity(ws) {
     const who = registry._wsEntry(ws);
     if (!who) throw new Error('Join the classroom first.');
@@ -40,7 +41,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function snapshot(room, name) {
     const state = attemptFor(room, name).state;
-    const members = room.lobby.roster.map(name => ({
+    const names = [...new Set([...room.lobby.roster, ...[...room.members.keys()].filter(name => teacherIn(room, name))])];
+    const members = names.map(name => ({
+      teacher: teacherIn(room, name),
       name, ...(room.members.get(name) || { pose: { x: 65, y: WORLD.floor - 24 } }),
       online: room.members.has(name), step: attemptFor(room, name).state.step, solved: attemptFor(room, name).state.complete,
     }));
@@ -48,21 +51,21 @@ export function createCalculatorService({ registry, send, now = () => performanc
       teamSize: room.lobby.roster.length,
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
-      readyCount: members.filter(member => member.solved).length, members };
+      readyCount: members.filter(member => !member.teacher && member.solved).length, members };
   }
   function broadcast(room) {
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
       if (binding.room !== room || (ws.bufferedAmount || 0) >= 32768) continue;
       send(ws, lobby);
-      if (room.lobby.phase === 'active' && room.members.has(binding.name)) send(ws, snapshot(room, binding.name));
+      if ((room.lobby.phase === 'active' || binding.teacher) && room.members.has(binding.name)) send(ws, snapshot(room, binding.name));
     }
   }
   function lobbySnapshot(room) {
     const lobby = room.lobby;
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
       missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
-      phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers, roster: lobby.roster,
+      phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers.filter(name => !teacherIn(room, name)), roster: lobby.roster,
       members: [...lobby.members].map(([name, member]) => ({ name, ...member })) };
   }
   function receiveLobby(ws, who, message) {
@@ -72,7 +75,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const old = bindings.get(ws);
     if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
     const room = roomFor(who.section);
-    bindings.set(ws, { room, section: who.section, name: who.username });
+    bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
     room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
@@ -81,7 +84,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function startTeam(room) {
     const lobby = room.lobby;
-    if (lobby.phase !== 'assembling' || !lobby.roster.every(name => {
+    if (lobby.phase !== 'assembling' || !lobby.roster.length || !lobby.roster.every(name => {
       const member = lobby.members.get(name);
       return member?.ready && now() - member.at < 1500;
     })) return;
@@ -147,10 +150,11 @@ export function createCalculatorService({ registry, send, now = () => performanc
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         const room = roomFor(who.section);
-        if (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username)) {
+        if (who.role !== 'teacher' && (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username))) {
           send(ws, lobbySnapshot(room)); return null;
         }
-        bindings.set(ws, { room, section: who.section, name: who.username });
+        if (!room.level) { send(ws, lobbySnapshot(room)); return null; }
+        bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
         if (!room.members.has(who.username)) {
           const attempt = attemptFor(room, who.username);
           room.members.set(who.username, { pose: { x: 70, y: 646 }, at: now(), revision: -1 });
@@ -163,7 +167,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
         detached(ws); throw new Error('Rejoin the calculator room.');
       }
       const { room } = binding;
-      if (room.lobby.phase !== 'active' || !room.members.has(binding.name)) {
+      if ((!binding.teacher && room.lobby.phase !== 'active') || !room.members.has(binding.name)) {
         send(ws, lobbySnapshot(room)); return null;
       }
       if (message.type === 'calculator_press') checkDeadline(room, now());
@@ -177,6 +181,12 @@ export function createCalculatorService({ registry, send, now = () => performanc
         send(ws, snapshot(room, binding.name)); return null;
       }
       if (message.type === 'calculator_restart') {
+        if (binding.teacher) {
+          // A teacher's practice/reset never restarts the students' round.
+          const old = state.timeoutCount;
+          Object.assign(state, createMission(now(), room.level), { timeoutCount: old + 1 });
+          broadcast(room); return null;
+        }
         if (!teamComplete(room)) return null;
         resetRoom(room, { type: 'door' });
         broadcast(room); return null;
@@ -205,7 +215,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       if (!who || who.section !== binding.section || who.username !== binding.name || now() - seenAt > 5000) detached(ws);
     }
     for (const [section, room] of rooms) {
-      const emptyTeam = room.lobby.phase === 'active' ? !room.members.size
+      const emptyTeam = room.lobby.phase === 'active' ? !room.lobby.roster.some(name => room.members.has(name))
         : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
       if (!emptyTeam) room.emptyTeamAt = null;
       else {
@@ -220,6 +230,17 @@ export function createCalculatorService({ registry, send, now = () => performanc
       }
       const time = now();
       advanceLobby(room.lobby, time);
+      room.lobby.roster = room.lobby.roster.filter(name => !teacherIn(room, name));
+      if (room.lobby.phase === 'assembling' && !room.lobby.roster.length) room.lobby.phase = 'gathering';
+      for (const [name] of room.members) {
+        if (!teacherIn(room, name)) continue;
+        const { state } = attemptFor(room, name);
+        if (state.complete || time - state.startedAt < timeLimitFor(state)) continue;
+        const checkpoint = state.step >= room.level.route.length;
+        const keys = state.checkpointKeys.slice(), count = state.timeoutCount + 1;
+        Object.assign(state, createMission(time, room.level), { timeoutCount: count });
+        if (checkpoint) Object.assign(state, { step: room.level.route.length, keys, checkpointKeys: keys.slice() });
+      }
       startTeam(room);
       if (room.lobby.phase !== 'active') { broadcast(room); continue; }
       if (room.failure && time >= room.failure.until) {
