@@ -2,14 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
+import { createCalculatorRtc } from './calculator-rtc.mjs';
 
 import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
 
-const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
+const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels }) {
   const rooms = new Map(), bindings = new Map();
+  const rtc = createCalculatorRtc({ bindings, registry, send, now });
   const teacherIn = (room, name) => [...bindings.values()].some(binding => binding.room === room && binding.name === name && binding.teacher);
   function identity(ws) {
     const who = registry._wsEntry(ws);
@@ -66,7 +68,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
       missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
       phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers.filter(name => !teacherIn(room, name)), roster: lobby.roster,
-      members: [...lobby.members].map(([name, member]) => ({ name, ...member })) };
+      members: [...lobby.members].map(([name, member]) => ({ name, ...member })), rtcPeers: rtc.peers(room) };
   }
   function receiveLobby(ws, who, message) {
     if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
@@ -76,6 +78,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
     const room = roomFor(who.section);
     bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
+    rtc.optIn(ws, message.rtc === true);
     room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
@@ -143,6 +146,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function handle(ws, message) {
     try {
       const who = identity(ws);
+      if (message.type === 'calculator_rtc_signal') { rtc.relay(ws, message); return null; }
       if (message.type === 'calculator_leave') { detached(ws); return null; }
       if (message.type === 'calculator_lobby') return receiveLobby(ws, who, message);
       if (message.type === 'calculator_join') {
