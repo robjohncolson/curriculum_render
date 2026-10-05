@@ -1,8 +1,8 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 
-// Protocol 5 enables unsupported numbered-box gravity in stage 1-3.
+// Protocol 6 restores solid push chains and authored bridge/gate geometry.
 // Mixed physics versions must not participate in the same input replay.
-export const CAMPAIGN_PROTOCOL = 5;
+export const CAMPAIGN_PROTOCOL = 6;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
