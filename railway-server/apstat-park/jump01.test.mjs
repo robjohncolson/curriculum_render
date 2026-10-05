@@ -330,7 +330,7 @@ test('review 7: a room emptied by an identity purge still resets after 3 minutes
   const service = createParkService({ registry, now: () => time, send() {} });
   const first = service.handle(ws, { type: 'park_join', protocol: 5, levelIndex: LEVEL, clientId: 'browser_one' });
   // alice's socket moves to another period without a park_leave: the old binding is purged.
-  registry.join(ws, 'E', 'alice', 'student', 0);
+  registry.join(ws, 'C', 'alice', 'student', 0);
   registry.join(other, 'B', 'bob', 'student', 0);
   service.handle(other, { type: 'park_lobby' });   // presence sweep purges the stale binding
   time += 181000;

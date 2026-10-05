@@ -10,7 +10,7 @@ function setup(t) {
   t.after(() => service.close());
   const alice = {}, bob = {}, carol = {}, dave = {}, outsider = {};
   for (const [ws, section, username] of [[alice, 'B', 'alice'], [bob, 'B', 'bob'],
-    [carol, 'B', 'carol'], [dave, 'B', 'dave'], [outsider, 'E', 'outsider']]) {
+    [carol, 'B', 'carol'], [dave, 'B', 'dave'], [outsider, 'C', 'outsider']]) {
     registry.join(ws, section, username, 'student', 0);
   }
   const join = (ws, levelIndex) => service.handle(ws, { type: 'park_join', protocol: 4, clientId: 'browser_x', levelIndex });
@@ -76,7 +76,7 @@ test('lobby no longer lists detached students', t => {
 test('lobby prunes bindings whose classroom section changed', t => {
   const { registry, service, bob, dave, populate } = setup(t);
   populate();
-  registry.join(bob, 'E', 'bob', 'student', 0);
+  registry.join(bob, 'C', 'bob', 'student', 0);
   const result = service.handle(dave, { type: 'park_lobby' });
   assert.deepEqual(result.levels[3].online, ['alice']);
 });

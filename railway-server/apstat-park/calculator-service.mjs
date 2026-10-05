@@ -8,7 +8,7 @@ import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-cu
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
-export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels }) {
+export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels }) {
   const rooms = new Map(), bindings = new Map();
   function identity(ws) {
     const who = registry._wsEntry(ws);
@@ -20,7 +20,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function roomFor(section) {
     if (!rooms.has(section)) {
-      const rotation = createLevelRotation(random, { varyProblems: available === eligibleLevels });
+      const rotation = createLevelRotation(random, { varyProblems });
       rooms.set(section, {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
         lobby: createLobby(now()), section, rotation,

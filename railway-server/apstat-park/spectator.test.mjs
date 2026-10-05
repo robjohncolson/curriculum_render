@@ -14,21 +14,21 @@ test('watching is read-only, teacher-only, and scoped to the joined class', asyn
     assert.deepEqual(view.campaign.teams, []);
     assert.equal(view.calculator, null);
     registry.join(alice, 'B', 'alice', 'student', 0);
-    registry.join(other, 'E', 'other', 'student', 0);
+    registry.join(other, 'C', 'other', 'student', 0);
     assert.equal(service.handle(alice, { type: 'park_watch' }).type, 'park_error');
     service.handle(alice, { type: 'campaign_join', protocol: 6 });
     service.handle(other, { type: 'campaign_join', protocol: 6 });
     await new Promise(resolve => setTimeout(resolve, 1600));
     const before = service.handle(teacher, { type: 'park_watch' }).campaign.state;
     for (let i = 0; i < 10; i++) {
-      view = service.handle(teacher, { type: 'park_watch', section: 'E', team: 'forged' });
+      view = service.handle(teacher, { type: 'park_watch', section: 'C', team: 'forged' });
       assert.deepEqual(view.campaign.state.roster, ['alice']);
       assert.equal(view.campaign.state.epoch, before.epoch);
       assert.deepEqual(view.students.map(member => member.username), ['alice']);
     }
     assert.deepEqual(service.handle(alice, { type: 'park_lobby' }).campaign.online, ['alice']);
     assert.equal(sent.filter(row => row.ws === teacher).length, 0);
-    registry.join(teacher, 'E', 'teacher', 'teacher', 1);
+    registry.join(teacher, 'C', 'teacher', 'teacher', 1);
     view = service.handle(teacher, { type: 'park_watch', team: before.team, epoch: before.epoch, from: 999 });
     assert.deepEqual(view.campaign.state.roster, ['other']);
     assert.equal(view.campaign.state.from, 0);

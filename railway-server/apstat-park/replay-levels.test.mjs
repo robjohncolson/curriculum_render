@@ -44,7 +44,7 @@ test('returning to help clears that arrival while preserving the active puzzle',
 });
 test('rooms isolate levels and periods; selecting a puzzle detaches the old room',()=>{
  const registry=createClassroomRegistry(),sent=[],service=createParkService({registry,send:(ws,message)=>sent.push({ws,message})});
- const a={},b={},c={},d={};for(const [ws,name,section] of [[a,'a','B'],[b,'b','B'],[c,'c','B'],[d,'d','E']])registry.join(ws,section,name,'student',0);
+ const a={},b={},c={},d={};for(const [ws,name,section] of [[a,'a','B'],[b,'b','B'],[c,'c','B'],[d,'d','C']])registry.join(ws,section,name,'student',0);
  const join=(ws,levelIndex)=>service.handle(ws,{type:'park_join',protocol:4,levelIndex,clientId:'browser_one'});
  const first=join(a,0),friend=join(b,0),other=join(c,1),period=join(d,0);
  assert.equal(first.epoch,friend.epoch);assert.notEqual(first.epoch,other.epoch);assert.notEqual(first.epoch,period.epoch);

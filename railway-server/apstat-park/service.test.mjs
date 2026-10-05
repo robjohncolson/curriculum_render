@@ -22,7 +22,7 @@ test('students enter automatically; classroom identity and period boundaries own
   const registry = createClassroomRegistry(), sent = [];
   const service = createParkService({ registry, wallNow: () => 0, send: (ws, message) => sent.push({ ws, message }) });
   const alice = {}, bob = {}, outsider = {}, teacher = {};
-  for (const [socket, section, name, role] of [[alice,'B','alice','student'],[bob,'B','bob','student'],[outsider,'E','outsider','student'],[teacher,'B','teacher','teacher']]) registry.join(socket,section,name,role,0);
+  for (const [socket, section, name, role] of [[alice,'B','alice','student'],[bob,'B','bob','student'],[outsider,'C','outsider','student'],[teacher,'B','teacher','teacher']]) registry.join(socket,section,name,role,0);
   const join = socket => service.handle(socket, {type: 'park_join', protocol: 4,clientId:'browser_one',section:'forged',member:'forged'});
   const a=join(alice), b=join(bob), o=join(outsider);
   assert.equal(a.running,false); assert.equal(b.running,true); assert.equal(a.epoch,b.epoch); assert.notEqual(a.epoch,o.epoch);
@@ -52,7 +52,7 @@ test('unjoined sockets, invalid clients, stale bindings and section changes are 
   const first=service.handle(socket,{type: 'park_join', protocol: 4,clientId:'browser_one'});
   service.detached(socket);
   assert.equal(service.handle(socket,{type:'park_status'}).code,'PARK_STREAM_CHANGED');
-  registry.join(socket,'E','alice','student',100);
+  registry.join(socket,'C','alice','student',100);
   const next=service.handle(socket,{type: 'park_join', protocol: 4,clientId:'browser_one'});
   assert.notEqual(next.epoch,first.epoch);
   service.close();

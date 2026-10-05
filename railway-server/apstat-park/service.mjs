@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createCalculatorService } from './calculator-service.mjs';
 import { createCampaignService } from './campaign-service.mjs';
 import { ParkSession } from './session.mjs';
+import { createParkRegistry, eligibleParkLevels, SHARED_PARK } from './shared-classroom.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_lobby', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
@@ -10,10 +11,14 @@ types.add('park_watch');
 const RETENTION_MS = 2 * 60 * 60 * 1000;
 const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
 
-// One self-directed park per classroom section, using the existing joined identity.
+// B and E share the park; classroom identity and controls stay in their own registry.
 export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {} }) {
+  const classrooms = registry;
+  registry = createParkRegistry(classrooms);
   const rooms = new Map(), bindings = new Map();
-  const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow });
+  const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow,
+    available: (section, date) => eligibleParkLevels(section, date, calculatorOptions.available),
+    varyProblems: calculatorOptions.varyProblems ?? !calculatorOptions.available });
   const campaign = createCampaignService({ registry, send, now });
 
   function identity(ws, cache) {
@@ -105,10 +110,12 @@ export function createParkService({ registry, send, now = () => performance.now(
           code: 'PARK_SELF_DIRECTED', message: 'Enter the park doorway on the calendar. Teacher groups are retired.' };
         const who = identity(ws);
         if (message.type === 'park_watch') {
-          const classroom = registry.stateFor(who.section, 'teacher', who.username);
-          const member = classroom.members.find(member => member.username === who.username);
+          const classroom = registry.stateFor(who.section);
+          const member = classrooms.stateFor(who.classroomSection, 'student', who.username)?.members
+            .find(member => member.username === who.username);
           if (member?.role !== 'teacher') throw new Error('Teacher spectator access only.');
-          return { type: 'park_watch_state', section: who.section,
+          return { type: 'park_watch_state', section: who.classroomSection,
+            gameLabel: who.section === SHARED_PARK ? 'B + E shared park' : null,
             students: classroom.members.filter(member => member.role === 'student' && member.online !== false)
               .map(({ username, hue, pos }) => ({ username, hue, pos })),
             campaign: campaign.watch(who.section, message), calculator: calculator.watch(who.section) };
