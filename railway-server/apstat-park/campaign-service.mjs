@@ -1,8 +1,8 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 
-// Protocol 7 adds optional teacher actors to the deterministic input journal.
+// Protocol 8 adds persistent switches and key delivery with UP at the goal.
 // Mixed physics versions must not participate in the same input replay.
-export const CAMPAIGN_PROTOCOL = 7;
+export const CAMPAIGN_PROTOCOL = 8;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
@@ -12,7 +12,7 @@ const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'ca
 
 // Ordered inputs, not client physics snapshots. Every browser runs the same recovered
 // engine, seed, party and 60 Hz frames. Completion requires every active participant.
-export function createCampaignService({ registry, send, now = () => performance.now() }) {
+export function createCampaignService({ registry, send, now = () => performance.now(), canEnter = () => true }) {
   const rooms = new Map(), bindings = new Map();
   const idleSockets = new WeakSet();
   let nextMembershipCheck = 0;
@@ -173,6 +173,7 @@ export function createCampaignService({ registry, send, now = () => performance.
         if (message.type === 'campaign_leave') { detach(ws); return null; }
         if (message.type === 'campaign_join') {
           if (message.protocol !== CAMPAIGN_PROTOCOL) throw new Error('Reload the desk to enter the updated campaign.');
+          if (!canEnter(who)) throw new Error('Finish a calculator team activity to earn the campaign key.');
           if (idleSockets.has(ws) && message.active !== true) {
             send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' }); return null;
           }

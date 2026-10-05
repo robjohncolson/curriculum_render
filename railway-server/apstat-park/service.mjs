@@ -19,7 +19,7 @@ export function createParkService({ registry, send, now = () => performance.now(
   const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow,
     available: (section, date) => eligibleParkLevels(section, date, calculatorOptions.available),
     varyProblems: calculatorOptions.varyProblems ?? !calculatorOptions.available });
-  const campaign = createCampaignService({ registry, send, now });
+  const campaign = createCampaignService({ registry, send, now, canEnter: who => calculator.canEnterCampaign(who) });
 
   function identity(ws, cache) {
     const entry = registry._wsEntry(ws);

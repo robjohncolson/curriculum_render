@@ -2,10 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createParkService } from './service.mjs';
+import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
+import { CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
+import { earnCampaignKey, recordCalculatorPacket } from './campaign-access-fixture.mjs';
 
-test('watching is read-only, teacher-only, and scoped to the joined class', async () => {
+test('watching is read-only, teacher-only, and scoped to the joined class', async t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let clock = 0;
+  const advance = ms => { clock += ms; t.mock.timers.tick(ms); };
+  const calculatorPackets = new Map();
   const registry = createClassroomRegistry(), sent = [];
-  const service = createParkService({ registry, send: (ws, packet) => sent.push({ ws, packet }) });
+  const service = createParkService({ registry, now: () => clock, calculatorOptions: { available: () => [DEFAULT_LEVEL] },
+    send: (ws, packet) => { sent.push({ ws, packet }); recordCalculatorPacket(calculatorPackets, ws, packet); } });
   const teacher = {}, alice = {}, other = {};
   try {
     assert.equal(service.handle(teacher, { type: 'park_watch' }).type, 'park_error');
@@ -16,9 +24,11 @@ test('watching is read-only, teacher-only, and scoped to the joined class', asyn
     registry.join(alice, 'B', 'alice', 'student', 0);
     registry.join(other, 'C', 'other', 'student', 0);
     assert.equal(service.handle(alice, { type: 'park_watch' }).type, 'park_error');
-    service.handle(alice, { type: 'campaign_join', protocol: 7 });
-    service.handle(other, { type: 'campaign_join', protocol: 7 });
-    await new Promise(resolve => setTimeout(resolve, 1600));
+    earnCampaignKey(service, [alice], calculatorPackets, advance);
+    earnCampaignKey(service, [other], calculatorPackets, advance);
+    service.handle(alice, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
+    service.handle(other, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
+    advance(1600);
     const before = service.handle(teacher, { type: 'park_watch' }).campaign.state;
     for (let i = 0; i < 10; i++) {
       view = service.handle(teacher, { type: 'park_watch', section: 'C', team: 'forged' });
