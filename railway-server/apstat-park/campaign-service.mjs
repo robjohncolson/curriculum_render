@@ -2,7 +2,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 
 // Protocol 3 restores the native left/bottom anchors of stage-1-1 Warp sensors.
 // Mixed physics versions must not participate in the same input replay.
-export const CAMPAIGN_PROTOCOL = 3;
+export const CAMPAIGN_PROTOCOL = 4;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
