@@ -5,6 +5,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 export const CAMPAIGN_PROTOCOL = 4;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
+export const CAMPAIGN_IDLE_MS = 60000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
 const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave']);
 
@@ -12,6 +13,7 @@ const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'ca
 // engine, seed, party and 60 Hz frames. Completion requires every active participant.
 export function createCampaignService({ registry, send, now = () => performance.now() }) {
   const rooms = new Map(), bindings = new Map();
+  const idleSockets = new WeakSet();
   function identity(ws) {
     const who = registry._wsEntry(ws);
     if (!who || !registry.stateFor(who.section, 'student', who.username)?.members
@@ -66,9 +68,19 @@ export function createCampaignService({ registry, send, now = () => performance.
     return room;
   }
   function tick() {
+    const changedRooms = new Set();
     for (const [ws, binding] of bindings) {
       try { const who = identity(ws); if (who.section !== binding.room.section || who.username !== binding.name) detach(ws); }
       catch { detach(ws); }
+      if (bindings.has(ws) && now() - binding.activeAt >= CAMPAIGN_IDLE_MS) {
+        send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' });
+        idleSockets.add(ws); detach(ws); changedRooms.add(binding.room);
+      }
+    }
+    for (const room of changedRooms) {
+      if (room.roster.some(name => !members(room).includes(name))) {
+        restart(room, 'An inactive teammate left. Restarting this stage with the active team.');
+      }
     }
     for (const room of rooms.values()) {
       const online = members(room);
@@ -120,13 +132,18 @@ export function createCampaignService({ registry, send, now = () => performance.
         if (message.type === 'campaign_leave') { detach(ws); return null; }
         if (message.type === 'campaign_join') {
           if (message.protocol !== CAMPAIGN_PROTOCOL) throw new Error('Reload the desk to enter the updated campaign.');
+          if (idleSockets.has(ws) && message.active !== true) {
+            send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' }); return null;
+          }
+          idleSockets.delete(ws);
           let binding = bindings.get(ws);
           if (binding && (binding.name !== who.username || binding.room.section !== who.section)) { detach(ws); binding = null; }
           const room = binding?.room || findRoom(who.section, who.username);
-          bindings.set(ws, { room, name: who.username }); room.missingAt.delete(who.username); room.touched = now();
+          bindings.set(ws, { room, name: who.username, activeAt: binding?.activeAt ?? now() }); room.missingAt.delete(who.username); room.touched = now();
           send(ws, snapshot(room));
           return null;
         }
+        if (idleSockets.has(ws)) return null;
         const binding = bindings.get(ws);
         if (!binding || binding.name !== who.username || binding.room.section !== who.section) throw new Error('Rejoin your campaign team.');
         const { room, name } = binding;
@@ -140,12 +157,15 @@ export function createCampaignService({ registry, send, now = () => performance.
           if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 63) return null;
           const previous = room.inputs.get(name);
           if (previous && now() - previous.at < 15) return null;
+          if (message.bits || (Number.isInteger(message.buddy) && (message.buddy & 63))) binding.activeAt = now();
           room.inputs.set(name, { bits: message.bits | (previous?.bits & 32),
             buddy: (Number.isInteger(message.buddy) ? message.buddy & 63 : 0) | (previous?.buddy & 32), at: now() });
         } else if (message.type === 'campaign_retry' && now() - room.touched >= 0 && room.frame >= 120) {
+          binding.activeAt = now();
           restart(room, 'Retrying the current stage.');
         } else if (message.type === 'campaign_clear' && room.phase === 'playing'
           && Number.isInteger(message.frame) && message.frame > 0 && message.frame <= room.frame) {
+          binding.activeAt = now();
           room.cleared.add(name);
           if (room.roster.every(member => room.cleared.has(member))) {
             room.phase = 'clear'; room.clearAt = now(); broadcast(room, { type: 'campaign_clear', epoch: room.epoch });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
-import { createCampaignService, CAMPAIGN_CLEAR_MS, CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
+import { createCampaignService, CAMPAIGN_CLEAR_MS, CAMPAIGN_IDLE_MS, CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
 
 function fixture(count = 2) {
   let time = 0;
@@ -84,5 +84,60 @@ test('relay preserves fractional ticks and splits classes into teams of eight', 
     f.advance(51);
     f.service.handle(f.players[8], { type: 'campaign_resume', epoch, from: 0 });
     assert.deepEqual(f.messages.get(f.players[8]).events.slice(-2).map(event => event.inputs), [[2, 48], [2, 16]]);
+  } finally { f.service.close(); }
+});
+
+
+test('empty heartbeats cannot keep an idle teammate in the roster or rejoin automatically', () => {
+  const f = fixture();
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    const before = f.state();
+    for (let i = 0; i < 60; i++) {
+      f.send(f.players[0], 'campaign_input', { bits: 2 });
+      f.send(f.players[1], 'campaign_input', { bits: 0, buddy: 0 });
+      f.advance(1000);
+    }
+    assert.deepEqual(f.state().roster, ['p0']);
+    assert.notEqual(f.state().epoch, before.epoch);
+    assert.equal(f.state().stageIndex, before.stageIndex);
+    assert.equal(f.messages.get(f.players[1]).type, 'campaign_idle');
+    f.join(f.players[1]);
+    assert.equal(f.messages.get(f.players[1]).type, 'campaign_idle');
+    assert.deepEqual(f.service.occupants('PeriodB'), ['p0']);
+    f.send(f.players[0], 'campaign_input', { bits: 2, buddy: 16 }); f.advance(50);
+    assert.deepEqual(f.state().events.at(-1).inputs, [2, 16]);
+    f.send(f.players[0], 'campaign_clear', { frame: f.state().to });
+    assert.equal(f.state().phase, 'clear');
+    f.advance(CAMPAIGN_CLEAR_MS); assert.equal(f.state().stageIndex, 1);
+  } finally { f.service.close(); }
+});
+
+test('idle participant may explicitly rejoin but waits until the team retries', () => {
+  const f = fixture();
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    f.advance(CAMPAIGN_IDLE_MS - 2000);
+    f.send(f.players[0], 'campaign_input', { bits: 2 }); f.advance(1000);
+    assert.deepEqual(f.state().roster, ['p0']);
+    f.service.handle(f.players[1], { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL, active: true });
+    assert.deepEqual(f.state().waiting, ['p1']);
+    assert.deepEqual(f.state().roster, ['p0']);
+  } finally { f.service.close(); }
+});
+
+test('held game input keeps a teammate active, while all-idle rooms become waiting', () => {
+  const f = fixture();
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    f.advance(CAMPAIGN_IDLE_MS - 2000);
+    for (const ws of f.players) f.send(ws, 'campaign_input', { bits: 16 });
+    f.advance(1000); assert.equal(f.state().roster.length, 2);
+    f.advance(CAMPAIGN_IDLE_MS);
+    assert.deepEqual(f.service.occupants('PeriodB'), []);
+    for (const ws of f.players) assert.equal(f.messages.get(ws).type, 'campaign_idle');
+    f.service.handle(f.players[0], { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL, active: true });
+    assert.equal(f.state().phase, 'waiting'); f.advance(50);
+    assert.deepEqual(f.state().roster, ['p0']);
   } finally { f.service.close(); }
 });
