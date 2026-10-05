@@ -6,7 +6,7 @@ export const CAMPAIGN_PROTOCOL = 6;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
-const FRAME_BATCH_SIZE = 3, MEMBERSHIP_CHECK_MS = 1000;
+const MEMBERSHIP_CHECK_MS = 1000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
 const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave']);
 
@@ -130,14 +130,11 @@ export function createCampaignService({ registry, send, now = () => performance.
       room.lastTick = Math.max(room.lastTick + steps * 1000 / 60, now() - 1000 / 60); room.touched = now();
       // Bounded replay journal; no silent eviction that could desynchronize newcomers.
       if (room.log.length > 20000) { restart(room, 'Starting a fresh attempt.'); continue; }
-      // Input changes bypass batching. Empty progress packets cover three frames
-      // (20 Hz), while the authoritative input timeline remains at 60 Hz.
-      // Start at the last broadcast, not the last tick, so replay has no gaps.
-      if (events.length || room.frame - room.broadcastFrame >= FRAME_BATCH_SIZE) {
-        broadcast(room, { type: 'campaign_frames', epoch: room.epoch,
-          from: room.broadcastFrame, to: room.frame, events });
-        room.broadcastFrame = room.frame;
-      }
+      // Publish every completed tick; clients must not wait for a batch before
+      // advancing movement. Membership validation stays on the slower cadence.
+      broadcast(room, { type: 'campaign_frames', epoch: room.epoch,
+        from: room.broadcastFrame, to: room.frame, events });
+      room.broadcastFrame = room.frame;
     }
   }
   const timer = setInterval(tick, 16); timer.unref?.();

@@ -175,19 +175,19 @@ function trafficFixture(count = 1) {
   };
 }
 
-test('unchanged progress is batched while all 60 simulation frames remain contiguous', () => {
+test('every simulation frame is published without repeating background membership work', () => {
   const f = trafficFixture(32);
   try {
     // Four teams; 1 ms test clock makes the cadence independent of OS timer jitter.
     for (let i = 0; i < 1000; i++) f.advance(1);
     const frames = f.packets.filter(item => item.ws === f.players[0]).map(item => item.packet);
-    assert.equal(frames.length, 20);
-    assert.equal(f.packets.length, 20 * 32);
+    assert.equal(frames.length, 60);
+    assert.equal(f.packets.length, 60 * 32);
     let received = 0;
     for (const packet of frames) {
       assert.equal(packet.type, 'campaign_frames');
       assert.equal(packet.from, received);
-      assert.equal(packet.to - packet.from, 3);
+      assert.equal(packet.to - packet.from, 1);
       assert.deepEqual(packet.events, []);
       received = packet.to;
     }
@@ -196,29 +196,29 @@ test('unchanged progress is batched while all 60 simulation frames remain contig
   } finally { f.service.close(); }
 });
 
-test('input changes bypass batching and reconnect snapshots retain the same timeline', () => {
+test('input changes and reconnect snapshots retain the same immediate timeline', () => {
   const f = trafficFixture();
   try {
     f.advance(17);
-    assert.equal(f.packets.length, 0);
+    assert.equal(f.packets.length, 1);
     f.input(50); f.input(0); // quick right+jump and release, before another frame
     f.advance(17);
     const press = f.packets.at(-1).packet;
     assert.equal(press.type, 'campaign_frames');
-    assert.equal(press.from, 0); assert.equal(press.to, 2);
+    assert.equal(press.from, 1); assert.equal(press.to, 2);
     assert.deepEqual(press.events, [{ frame: 2, inputs: [32, 0] }]);
     f.advance(17);
     const release = f.packets.at(-1).packet;
     assert.equal(release.from, 2); assert.equal(release.to, 3);
     assert.deepEqual(release.events, [{ frame: 3, inputs: [0, 0] }]);
-    f.advance(17); f.advance(17); // these frames have not been broadcast yet
+    f.advance(17); f.advance(17); // these frames have already been published
     f.service.handle(f.players[0], { type: 'campaign_resume', epoch: f.epoch, from: 2 });
     const resume = f.packets.at(-1).packet;
     assert.equal(resume.type, 'campaign_state'); assert.equal(resume.to, 5);
     assert.deepEqual(resume.events, [...press.events, ...release.events]);
     f.advance(17);
     const next = f.packets.at(-1).packet;
-    assert.equal(next.from, 3); assert.equal(next.to, 6);
+    assert.equal(next.from, 5); assert.equal(next.to, 6);
   } finally { f.service.close(); }
 });
 
