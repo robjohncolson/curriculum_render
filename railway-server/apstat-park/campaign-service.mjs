@@ -6,6 +6,7 @@ export const CAMPAIGN_PROTOCOL = 5;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
+const FRAME_BATCH_SIZE = 3, MEMBERSHIP_CHECK_MS = 1000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
 const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave']);
 
@@ -14,6 +15,7 @@ const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'ca
 export function createCampaignService({ registry, send, now = () => performance.now() }) {
   const rooms = new Map(), bindings = new Map();
   const idleSockets = new WeakSet();
+  let nextMembershipCheck = 0;
   function identity(ws) {
     const who = registry._wsEntry(ws);
     if (!who || !registry.stateFor(who.section, 'student', who.username)?.members
@@ -41,7 +43,7 @@ export function createCampaignService({ registry, send, now = () => performance.
     room.epoch = randomUUID(); room.seed = randomBytes(4).readUInt32LE();
     room.roster = members(room).slice(0, MAX_PLAYERS);
     room.phase = room.roster.length ? 'playing' : 'waiting'; room.reason = reason;
-    room.frame = 0; room.log = [{ frame: 0, inputs: Array(Math.max(2, room.roster.length)).fill(0) }];
+    room.frame = 0; room.broadcastFrame = 0; room.log = [{ frame: 0, inputs: Array(Math.max(2, room.roster.length)).fill(0) }];
     room.inputs.clear(); room.cleared.clear(); room.lastTick = now(); room.clearAt = null;
     room.missingAt.clear(); room.touched = now();
     broadcast(room, snapshot(room));
@@ -69,9 +71,13 @@ export function createCampaignService({ registry, send, now = () => performance.
   }
   function tick() {
     const changedRooms = new Set();
+    const checkMembership = now() >= nextMembershipCheck;
+    if (checkMembership) nextMembershipCheck = now() + MEMBERSHIP_CHECK_MS;
     for (const [ws, binding] of bindings) {
-      try { const who = identity(ws); if (who.section !== binding.room.section || who.username !== binding.name) detach(ws); }
-      catch { detach(ws); }
+      if (checkMembership) {
+        try { const who = identity(ws); if (who.section !== binding.room.section || who.username !== binding.name) detach(ws); }
+        catch { detach(ws); }
+      }
       if (bindings.has(ws) && now() - binding.activeAt >= CAMPAIGN_IDLE_MS) {
         send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' });
         idleSockets.add(ws); detach(ws); changedRooms.add(binding.room);
@@ -82,11 +88,17 @@ export function createCampaignService({ registry, send, now = () => performance.
         restart(room, 'An inactive teammate left. Restarting this stage with the active team.');
       }
     }
+    // Group connections once, instead of scanning every connection for every room.
+    const onlineByRoom = new Map();
+    for (const { room, name } of bindings.values()) {
+      if (!onlineByRoom.has(room)) onlineByRoom.set(room, new Set());
+      onlineByRoom.get(room).add(name);
+    }
     for (const room of rooms.values()) {
-      const online = members(room);
-      if (!online.length) { room.lastTick = now(); if (now() - room.touched > 7200000) rooms.delete(room.id); continue; }
+      const online = onlineByRoom.get(room) || new Set();
+      if (!online.size) { room.lastTick = now(); if (now() - room.touched > 7200000) rooms.delete(room.id); continue; }
       if (room.phase === 'waiting') { if (now() >= room.startAt) restart(room, null); continue; }
-      if (room.roster.some(name => !online.includes(name))) {
+      if (room.roster.some(name => !online.has(name))) {
         if ([...room.missingAt.values()].some(at => now() - at >= RECONNECT_MS)) restart(room, 'A teammate left. Restarting this stage with the current team.');
         room.lastTick = now(); continue;
       }
@@ -101,7 +113,7 @@ export function createCampaignService({ registry, send, now = () => performance.
       // Cap catch-up after an event-loop stall, so a lag spike cannot fast-forward hazards.
       const steps = Math.min(6, Math.floor((now() - room.lastTick) * 60 / 1000 + 1e-7));
       if (!steps) continue;
-      const from = room.frame, events = [];
+      const events = [];
       for (let step = 0; step < steps; step++) {
         const inputs = room.roster.flatMap(name => {
           const input = room.inputs.get(name);
@@ -118,7 +130,14 @@ export function createCampaignService({ registry, send, now = () => performance.
       room.lastTick = Math.max(room.lastTick + steps * 1000 / 60, now() - 1000 / 60); room.touched = now();
       // Bounded replay journal; no silent eviction that could desynchronize newcomers.
       if (room.log.length > 20000) { restart(room, 'Starting a fresh attempt.'); continue; }
-      broadcast(room, { type: 'campaign_frames', epoch: room.epoch, from, to: room.frame, events });
+      // Input changes bypass batching. Empty progress packets cover three frames
+      // (20 Hz), while the authoritative input timeline remains at 60 Hz.
+      // Start at the last broadcast, not the last tick, so replay has no gaps.
+      if (events.length || room.frame - room.broadcastFrame >= FRAME_BATCH_SIZE) {
+        broadcast(room, { type: 'campaign_frames', epoch: room.epoch,
+          from: room.broadcastFrame, to: room.frame, events });
+        room.broadcastFrame = room.frame;
+      }
     }
   }
   const timer = setInterval(tick, 16); timer.unref?.();
