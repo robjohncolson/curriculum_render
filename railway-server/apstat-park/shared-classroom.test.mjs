@@ -7,16 +7,25 @@ import { createParkRegistry, eligibleParkLevels, SHARED_PARK } from './shared-cl
 import { DEFAULT_LEVEL, eligibleLevels } from './calculator-curriculum.mjs';
 import { TEAM_BLOCK, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { ROUTE, SUMMARY } from './calculator-mission.mjs';
+import { CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
+import { earnCampaignKey, recordCalculatorPacket } from './campaign-access-fixture.mjs';
 
-test('B and E share campaign inputs, calculator lobby, and teacher view; other classes stay separate', async () => {
+test('B and E share campaign inputs, calculator lobby, and teacher view; other classes stay separate', async t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let clock = 0;
+  const advance = ms => { clock += ms; t.mock.timers.tick(ms); };
+  const calculatorPackets = new Map();
   const registry = createClassroomRegistry(), sent = new Map();
-  const service = createParkService({ registry, send: (ws, packet) => sent.set(ws, packet) });
+  const service = createParkService({ registry, now: () => clock, calculatorOptions: { available: () => [DEFAULT_LEVEL] },
+    send: (ws, packet) => { sent.set(ws, packet); recordCalculatorPacket(calculatorPackets, ws, packet); } });
   const b = {}, e = {}, x = {}, teacher = {};
   try {
     for (const [ws, section, username, role] of [[b, 'PeriodB', 'bee', 'student'], [e, 'PeriodE', 'eve', 'student'],
       [x, 'PeriodX', 'ex', 'student'], [teacher, 'PeriodB', 'teacher', 'teacher']]) registry.join(ws, section, username, role, 0);
-    for (const ws of [b, e, x]) service.handle(ws, { type: 'campaign_join', protocol: 7, section: 'PeriodB' });
-    await new Promise(resolve => setTimeout(resolve, 1600));
+    earnCampaignKey(service, [b, e], calculatorPackets, advance);
+    earnCampaignKey(service, [x], calculatorPackets, advance);
+    for (const ws of [b, e, x]) service.handle(ws, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL, section: 'PeriodB' });
+    advance(1600);
     const view = service.handle(teacher, { type: 'park_watch' });
     assert.deepEqual(view.campaign.state.roster, ['bee', 'eve']);
     assert.equal(view.gameLabel, 'B + E shared park');
@@ -24,7 +33,7 @@ test('B and E share campaign inputs, calculator lobby, and teacher view; other c
     const epoch = view.campaign.state.epoch;
     service.handle(b, { type: 'campaign_input', epoch, bits: 2 });
     service.handle(e, { type: 'campaign_input', epoch, bits: 1 });
-    await new Promise(resolve => setTimeout(resolve, 40));
+    advance(40);
     service.handle(e, { type: 'campaign_resume', epoch, from: 0 });
     assert.ok(sent.get(e).events.some(event => event.inputs[0] === 2 && event.inputs[1] === 1));
     assert.deepEqual(service.handle(x, { type: 'park_lobby' }).campaign.online, ['ex']);
@@ -42,7 +51,7 @@ test('B and E share campaign inputs, calculator lobby, and teacher view; other c
     assert.equal(registry.stateFor('PeriodB').gate.armed, true);
     assert.ok(!registry.stateFor('PeriodE').gate?.armed);
     const forged = {}; registry.join(forged, SHARED_PARK, 'forged', 'student', 0);
-    assert.equal(service.handle(forged, { type: 'campaign_join', protocol: 7 }).type, 'campaign_error');
+    assert.equal(service.handle(forged, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL }).type, 'campaign_error');
   } finally { service.close(); }
 });
 

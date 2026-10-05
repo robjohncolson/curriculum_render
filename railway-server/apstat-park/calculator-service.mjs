@@ -28,7 +28,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const rotation = createLevelRotation(random, { varyProblems });
       rooms.set(section, {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
-        lobby: createLobby(now()), section, rotation,
+        lobby: createLobby(now()), section, rotation, campaignKeys: new Set(),
         level: rotation.next(available(section, schoolDate(wallNow()))),
       });
     }
@@ -58,6 +58,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
       readyCount: members.filter(member => !member.teacher && member.solved).length, members };
   }
   function broadcast(room) {
+    if (room.level && room.lobby.phase === 'active' && !room.failure && teamComplete(room)) {
+      for (const name of room.lobby.roster) room.campaignKeys.add(name);
+    }
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
       if (binding.room !== room || (ws.bufferedAmount || 0) >= 32768) continue;
@@ -68,6 +71,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function lobbySnapshot(room) {
     const lobby = room.lobby;
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
+      campaignKeyHolders: [...room.campaignKeys],
       missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
       phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers.filter(name => !teacherIn(room, name)), roster: lobby.roster,
       members: [...lobby.members].map(([name, member]) => ({ name, ...member })), rtcPeers: rtc.peers(room) };
@@ -81,7 +85,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const room = roomFor(who.section);
     bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
     rtc.optIn(ws, message.rtc === 2, message.rtcGeneration);
-    room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
+    room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: who.role !== 'teacher' && message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
     // The regular tick distributes movement to everyone. Do not echo a full
@@ -269,6 +273,10 @@ export function createCalculatorService({ registry, send, now = () => performanc
   const timer = setInterval(tick, 100);
   timer.unref?.();
   return { accepts: message => TYPES.has(message?.type), handle, detached, tick,
+    canEnterCampaign(who) {
+      const keys = rooms.get(who.section)?.campaignKeys;
+      return who.role === 'teacher' ? !!keys?.size : !!keys?.has(who.username);
+    },
     // Do not call roomFor/attemptFor: watching must never create an attempt.
     watch(section) {
       const room = rooms.get(section);
