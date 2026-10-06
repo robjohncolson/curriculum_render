@@ -10,7 +10,9 @@ import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-cu
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
-export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels }) {
+// keyStore (optional, campaign-key-store.mjs): where earned campaign keys outlive this process.
+export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels,
+  keyStore = null, log = (...args) => console.warn(...args) }) {
   const rooms = new Map(), bindings = new Map();
   const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
@@ -29,10 +31,54 @@ export function createCalculatorService({ registry, send, now = () => performanc
       rooms.set(section, {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
         lobby: createLobby(now()), section, rotation, campaignKeys: new Set(),
+        // Keys earned here but not yet confirmed written to the key store: name -> source.
+        unsavedKeys: new Map(), keySaving: false, keyRetryAt: 0,
         level: rotation.next(available(section, schoolDate(wallNow()))),
       });
+      loadKeys(rooms.get(section));
     }
     return rooms.get(section);
+  }
+  // Campaign keys: memory is the hot path; the key store is the record across restarts, deploys
+  // and idle room deletes. A store call never blocks or breaks a round: a failure is logged and
+  // the room keeps its memory-only keys (exactly the behaviour without a store). A key counts as
+  // written only once the store confirms it; a failed write is retried on a later tick, at most
+  // once per KEY_RETRY_MS per room, so an outage logs once per cooldown, not every tick.
+  const KEY_RETRY_MS = 30000;
+  function loadKeys(room) {
+    if (!keyStore) return;
+    Promise.resolve().then(() => keyStore.load(room.section))
+      .then(names => {
+        for (const name of names || []) {
+          room.campaignKeys.add(name);
+          room.unsavedKeys.delete(name);   // already in the store
+        }
+      })
+      .catch(error => log('park campaign keys: load failed for', room.section, error?.message || error));
+  }
+  function earnKeys(room, names) {
+    const source = 'calculator:' + (room.level?.id || 'unknown');
+    for (const name of names) {
+      room.campaignKeys.add(name);
+      if (keyStore) room.unsavedKeys.set(name, source);
+    }
+  }
+  // Writes the room's unsaved keys (one store call per source). Called from every tick.
+  function saveKeys(room) {
+    if (!keyStore || room.keySaving || !room.unsavedKeys.size || now() < room.keyRetryAt) return;
+    const bySource = new Map();
+    for (const [name, source] of room.unsavedKeys) bySource.set(source, [...(bySource.get(source) || []), name]);
+    room.keySaving = true;
+    const writes = [...bySource].map(([source, names]) => Promise.resolve()
+      .then(() => keyStore.award(room.section, names, source))
+      .then(() => { for (const name of names) room.unsavedKeys.delete(name); }));
+    Promise.allSettled(writes).then(results => {
+      room.keySaving = false;
+      const failed = results.find(result => result.status === 'rejected');
+      if (!failed) return;
+      room.keyRetryAt = now() + KEY_RETRY_MS;
+      log('park campaign keys: save failed for', room.section, failed.reason?.message || failed.reason);
+    });
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
@@ -59,7 +105,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function broadcast(room) {
     if (room.level && room.lobby.phase === 'active' && !room.failure && teamComplete(room)) {
-      for (const name of room.lobby.roster) room.campaignKeys.add(name);
+      // broadcast runs every tick: only the names that are new holders are earned.
+      earnKeys(room, room.lobby.roster.filter(name => !room.campaignKeys.has(name)));
     }
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
@@ -228,6 +275,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
       if (!who || who.section !== binding.section || who.username !== binding.name || now() - seenAt > 5000) detached(ws);
     }
     for (const [section, room] of rooms) {
+      // Unsaved keys are written from the tick, so they are retried even after the team left.
+      saveKeys(room);
       const emptyTeam = room.lobby.phase === 'active' ? !room.lobby.roster.some(name => room.members.has(name))
         : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
       if (!emptyTeam) room.emptyTeamAt = null;
@@ -238,7 +287,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         }
       }
       if (!room.lobby.members.size && !room.members.size) {
-        if (now() - room.touched > 2 * 60 * 60 * 1000) rooms.delete(section);
+        // An idle room is dropped after 2 h, but never while it holds keys not yet written.
+        if (now() - room.touched > 2 * 60 * 60 * 1000 && !room.unsavedKeys.size) rooms.delete(section);
         continue;
       }
       const time = now();

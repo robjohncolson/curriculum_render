@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './frameworks.js';
 import { createClassroomRegistry } from './classroom.js';
 import { createParkService } from './apstat-park/service.mjs';
+import { createSupabaseKeyStore } from './apstat-park/campaign-key-store.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 import { createHmac } from 'crypto';
@@ -191,9 +192,14 @@ async function persistQuizReview(review) {
 
 // Classroom registry (Live Classroom v1a)
 const classroomRegistry = createClassroomRegistry();
+// Earned Pico Park campaign keys persist in park_campaign_keys through the same backend-only
+// service-key client; without SUPABASE_SERVICE_KEY they stay in memory (lost on restart).
+const parkKeyStore = createSupabaseKeyStore(quizReviewsSupabase);
+if (!parkKeyStore) console.info('Park campaign keys are memory-only: SUPABASE_SERVICE_KEY is not configured.');
 const classroomPark = createParkService({
   registry: classroomRegistry,
-  send: (ws, payload) => { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); }
+  send: (ws, payload) => { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); },
+  keyStore: parkKeyStore,
 });
 
 // Helper to check cache validity

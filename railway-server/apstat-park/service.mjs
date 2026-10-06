@@ -12,11 +12,12 @@ const RETENTION_MS = 2 * 60 * 60 * 1000;
 const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, closed lids) may rotate
 
 // B and E share the park; classroom identity and controls stay in their own registry.
-export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {} }) {
+// keyStore: optional campaign-key store (campaign-key-store.mjs); without one keys are memory-only.
+export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {}, keyStore = null }) {
   const classrooms = registry;
   registry = createParkRegistry(classrooms);
   const rooms = new Map(), bindings = new Map();
-  const calculator = createCalculatorService({ ...calculatorOptions, registry, send, now, wallNow,
+  const calculator = createCalculatorService({ keyStore, ...calculatorOptions, registry, send, now, wallNow,
     available: (section, date) => eligibleParkLevels(section, date, calculatorOptions.available),
     varyProblems: calculatorOptions.varyProblems ?? !calculatorOptions.available });
   const campaign = createCampaignService({ registry, send, now, canEnter: who => calculator.canEnterCampaign(who) });
