@@ -13,20 +13,55 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // the first free box hops 22 units ('head-stack-jump-impulse').
 // Protocol 14 (teacher 2026-10-07, retail capture): what rests on a walking cat (cats, boxes, transitively)
 // rides its sideways move; a cat on a pushed box carries its own stack ('stack-riding').
-export const CAMPAIGN_PROTOCOL = 14;
+// Protocol 15 (teacher 2026-10-07, retail capture): a lift coming down onto a standing cat or box stops on its top
+// and holds, never moving into it ('descending-lift-stops-on-bodies').
+export const CAMPAIGN_PROTOCOL = 15;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
 const MEMBERSHIP_CHECK_MS = 1000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
-const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave']);
+const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave',
+  'campaign_select', 'campaign_open_stage']);
 
 // Ordered inputs, not client physics snapshots. Every browser runs the same recovered
 // engine, seed, party and 60 Hz frames. Completion requires every active participant.
-export function createCampaignService({ registry, send, now = () => performance.now(), canEnter = () => true }) {
+// wallet (campaign-wallet.mjs, teacher 2026-10-07): keys, cleared stages and open stages. A stage is
+// startable by a party when it is 1-1, or open for the park room AND every present party member has
+// cleared every stage before it. Without a wallet every stage is startable (the pre-key behaviour).
+export function createCampaignService({ registry, send, now = () => performance.now(), canEnter = () => true, wallet = null }) {
   const rooms = new Map(), bindings = new Map();
   const idleSockets = new WeakSet();
   let nextMembershipCheck = 0;
+  const allStages = Array.from({ length: CAMPAIGN_STAGES }, (_, stage) => stage);
+  function startable(section, party, stage) {
+    return !wallet || wallet.startable(section, party, stage);
+  }
+  // The additive progress view: unspent keys {name: n}, cleared stages {name: [stage]}, the room's
+  // open stages, the present party and the stages that party may start.
+  function progress(section, party) {
+    if (!wallet) return { keys: {}, cleared: {}, open: allStages, party, startable: allStages };
+    return { ...wallet.view(section), party, startable: wallet.startableList(section, party) };
+  }
+  // A non-binding look at where this player would land: their own team, else the first team with
+  // space that has players, else a team of their own.
+  function prospect(section, name, binding) {
+    const candidates = [...rooms.values()].filter(room => room.section === section);
+    const room = binding?.room || candidates.find(room => room.roster.includes(name) || members(room).includes(name))
+      || candidates.find(room => members(room).length && new Set([...room.roster, ...members(room)]).size < MAX_PLAYERS);
+    const others = room ? members(room).filter(other => other !== name) : [];
+    const team = room && others.length ? { stageIndex: room.stageIndex, phase: room.phase, roster: room.roster } : null;
+    return { type: 'campaign_progress', protocol: CAMPAIGN_PROTOCOL, ...progress(section, [...others, name]), team };
+  }
+  function sendProgress(section) {
+    for (const [ws, binding] of bindings) {
+      if (binding.room.section !== section || (ws.bufferedAmount || 0) >= 32768) continue;
+      send(ws, prospect(section, binding.name, binding));
+    }
+  }
+  function stageLabel(stage) {
+    return (Math.floor(stage / 4) + 1) + '-' + (stage % 4 + 1);
+  }
   function identity(ws) {
     const who = registry._wsEntry(ws);
     if (!who || !registry.stateFor(who.section, 'student', who.username)?.members
@@ -44,7 +79,8 @@ export function createCampaignService({ registry, send, now = () => performance.
     return { type: 'campaign_state', protocol: CAMPAIGN_PROTOCOL, team: room.id, epoch: room.epoch,
       stageIndex: room.stageIndex, lap: room.lap, seed: room.seed, roster: room.roster, helpers: room.helpers,
       waiting: members(room).filter(name => !room.roster.includes(name)),
-      phase: room.phase, reason: room.reason, from, to, events: page, more: to < room.frame };
+      phase: room.phase, reason: room.reason, from, to, events: page, more: to < room.frame,
+      progress: progress(room.section, members(room)) };
   }
   function broadcast(room, packet) {
     for (const [ws, binding] of bindings) {
@@ -55,7 +91,8 @@ export function createCampaignService({ registry, send, now = () => performance.
     room.epoch = randomUUID(); room.seed = randomBytes(4).readUInt32LE();
     room.roster = members(room).slice(0, MAX_PLAYERS);
     // Teacher decision 2026-10-06: helpers are retired, so only a roster starts play.
-    room.phase = room.roster.length ? 'playing' : 'waiting'; room.reason = reason;
+    // A team at the stage select stays there until someone chooses a stage.
+    room.phase = !room.roster.length ? 'waiting' : room.phase === 'select' ? 'select' : 'playing'; room.reason = reason;
     room.frame = 0; room.broadcastFrame = 0; room.log = [{ frame: 0, inputs: Array(Math.max(2, room.roster.length)).fill(0) }];
     room.inputs.clear(); room.cleared.clear(); room.lastTick = now(); room.clearAt = null;
     room.missingAt.clear(); room.touched = now();
@@ -70,14 +107,18 @@ export function createCampaignService({ registry, send, now = () => performance.
       room.inputs.delete(name); room.missingAt.set(name, now());
     }
   }
-  function findRoom(section, name) {
-    const candidates = [...rooms.values()].filter(room => room.section === section);
+  // stage (optional): the stage chosen at the stage select. A team fits when nobody else is playing
+  // in it, it is at the stage select, or it is already on that stage.
+  function findRoom(section, name, stage) {
+    const fits = room => stage === undefined || room.phase === 'select' || room.stageIndex === stage
+      || !members(room).some(other => other !== name);
+    const candidates = [...rooms.values()].filter(room => room.section === section && fits(room));
     let room = candidates.find(room => room.roster.includes(name) || members(room).includes(name));
     // Teacher decision 2026-10-06: the teacher is placed by the same rule as students (no "join any team" branch).
     room ||=candidates.find(room => new Set([...room.roster, ...members(room)]).size < MAX_PLAYERS);
     if (room) return room;
     if (rooms.size >= 64) throw new Error('The park is full. Please try again shortly.');
-    room = { id: randomUUID(), section, epoch: randomUUID(), seed: 1, stageIndex: 0, lap: 1,
+    room = { id: randomUUID(), section, epoch: randomUUID(), seed: 1, stageIndex: stage ?? 0, lap: 1,
       roster: [], helpers: [], phase: 'waiting', frame: 0, log: [], inputs: new Map(), cleared: new Set(), missingAt: new Map(),
       startAt: now() + 1500, lastTick: now(), touched: now(), reason: null, clearAt: null };
     rooms.set(room.id, room);
@@ -92,6 +133,8 @@ export function createCampaignService({ registry, send, now = () => performance.
         try { const who = identity(ws); if (who.section !== binding.room.section || who.username !== binding.name) detach(ws); }
         catch { detach(ws); }
       }
+      // A team reading the stage select is not idle.
+      if (binding.room.phase === 'select') binding.activeAt = now();
       if (bindings.has(ws) && now() - binding.activeAt >= CAMPAIGN_IDLE_MS) {
         send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' });
         idleSockets.add(ws); detach(ws); changedRooms.add(binding.room);
@@ -112,6 +155,8 @@ export function createCampaignService({ registry, send, now = () => performance.
       const online = onlineByRoom.get(room) || new Set();
       if (!online.size) { room.lastTick = now(); if (now() - room.touched > 7200000) rooms.delete(room.id); continue; }
       if (room.phase === 'waiting') { if (now() >= room.startAt) restart(room, null); continue; }
+      // At the stage select nothing is simulated; a member's campaign_join {stage} starts play.
+      if (room.phase === 'select') { room.lastTick = now(); room.touched = now(); continue; }
       if (!room.roster.length && members(room).length) { restart(room, null); continue; }
       if (room.roster.some(name => !online.has(name))) {
         if ([...room.missingAt.values()].some(at => now() - at >= RECONNECT_MS)) restart(room, 'A teammate left. Restarting this stage with the current team.');
@@ -119,7 +164,15 @@ export function createCampaignService({ registry, send, now = () => performance.
       }
       if (room.phase === 'clear') {
         if (now() - room.clearAt >= CAMPAIGN_CLEAR_MS) {
-          room.stageIndex = (room.stageIndex + 1) % CAMPAIGN_STAGES;
+          const next = (room.stageIndex + 1) % CAMPAIGN_STAGES;
+          // Teacher 2026-10-07: a team never walks into a stage that is not open, or that someone
+          // present has not earned. It goes back to the stage select instead.
+          if (next && !startable(room.section, members(room), next)) {
+            room.phase = 'select';
+            restart(room, 'Stage ' + stageLabel(next) + ' is locked. Open it with a key, or choose a stage.');
+            continue;
+          }
+          room.stageIndex = next;
           if (!room.stageIndex) room.lap++;
           restart(room, null);
         }
@@ -172,18 +225,51 @@ export function createCampaignService({ registry, send, now = () => performance.
       try {
         const who = identity(ws);
         if (message.type === 'campaign_leave') { detach(ws); return null; }
+        // Teacher 2026-10-07: the stage select reads progress without joining a team.
+        if (message.type === 'campaign_select') {
+          let binding = bindings.get(ws);
+          if (binding && (binding.name !== who.username || binding.room.section !== who.section)) binding = null;
+          return prospect(who.section, who.username, binding);
+        }
+        // Spend one key to open the next stage for the whole park room (teacher is a peer).
+        if (message.type === 'campaign_open_stage') {
+          if (!wallet) throw new Error('Every stage is already open.');
+          wallet.open(who.section, who.username, message.stage);
+          sendProgress(who.section);
+          return prospect(who.section, who.username, bindings.get(ws));
+        }
         if (message.type === 'campaign_join') {
           if (message.protocol !== CAMPAIGN_PROTOCOL) throw new Error('Reload the desk to enter the updated campaign.');
           if (!canEnter(who)) throw new Error('Finish a calculator team activity to earn the campaign key.');
           if (idleSockets.has(ws) && message.active !== true) {
             send(ws, { type: 'campaign_idle', message: 'Press a game key to rejoin your team.' }); return null;
           }
-          idleSockets.delete(ws);
+          const requested = message.stage;
+          if (requested !== undefined && !(Number.isInteger(requested) && requested >= 0 && requested < CAMPAIGN_STAGES)) {
+            throw new Error('Choose a stage from the stage select.');
+          }
           let binding = bindings.get(ws);
           if (binding && (binding.name !== who.username || binding.room.section !== who.section)) { detach(ws); binding = null; }
           // Teacher decision 2026-10-06: the teacher joins as an ordinary member (no helper slot, no campaign_helpers).
-          const room = binding?.room || findRoom(who.section, who.username);
+          const room = binding?.room || findRoom(who.section, who.username, requested);
+          // Teacher 2026-10-07: the relay decides which stage a party may start.
+          const others = members(room).filter(name => name !== who.username);
+          const choosing = !others.length || room.phase === 'select';
+          const stage = requested ?? room.stageIndex;
+          if (!choosing && stage !== room.stageIndex) {
+            throw new Error('Your team is playing ' + stageLabel(room.stageIndex) + '. Choose ' + stageLabel(room.stageIndex) + ' to join them.');
+          }
+          const party = [...others, who.username];
+          if (!startable(who.section, party, stage)) throw new Error(wallet.blocked(who.section, party, stage));
+          idleSockets.delete(ws);
           bindings.set(ws, { room, name: who.username, activeAt: binding?.activeAt ?? now() }); room.missingAt.delete(who.username); room.touched = now();
+          if (choosing && (stage !== room.stageIndex || room.phase === 'select')) {
+            // A new choice starts the chosen stage for everyone present.
+            const fresh = room.phase === 'waiting';
+            room.stageIndex = stage;
+            bindings.get(ws).activeAt = now();
+            if (!fresh) { room.phase = 'playing'; restart(room, null); return null; }
+          }
           send(ws, snapshot(room));
           return null;
         }
@@ -216,6 +302,8 @@ export function createCampaignService({ registry, send, now = () => performance.
           room.cleared.add(name);
           if (room.roster.every(member => room.cleared.has(member))) {
             room.phase = 'clear'; room.clearAt = now(); broadcast(room, { type: 'campaign_clear', epoch: room.epoch });
+            // Teacher 2026-10-07: the cleared stage is recorded for every roster member (persisted).
+            if (wallet) { wallet.recordClear(room.section, room.roster, room.stageIndex); sendProgress(room.section); }
           }
         }
         return null;

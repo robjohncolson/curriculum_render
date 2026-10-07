@@ -192,7 +192,8 @@ async function persistQuizReview(review) {
 
 // Classroom registry (Live Classroom v1a)
 const classroomRegistry = createClassroomRegistry();
-// Earned Pico Park campaign keys persist in park_campaign_keys through the same backend-only
+// Pico Park campaign key counts, cleared stages and open stages persist in park_campaign_wallet /
+// park_campaign_open (migration 0005) through the same backend-only
 // service-key client; without SUPABASE_SERVICE_KEY they stay in memory (lost on restart).
 const parkKeyStore = createSupabaseKeyStore(quizReviewsSupabase);
 if (!parkKeyStore) console.info('Park campaign keys are memory-only: SUPABASE_SERVICE_KEY is not configured.');

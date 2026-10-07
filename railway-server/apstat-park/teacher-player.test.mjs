@@ -26,8 +26,10 @@ function harness(t, keyStore = null) {
 }
 
 function recordingStore() {
-  const awards = [];
-  return { awards, async load() { return []; }, award(section, usernames, source) { awards.push({ section, usernames, source }); return Promise.resolve(); } };
+  const saves = [];
+  return { saves, async load() { return { wallets: [], open: [] }; },
+    saveWallets(section, wallets) { saves.push({ section, wallets }); return Promise.resolve(); },
+    saveSpend() { return Promise.resolve(); } };
 }
 
 test('a teacher pushes the team block and lands on the roster', t => {
@@ -54,6 +56,7 @@ test('a teacher pushes the team block and lands on the roster', t => {
   } finally { h.service.close(); }
 });
 
+// Teacher 2026-10-07: keys are a spendable count; the teacher earns and spends like a student.
 test('a teacher on the team earns a key under their own username and it is persisted', async t => {
   const store = recordingStore();
   const h = harness(t, store);
@@ -62,16 +65,20 @@ test('a teacher on the team earns a key under their own username and it is persi
     h.registry.join(student, 'PeriodE', 'eve', 'student', 0);
     h.registry.join(teacher, 'PeriodX', 'teach', 'teacher', 0);
     h.registry.join(otherTeacher, 'PeriodX', 'coteach', 'teacher', 0);
-    assert.equal(h.join(teacher).type, 'campaign_error', 'no key yet: the teacher is refused like anyone');
     earnCampaignKey(h.service, [student, teacher], h.packets, h.advance);
+    await settle();   // the wallet load resolves; rows are written from the next tick
     h.advance(200);
     await settle();
-    assert.deepEqual([...h.packets.get(student).lobby.campaignKeyHolders].sort(), ['eve', 'teach']);
-    assert.equal(store.awards.length, 1);
-    assert.equal(store.awards[0].section, SHARED_PARK);
-    assert.deepEqual([...store.awards[0].usernames].sort(), ['eve', 'teach']);
-    assert.equal(h.join(teacher), null, 'the teacher enters the campaign with their own key');
-    assert.equal(h.join(otherTeacher).type, 'campaign_error', 'holding a key is personal: no "any holder" teacher rule');
+    assert.deepEqual(h.packets.get(student).lobby.campaignKeys, { eve: 1, teach: 1 });
+    assert.equal(store.saves.length, 1);
+    assert.equal(store.saves[0].section, SHARED_PARK);
+    assert.deepEqual(store.saves[0].wallets.map(row => [row.username, row.keys]).sort(), [['eve', 1], ['teach', 1]]);
+    const open = stage => h.service.handle(otherTeacher, { type: 'campaign_open_stage', stage });
+    assert.match(open(1).message, /need a key/, 'holding a key is personal: no "any holder" teacher rule');
+    const opened = h.service.handle(teacher, { type: 'campaign_open_stage', stage: 1 });
+    assert.equal(opened.type, 'campaign_progress', 'the teacher spends their own key');
+    assert.deepEqual(opened.open, [0, 1]);
+    assert.deepEqual(opened.keys, { eve: 1 });
   } finally { h.service.close(); }
 });
 

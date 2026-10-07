@@ -4,15 +4,18 @@ import { createCalculatorRuntime } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
 import { createSnapshotPublisher } from './snapshot-publisher.mjs';
+import { createCampaignWallet } from './campaign-wallet.mjs';
 
 import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
 
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
-// keyStore (optional, campaign-key-store.mjs): where earned campaign keys outlive this process.
+// wallet (campaign-wallet.mjs): campaign key counts, cleared stages and open stages, shared with
+// the campaign service. Without one (direct tests) the service keeps a memory-only wallet.
 export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels,
-  keyStore = null, log = (...args) => console.warn(...args) }) {
+  wallet = null, log = (...args) => console.warn(...args) }) {
+  wallet ||= createCampaignWallet({ now, log });
   const rooms = new Map(), bindings = new Map();
   const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
@@ -30,55 +33,19 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const rotation = createLevelRotation(random, { varyProblems });
       rooms.set(section, {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
-        lobby: createLobby(now()), section, rotation, campaignKeys: new Set(),
-        // Keys earned here but not yet confirmed written to the key store: name -> source.
-        unsavedKeys: new Map(), keySaving: false, keyRetryAt: 0,
+        lobby: createLobby(now()), section, rotation, keysAwardedEpoch: null,
         level: rotation.next(available(section, schoolDate(wallNow()))),
       });
-      loadKeys(rooms.get(section));
+      wallet.ensure(section);
     }
     return rooms.get(section);
   }
-  // Campaign keys: memory is the hot path; the key store is the record across restarts, deploys
-  // and idle room deletes. A store call never blocks or breaks a round: a failure is logged and
-  // the room keeps its memory-only keys (exactly the behaviour without a store). A key counts as
-  // written only once the store confirms it; a failed write is retried on a later tick, at most
-  // once per KEY_RETRY_MS per room, so an outage logs once per cooldown, not every tick.
-  const KEY_RETRY_MS = 30000;
-  function loadKeys(room) {
-    if (!keyStore) return;
-    Promise.resolve().then(() => keyStore.load(room.section))
-      .then(names => {
-        for (const name of names || []) {
-          room.campaignKeys.add(name);
-          room.unsavedKeys.delete(name);   // already in the store
-        }
-      })
-      .catch(error => log('park campaign keys: load failed for', room.section, error?.message || error));
-  }
-  function earnKeys(room, names) {
-    const source = 'calculator:' + (room.level?.id || 'unknown');
-    for (const name of names) {
-      room.campaignKeys.add(name);
-      if (keyStore) room.unsavedKeys.set(name, source);
-    }
-  }
-  // Writes the room's unsaved keys (one store call per source). Called from every tick.
-  function saveKeys(room) {
-    if (!keyStore || room.keySaving || !room.unsavedKeys.size || now() < room.keyRetryAt) return;
-    const bySource = new Map();
-    for (const [name, source] of room.unsavedKeys) bySource.set(source, [...(bySource.get(source) || []), name]);
-    room.keySaving = true;
-    const writes = [...bySource].map(([source, names]) => Promise.resolve()
-      .then(() => keyStore.award(room.section, names, source))
-      .then(() => { for (const name of names) room.unsavedKeys.delete(name); }));
-    Promise.allSettled(writes).then(results => {
-      room.keySaving = false;
-      const failed = results.find(result => result.status === 'rejected');
-      if (!failed) return;
-      room.keyRetryAt = now() + KEY_RETRY_MS;
-      log('park campaign keys: save failed for', room.section, failed.reason?.message || failed.reason);
-    });
+  // Teacher 2026-10-07: keys are a spendable count. A completed round pays +1 key to every roster
+  // member, once per round (epoch). Persistence and retries live in the wallet.
+  function awardKeys(room) {
+    if (room.keysAwardedEpoch === room.epoch) return;
+    room.keysAwardedEpoch = room.epoch;
+    wallet.award(room.section, room.lobby.roster);
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
@@ -107,8 +74,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function broadcast(room) {
     if (room.level && room.lobby.phase === 'active' && !room.failure && teamComplete(room)) {
-      // broadcast runs every tick: only the names that are new holders are earned.
-      earnKeys(room, room.lobby.roster.filter(name => !room.campaignKeys.has(name)));
+      awardKeys(room);
     }
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
@@ -120,8 +86,13 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function lobbySnapshot(room) {
     const lobby = room.lobby;
+    const campaign = wallet.view(room.section);
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
-      campaignKeyHolders: [...room.campaignKeys],
+      // Kept for older desks: the players holding at least one unspent key.
+      campaignKeyHolders: Object.keys(campaign.keys),
+      // Teacher 2026-10-07 (additive): unspent key counts {name: n > 0}, cleared stage indexes
+      // {name: [stage]}, and the stages open for the room (0 = 1-1 always).
+      campaignKeys: campaign.keys, campaignCleared: campaign.cleared, campaignOpen: campaign.open,
       missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
       // Teacher decision 2026-10-06: a pushing teacher is listed like any other pusher.
       phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers, roster: lobby.roster,
@@ -276,9 +247,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
         binding.room.members.get(binding.name)?.at ?? -Infinity);
       if (!who || who.section !== binding.section || who.username !== binding.name || now() - seenAt > 5000) detached(ws);
     }
+    // Wallet rows are written from the tick, so they are retried even after the team left.
+    wallet.flush();
     for (const [section, room] of rooms) {
-      // Unsaved keys are written from the tick, so they are retried even after the team left.
-      saveKeys(room);
       const emptyTeam = room.lobby.phase === 'active' ? !room.lobby.roster.some(name => room.members.has(name))
         : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
       if (!emptyTeam) room.emptyTeamAt = null;
@@ -289,8 +260,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         }
       }
       if (!room.lobby.members.size && !room.members.size) {
-        // An idle room is dropped after 2 h, but never while it holds keys not yet written.
-        if (now() - room.touched > 2 * 60 * 60 * 1000 && !room.unsavedKeys.size) rooms.delete(section);
+        // An idle room is dropped after 2 h; its keys live on in the wallet.
+        if (now() - room.touched > 2 * 60 * 60 * 1000) rooms.delete(section);
         continue;
       }
       const time = now();
@@ -315,9 +286,10 @@ export function createCalculatorService({ registry, send, now = () => performanc
   const timer = setInterval(tick, 100);
   timer.unref?.();
   return { accepts: message => TYPES.has(message?.type), handle, detached, tick,
-    canEnterCampaign(who) {
-      // Teacher decision 2026-10-06: one rule for everyone, the teacher included: hold your own key.
-      return !!rooms.get(who.section)?.campaignKeys?.has(who.username);
+    // Teacher 2026-10-07: the campaign door is no longer gated on keys (1-1 is always startable);
+    // keys gate progression instead (campaign_open_stage).
+    canEnterCampaign() {
+      return true;
     },
     // Do not call roomFor/attemptFor: watching must never create an attempt.
     watch(section) {
