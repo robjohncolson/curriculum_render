@@ -17,7 +17,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // and holds, never moving into it ('descending-lift-stops-on-bodies').
 // Protocol 16 (teacher 2026-10-07, 1-4 vs the original): MoveWall rows decode to the native pillar that waits for its
 // sensor ('native-movewall'); the UpDownLift has its native 118 x 18 body ('native-lift-and-ledge-look').
-export const CAMPAIGN_PROTOCOL = 16;
+// Protocol 17 (teacher 2026-10-07, 1-4 platforms): plain WeightedLifts use the native wide body, threshold, travel,
+// step speeds, auto-return, box weight and underside freeze ('native-weighted-lift').
+export const CAMPAIGN_PROTOCOL = 17;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
