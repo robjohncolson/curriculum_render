@@ -15,7 +15,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // rides its sideways move; a cat on a pushed box carries its own stack ('stack-riding').
 // Protocol 15 (teacher 2026-10-07, retail capture): a lift coming down onto a standing cat or box stops on its top
 // and holds, never moving into it ('descending-lift-stops-on-bodies').
-export const CAMPAIGN_PROTOCOL = 15;
+// Protocol 16 (teacher 2026-10-07, 1-4 vs the original): MoveWall rows decode to the native pillar that waits for its
+// sensor ('native-movewall'); the UpDownLift has its native 118 x 18 body ('native-lift-and-ledge-look').
+export const CAMPAIGN_PROTOCOL = 16;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
