@@ -4,7 +4,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Mixed physics versions must not participate in the same input replay.
 // Protocol 9 (teacher 2026-10-07): push boxes that fall past the kill line return from the sky
 // (recovered patch 'push-box-sky-respawn'); a protocol-8 replay would diverge from it.
-export const CAMPAIGN_PROTOCOL = 9;
+// Protocol 10 (teacher 2026-10-07): boxes hold switches, ride cats' heads, stacked cats weigh lifts
+// (recovered patches 'push-box-holds-switches', 'push-box-head-carry', 'stacked-cats-weigh-lifts').
+export const CAMPAIGN_PROTOCOL = 10;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
