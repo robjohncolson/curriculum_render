@@ -11,7 +11,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // leaves the box, a cat cannot jump through it, only lifts / MoveWalls carry the stack).
 // Protocol 13 (teacher 2026-10-07, retail capture): a jump with a body on the head hands the jump up the column;
 // the first free box hops 22 units ('head-stack-jump-impulse').
-export const CAMPAIGN_PROTOCOL = 13;
+// Protocol 14 (teacher 2026-10-07, retail capture): what rests on a walking cat (cats, boxes, transitively)
+// rides its sideways move; a cat on a pushed box carries its own stack ('stack-riding').
+export const CAMPAIGN_PROTOCOL = 14;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
