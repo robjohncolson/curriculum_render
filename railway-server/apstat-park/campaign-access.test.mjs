@@ -45,5 +45,9 @@ test('calculator completion awards the locked team campaign access; a teacher of
     assert.equal(join(reconnected), null, 'earned key survives scene changes and reconnects in this room session');
     assert.equal(service.handle(reconnected, { type: 'campaign_join', protocol: 7 }).type, 'campaign_error',
       'old physics clients cannot join the corrected simulation');
+    // Teacher 2026-10-07: protocol 9 = push-box sky respawn. A protocol-8 desk is told to reload.
+    assert.equal(CAMPAIGN_PROTOCOL, 9);
+    assert.deepEqual(service.handle(reconnected, { type: 'campaign_join', protocol: 8 }),
+      { type: 'campaign_error', message: 'Reload the desk to enter the updated campaign.' });
   } finally { service.close(); }
 });

@@ -2,7 +2,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 
 // Protocol 8 adds persistent switches and key delivery with UP at the goal.
 // Mixed physics versions must not participate in the same input replay.
-export const CAMPAIGN_PROTOCOL = 8;
+// Protocol 9 (teacher 2026-10-07): push boxes that fall past the kill line return from the sky
+// (recovered patch 'push-box-sky-respawn'); a protocol-8 replay would diverge from it.
+export const CAMPAIGN_PROTOCOL = 9;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
