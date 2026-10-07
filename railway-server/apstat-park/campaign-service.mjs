@@ -23,7 +23,8 @@ export function createCampaignService({ registry, send, now = () => performance.
     return who;
   }
   function members(room) {
-    return [...new Set([...bindings.values()].filter(binding => binding.room === room && !binding.teacher).map(binding => binding.name))];
+    // Teacher decision 2026-10-06: the teacher is a team member like anyone (no helper exclusion).
+    return [...new Set([...bindings.values()].filter(binding => binding.room === room).map(binding => binding.name))];
   }
   function snapshot(room, from = 0) {
     const events = room.log.filter(event => event.frame >= from);
@@ -42,7 +43,8 @@ export function createCampaignService({ registry, send, now = () => performance.
   function restart(room, reason) {
     room.epoch = randomUUID(); room.seed = randomBytes(4).readUInt32LE();
     room.roster = members(room).slice(0, MAX_PLAYERS);
-    room.phase = room.roster.length || room.helpers.length ? 'playing' : 'waiting'; room.reason = reason;
+    // Teacher decision 2026-10-06: helpers are retired, so only a roster starts play.
+    room.phase = room.roster.length ? 'playing' : 'waiting'; room.reason = reason;
     room.frame = 0; room.broadcastFrame = 0; room.log = [{ frame: 0, inputs: Array(Math.max(2, room.roster.length)).fill(0) }];
     room.inputs.clear(); room.cleared.clear(); room.lastTick = now(); room.clearAt = null;
     room.missingAt.clear(); room.touched = now();
@@ -57,11 +59,11 @@ export function createCampaignService({ registry, send, now = () => performance.
       room.inputs.delete(name); room.missingAt.set(name, now());
     }
   }
-  function findRoom(section, name, teacher = false) {
+  function findRoom(section, name) {
     const candidates = [...rooms.values()].filter(room => room.section === section);
-    let room = candidates.find(room => room.roster.includes(name) || room.helpers.includes(name) || members(room).includes(name));
-    if (teacher) room ||= candidates.find(room => members(room).length);
-    room ||= candidates.find(room => new Set([...room.roster, ...members(room)]).size < MAX_PLAYERS);
+    let room = candidates.find(room => room.roster.includes(name) || members(room).includes(name));
+    // Teacher decision 2026-10-06: the teacher is placed by the same rule as students (no "join any team" branch).
+    room ||=candidates.find(room => new Set([...room.roster, ...members(room)]).size < MAX_PLAYERS);
     if (room) return room;
     if (rooms.size >= 64) throw new Error('The park is full. Please try again shortly.');
     room = { id: randomUUID(), section, epoch: randomUUID(), seed: 1, stageIndex: 0, lap: 1,
@@ -125,19 +127,7 @@ export function createCampaignService({ registry, send, now = () => performance.
           return values;
         });
         while (inputs.length < 2) inputs.push(0);
-        if (!room.roster.length && room.helpers.length) {
-          const input = room.inputs.get(room.helpers[0]);
-          if (input && now() - input.at <= INPUT_TIMEOUT) {
-            inputs[0] = input.bits; inputs[1] = input.buddy; input.bits &= 31; input.buddy &= 31;
-          }
-        }
-        for (const name of room.helpers) {
-          if (!room.roster.length && name === room.helpers[0]) continue;
-          const active = [...bindings.values()].some(binding => binding.room === room && binding.teacher && binding.name === name);
-          const input = room.inputs.get(name);
-          inputs.push(active ? 128 | (input && now() - input.at <= INPUT_TIMEOUT ? input.bits : 0) : 0);
-          if (input) input.bits &= 31;
-        }
+        // Teacher decision 2026-10-06: no helper slots (the teacher's off-roster cat); every player is on the roster.
         room.frame++;
         if (JSON.stringify(inputs) !== JSON.stringify(room.log.at(-1)?.inputs)) {
           const event = { frame: room.frame, inputs }; room.log.push(event); events.push(event);
@@ -180,13 +170,9 @@ export function createCampaignService({ registry, send, now = () => performance.
           idleSockets.delete(ws);
           let binding = bindings.get(ws);
           if (binding && (binding.name !== who.username || binding.room.section !== who.section)) { detach(ws); binding = null; }
-          const teacher = who.role === 'teacher';
-          const room = binding?.room || findRoom(who.section, who.username, teacher);
-          bindings.set(ws, { room, name: who.username, teacher, activeAt: binding?.activeAt ?? now() }); room.missingAt.delete(who.username); room.touched = now();
-          if (teacher && !room.helpers.includes(who.username)) {
-            room.helpers.push(who.username);
-            broadcast(room, { type: 'campaign_helpers', epoch: room.epoch, helpers: room.helpers });
-          }
+          // Teacher decision 2026-10-06: the teacher joins as an ordinary member (no helper slot, no campaign_helpers).
+          const room = binding?.room || findRoom(who.section, who.username);
+          bindings.set(ws, { room, name: who.username, activeAt: binding?.activeAt ?? now() }); room.missingAt.delete(who.username); room.touched = now();
           send(ws, snapshot(room));
           return null;
         }
@@ -199,7 +185,8 @@ export function createCampaignService({ registry, send, now = () => performance.
           const from = Number.isInteger(message.from) && message.from >= 0 && message.from <= room.frame ? message.from : 0;
           send(ws, snapshot(room, from)); return null;
         }
-        if (!room.roster.includes(name) && !binding.teacher) return null;
+        // Teacher decision 2026-10-06: only roster members send inputs, the teacher included.
+        if (!room.roster.includes(name)) return null;
         if (message.type === 'campaign_input') {
           if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 63) return null;
           const previous = room.inputs.get(name);
@@ -208,10 +195,11 @@ export function createCampaignService({ registry, send, now = () => performance.
           if (message.bits || (Number.isInteger(message.buddy) && (message.buddy & 63))) binding.activeAt = now();
           room.inputs.set(name, { bits: message.bits | (previous?.bits & 32),
             buddy: (Number.isInteger(message.buddy) ? message.buddy & 63 : 0) | (previous?.buddy & 32), at: now() });
-        } else if (message.type === 'campaign_retry' && (!binding.teacher || !room.roster.length) && now() - room.touched >= 0 && room.frame >= 120) {
+        // Teacher decision 2026-10-06: retry and clear follow one rule for every roster member.
+        } else if (message.type === 'campaign_retry' && now() - room.touched >= 0 && room.frame >= 120) {
           binding.activeAt = now();
           restart(room, 'Retrying the current stage.');
-        } else if (message.type === 'campaign_clear' && (!binding.teacher || !room.roster.length) && room.phase === 'playing'
+        } else if (message.type === 'campaign_clear' && room.phase === 'playing'
           && Number.isInteger(message.frame) && message.frame > 0 && message.frame <= room.frame) {
           binding.activeAt = now();
           room.cleared.add(name);

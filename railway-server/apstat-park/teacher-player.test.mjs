@@ -1,69 +1,115 @@
+// Teacher decision 2026-10-06: the teacher plays as a full peer (pushes the block, is on the roster,
+// earns and holds a key under their own username, enters the campaign like anyone), and Period B and
+// Period E share every room, team and key.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
-import { createParkRegistry } from './shared-classroom.mjs';
+import { createParkRegistry, SHARED_PARK } from './shared-classroom.mjs';
+import { createParkService } from './service.mjs';
 import { createCampaignService, CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
-import { createCalculatorService } from './calculator-service.mjs';
 import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
 import { TEAM_BLOCK, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
-import { ROUTE, SUMMARY } from './calculator-mission.mjs';
+import { earnCampaignKey, recordCalculatorPacket } from './campaign-access-fixture.mjs';
 
-test('Period X teacher can move in a B/E campaign without changing the roster, epoch or clear quorum', () => {
+const settle = () => new Promise(resolve => setImmediate(resolve));
+
+function harness(t, keyStore = null) {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let clock = 0;
+  const advance = ms => { clock += ms; t.mock.timers.tick(ms); };
+  const registry = createClassroomRegistry(), packets = new Map();
+  const service = createParkService({ registry, now: () => clock, keyStore,
+    calculatorOptions: { available: () => [DEFAULT_LEVEL], log: () => {} },
+    send(ws, packet) { recordCalculatorPacket(packets, ws, packet); } });
+  const join = ws => service.handle(ws, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
+  return { service, registry, packets, advance, join };
+}
+
+function recordingStore() {
+  const awards = [];
+  return { awards, async load() { return []; }, award(section, usernames, source) { awards.push({ section, usernames, source }); return Promise.resolve(); } };
+}
+
+test('a teacher pushes the team block and lands on the roster', t => {
+  const h = harness(t);
+  const student = {}, teacher = {};
+  try {
+    h.registry.join(student, 'PeriodB', 'bee', 'student', 0);
+    h.registry.join(teacher, 'PeriodX', 'teach', 'teacher', 0);
+    // The teacher alone pushes first: the block moves and the teacher is a pusher.
+    for (let i = 0; i < 5; i++) {
+      const blockX = h.packets.get(teacher)?.lobby?.blockX ?? TEAM_BLOCK.start;
+      h.service.handle(teacher, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL,
+        epoch: h.packets.get(teacher)?.lobby?.epoch, pose: { x: blockX - 20, y: 676 }, pushing: true });
+      h.advance(100);
+    }
+    assert.ok(h.packets.get(teacher).lobby.pushers.includes('teach'), 'the teacher is listed as a pusher');
+    assert.ok(h.packets.get(teacher).lobby.blockX > TEAM_BLOCK.start, 'a teacher push moves the block');
+    earnCampaignKey(h.service, [student, teacher], h.packets, h.advance);
+    assert.deepEqual([...h.packets.get(student).lobby.roster].sort(), ['bee', 'teach']);
+    const state = h.packets.get(teacher).state;
+    assert.equal(state.teamSize, 2, 'the teacher counts toward the team size');
+    assert.equal(state.complete, true, 'the round completes only with the teacher finished too');
+    assert.equal(state.members.find(member => member.name === 'teach').teacher, true, 'member shape keeps the teacher flag');
+  } finally { h.service.close(); }
+});
+
+test('a teacher on the team earns a key under their own username and it is persisted', async t => {
+  const store = recordingStore();
+  const h = harness(t, store);
+  const student = {}, teacher = {}, otherTeacher = {};
+  try {
+    h.registry.join(student, 'PeriodE', 'eve', 'student', 0);
+    h.registry.join(teacher, 'PeriodX', 'teach', 'teacher', 0);
+    h.registry.join(otherTeacher, 'PeriodX', 'coteach', 'teacher', 0);
+    assert.equal(h.join(teacher).type, 'campaign_error', 'no key yet: the teacher is refused like anyone');
+    earnCampaignKey(h.service, [student, teacher], h.packets, h.advance);
+    h.advance(200);
+    await settle();
+    assert.deepEqual([...h.packets.get(student).lobby.campaignKeyHolders].sort(), ['eve', 'teach']);
+    assert.equal(store.awards.length, 1);
+    assert.equal(store.awards[0].section, SHARED_PARK);
+    assert.deepEqual([...store.awards[0].usernames].sort(), ['eve', 'teach']);
+    assert.equal(h.join(teacher), null, 'the teacher enters the campaign with their own key');
+    assert.equal(h.join(otherTeacher).type, 'campaign_error', 'holding a key is personal: no "any holder" teacher rule');
+  } finally { h.service.close(); }
+});
+
+test('a mixed Period B + Period E + teacher roster completes the calculator round together', t => {
+  const h = harness(t);
+  const b = {}, e = {}, teacher = {};
+  try {
+    h.registry.join(b, 'PeriodB', 'bee', 'student', 0);
+    h.registry.join(e, 'E', 'eve', 'student', 0);
+    h.registry.join(teacher, 'PeriodX', 'teach', 'teacher', 0);
+    earnCampaignKey(h.service, [b, e, teacher], h.packets, h.advance);
+    for (const ws of [b, e, teacher]) {
+      assert.deepEqual([...h.packets.get(ws).lobby.roster].sort(), ['bee', 'eve', 'teach']);
+      assert.equal(h.packets.get(ws).state.complete, true);
+      assert.equal(h.packets.get(ws).state.readyCount, 3);
+    }
+    for (const ws of [b, e, teacher]) assert.equal(h.join(ws), null, 'all three share one key room');
+  } finally { h.service.close(); }
+});
+
+test('a teacher in the B/E campaign is an ordinary roster member: their clear is part of the quorum', () => {
   let time = 0;
   const classroom = createClassroomRegistry(), sent = new Map();
   const registry = createParkRegistry(classroom);
   const service = createCampaignService({ registry, now: () => time, send: (ws, packet) => sent.set(ws, packet) });
   const b = {}, e = {}, teacher = {};
   try {
-    for (const [ws, section, name, role] of [[b, 'PeriodB', 'bee', 'student'], [e, 'PeriodE', 'eve', 'student'], [teacher, 'PeriodX', 'teacher', 'teacher']]) classroom.join(ws, section, name, role, 0);
-    for (const ws of [b, e]) service.handle(ws, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
-    time = 1500; service.tick(); const epoch = sent.get(b).epoch;
-    service.handle(teacher, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
-    assert.equal(sent.get(teacher).epoch, epoch);
-    assert.deepEqual(sent.get(teacher).roster, ['bee', 'eve']);
-    service.handle(teacher, { type: 'campaign_input', epoch, bits: 2 });
-    time += 50; service.tick();
-    service.handle(b, { type: 'campaign_resume', epoch, from: 0 });
-    assert.ok(sent.get(b).events.some(event => event.inputs[2] === 130));
+    for (const [ws, section, name, role] of [[b, 'PeriodB', 'bee', 'student'], [e, 'PeriodE', 'eve', 'student'], [teacher, 'PeriodX', 'teach', 'teacher']]) classroom.join(ws, section, name, role, 0);
+    for (const ws of [b, e, teacher]) service.handle(ws, { type: 'campaign_join', protocol: CAMPAIGN_PROTOCOL });
+    time = 1500; service.tick();
+    const { epoch, roster, helpers } = sent.get(b);
+    assert.deepEqual(roster, ['bee', 'eve', 'teach']);
+    assert.deepEqual(helpers, [], 'the helpers field stays in the packet shape, always empty');
+    time += 3000; service.tick();
     const frame = sent.get(b).to;
     for (const ws of [b, e]) service.handle(ws, { type: 'campaign_clear', epoch, frame });
-    assert.equal(sent.get(b).type, 'campaign_clear', 'students clear without the teacher entering the goal');
-    assert.equal(classroom._wsEntry(teacher).section, 'PeriodX');
-  } finally { service.close(); }
-});
-
-test('teacher can practice and push alongside a student but cannot enlarge or fail their calculator team', () => {
-  let time = 0;
-  const classroom = createClassroomRegistry(), lobby = new Map(), states = new Map();
-  const student = {}, teacher = {};
-  classroom.join(student, 'PeriodB', 'bee', 'student', 0);
-  classroom.join(teacher, 'PeriodX', 'teacher', 'teacher', 0);
-  const service = createCalculatorService({ registry: createParkRegistry(classroom), now: () => time,
-    available: () => [DEFAULT_LEVEL], send(ws, packet) { (packet.type === 'calculator_state' ? states : lobby).set(ws, packet); } });
-  const approach = (ws, x, pushing = true, ready = false) => service.handle(ws, { type: 'calculator_lobby',
-    protocol: CALCULATOR_PROTOCOL, epoch: lobby.get(ws)?.epoch, pose: { x, y: 676 }, pushing, ready });
-  try {
-    let x = TEAM_BLOCK.start;
-    for (let i = 0; i < 120 && x < TEAM_BLOCK.dock; i++) {
-      approach(student, x - 20); approach(teacher, x - 40); time += 100; service.tick(); x = lobby.get(student).blockX;
-    }
-    assert.deepEqual(lobby.get(student).roster, ['bee']);
-    assert.deepEqual(lobby.get(student).pushers, ['bee']);
-    approach(student, x - 20, false, true); service.tick();
-    service.handle(teacher, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL });
-    assert.equal(states.get(teacher).teamSize, 1);
-    const teacherState = states.get(teacher);
-    service.handle(teacher, { type: 'calculator_press', epoch: teacherState.epoch, revision: teacherState.revision, key: 'STAT' });
-    assert.deepEqual(states.get(teacher).keys, ['STAT']);
-    for (const key of [...ROUTE, ...SUMMARY.map(String)]) {
-      const state = states.get(student);
-      service.handle(student, { type: 'calculator_press', epoch: state.epoch, revision: state.revision, key });
-    }
-    assert.equal(states.get(student).complete, true);
-    time += 15001;
-    approach(student, x - 20, false); approach(teacher, x - 40, false); service.tick();
-    assert.equal(states.get(student).complete, true);
-    assert.equal(states.get(student).failure, null);
-    assert.equal(states.get(teacher).timeoutCount, 1);
+    assert.notEqual(sent.get(b).type, 'campaign_clear', 'the students alone are not the whole team');
+    service.handle(teacher, { type: 'campaign_clear', epoch, frame });
+    assert.equal(sent.get(b).type, 'campaign_clear', 'the stage clears once the teacher reaches the goal too');
   } finally { service.close(); }
 });

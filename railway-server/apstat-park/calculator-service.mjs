@@ -91,7 +91,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function snapshot(room, name) {
     const state = attemptFor(room, name).state;
-    const names = [...new Set([...room.lobby.roster, ...[...room.members.keys()].filter(name => teacherIn(room, name))])];
+    // Teacher decision 2026-10-06: the teacher is a full peer, so the round's members are exactly the roster.
+    const names = room.lobby.roster;
     const members = names.map(name => ({
       teacher: teacherIn(room, name),
       name, ...(room.members.get(name) || { pose: { x: 65, y: WORLD.floor - 24 } }),
@@ -101,7 +102,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
       teamSize: room.lobby.roster.length,
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
-      readyCount: members.filter(member => !member.teacher && member.solved).length, members };
+      // Teacher decision 2026-10-06: a teacher's solved result counts toward the team like anyone's.
+      readyCount: members.filter(member => member.solved).length, members };
   }
   function broadcast(room) {
     if (room.level && room.lobby.phase === 'active' && !room.failure && teamComplete(room)) {
@@ -112,7 +114,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     for (const [ws, binding] of bindings) {
       if (binding.room !== room || (ws.bufferedAmount || 0) >= 32768) continue;
       publish(ws, lobby);
-      if ((room.lobby.phase === 'active' || binding.teacher) && room.members.has(binding.name)) publish(ws, snapshot(room, binding.name));
+      // Teacher decision 2026-10-06: no teacher-only snapshot outside an active round.
+      if (room.lobby.phase === 'active' && room.members.has(binding.name)) publish(ws, snapshot(room, binding.name));
     }
   }
   function lobbySnapshot(room) {
@@ -120,7 +123,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
       campaignKeyHolders: [...room.campaignKeys],
       missionId: room.level?.id || null, eligibleCount: available(room.section, schoolDate(wallNow())).length,
-      phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers.filter(name => !teacherIn(room, name)), roster: lobby.roster,
+      // Teacher decision 2026-10-06: a pushing teacher is listed like any other pusher.
+      phase: lobby.phase, blockX: lobby.x, pushers: lobby.pushers, roster: lobby.roster,
       members: [...lobby.members].map(([name, member]) => ({ name, ...member })), rtcPeers: rtc.peers(room) };
   }
   function receiveLobby(ws, who, message) {
@@ -132,7 +136,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const room = roomFor(who.section);
     bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
     rtc.optIn(ws, message.rtc === 2, message.rtcGeneration);
-    room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: who.role !== 'teacher' && message.pushing === true,
+    // Teacher decision 2026-10-06: the teacher can push the team block.
+    room.lobby.members.set(who.username, { pose: { x, y }, at: now(), pushing: message.pushing === true,
       ready: message.epoch === room.epoch && message.ready === true && x >= 740 });
     room.touched = now();
     // The regular tick distributes movement to everyone. Do not echo a full
@@ -210,7 +215,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         const room = roomFor(who.section);
-        if (who.role !== 'teacher' && (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username))) {
+        // Teacher decision 2026-10-06: the teacher joins a round only from the roster, like everyone.
+        if (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username)) {
           send(ws, lobbySnapshot(room)); return null;
         }
         if (!room.level) { send(ws, lobbySnapshot(room)); return null; }
@@ -227,7 +233,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         detached(ws); throw new Error('Rejoin the calculator room.');
       }
       const { room } = binding;
-      if ((!binding.teacher && room.lobby.phase !== 'active') || !room.members.has(binding.name)) {
+      // Teacher decision 2026-10-06: no teacher practice outside an active round.
+      if (room.lobby.phase !== 'active' || !room.members.has(binding.name)) {
         send(ws, lobbySnapshot(room)); return null;
       }
       if (message.type === 'calculator_press') checkDeadline(room, now());
@@ -241,12 +248,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
         send(ws, snapshot(room, binding.name)); return null;
       }
       if (message.type === 'calculator_restart') {
-        if (binding.teacher) {
-          // A teacher's practice/reset never restarts the students' round.
-          const old = state.timeoutCount;
-          Object.assign(state, createMission(now(), room.level), { timeoutCount: old + 1 });
-          broadcast(room); return null;
-        }
+        // Teacher decision 2026-10-06: the teacher's restart follows the team rule (no private practice reset).
         if (!teamComplete(room)) return null;
         resetRoom(room, { type: 'door' });
         broadcast(room); return null;
@@ -292,18 +294,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         continue;
       }
       const time = now();
+      // Teacher decision 2026-10-06: the teacher stays on the roster (no filter, no private practice timer).
       advanceLobby(room.lobby, time);
-      room.lobby.roster = room.lobby.roster.filter(name => !teacherIn(room, name));
-      if (room.lobby.phase === 'assembling' && !room.lobby.roster.length) room.lobby.phase = 'gathering';
-      for (const [name] of room.members) {
-        if (!teacherIn(room, name)) continue;
-        const { state } = attemptFor(room, name);
-        if (state.complete || time - state.startedAt < timeLimitFor(state)) continue;
-        const checkpoint = state.step >= room.level.route.length;
-        const keys = state.checkpointKeys.slice(), count = state.timeoutCount + 1;
-        Object.assign(state, createMission(time, room.level), { timeoutCount: count });
-        if (checkpoint) Object.assign(state, { step: room.level.route.length, keys, checkpointKeys: keys.slice() });
-      }
       startTeam(room);
       if (room.lobby.phase !== 'active') { broadcast(room); continue; }
       if (room.failure && time >= room.failure.until) {
@@ -324,8 +316,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
   timer.unref?.();
   return { accepts: message => TYPES.has(message?.type), handle, detached, tick,
     canEnterCampaign(who) {
-      const keys = rooms.get(who.section)?.campaignKeys;
-      return who.role === 'teacher' ? !!keys?.size : !!keys?.has(who.username);
+      // Teacher decision 2026-10-06: one rule for everyone, the teacher included: hold your own key.
+      return !!rooms.get(who.section)?.campaignKeys?.has(who.username);
     },
     // Do not call roomFor/attemptFor: watching must never create an attempt.
     watch(section) {
