@@ -9,7 +9,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 11 (teacher 2026-10-07): literal Rects use the native left-bottom anchor ('rect-left-bottom-anchor').
 // Protocol 12 (teacher 2026-10-07): head boxes follow the native rule ('push-box-head-carry' rewrite: walking
 // leaves the box, a cat cannot jump through it, only lifts / MoveWalls carry the stack).
-export const CAMPAIGN_PROTOCOL = 12;
+// Protocol 13 (teacher 2026-10-07, retail capture): a jump with a body on the head hands the jump up the column;
+// the first free box hops 22 units ('head-stack-jump-impulse').
+export const CAMPAIGN_PROTOCOL = 13;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
