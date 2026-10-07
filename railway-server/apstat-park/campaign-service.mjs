@@ -7,7 +7,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 10 (teacher 2026-10-07): boxes hold switches, ride cats' heads, stacked cats weigh lifts
 // (recovered patches 'push-box-holds-switches', 'push-box-head-carry', 'stacked-cats-weigh-lifts').
 // Protocol 11 (teacher 2026-10-07): literal Rects use the native left-bottom anchor ('rect-left-bottom-anchor').
-export const CAMPAIGN_PROTOCOL = 11;
+// Protocol 12 (teacher 2026-10-07): head boxes follow the native rule ('push-box-head-carry' rewrite: walking
+// leaves the box, a cat cannot jump through it, only lifts / MoveWalls carry the stack).
+export const CAMPAIGN_PROTOCOL = 12;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
