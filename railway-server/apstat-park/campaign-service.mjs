@@ -19,7 +19,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // sensor ('native-movewall'); the UpDownLift has its native 118 x 18 body ('native-lift-and-ledge-look').
 // Protocol 17 (teacher 2026-10-07, 1-4 platforms): plain WeightedLifts use the native wide body, threshold, travel,
 // step speeds, auto-return, box weight and underside freeze ('native-weighted-lift').
-export const CAMPAIGN_PROTOCOL = 17;
+// Protocol 18 (fidelity audit 2026-10-07, batch 1): every cat has the native 32 x 46 body standing 1 above its row
+// point, p0 = 1 rows spawn facing left, and player rows bind slots by row order ('native-player-body').
+export const CAMPAIGN_PROTOCOL = 18;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
