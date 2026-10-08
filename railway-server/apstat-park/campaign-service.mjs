@@ -34,7 +34,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 23 (fidelity audit 2026-10-08, batch 6): solid armed FallBoxes, every push box falls, solid MC_D* chips,
 // DarknessWeightedLift ignores chips, native BowwowEnemy states, StepEnemy chip face rule ('fallbox-solid-while-armed',
 // 'pushbox-general-fall', 'mc-d-tiles-solid', 'darkness-weighted-lift-tiles', 'bowwow-chase-stops', 'stepenemy-unspawn').
-export const CAMPAIGN_PROTOCOL = 23;
+// Protocol 24 (fidelity audit 2026-10-08, batch 7): native rope, solid launching JumpStands (boxes too), a growing cat
+// lifts its rider ('distance-constraint-native', 'jumpstand-launch', 'scaleswitch-carry').
+export const CAMPAIGN_PROTOCOL = 24;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
