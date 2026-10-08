@@ -36,7 +36,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // 'pushbox-general-fall', 'mc-d-tiles-solid', 'darkness-weighted-lift-tiles', 'bowwow-chase-stops', 'stepenemy-unspawn').
 // Protocol 24 (fidelity audit 2026-10-08, batch 7): native rope, solid launching JumpStands (boxes too), a growing cat
 // lifts its rider ('distance-constraint-native', 'jumpstand-launch', 'scaleswitch-carry').
-export const CAMPAIGN_PROTOCOL = 24;
+// Protocol 25 (fidelity audit 2026-10-08, batch 8): MultiPlayer jump relay, majority vote, JumpSwitch / DelaySwitch,
+// top-left JumpArea and Warp sensors ('multi-jump-relay', 'jumparea-top-left', 'majority-player', 'jumpswitch-launch',
+// 'delayswitch-countdown', 'warp-sensor-top-left').
+export const CAMPAIGN_PROTOCOL = 25;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
