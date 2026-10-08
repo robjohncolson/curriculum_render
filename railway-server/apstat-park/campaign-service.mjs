@@ -47,7 +47,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 28 (fidelity audit 2026-10-08, batch 11): native breakout (dome paddles, a ball per row, lost balls and
 // restart, hidden key, inert sync area) ('breakout-paddle-dome', 'breakout-ball-per-row', 'breakout-loss-and-fail',
 // 'breakout-key-hidden-until-clear', 'breakout-syncarea-inert').
-export const CAMPAIGN_PROTOCOL = 28;
+// Protocol 29 (fidelity audit 2026-10-08, batch 12): world 9 - laser cannon / key box, seesaws and balance pans,
+// bouncing ball / ball box ('laser-ball-pitcher', 'laser-key-box', 'seesaw-and-balance', 'bound-ball-pitcher', 'ball-box').
+export const CAMPAIGN_PROTOCOL = 29;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
