@@ -153,6 +153,21 @@ test('rapid press and release preserve a jump edge without leaving movement held
   } finally { f.service.close(); }
 });
 
+test('the UP press edge (512) lasts one tick; an input timeout and the same held heartbeat never make a new press', () => {
+  const f = fixture(1);
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    // Key-down on UP: held 4 + press edge 512. The edge lasts one authoritative tick, the hold persists.
+    f.send(f.players[0], 'campaign_input', { bits: 4 | 512, buddy: 0 });
+    for (let i = 0; i < 35; i++) f.advance(50);   // silent for 1750 ms: the relay times the input out (held -> 0)
+    f.send(f.players[0], 'campaign_input', { bits: 4, buddy: 0 });   // the same held-UP heartbeat resumes
+    f.advance(50);
+    const inputs = f.state().events.slice(1).map(event => event.inputs);
+    assert.deepEqual(inputs, [[516, 0], [4, 0], [0, 0], [4, 0]], 'press once, hold, timeout, resumed hold without a press');
+    assert.equal(inputs.filter(([bits]) => bits & 512).length, 1, 'exactly one UP press edge');
+  } finally { f.service.close(); }
+});
+
 test('old-style packets (bits <= 63) still work; action bits 64/256 round-trip into the journal', () => {
   const f = fixture(1);
   try {
@@ -170,8 +185,8 @@ test('old-style packets (bits <= 63) still work; action bits 64/256 round-trip i
     assert.deepEqual(f.state().events.map(event => event.inputs).slice(-2), [[256, 0], [0, 0]]);
     // Out of range is rejected; the reserved helper bit 128 never reaches the journal.
     const before = f.state().events.length;
-    f.send(f.players[0], 'campaign_input', { bits: 512 | 2 }); f.advance(50);
-    assert.equal(f.state().events.length, before, 'bits > 511 are rejected');
+    f.send(f.players[0], 'campaign_input', { bits: 1024 | 2 }); f.advance(50);
+    assert.equal(f.state().events.length, before, 'bits > 1023 are rejected');
     f.send(f.players[0], 'campaign_input', { bits: 128 | 2, buddy: 128 }); f.advance(50);
     const last = f.state().events.at(-1).inputs;
     assert.ok(f.state().events.length > before);

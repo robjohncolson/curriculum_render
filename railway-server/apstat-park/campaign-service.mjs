@@ -52,14 +52,19 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 30 (fidelity audit 2026-10-08, batch 13): world 11 action button / warp gun / magnet.
 // Protocol 31 (fidelity audit 2026-10-08, batch 14): 8-1 / 8-3 native co-op Tetris puzzle sub-stage, seeded from the
 // stage seed ('puzzle-stage-data', 'puzzle-proxies-netcode-only', 'puzzle-tetris', 'puzzle-tetris-draw').
-export const CAMPAIGN_PROTOCOL = 31;
+// Protocol 32 (fidelity audit 2026-10-08, batch 15): rope drawn between the cats and swept against bodies, cats in
+// front of the door, native door entry on an UP press (hidden, bodiless, can come back out after 1 s)
+// ('rope-draw', 'rope-pull-solids', 'actor-draw-depth', 'goal-enter-native'); input bit 512 = UP press edge, so an
+// input timeout followed by the same held-UP heartbeat is never a new press.
+export const CAMPAIGN_PROTOCOL = 32;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
 const MEMBERSHIP_CHECK_MS = 1000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
-// Input bits: 31 held directions + jump, 32 jump press edge, 64 action held, 256 action press edge (128 is reserved).
-const HELD_BITS = 31 | 64, EDGE_BITS = 32 | 256, INPUT_BITS = HELD_BITS | EDGE_BITS;
+// Input bits: 31 held directions + jump, 32 jump press edge, 64 action held, 256 action press edge, 512 up press edge
+// (128 is reserved).
+const HELD_BITS = 31 | 64, EDGE_BITS = 32 | 256 | 512, INPUT_BITS = HELD_BITS | EDGE_BITS;
 const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave',
   'campaign_select', 'campaign_open_stage']);
 
@@ -227,7 +232,7 @@ export function createCampaignService({ registry, send, now = () => performance.
           if (!input || now() - input.at > INPUT_TIMEOUT) return room.roster.length === 1 ? [0, 0] : [0];
           const values = room.roster.length === 1 ? [input.bits, input.buddy] : [input.bits];
           // Bits: 1 left, 2 right, 4 up, 8 down, 16 jump, 32 jump press edge, 64 action (native input bit 11,
-          // '[shot]'), 256 action press edge. Held buttons persist; the two press edges last one tick.
+          // '[shot]'), 256 action press edge, 512 up press edge. Held buttons persist; the press edges last one tick.
           input.bits &= HELD_BITS; input.buddy &= HELD_BITS;
           return values;
         });
@@ -328,14 +333,14 @@ export function createCampaignService({ registry, send, now = () => performance.
         // Teacher decision 2026-10-06: only roster members send inputs, the teacher included.
         if (!room.roster.includes(name)) return null;
         if (message.type === 'campaign_input') {
-          // Old clients send bits <= 63; the action button adds 64 (held) and 256 (press edge). 128 is the
-          // desk's teacher-helper flag and never travels from a client.
-          if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 511) return null;
+          // Old clients send bits <= 63; the action button adds 64 (held) and 256 (press edge), UP adds 512 (press
+          // edge). 128 is the desk's teacher-helper flag and never travels from a client.
+          if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 1023) return null;
           const previous = room.inputs.get(name);
           const bits = message.bits & INPUT_BITS;
           const buddy = Number.isInteger(message.buddy) ? message.buddy & INPUT_BITS : 0;
           // Keep the latest held state even when packets arrive in a burst.
-          // Jump and action edges remain latched until the next authoritative frame.
+          // Jump, action and up edges remain latched until the next authoritative frame.
           if (bits || buddy) binding.activeAt = now();
           room.inputs.set(name, { bits: bits | (previous?.bits & EDGE_BITS),
             buddy: buddy | (previous?.buddy & EDGE_BITS), at: now() });
