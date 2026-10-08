@@ -153,6 +153,32 @@ test('rapid press and release preserve a jump edge without leaving movement held
   } finally { f.service.close(); }
 });
 
+test('old-style packets (bits <= 63) still work; action bits 64/256 round-trip into the journal', () => {
+  const f = fixture(1);
+  try {
+    f.players.forEach(f.join); f.advance(1500);
+    // An old client: jump held + jump edge, nothing above bit 32.
+    f.send(f.players[0], 'campaign_input', { bits: 50, buddy: 16 }); f.advance(50);
+    assert.deepEqual(f.state().events.slice(1).map(event => event.inputs), [[50, 16], [18, 16]]);
+    // Action held (64) + action press edge (256): the edge lasts one tick, the hold persists.
+    f.send(f.players[0], 'campaign_input', { bits: 64 | 256 | 2, buddy: 64 | 256 }); f.advance(50);
+    const events = f.state().events.map(event => event.inputs);
+    assert.deepEqual(events.slice(-2), [[322, 320], [66, 64]]);
+    // A press and release inside one tick keeps only the edge (like jump).
+    f.send(f.players[0], 'campaign_input', { bits: 64 | 256, buddy: 0 });
+    f.send(f.players[0], 'campaign_input', { bits: 0, buddy: 0 }); f.advance(50);
+    assert.deepEqual(f.state().events.map(event => event.inputs).slice(-2), [[256, 0], [0, 0]]);
+    // Out of range is rejected; the reserved helper bit 128 never reaches the journal.
+    const before = f.state().events.length;
+    f.send(f.players[0], 'campaign_input', { bits: 512 | 2 }); f.advance(50);
+    assert.equal(f.state().events.length, before, 'bits > 511 are rejected');
+    f.send(f.players[0], 'campaign_input', { bits: 128 | 2, buddy: 128 }); f.advance(50);
+    const last = f.state().events.at(-1).inputs;
+    assert.ok(f.state().events.length > before);
+    assert.deepEqual(last, [2, 0]);
+  } finally { f.service.close(); }
+});
+
 function trafficFixture(count = 1) {
   let time = 0, membershipReads = 0;
   const registry = createClassroomRegistry();
