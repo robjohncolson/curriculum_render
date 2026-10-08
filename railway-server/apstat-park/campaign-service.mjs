@@ -39,7 +39,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 25 (fidelity audit 2026-10-08, batch 8): MultiPlayer jump relay, majority vote, JumpSwitch / DelaySwitch,
 // top-left JumpArea and Warp sensors ('multi-jump-relay', 'jumparea-top-left', 'majority-player', 'jumpswitch-launch',
 // 'delayswitch-countdown', 'warp-sensor-top-left').
-export const CAMPAIGN_PROTOCOL = 25;
+// Protocol 26 (fidelity audit 2026-10-08, batch 9): jump off a falling partner, pushed boxes carry their stack,
+// ColorBox body inset 2, landing on a rising lift ('jump-off-body-contact', 'pushed-box-carries-stack',
+// 'colorbox-native-body', 'land-on-rising-lift').
+export const CAMPAIGN_PROTOCOL = 26;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
