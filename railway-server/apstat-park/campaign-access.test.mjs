@@ -51,11 +51,11 @@ test('calculator completion pays the locked team one key each; everyone may ente
     assert.equal(packets.get(b).lobby.campaignKeys.a, 1, 'the earned key survives scene changes and reconnects');
     assert.equal(service.handle(reconnected, { type: 'campaign_join', protocol: 7 }).type, 'campaign_error',
       'old physics clients cannot join the corrected simulation');
-    // Fidelity audit 2026-10-07: protocol 21 = MoveWall / lift step rollback (20 batch 3 boxes and movers, 19 batch 2 geometry, 18 native 32 x 46 player body, 17 native WeightedLift, 16 native MoveWall + UpDownLift body, 15 descending lift stops on a cat,
+    // Fidelity audit 2026-10-07: protocol 22 = batch 5 hazards (21 MoveWall / lift step rollback, 20 batch 3 boxes and movers, 19 batch 2 geometry, 18 native 32 x 46 player body, 17 native WeightedLift, 16 native MoveWall + UpDownLift body, 15 descending lift stops on a cat,
     // 14 stack riding, 13 head-stack jump hand-off, 12 head-box rule, 11 Rect anchor, 10 boxes hold switches,
     // 9 the sky respawn). An older desk is told to reload.
-    assert.equal(CAMPAIGN_PROTOCOL, 21);
-    for (const protocol of [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) {
+    assert.equal(CAMPAIGN_PROTOCOL, 22);
+    for (const protocol of [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]) {
       assert.deepEqual(service.handle(reconnected, { type: 'campaign_join', protocol }),
         { type: 'campaign_error', message: 'Reload the desk to enter the updated campaign.' });
     }

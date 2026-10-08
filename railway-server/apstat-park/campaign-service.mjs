@@ -29,7 +29,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // 'colorbox-colour-push', 'weighted-lift-ex-variants', 'lift-horizontal-carry', 'bridge-folded-start-and-motion').
 // Protocol 21 (teacher 2026-10-07, 1-4 freeze): a MoveWall step that would pin a body is undone, and a rising weighted
 // lift never carries its riders into a solid ('native-movewall-rollback', 'weighted-lift-chain-test').
-export const CAMPAIGN_PROTOCOL = 21;
+// Protocol 22 (fidelity audit 2026-10-07, batch 5): swept / cut / drawn Thunder beams, GuardPlayer shield planks,
+// native StepEnemy / UpDownEnemy / BowwowEnemy bodies and motion ('thunder-beam', 'guard-shields', 'step-enemy-native').
+export const CAMPAIGN_PROTOCOL = 22;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
