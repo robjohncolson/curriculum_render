@@ -49,12 +49,14 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // 'breakout-key-hidden-until-clear', 'breakout-syncarea-inert').
 // Protocol 29 (fidelity audit 2026-10-08, batch 12): world 9 - laser cannon / key box, seesaws and balance pans,
 // bouncing ball / ball box ('laser-ball-pitcher', 'laser-key-box', 'seesaw-and-balance', 'bound-ball-pitcher', 'ball-box').
-export const CAMPAIGN_PROTOCOL = 29;
+export const CAMPAIGN_PROTOCOL = 30;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
 const MEMBERSHIP_CHECK_MS = 1000;
 const MAX_PLAYERS = 8, INPUT_TIMEOUT = 1500, RECONNECT_MS = 15000;
+// Input bits: 31 held directions + jump, 32 jump press edge, 64 action held, 256 action press edge (128 is reserved).
+const HELD_BITS = 31 | 64, EDGE_BITS = 32 | 256, INPUT_BITS = HELD_BITS | EDGE_BITS;
 const TYPES = new Set(['campaign_join', 'campaign_input', 'campaign_resume', 'campaign_clear', 'campaign_retry', 'campaign_leave',
   'campaign_select', 'campaign_open_stage']);
 
@@ -221,7 +223,9 @@ export function createCampaignService({ registry, send, now = () => performance.
           const input = room.inputs.get(name);
           if (!input || now() - input.at > INPUT_TIMEOUT) return room.roster.length === 1 ? [0, 0] : [0];
           const values = room.roster.length === 1 ? [input.bits, input.buddy] : [input.bits];
-          input.bits &= 31; input.buddy &= 31;
+          // Bits: 1 left, 2 right, 4 up, 8 down, 16 jump, 32 jump press edge, 64 action (native input bit 11,
+          // '[shot]'), 256 action press edge. Held buttons persist; the two press edges last one tick.
+          input.bits &= HELD_BITS; input.buddy &= HELD_BITS;
           return values;
         });
         while (inputs.length < 2) inputs.push(0);
@@ -319,13 +323,17 @@ export function createCampaignService({ registry, send, now = () => performance.
         // Teacher decision 2026-10-06: only roster members send inputs, the teacher included.
         if (!room.roster.includes(name)) return null;
         if (message.type === 'campaign_input') {
-          if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 63) return null;
+          // Old clients send bits <= 63; the action button adds 64 (held) and 256 (press edge). 128 is the
+          // desk's teacher-helper flag and never travels from a client.
+          if (!Number.isInteger(message.bits) || message.bits < 0 || message.bits > 511) return null;
           const previous = room.inputs.get(name);
+          const bits = message.bits & INPUT_BITS;
+          const buddy = Number.isInteger(message.buddy) ? message.buddy & INPUT_BITS : 0;
           // Keep the latest held state even when packets arrive in a burst.
-          // Jump edges remain latched until the next authoritative frame.
-          if (message.bits || (Number.isInteger(message.buddy) && (message.buddy & 63))) binding.activeAt = now();
-          room.inputs.set(name, { bits: message.bits | (previous?.bits & 32),
-            buddy: (Number.isInteger(message.buddy) ? message.buddy & 63 : 0) | (previous?.buddy & 32), at: now() });
+          // Jump and action edges remain latched until the next authoritative frame.
+          if (bits || buddy) binding.activeAt = now();
+          room.inputs.set(name, { bits: bits | (previous?.bits & EDGE_BITS),
+            buddy: buddy | (previous?.buddy & EDGE_BITS), at: now() });
         // Teacher decision 2026-10-06: retry and clear follow one rule for every roster member.
         } else if (message.type === 'campaign_retry' && now() - room.touched >= 0 && room.frame >= 120) {
           binding.activeAt = now();
