@@ -31,7 +31,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // lift never carries its riders into a solid ('native-movewall-rollback', 'weighted-lift-chain-test').
 // Protocol 22 (fidelity audit 2026-10-07, batch 5): swept / cut / drawn Thunder beams, GuardPlayer shield planks,
 // native StepEnemy / UpDownEnemy / BowwowEnemy bodies and motion ('thunder-beam', 'guard-shields', 'step-enemy-native').
-export const CAMPAIGN_PROTOCOL = 22;
+// Protocol 23 (fidelity audit 2026-10-08, batch 6): solid armed FallBoxes, every push box falls, solid MC_D* chips,
+// DarknessWeightedLift ignores chips, native BowwowEnemy states, StepEnemy chip face rule ('fallbox-solid-while-armed',
+// 'pushbox-general-fall', 'mc-d-tiles-solid', 'darkness-weighted-lift-tiles', 'bowwow-chase-stops', 'stepenemy-unspawn').
+export const CAMPAIGN_PROTOCOL = 23;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
