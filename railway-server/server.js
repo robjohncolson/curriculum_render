@@ -10,6 +10,7 @@ import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './
 import { createClassroomRegistry } from './classroom.js';
 import { createParkService } from './apstat-park/service.mjs';
 import { createSupabaseKeyStore } from './apstat-park/campaign-key-store.mjs';
+import { createKeyGrantHandler } from './apstat-park/campaign-key-grant.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 import { createHmac } from 'crypto';
@@ -202,6 +203,9 @@ const classroomPark = createParkService({
   send: (ws, payload) => { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); },
   keyStore: parkKeyStore,
 });
+// A campaign key bought with candy: roster-server calls this server-to-server after debiting the
+// candy (shared secret PARK_KEY_GRANT_SECRET; idempotent on receiptId). Migration 0006.
+app.post('/park/campaign/keys/grant', createKeyGrantHandler({ park: classroomPark }));
 
 // Helper to check cache validity
 function isCacheValid(lastUpdate, ttl = cache.TTL) {

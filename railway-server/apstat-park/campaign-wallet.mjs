@@ -26,7 +26,11 @@ export function createCampaignWallet({ store = null, now = () => performance.now
     const state = { section, keys: new Map(), cleared: new Map(), open: new Set([0]), openedBy: new Map(),
       // dirtySpends: stage -> spender, opened in memory but not yet confirmed written.
       dirtyWallets: new Set(), dirtySpends: new Map(), load: store ? 'pending' : 'done', loadRetryAt: 0,
-      saving: false, saveRetryAt: 0 };
+      loading: null, saving: false, saveRetryAt: 0,
+      // Keys bought with candy, per player: the STORED count (park_campaign_wallet.bought), set only
+      // from the store. `keys` stays this wallet's own earned - spent (it may go below zero when a
+      // bought key is spent); a player's unspent count is keys + bought.
+      bought: new Map() };
     sections.set(section, state);
     if (store) startLoad(state);
     return state;
@@ -34,7 +38,7 @@ export function createCampaignWallet({ store = null, now = () => performance.now
 
   function startLoad(state) {
     state.load = 'pending';
-    Promise.resolve().then(() => store.load(state.section))
+    state.loading = Promise.resolve().then(() => store.load(state.section))
       .then(data => merge(state, data))
       .catch(error => {
         state.load = 'failed';
@@ -45,8 +49,9 @@ export function createCampaignWallet({ store = null, now = () => performance.now
 
   function merge(state, data) {
     for (const row of data?.wallets || []) {
-      const keys = Number.isInteger(row.keys) && row.keys > 0 ? row.keys : 0;
+      const keys = Number.isInteger(row.keys) ? row.keys : 0;
       state.keys.set(row.username, (state.keys.get(row.username) || 0) + keys);
+      if (Number.isInteger(row.bought) && row.bought > 0) setBought(state, row.username, row.bought);
       const cleared = clearedSet(state, row.username);
       for (const stage of row.cleared || []) if (Number.isInteger(stage)) cleared.add(stage);
     }
@@ -89,6 +94,39 @@ export function createCampaignWallet({ store = null, now = () => performance.now
     }
   }
 
+  // Bought counts only grow; an older reply must not lower a newer one.
+  function setBought(state, name, count) {
+    if (!Number.isInteger(count) || count < 0) return;
+    state.bought.set(name, Math.max(state.bought.get(name) || 0, count));
+  }
+
+  // A key bought with candy on roster-server (PICO_DESK_SPEC "Candy economy", item 9). A bought key
+  // is identical to an earned one. The store is the only truth: park_campaign_grant_key records the
+  // receipt and adds the key in ONE transaction (idempotent on receiptId) and returns the stored
+  // bought count, fresh or duplicate, which memory then takes. So a grant whose reply was lost is
+  // counted on the retry, and the wallet's own absolute saves never write bought, so they cannot
+  // overwrite it. Without a store there is nowhere durable to put a paid key: rejects (the caller
+  // answers 503 and roster-server holds the candy and retries). Also rejects when the section
+  // cannot be loaded or the write fails.
+  async function grant(section, name, receiptId) {
+    if (!store) throw new Error('Bought keys need the park database (SUPABASE_SERVICE_KEY).');
+    const state = sectionState(section);
+    await waitForLoad(state);
+    if (state.load !== 'done') throw new Error('Keys are still loading. Try again in a moment.');
+    const result = await store.grantKey(section, { receiptId, username: name });
+    setBought(state, name, result.bought);
+    return { granted: result.granted, keys: keysOf(section, name) };
+  }
+
+  async function waitForLoad(state, waitMs = 5000) {
+    if (state.load === 'failed') startLoad(state);
+    if (state.load !== 'pending' || !state.loading) return;
+    let timer;
+    const timeout = new Promise(resolve => { timer = setTimeout(resolve, waitMs); });
+    await Promise.race([state.loading, timeout]);
+    clearTimeout(timer);
+  }
+
   function recordClear(section, names, stage) {
     const state = sectionState(section);
     for (const name of names) {
@@ -107,8 +145,8 @@ export function createCampaignWallet({ store = null, now = () => performance.now
     if (state.open.has(stage)) throw new Error('Stage ' + stageLabel(stage) + ' is already open.');
     const next = highestOpen(state) + 1;
     if (stage !== next) throw new Error('Only the next stage (' + stageLabel(next) + ') can be opened.');
-    if ((state.keys.get(name) || 0) < 1) throw new Error('You need a key to open ' + stageLabel(stage) + '. Finish a calculator team round to earn one.');
-    state.keys.set(name, state.keys.get(name) - 1);
+    if (keysOf(section, name) < 1) throw new Error('You need a key to open ' + stageLabel(stage) + '. Finish a calculator team round to earn one.');
+    state.keys.set(name, (state.keys.get(name) || 0) - 1);
     state.open.add(stage);
     state.openedBy.set(stage, name);
     state.dirtySpends.set(stage, name);
@@ -142,13 +180,18 @@ export function createCampaignWallet({ store = null, now = () => performance.now
   function view(section) {
     const state = sectionState(section);
     const keys = {}, cleared = {};
-    for (const [name, count] of state.keys) if (count > 0) keys[name] = count;
+    for (const name of new Set([...state.keys.keys(), ...state.bought.keys()])) {
+      const count = keysOf(section, name);
+      if (count > 0) keys[name] = count;
+    }
     for (const [name, stages] of state.cleared) if (stages.size) cleared[name] = [...stages].sort((a, b) => a - b);
     return { keys, cleared, open: [...state.open].sort((a, b) => a - b) };
   }
 
+  // Unspent keys: this wallet's earned - spent plus the stored bought count.
   function keysOf(section, name) {
-    return sectionState(section).keys.get(name) || 0;
+    const state = sectionState(section);
+    return (state.keys.get(name) || 0) + (state.bought.get(name) || 0);
   }
 
   // Called from the calculator service's 100 ms tick.
@@ -206,5 +249,5 @@ export function createCampaignWallet({ store = null, now = () => performance.now
     sectionState(section);
   }
 
-  return { ensure, award, recordClear, open, startable, blocked, startableList, view, keysOf, flush, unsaved };
+  return { ensure, award, grant, recordClear, open, startable, blocked, startableList, view, keysOf, flush, unsaved };
 }

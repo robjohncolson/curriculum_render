@@ -3,7 +3,7 @@ import { createCalculatorService } from './calculator-service.mjs';
 import { createCampaignService } from './campaign-service.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
 import { ParkSession } from './session.mjs';
-import { createParkRegistry, eligibleParkLevels, SHARED_PARK } from './shared-classroom.mjs';
+import { createParkRegistry, eligibleParkLevels, parkSection, SHARED_PARK } from './shared-classroom.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
 
 const types = new Set(['park_start', 'park_join', 'park_resume', 'park_leave', 'park_lobby', 'park_command', 'park_motion', 'park_run', 'park_next', 'park_stop', 'park_status']);
@@ -205,6 +205,18 @@ export function createParkService({ registry, send, now = () => performance.now(
       } catch (error) {
         return { type: 'park_error', requestId: message.requestId, message: error.message };
       }
+    },
+    // A key bought with candy (roster-server POST /wallet/buy-key → relay POST /park/campaign/keys/grant).
+    // section/role are the buyer's roster section and role; the key lands in the same park room the
+    // player's classroom identity maps to (the teacher in PeriodX shares the B + E park). The new
+    // count reaches the room at once: campaign players get campaign_progress now, and the calculator
+    // lobby publishes campaignKeys on its next tick.
+    async grantKey({ username, section, role, receiptId }) {
+      const teacherHome = role === 'teacher' && ['PeriodX', 'X'].includes(section);
+      const room = teacherHome ? SHARED_PARK : parkSection(section);
+      const result = await wallet.grant(room, username, receiptId);
+      if (result.granted) campaign.refresh(room);
+      return { ...result, section: room };
     },
     detached(ws) { unbind(ws); calculator.detached(ws); campaign.detached(ws); },
     close() { clearInterval(maintenance); bindings.clear(); rooms.clear(); calculator.close(); campaign.close(); },

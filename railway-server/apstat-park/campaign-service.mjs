@@ -261,6 +261,8 @@ export function createCampaignService({ registry, send, now = () => performance.
         state: room ? snapshot(room, from) : null };
     },
     occupants: section => [...new Set([...bindings.values()].filter(binding => binding.room.section === section).map(binding => binding.name))],
+    // Re-send the key counts / open stages to everyone in the park room (a key bought with candy).
+    refresh: sendProgress,
     handle(ws, message) {
       if (!TYPES.has(message?.type)) return null;
       try {

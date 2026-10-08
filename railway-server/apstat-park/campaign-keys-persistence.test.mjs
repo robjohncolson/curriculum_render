@@ -220,13 +220,13 @@ test('the Supabase store reads both tables, upserts absolute wallet rows and fir
     rpc(name, args) { seen.push(['rpc', name, args]); return Promise.resolve(results[CAMPAIGN_OPEN_TABLE]); } };
   const store = createSupabaseKeyStore(client);
   assert.deepEqual(await store.load(SHARED_PARK), {
-    wallets: [{ username: 'a', keys: 2, cleared: [0] }, { username: 'b', keys: 0, cleared: [] }],
+    wallets: [{ username: 'a', keys: 2, bought: 0, cleared: [0] }, { username: 'b', keys: 0, bought: 0, cleared: [] }],
     open: [{ stage: 1, openedBy: 'a' }],
   });
   await store.saveWallets(SHARED_PARK, [{ username: 'a', keys: 1, cleared: [0, 1] }]);
   await store.saveSpend(SHARED_PARK, { stage: 2, openedBy: 'a', wallet: { username: 'a', keys: 0, cleared: [0, 1] } });
   assert.deepEqual(seen, [
-    ['from', CAMPAIGN_WALLET_TABLE], ['select', CAMPAIGN_WALLET_TABLE, 'username,keys,cleared'], ['eq', 'section', SHARED_PARK],
+    ['from', CAMPAIGN_WALLET_TABLE], ['select', CAMPAIGN_WALLET_TABLE, 'username,keys,bought,cleared'], ['eq', 'section', SHARED_PARK],
     ['from', CAMPAIGN_OPEN_TABLE], ['select', CAMPAIGN_OPEN_TABLE, 'stage,opened_by'], ['eq', 'section', SHARED_PARK],
     ['from', CAMPAIGN_WALLET_TABLE],
     ['upsert', CAMPAIGN_WALLET_TABLE, [{ section: SHARED_PARK, username: 'a', keys: 1, cleared: [0, 1] }], { onConflict: 'section,username' }],
