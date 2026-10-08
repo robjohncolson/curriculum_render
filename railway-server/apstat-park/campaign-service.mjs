@@ -21,7 +21,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // step speeds, auto-return, box weight and underside freeze ('native-weighted-lift').
 // Protocol 18 (fidelity audit 2026-10-07, batch 1): every cat has the native 32 x 46 body standing 1 above its row
 // point, p0 = 1 rows spawn facing left, and player rows bind slots by row order ('native-player-body').
-export const CAMPAIGN_PROTOCOL = 18;
+// Protocol 19 (fidelity audit 2026-10-07, batch 2): goals open only on a delivered key, native doors; Rects with
+// party terms; party-moved keys; bottom-anchored FallBox / ColorBox ('goal-native-open-and-door', 'rect-party-terms',
+// 'key-party-offset', 'bottom-anchored-boxes').
+export const CAMPAIGN_PROTOCOL = 19;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
