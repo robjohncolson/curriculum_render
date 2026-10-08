@@ -44,7 +44,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // 'colorbox-native-body', 'land-on-rising-lift').
 // Protocol 27 (fidelity audit 2026-10-08, batch 10): native walk 3 per tick and push 1 per tick
 // ('native-walk-and-push-speed').
-export const CAMPAIGN_PROTOCOL = 27;
+// Protocol 28 (fidelity audit 2026-10-08, batch 11): native breakout (dome paddles, a ball per row, lost balls and
+// restart, hidden key, inert sync area) ('breakout-paddle-dome', 'breakout-ball-per-row', 'breakout-loss-and-fail',
+// 'breakout-key-hidden-until-clear', 'breakout-syncarea-inert').
+export const CAMPAIGN_PROTOCOL = 28;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
