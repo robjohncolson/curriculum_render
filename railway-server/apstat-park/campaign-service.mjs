@@ -56,7 +56,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // front of the door, native door entry on an UP press (hidden, bodiless, can come back out after 1 s)
 // ('rope-draw', 'rope-pull-solids', 'actor-draw-depth', 'goal-enter-native'); input bit 512 = UP press edge, so an
 // input timeout followed by the same held-UP heartbeat is never a new press.
-export const CAMPAIGN_PROTOCOL = 32;
+// Protocol 33 (fidelity audit 2026-10-08, batch 16): a cat death restarts the whole stage after the native 0.5 s fade
+// (FallBoxes, keys, map chips all rebuilt; CheckPoint targets and teacher cats kept), and the rope runs before the cats
+// with native pendulum coasting ('death-restarts-stage', 'rope-native-swing').
+export const CAMPAIGN_PROTOCOL = 33;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
