@@ -27,7 +27,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 20 (fidelity audit 2026-10-07, batch 3): box-family / ColorBox push boxes, box pushes box, WeightedLiftEx
 // variants, the Lift's sideways carry, folded / moving Bridges and Gates ('normal-small-box-are-pushboxes',
 // 'colorbox-colour-push', 'weighted-lift-ex-variants', 'lift-horizontal-carry', 'bridge-folded-start-and-motion').
-export const CAMPAIGN_PROTOCOL = 20;
+// Protocol 21 (teacher 2026-10-07, 1-4 freeze): a MoveWall step that would pin a body is undone, and a rising weighted
+// lift never carries its riders into a solid ('native-movewall-rollback', 'weighted-lift-chain-test').
+export const CAMPAIGN_PROTOCOL = 21;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
