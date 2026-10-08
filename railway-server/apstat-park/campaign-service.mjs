@@ -49,7 +49,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // 'breakout-key-hidden-until-clear', 'breakout-syncarea-inert').
 // Protocol 29 (fidelity audit 2026-10-08, batch 12): world 9 - laser cannon / key box, seesaws and balance pans,
 // bouncing ball / ball box ('laser-ball-pitcher', 'laser-key-box', 'seesaw-and-balance', 'bound-ball-pitcher', 'ball-box').
-export const CAMPAIGN_PROTOCOL = 30;
+// Protocol 30 (fidelity audit 2026-10-08, batch 13): world 11 action button / warp gun / magnet.
+// Protocol 31 (fidelity audit 2026-10-08, batch 14): 8-1 / 8-3 native co-op Tetris puzzle sub-stage, seeded from the
+// stage seed ('puzzle-stage-data', 'puzzle-proxies-netcode-only', 'puzzle-tetris', 'puzzle-tetris-draw').
+export const CAMPAIGN_PROTOCOL = 31;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
