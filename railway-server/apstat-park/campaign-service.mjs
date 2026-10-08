@@ -42,7 +42,9 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 26 (fidelity audit 2026-10-08, batch 9): jump off a falling partner, pushed boxes carry their stack,
 // ColorBox body inset 2, landing on a rising lift ('jump-off-body-contact', 'pushed-box-carries-stack',
 // 'colorbox-native-body', 'land-on-rising-lift').
-export const CAMPAIGN_PROTOCOL = 26;
+// Protocol 27 (fidelity audit 2026-10-08, batch 10): native walk 3 per tick and push 1 per tick
+// ('native-walk-and-push-speed').
+export const CAMPAIGN_PROTOCOL = 27;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
