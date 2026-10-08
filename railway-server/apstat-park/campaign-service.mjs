@@ -24,7 +24,10 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 19 (fidelity audit 2026-10-07, batch 2): goals open only on a delivered key, native doors; Rects with
 // party terms; party-moved keys; bottom-anchored FallBox / ColorBox ('goal-native-open-and-door', 'rect-party-terms',
 // 'key-party-offset', 'bottom-anchored-boxes').
-export const CAMPAIGN_PROTOCOL = 19;
+// Protocol 20 (fidelity audit 2026-10-07, batch 3): box-family / ColorBox push boxes, box pushes box, WeightedLiftEx
+// variants, the Lift's sideways carry, folded / moving Bridges and Gates ('normal-small-box-are-pushboxes',
+// 'colorbox-colour-push', 'weighted-lift-ex-variants', 'lift-horizontal-carry', 'bridge-folded-start-and-motion').
+export const CAMPAIGN_PROTOCOL = 20;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;

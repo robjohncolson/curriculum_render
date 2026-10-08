@@ -933,7 +933,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -944,7 +944,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "The distribution of daily processing times at a coffee shop is approximately normal with mean 276 seconds and standard deviation 38 seconds. Find the proportion of orders processed in less than 240 seconds.",
@@ -1023,7 +1023,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -1034,7 +1034,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "The distribution of customer purchases at a convenience store is approximately normal with mean $15.50 and standard deviation $1.72. Find the proportion of purchases between $14.00 and $16.00.",
@@ -1107,7 +1107,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -1118,7 +1118,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "The number of daily transactions at a bank is approximately normal with mean 478 and standard deviation 64. What proportion of days have more than 350 transactions?",
@@ -1195,7 +1195,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -1206,7 +1206,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "The distribution of salmon lengths in a river is approximately normal with mean 25.5 inches and standard deviation 3.5 inches. What length separates the longest 10% of salmon from the rest?",
@@ -1277,7 +1277,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -1288,7 +1288,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "Scores on a college entrance exam are normally distributed with mean 500 and standard deviation 100. What score marks the 25th percentile?",
@@ -1357,7 +1357,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "1.10",
         "dates": {
-          "B": "2026-11-12",
+          "B": "2026-11-16",
           "E": "2026-11-16"
         },
         "worksheet": "u1_lesson10_live.html",
@@ -1368,7 +1368,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-12",
+      "B": "2026-11-16",
       "E": "2026-11-16"
     },
     "stem": "The weight of field mice is approximately normal with mean 25 grams and standard deviation 4 grams. Below what weight are the lightest 5% of mice?",
@@ -2449,8 +2449,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "4.10",
         "dates": {
-          "B": "2026-11-09",
-          "E": "2026-11-09"
+          "B": "2026-11-10",
+          "E": "2026-11-13"
         },
         "worksheet": "u4_lesson10-12_live.html",
         "sources": [
@@ -2459,8 +2459,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-09",
-      "E": "2026-11-09"
+      "B": "2026-11-10",
+      "E": "2026-11-13"
     },
     "stem": "A basketball player makes 75% of her free throws. In tonight's game, she shoots 10 free throws. What is the probability she makes exactly 8?",
     "values": {
@@ -2541,8 +2541,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "4.10",
         "dates": {
-          "B": "2026-11-09",
-          "E": "2026-11-09"
+          "B": "2026-11-10",
+          "E": "2026-11-13"
         },
         "worksheet": "u4_lesson10-12_live.html",
         "sources": [
@@ -2551,8 +2551,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-09",
-      "E": "2026-11-09"
+      "B": "2026-11-10",
+      "E": "2026-11-13"
     },
     "stem": "A multiple-choice quiz has 15 questions, each with 4 options. If a student guesses randomly on every question, what is the probability of getting exactly 5 correct?",
     "values": {
@@ -2633,8 +2633,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "4.10",
         "dates": {
-          "B": "2026-11-09",
-          "E": "2026-11-09"
+          "B": "2026-11-10",
+          "E": "2026-11-13"
         },
         "worksheet": "u4_lesson10-12_live.html",
         "sources": [
@@ -2643,8 +2643,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-09",
-      "E": "2026-11-09"
+      "B": "2026-11-10",
+      "E": "2026-11-13"
     },
     "stem": "A basketball player makes 75% of her free throws. In tonight's game, she shoots 10 free throws. What is the probability she makes at most 6?",
     "values": {
@@ -2727,8 +2727,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "4.10",
         "dates": {
-          "B": "2026-11-09",
-          "E": "2026-11-09"
+          "B": "2026-11-10",
+          "E": "2026-11-13"
         },
         "worksheet": "u4_lesson10-12_live.html",
         "sources": [
@@ -2737,8 +2737,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-09",
-      "E": "2026-11-09"
+      "B": "2026-11-10",
+      "E": "2026-11-13"
     },
     "stem": "An airline knows that 5% of passengers miss their flight. For a flight with 180 seats, all of which are booked, find the probability that at most 7 passengers miss the flight.",
     "values": {
@@ -2823,8 +2823,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "4.10",
         "dates": {
-          "B": "2026-11-09",
-          "E": "2026-11-09"
+          "B": "2026-11-10",
+          "E": "2026-11-13"
         },
         "worksheet": "u4_lesson10-12_live.html",
         "sources": [
@@ -2833,8 +2833,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-11-09",
-      "E": "2026-11-09"
+      "B": "2026-11-10",
+      "E": "2026-11-13"
     },
     "stem": "A seed company claims a germination rate of 85%. A farmer plants 20 seeds. What is the probability that at least 18 germinate? (Hint: use 1 - binomcdf with x = 17.)",
     "values": {
@@ -3621,7 +3621,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-08",
+          "B": "2026-12-10",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3632,7 +3632,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-08",
+      "B": "2026-12-10",
       "E": "2026-12-11"
     },
     "stem": "A company claims that at least 70% of its customers are satisfied with their service. In a random sample of 200 customers, 126 reported satisfaction. Test the company's claim at the alpha = 0.05 significance level.",
@@ -3719,7 +3719,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-08",
+          "B": "2026-12-10",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3730,7 +3730,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-08",
+      "B": "2026-12-10",
       "E": "2026-12-11"
     },
     "stem": "A botanist believes that fewer than 90% of seeds from a certain supplier will germinate. She plants a random sample of 120 seeds and observes that 100 germinate. Is there convincing evidence at alpha = 0.05 to support the botanist's belief?",
@@ -3817,7 +3817,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-08",
+          "B": "2026-12-10",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3828,7 +3828,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-08",
+      "B": "2026-12-10",
       "E": "2026-12-11"
     },
     "stem": "Approximately 38% of people in Region W have blood type O positive. A random sample of 100 people from Region X reveals that 45 have blood type O positive. Is there evidence that the proportion in Region X differs from Region W?",
@@ -3911,7 +3911,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-04",
+          "B": "2026-12-07",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -3921,7 +3921,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-04",
+      "B": "2026-12-07",
       "E": "2026-12-07"
     },
     "stem": "A random sample of 80 adults was selected, and 22 indicated they would support eliminating the penny from circulation. Construct a 99% confidence interval for the true proportion of adults who support this idea.",
@@ -3998,7 +3998,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-04",
+          "B": "2026-12-07",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -4008,7 +4008,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-04",
+      "B": "2026-12-07",
       "E": "2026-12-07"
     },
     "stem": "In a random sample of 500 registered voters, 235 said they plan to vote for Candidate A. Construct a 95% confidence interval to estimate the true proportion of voters who support Candidate A.",
@@ -4089,7 +4089,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-04",
+          "B": "2026-12-07",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -4099,7 +4099,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-04",
+      "B": "2026-12-07",
       "E": "2026-12-07"
     },
     "stem": "A school librarian sampled 50 students from senior English classes, and 35 had read a certain book. Construct a 90% confidence interval for the proportion of all seniors who have read the book.",
