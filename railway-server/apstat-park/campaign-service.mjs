@@ -59,7 +59,11 @@ import { randomUUID, randomBytes } from 'node:crypto';
 // Protocol 33 (fidelity audit 2026-10-08, batch 16): a cat death restarts the whole stage after the native 0.5 s fade
 // (FallBoxes, keys, map chips all rebuilt; CheckPoint targets and teacher cats kept), and the rope runs before the cats
 // with native pendulum coasting ('death-restarts-stage', 'rope-native-swing').
-export const CAMPAIGN_PROTOCOL = 33;
+// Protocol 34 (fidelity audit 2026-10-08, batch 17): the native follow camera ('native-camera'): mode-1 camera eases
+// 10 % of the gap at most 3 px per tick (snapping while a switch-driven Lift travels), a walking cat cannot leave the
+// screen, the auto-scroll left edge carries cats along and kills one pinned behind it, planes ride the auto-scroll,
+// the auto-scroll end offset scales with the party, a warp-gun-held cat leaves the camera. Replays change.
+export const CAMPAIGN_PROTOCOL = 34;
 export const CAMPAIGN_STAGES = 48;
 export const CAMPAIGN_CLEAR_MS = 3200;
 export const CAMPAIGN_IDLE_MS = 60000;
