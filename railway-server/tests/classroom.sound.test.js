@@ -30,15 +30,17 @@ describe('class sound switch', () => {
     expect(registry.stateFor('P1', 'teacher', 'teach').sound).toBe(false);
   });
 
-  it('is a no-op for an unknown section or an identity transition', () => {
-    expect(registry.setSound('nope', true, 1).broadcasts).toEqual([]);
-    seedRoom(registry, 'P1', 1);
-    expect(registry.setSound('P1', false, 1).broadcasts).toEqual([]);
+  it('is a no-op for an unjoined socket, a student socket, or an identity transition', () => {
+    expect(registry.setSound(makeWs(), true, 1).broadcasts).toEqual([]);
+    var bag = seedRoom(registry, 'P1', 1);
+    expect(registry.setSound(bag.students[0], true, 1).broadcasts).toEqual([]);
+    expect(registry.stateFor('P1', 'teacher', 'teach').sound).toBe(false);
+    expect(registry.setSound(bag.teacherWs, false, 1).broadcasts).toEqual([]);
   });
 
   it('broadcasts classroom_sound_state to the room and sticks for late joiners', () => {
     var bag = seedRoom(registry, 'P1', 2);
-    var res = registry.setSound('P1', true, 1);
+    var res = registry.setSound(bag.teacherWs, true, 1);
     expect(res.broadcasts).toHaveLength(1);
     expect(res.broadcasts[0].payload).toEqual({ type: 'classroom_sound_state', section: 'P1', sound: true });
     expect(res.broadcasts[0].sockets).toContain(bag.students[0]);
@@ -46,12 +48,12 @@ describe('class sound switch', () => {
     var late = makeWs();
     var joinRes = registry.join(late, 'P1', 'newbie', 'student', Date.now());
     expect(joinRes.sends[0].payload.sound).toBe(true);
-    expect(registry.setSound('P1', false, 2).broadcasts[0].payload.sound).toBe(false);
+    expect(registry.setSound(bag.teacherWs, false, 2).broadcasts[0].payload.sound).toBe(false);
   });
 
   it('survives armGate and reset like the live flag', () => {
     var bag = seedRoom(registry, 'P1', 1);
-    registry.setSound('P1', true, 1);
+    registry.setSound(bag.teacherWs, true, 1);
     registry.setLive('P1', true, 1);
     registry.armGate(bag.teacherWs, 'theme', 2);
     expect(registry.stateFor('P1', 'teacher', 'teach').sound).toBe(true);
@@ -65,8 +67,8 @@ describe('class sound switch', () => {
 describe('monitor snapshot', () => {
   it('carries sound per section', () => {
     var registry = createClassroomRegistry();
-    seedRoom(registry, 'P1', 1);
-    registry.setSound('P1', true, 1);
+    var bag = seedRoom(registry, 'P1', 1);
+    registry.setSound(bag.teacherWs, true, 1);
     var all = registry.getAllSectionsState();
     expect(all.sections.find(function (s) { return s.section === 'P1'; }).sound).toBe(true);
   });

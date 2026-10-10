@@ -946,16 +946,20 @@ export function createClassroomRegistry() {
     return { broadcasts: broadcasts };
   }
 
-  // setSound(section, on, now) -> { broadcasts }
+  // setSound(ws, on, now) -> { broadcasts }
   // Teacher 2026-10-10 (park music): while a room is live, park music and park sounds are off
   // on every student device unless this switch is on. Durable like `live` (not cleared by
   // armGate / reset). Same shape as setLive: no-op on identity, classroom_sound_state to the
   // room + monitors otherwise.
-  function setSound(section, on, now) {
-    if (!classrooms.has(section)) {
-      return { broadcasts: [] };
-    }
-    var room = classrooms.get(section);
+  function setSound(ws, on, now) {
+    var entry = wsIndex.get(ws);
+    if (!entry) return { broadcasts: [] };
+    var room = classrooms.get(entry.section);
+    if (!room) return { broadcasts: [] };
+    var member = room.members.get(entry.username);
+    // Teacher-only guard (same as armGate): the cockpit sends this over its joined teacher socket.
+    if (!member || member.role !== 'teacher') return { broadcasts: [] };
+    var section = entry.section;
     var soundBool = !!on;
     if (room.sound === soundBool) {
       return { broadcasts: [] };

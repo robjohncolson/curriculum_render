@@ -4026,11 +4026,10 @@ wss.on('connection', (ws) => {
           break;
         }
 
-        // Teacher 2026-10-10 (park music): class sound on / off for a live room.
+        // Teacher 2026-10-10 (park music): class sound on / off for the sender's room.
+        // Teacher-only (checked in the registry against the joined socket's role).
         case 'classroom_sound_set': {
-          var csSection = (data.section || '').trim();
-          if (!csSection) break;
-          var csResult = classroomRegistry.setSound(csSection, data.on === true, Date.now());
+          var csResult = classroomRegistry.setSound(ws, data.on === true, Date.now());
           broadcastToClassroom(null, csResult.broadcasts);
           break;
         }
