@@ -4026,6 +4026,15 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        // Teacher 2026-10-10 (park music): class sound on / off for a live room.
+        case 'classroom_sound_set': {
+          var csSection = (data.section || '').trim();
+          if (!csSection) break;
+          var csResult = classroomRegistry.setSound(csSection, data.on === true, Date.now());
+          broadcastToClassroom(null, csResult.broadcasts);
+          break;
+        }
+
         // --- v3 P3: WebRTC signaling for the classroom case ----------
         // The three rtc_* messages route by `to: username` within the
         // sender's section. They're shared with Tetris's game P2P but

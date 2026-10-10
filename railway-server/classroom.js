@@ -721,6 +721,7 @@ function buildStatePayload(room, forRole, forUsername) {
     gate:    room.gate,
     poll:    room.poll || null,
     live:    !!room.live,
+    sound:   !!room.sound,
     // v3 P4 Codex BLOCKER fold: include doorways in the snapshot so
     // late-joiners + cockpit refreshes see the active data mode.
     // s111 hotfix: normalize via _wireDoorways so the snapshot shape
@@ -843,6 +844,7 @@ export function createClassroomRegistry() {
         gate:    null,       // { armed, theme, openedAt } | null
         poll:    null,       // { id, question, options, blind, openedAt } | null
         live:    false,      // v3 P1+P2: durable Live flag (NOT cleared by armGate/greenLight/reset)
+        sound:   false,      // park music / park sounds allowed while live (teacher switch; default off)
         doorways: null,   // v3 P4: { id, question, options: [{label, doorId, count}], openedAt } | null
         activity: null,   // v4: { type, startedAt, durationMs, state, finished } | null
         members: new Map(), // username -> Member
@@ -904,6 +906,7 @@ export function createClassroomRegistry() {
         gate:     room.gate,
         poll:     room.poll || null,
         live:     !!room.live,
+        sound:    !!room.sound,
         // v3 P4 Codex BLOCKER fold: include doorways so the cockpit's
         // global presence view can hydrate the active data mode.
         // s111 hotfix: normalize via _wireDoorways for wire-shape
@@ -934,6 +937,31 @@ export function createClassroomRegistry() {
     }
     room.live = liveBool;
     var payload = { type: 'classroom_live_state', section: section, live: liveBool };
+    var sockets = roomSockets(room, null);
+    if (sockets.length === 0 && monitorSockets.size === 0) {
+      return { broadcasts: [] };
+    }
+    var broadcasts = [{ sockets: sockets, payload: payload }];
+    _fanoutToMonitors(broadcasts);
+    return { broadcasts: broadcasts };
+  }
+
+  // setSound(section, on, now) -> { broadcasts }
+  // Teacher 2026-10-10 (park music): while a room is live, park music and park sounds are off
+  // on every student device unless this switch is on. Durable like `live` (not cleared by
+  // armGate / reset). Same shape as setLive: no-op on identity, classroom_sound_state to the
+  // room + monitors otherwise.
+  function setSound(section, on, now) {
+    if (!classrooms.has(section)) {
+      return { broadcasts: [] };
+    }
+    var room = classrooms.get(section);
+    var soundBool = !!on;
+    if (room.sound === soundBool) {
+      return { broadcasts: [] };
+    }
+    room.sound = soundBool;
+    var payload = { type: 'classroom_sound_state', section: section, sound: soundBool };
     var sockets = roomSockets(room, null);
     if (sockets.length === 0 && monitorSockets.size === 0) {
       return { broadcasts: [] };
@@ -2685,6 +2713,7 @@ export function createClassroomRegistry() {
     subscribeMonitor:    subscribeMonitor,
     unsubscribeMonitor:  unsubscribeMonitor,
     setLive:             setLive,
+    setSound:            setSound,
     getAllSectionsState: buildAllSectionsStatePayload,
     // v3 P3 additions:
     findSocketByUsername: findSocketByUsername,
