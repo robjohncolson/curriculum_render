@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClassroomRegistry } from '../classroom.js';
 import { createParkService } from './service.mjs';
-import { createSupabaseKeyStore, CAMPAIGN_WALLET_TABLE, CAMPAIGN_OPEN_TABLE, CAMPAIGN_SPEND_FUNCTION } from './campaign-key-store.mjs';
+import { createSupabaseKeyStore, CAMPAIGN_WALLET_TABLE, CAMPAIGN_OPEN_TABLE, CAMPAIGN_SPEND_FUNCTION, CAMPAIGN_SAVE_FUNCTION } from './campaign-key-store.mjs';
 import { SHARED_PARK } from './shared-classroom.mjs';
 import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
 import { CALCULATOR_PROTOCOL, TEAM_BLOCK } from './calculator-lobby.mjs';
@@ -204,7 +204,7 @@ test('no store: everything is memory-only and nothing is logged', async t => {
   } finally { h.service.close(); }
 });
 
-test('the Supabase store reads both tables, upserts absolute wallet rows and first-opener stages, and surfaces errors', async () => {
+test('the Supabase store reads both tables, saves absolute wallet rows through park_campaign_save and first-opener stages, and surfaces errors', async () => {
   const seen = [];
   let results = {};
   const query = table => ({
@@ -228,8 +228,7 @@ test('the Supabase store reads both tables, upserts absolute wallet rows and fir
   assert.deepEqual(seen, [
     ['from', CAMPAIGN_WALLET_TABLE], ['select', CAMPAIGN_WALLET_TABLE, 'username,keys,bought,cleared'], ['eq', 'section', SHARED_PARK],
     ['from', CAMPAIGN_OPEN_TABLE], ['select', CAMPAIGN_OPEN_TABLE, 'stage,opened_by'], ['eq', 'section', SHARED_PARK],
-    ['from', CAMPAIGN_WALLET_TABLE],
-    ['upsert', CAMPAIGN_WALLET_TABLE, [{ section: SHARED_PARK, username: 'a', keys: 1, cleared: [0, 1] }], { onConflict: 'section,username' }],
+    ['rpc', CAMPAIGN_SAVE_FUNCTION, { p_section: SHARED_PARK, p_username: 'a', p_keys: 1, p_cleared: [0, 1] }],
     ['rpc', CAMPAIGN_SPEND_FUNCTION, { p_section: SHARED_PARK, p_stage: 2, p_username: 'a', p_keys: 0, p_cleared: [0, 1], p_opened_by: 'a' }],
   ]);
   results[CAMPAIGN_WALLET_TABLE] = { data: null, error: new Error('permission denied') };
@@ -342,4 +341,59 @@ test('while a spend is unconfirmed, other wallet writes never carry the spender 
     assert.equal(db.db.open.get(1), 'a');
     void a; void b;
   } finally { first.h.service.close(); }
+});
+
+// 2026-10-09 production fix (migration 0007): a plain upsert proposes an INSERT tuple with bought = 0,
+// which fails park_campaign_wallet_unspent_check once a bought key has been spent (keys < 0). Saves go
+// through park_campaign_save (UPDATE, INSERT only a new player), one call per row, never sending bought.
+test('wallet saves use park_campaign_save per row (no bought); before 0007 they fall back to the plain upsert', async () => {
+  const seen = [];
+  let missing = false;
+  const client = {
+    rpc(name, args) {
+      seen.push(['rpc', name, args]);
+      return Promise.resolve(missing ? { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } } : { data: null, error: null });
+    },
+    from(table) { return { upsert(rows, options) { seen.push(['upsert', table, rows.map(({ updated_at, ...row }) => row), options]); return Promise.resolve({ error: null }); } }; },
+  };
+  const store = createSupabaseKeyStore(client);
+  await store.saveWallets(SHARED_PARK, [{ username: 'date_tiger', keys: -1, cleared: [0] }, { username: 'newbie', keys: 0, cleared: [] }]);
+  assert.deepEqual(seen, [
+    ['rpc', CAMPAIGN_SAVE_FUNCTION, { p_section: SHARED_PARK, p_username: 'date_tiger', p_keys: -1, p_cleared: [0] }],
+    ['rpc', CAMPAIGN_SAVE_FUNCTION, { p_section: SHARED_PARK, p_username: 'newbie', p_keys: 0, p_cleared: [] }],
+  ], 'a spent bought key (keys -1) is saved as is; bought is never sent');
+  seen.length = 0; missing = true;
+  await store.saveWallets(SHARED_PARK, [{ username: 'a', keys: 2, cleared: [0] }]);
+  assert.deepEqual(seen, [
+    ['rpc', CAMPAIGN_SAVE_FUNCTION, { p_section: SHARED_PARK, p_username: 'a', p_keys: 2, p_cleared: [0] }],
+    ['upsert', CAMPAIGN_WALLET_TABLE, [{ section: SHARED_PARK, username: 'a', keys: 2, cleared: [0] }], { onConflict: 'section,username' }],
+  ], 'pre-0007 fallback');
+  const failing = createSupabaseKeyStore({ rpc: async () => ({ data: null, error: { code: '23514', message: 'violates check constraint "park_campaign_wallet_unspent_check"' } }) });
+  await assert.rejects(failing.saveWallets(SHARED_PARK, [{ username: 'a', keys: -1, cleared: [] }]), error => /unspent_check/.test(error.message), 'a real failure is not masked by the fallback');
+});
+
+// The production sequence end to end through the wallet: keys 0 / bought 1 in the database; the player
+// spends the bought key; the save carries keys -1 and leaves bought alone (modelled as park_campaign_save).
+test('spending a stored bought key saves keys -1 and keeps bought 1 (the date_tiger case)', async t => {
+  const table = new Map([['date_tiger', { keys: 0, bought: 1, cleared: [] }]]);
+  const opened = [];
+  const store = {
+    async load() { return { wallets: [...table].map(([username, r]) => ({ username, ...r })), open: [] }; },
+    async saveWallets(section, rows) { for (const r of rows) Object.assign(table.get(r.username) ?? table.set(r.username, { keys: 0, bought: 0, cleared: [] }).get(r.username), { keys: r.keys, cleared: r.cleared }); },
+    async saveSpend(section, { stage, wallet }) { opened.push(stage); Object.assign(table.get(wallet.username), { keys: wallet.keys, cleared: wallet.cleared }); },
+    async grantKey() { throw new Error('unused'); },
+  };
+  const h = harness(t, store);
+  try {
+    const ws = {};
+    h.registry.join(ws, 'PeriodX', 'date_tiger', 'teacher', 0);
+    h.enter({}, 'B', 'zed');
+    await h.flush();
+    const result = h.service.handle(ws, { type: 'campaign_open_stage', stage: 1 });
+    assert.equal(result.type, 'campaign_progress', result.message);
+    await h.flush(2);
+    assert.deepEqual(opened, [1], 'the opened stage is written');
+    assert.deepEqual(table.get('date_tiger'), { keys: -1, bought: 1, cleared: [] }, 'keys + bought = 0, bought untouched');
+    assert.deepEqual(result.keys, {}, 'no keys left to show');
+  } finally { h.service.close(); }
 });

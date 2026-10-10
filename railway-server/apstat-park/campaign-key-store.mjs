@@ -16,6 +16,13 @@ export const CAMPAIGN_SPEND_FUNCTION = 'park_campaign_spend_key';
 // that function writes, so the wallet's absolute saves of keys can never overwrite a purchase).
 // A repeated receipt changes nothing. Either way it returns the stored bought count.
 export const CAMPAIGN_GRANT_FUNCTION = 'park_campaign_grant_key';
+// migrations/0007_park_wallet_save.sql: one player's absolute keys + cleared, never bought.
+export const CAMPAIGN_SAVE_FUNCTION = 'park_campaign_save';
+
+// PostgREST PGRST202 / Postgres 42883: the function does not exist (its migration has not run).
+function isMissingFunction(error) {
+  return ['PGRST202', '42883'].includes(String(error?.code || ''));
+}
 
 // client: a supabase-js client built with the backend service key, or null (no store).
 export function createSupabaseKeyStore(client) {
@@ -38,7 +45,20 @@ export function createSupabaseKeyStore(client) {
     },
     // Absolute rows of keys (earned - spent) and cleared: the wallet is their only writer. Never
     // writes bought (park_campaign_grant_key owns it).
+    // Through park_campaign_save (0007): UPDATE the row, INSERT only a new player. A plain upsert
+    // proposes an INSERT tuple with bought = 0, which fails the 0006 check once a bought key has been
+    // spent (keys < 0). Before 0007 exists, fall back to the plain upsert (fine until 0006 is used).
     async saveWallets(section, wallets) {
+      let missing = false;
+      for (const { username, keys, cleared } of wallets) {
+        const { error } = await client.rpc(CAMPAIGN_SAVE_FUNCTION, { p_section: section, p_username: username,
+          p_keys: keys, p_cleared: cleared });
+        if (!error) continue;
+        if (!isMissingFunction(error)) throw error;
+        missing = true;
+        break;
+      }
+      if (!missing) return;
       const updatedAt = new Date().toISOString();
       const rows = wallets.map(({ username, keys, cleared }) => ({ section, username, keys, cleared, updated_at: updatedAt }));
       const { error } = await client.from(CAMPAIGN_WALLET_TABLE).upsert(rows, { onConflict: 'section,username' });
