@@ -111,6 +111,28 @@
     ctx.stroke();
   }
 
+  function traceNumber(value) {
+    return String(Number(Number(value).toPrecision(10)));
+  }
+
+  // TRACE readout text.
+  //   Box-plot stop:  "Med=2.5", "Q3=3", "X=3", "maxX=9"
+  //   Histogram bin:  "min=1 max<3 n=3" (lower boundary, exclusive upper
+  //                   boundary, count)
+  // Evidence: ti84-transpile logs/curriculum-plots-clocked433-trace-contact-sheet-1.png
+  // (visually read; the histogram screens show "max<", not "maxX<").
+  function traceLabel(info) {
+    if (info.label !== undefined) return info.label + '=' + traceNumber(info.x);
+    if (info.upper !== undefined) {
+      return 'min=' + traceNumber(info.x) + ' max<' + traceNumber(info.upper) + ' n=' + info.y;
+    }
+    var text = '';
+    if (info.x !== undefined) text += 'x=' + info.x;
+    if (info.y !== undefined) text += ' y=' + info.y;
+    if (info.n !== undefined) text += ' n=' + info.n;
+    return text.trim();
+  }
+
   function drawHistogram(ctx) {
     var barHeights = [0.3, 0.6, 0.9, 0.7, 0.45, 0.2];
     var barCount = barHeights.length;
@@ -266,6 +288,9 @@
   // ───────────────────────────────────────────────
 
   var ScreenRenderer = {
+
+    /** TRACE readout text for a graph's traceInfo (see traceLabel above). */
+    traceLabel: traceLabel,
 
     /**
      * Create a renderer bound to a canvas element.
@@ -530,12 +555,7 @@
           // Trace info at bottom
           if (graphState.traceMode && graphState.traceInfo) {
             setFont(ctx);
-            var traceText = '';
-            var info = graphState.traceInfo;
-            if (info.x !== undefined) traceText += 'x=' + info.x;
-            if (info.y !== undefined) traceText += ' y=' + info.y;
-            if (info.n !== undefined) traceText += ' n=' + info.n;
-            traceText = traceText.trim();
+            var traceText = traceLabel(graphState.traceInfo);
 
             // Draw trace info on the last row with inverted background
             var traceRow = ROWS - 1;

@@ -366,9 +366,9 @@ export const CALCULATOR_PROBLEMS = [
         "sigmaX": 10.877908295664607,
         "n": 15,
         "minX": 55,
-        "Q1": 70.5,
+        "Q1": 69,
         "Med": 78,
-        "Q3": 86.5,
+        "Q3": 88,
         "maxX": 95
       },
       "traceMode": true,
@@ -718,17 +718,44 @@ export const CALCULATOR_PROBLEMS = [
         "sigmaX": 8.591750800516843,
         "n": 11,
         "minX": 22,
-        "Q1": 29,
+        "Q1": 28,
         "Med": 33,
-        "Q3": 37,
+        "Q3": 38,
         "maxX": 55
       },
       "traceMode": true,
-      "tracePosition": 1,
+      "tracePosition": 3,
       "traceInfo": {
-        "x": 25,
-        "y": 0
-      }
+        "label": "Q3",
+        "x": 38
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 22
+        },
+        {
+          "label": "Q1",
+          "x": 28
+        },
+        {
+          "label": "Med",
+          "x": 33
+        },
+        {
+          "label": "Q3",
+          "x": 38
+        },
+        {
+          "label": "X",
+          "x": 42
+        },
+        {
+          "label": "maxX",
+          "x": 55
+        }
+      ],
+      "traceStart": 2
     }
   },
   {
@@ -910,17 +937,44 @@ export const CALCULATOR_PROBLEMS = [
         "sigmaX": 12.117765333855518,
         "n": 13,
         "minX": 8,
-        "Q1": 18,
+        "Q1": 16.5,
         "Med": 24,
-        "Q3": 30,
+        "Q3": 31,
         "maxX": 58
       },
       "traceMode": true,
-      "tracePosition": 1,
+      "tracePosition": 3,
       "traceInfo": {
-        "x": 12,
-        "y": 0
-      }
+        "label": "Q3",
+        "x": 31
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 8
+        },
+        {
+          "label": "Q1",
+          "x": 16.5
+        },
+        {
+          "label": "Med",
+          "x": 24
+        },
+        {
+          "label": "Q3",
+          "x": 31
+        },
+        {
+          "label": "X",
+          "x": 35
+        },
+        {
+          "label": "maxX",
+          "x": 58
+        }
+      ],
+      "traceStart": 2
     }
   },
   {
@@ -8784,6 +8838,1800 @@ export const CALCULATOR_PROBLEMS = [
         "upper": 4,
         "y": 1
       }
+    }
+  },
+  {
+    "id": "one-var-stats@sample-sd",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Three quiz scores are a SAMPLE from a large class: L1 = {2, 4, 6}. Run 1-Var Stats and read the spread.",
+    "values": {
+      "data": [
+        2,
+        4,
+        6
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          4,
+          6
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "xbar": 4,
+      "sumX": 12,
+      "sumX2": 56,
+      "Sx": 2,
+      "sigmaX": 1.632993161855452,
+      "n": 3,
+      "minX": 2,
+      "Q1": 2,
+      "Med": 4,
+      "Q3": 6,
+      "maxX": 6
+    },
+    "finalView": {
+      "lines": [
+        "x̄ = 4",
+        "Σx = 12",
+        "Σx² = 56",
+        "Sx = 2",
+        "σx = 1.632993162",
+        "n = 3"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "SAMPLE OR POPULATION SD?",
+      "note": "Sx divides by n - 1 (a sample). sigma x divides by n (a whole population).",
+      "questions": [
+        {
+          "label": "Sample SD",
+          "prompt": "These scores are a sample. Which line is the sample standard deviation?",
+          "answer": "Sx",
+          "options": [
+            {
+              "key": "Sx",
+              "text": "Sx = 2",
+              "feedback": null
+            },
+            {
+              "key": "sigmax",
+              "text": "sigma x = 1.633",
+              "feedback": "sigma x divides by n = 3: it treats L1 as the whole population. A sample uses Sx."
+            },
+            {
+              "key": "xbar",
+              "text": "x-bar = 4",
+              "feedback": "x-bar is the mean, the center of the data. The question asks for the spread."
+            }
+          ]
+        },
+        {
+          "label": "Sx divides by",
+          "prompt": "Sx is larger than sigma x. Sx divides the sum of squared deviations by:",
+          "answer": "n-1",
+          "options": [
+            {
+              "key": "n-1",
+              "text": "n - 1 = 2",
+              "feedback": null
+            },
+            {
+              "key": "n",
+              "text": "n = 3",
+              "feedback": "Dividing by n = 3 gives sigma x = 1.633, the population SD."
+            },
+            {
+              "key": "sum",
+              "text": "Sum x = 12",
+              "feedback": "Sum x is the total of the scores, not the divisor of a standard deviation."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@population-sd",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "A lab has exactly three machines and you measured ALL of them: L1 = {2, 4, 6}. Run 1-Var Stats and read the spread.",
+    "values": {
+      "data": [
+        2,
+        4,
+        6
+      ],
+      "population": true
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          4,
+          6
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "xbar": 4,
+      "sumX": 12,
+      "sumX2": 56,
+      "Sx": 2,
+      "sigmaX": 1.632993161855452,
+      "n": 3,
+      "minX": 2,
+      "Q1": 2,
+      "Med": 4,
+      "Q3": 6,
+      "maxX": 6
+    },
+    "finalView": {
+      "lines": [
+        "x̄ = 4",
+        "Σx = 12",
+        "Σx² = 56",
+        "Sx = 2",
+        "σx = 1.632993162",
+        "n = 3"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "SAMPLE OR POPULATION SD?",
+      "note": "A whole population uses sigma x (divide by n). A sample uses Sx (divide by n - 1).",
+      "questions": [
+        {
+          "label": "Population SD",
+          "prompt": "L1 is the whole population. Which line is its standard deviation?",
+          "answer": "sigmax",
+          "options": [
+            {
+              "key": "Sx",
+              "text": "Sx = 2",
+              "feedback": "Sx divides by n - 1 to estimate a population from a sample. Here L1 IS the population: use sigma x."
+            },
+            {
+              "key": "sigmax",
+              "text": "sigma x = 1.633",
+              "feedback": null
+            },
+            {
+              "key": "n",
+              "text": "n = 3",
+              "feedback": "n counts the machines. It is not a measure of spread."
+            }
+          ]
+        },
+        {
+          "label": "Population SD value",
+          "prompt": "What is the population standard deviation (5 digits)?",
+          "answer": 1.633,
+          "options": [
+            {
+              "key": "1.633",
+              "text": "1.633",
+              "feedback": null
+            },
+            {
+              "key": "2",
+              "text": "2",
+              "feedback": "Sx = 2 is the sample SD (divide by n - 1). The population SD divides by n."
+            },
+            {
+              "key": "4",
+              "text": "4",
+              "feedback": "4 is the mean x-bar, not a spread."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@freq",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "L1 = {2, 4, 6} are scores. L2 = {1, 2, 1} says how many students got each score. Run 1-Var Stats with FreqList L2.",
+    "values": {
+      "data": [
+        2,
+        4,
+        6
+      ],
+      "freq": [
+        1,
+        2,
+        1
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          4,
+          6
+        ],
+        "L2": [
+          1,
+          2,
+          1
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "2ND",
+      "2",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Set FreqList to L2: press 2ND, then 2.",
+      "Set FreqList to L2: press 2 (L2).",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "xbar": 4,
+      "sumX": 16,
+      "sumX2": 72,
+      "Sx": 1.632993161855452,
+      "sigmaX": 1.4142135623730951,
+      "n": 4,
+      "minX": 2,
+      "Q1": 3,
+      "Med": 4,
+      "Q3": 5,
+      "maxX": 6
+    },
+    "finalView": {
+      "lines": [
+        "x̄ = 4",
+        "Σx = 16",
+        "Σx² = 72",
+        "Sx = 1.632993162",
+        "σx = 1.414213562",
+        "n = 4"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "WHAT DOES THE FREQUENCY LIST MEAN?",
+      "note": "A FreqList counts how many times each L1 value occurred.",
+      "questions": [
+        {
+          "label": "n",
+          "prompt": "How many students (observations) did the calculator use?",
+          "answer": 4,
+          "options": [
+            {
+              "key": "4",
+              "text": "4",
+              "feedback": null
+            },
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": "3 is the number of rows. L2 says the score 4 occurred twice: 1 + 2 + 1 = 4 observations."
+            },
+            {
+              "key": "6",
+              "text": "6",
+              "feedback": "6 treats L1 and L2 as six data values. L2 holds counts, not scores."
+            }
+          ]
+        },
+        {
+          "label": "Data set",
+          "prompt": "Which data set did the calculator summarize?",
+          "answer": "2446",
+          "options": [
+            {
+              "key": "246",
+              "text": "{2, 4, 6}",
+              "feedback": "That ignores FreqList. With L2 = {1, 2, 1} the score 4 counts twice."
+            },
+            {
+              "key": "2446",
+              "text": "{2, 4, 4, 6}",
+              "feedback": null
+            },
+            {
+              "key": "246121",
+              "text": "{2, 4, 6, 1, 2, 1}",
+              "feedback": "L2 is not more data. Each L2 entry counts the L1 value beside it."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@zero-row",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "L2 = {1, 0, 1} says how often each score in L1 = {2, 4, 6} occurred. Run 1-Var Stats with FreqList L2.",
+    "values": {
+      "data": [
+        2,
+        4,
+        6
+      ],
+      "freq": [
+        1,
+        0,
+        1
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          4,
+          6
+        ],
+        "L2": [
+          1,
+          0,
+          1
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "2ND",
+      "2",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Set FreqList to L2: press 2ND, then 2.",
+      "Set FreqList to L2: press 2 (L2).",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "xbar": 4,
+      "sumX": 8,
+      "sumX2": 40,
+      "Sx": 2.8284271247461903,
+      "sigmaX": 2,
+      "n": 2,
+      "minX": 2,
+      "Q1": 2,
+      "Med": 4,
+      "Q3": 6,
+      "maxX": 6
+    },
+    "finalView": {
+      "lines": [
+        "x̄ = 4",
+        "Σx = 8",
+        "Σx² = 40",
+        "Sx = 2.828427125",
+        "σx = 2",
+        "n = 2"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "A ZERO IN THE FREQUENCY LIST",
+      "note": "A frequency of 0 leaves that value out: it was never observed.",
+      "questions": [
+        {
+          "label": "Zero row",
+          "prompt": "What does the 0 in row 2 of L2 mean?",
+          "answer": "not-observed",
+          "options": [
+            {
+              "key": "zero-value",
+              "text": "A score of 0 was observed",
+              "feedback": "A frequency counts how often the L1 value occurred. It is not a score itself."
+            },
+            {
+              "key": "not-observed",
+              "text": "The score 4 was not observed",
+              "feedback": null
+            },
+            {
+              "key": "once",
+              "text": "The score 4 was observed once",
+              "feedback": "Once would be a frequency of 1. A 0 means the score 4 never occurred."
+            }
+          ]
+        },
+        {
+          "label": "n",
+          "prompt": "How many observations did the calculator use?",
+          "answer": 2,
+          "options": [
+            {
+              "key": "2",
+              "text": "2",
+              "feedback": null
+            },
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": "Only rows with a positive frequency count: 1 + 0 + 1 = 2 observations."
+            },
+            {
+              "key": "4",
+              "text": "4",
+              "feedback": "4 is the value in the zero row, not a count of observations."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@no-observations",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Someone typed L2 = {0, 0, 0} as the frequencies for L1 = {2, 4, 6}. Run 1-Var Stats with FreqList L2 and explain the result.",
+    "values": {
+      "data": [
+        2,
+        4,
+        6
+      ],
+      "freq": [
+        0,
+        0,
+        0
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          4,
+          6
+        ],
+        "L2": [
+          0,
+          0,
+          0
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "2ND",
+      "2",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Set FreqList to L2: press 2ND, then 2.",
+      "Set FreqList to L2: press 2 (L2).",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": null,
+    "finalView": {
+      "lines": [
+        "Attempted calculation",
+        "contains division by 0.",
+        "Calculation fails."
+      ],
+      "scrollable": false
+    },
+    "interpretation": {
+      "title": "WHY DID THE CALCULATION FAIL?",
+      "note": "With no observations, n = 0 and the mean would divide by 0.",
+      "questions": [
+        {
+          "label": "Diagnosis",
+          "prompt": "The calculator says the calculation divides by 0. Why?",
+          "answer": "no-observations",
+          "options": [
+            {
+              "key": "too-few",
+              "text": "L1 needs more than 3 values",
+              "feedback": "Three values are enough. The frequencies say none of them occurred."
+            },
+            {
+              "key": "mean-zero",
+              "text": "The mean of the data is 0",
+              "feedback": "There is no mean: with no observations the mean is a sum divided by 0."
+            },
+            {
+              "key": "no-observations",
+              "text": "Every frequency is 0: no observations",
+              "feedback": null
+            },
+            {
+              "key": "data-list",
+              "text": "L2 must hold data, not counts",
+              "feedback": "L2 is a FreqList, so counts are right. Here every count is 0."
+            }
+          ]
+        },
+        {
+          "label": "n",
+          "prompt": "How many observations do L1 and L2 describe?",
+          "answer": 0,
+          "options": [
+            {
+              "key": "0",
+              "text": "0",
+              "feedback": null
+            },
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": "There are 3 rows, but each one occurred 0 times: 0 + 0 + 0 = 0."
+            },
+            {
+              "key": "1",
+              "text": "1",
+              "feedback": "Every frequency is 0, so not even one observation exists."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "modified-boxplot@outlier",
+    "skillId": "modified-boxplot",
+    "procedureId": "modified-boxplot",
+    "title": "Modified Boxplot",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "L1 = {1, 2, 2, 3, 3, 9}. Draw a modified boxplot, use ZoomStat, then TRACE right to the last stop.",
+    "values": {
+      "data": [
+        1,
+        2,
+        2,
+        3,
+        3,
+        9
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          1,
+          2,
+          2,
+          3,
+          3,
+          9
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose DOWN.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE starts at the median (Med).",
+      "Move right: TRACE stops at Q3, the whisker end (X), then the largest value.",
+      "Move right: TRACE stops at Q3, the whisker end (X), then the largest value.",
+      "Move right: TRACE stops at Q3, the whisker end (X), then the largest value."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "ModBoxplot",
+      "title": "ModBoxplot",
+      "settings": {
+        "On/Off": "On",
+        "Type": "ModBoxplot",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "y": 0
+        }
+      ],
+      "stats": {
+        "xbar": 3.3333333333333335,
+        "sumX": 20,
+        "sumX2": 108,
+        "Sx": 2.875181153713043,
+        "sigmaX": 2.6246692913372702,
+        "n": 6,
+        "minX": 1,
+        "Q1": 2,
+        "Med": 2.5,
+        "Q3": 3,
+        "maxX": 9
+      },
+      "traceMode": true,
+      "tracePosition": 5,
+      "traceInfo": {
+        "label": "maxX",
+        "x": 9
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 1
+        },
+        {
+          "label": "Q1",
+          "x": 2
+        },
+        {
+          "label": "Med",
+          "x": 2.5
+        },
+        {
+          "label": "Q3",
+          "x": 3
+        },
+        {
+          "label": "X",
+          "x": 3
+        },
+        {
+          "label": "maxX",
+          "x": 9
+        }
+      ],
+      "traceStart": 2
+    },
+    "interpretation": {
+      "title": "WHISKER, MAXIMUM OR OUTLIER?",
+      "note": "Fences: Q1 - 1.5 IQR = 0.5 and Q3 + 1.5 IQR = 4.5. Whiskers stop at the last value inside them.",
+      "questions": [
+        {
+          "label": "Median",
+          "prompt": "What is the median (TRACE Med=)?",
+          "answer": 2.5,
+          "options": [
+            {
+              "key": "2.5",
+              "text": "2.5",
+              "feedback": null
+            },
+            {
+              "key": "2",
+              "text": "2",
+              "feedback": "2 is Q1, the median of the lower half."
+            },
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": "3 is Q3, the median of the upper half."
+            },
+            {
+              "key": "3.3333",
+              "text": "3.3333",
+              "feedback": "That is the mean x-bar. A boxplot marks the median."
+            }
+          ]
+        },
+        {
+          "label": "Upper whisker",
+          "prompt": "Where does the upper whisker end (TRACE X=)?",
+          "answer": 3,
+          "options": [
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": null
+            },
+            {
+              "key": "9",
+              "text": "9",
+              "feedback": "9 is the maximum, but it is beyond the fence 4.5, so the whisker stops at 3."
+            },
+            {
+              "key": "4.5",
+              "text": "4.5",
+              "feedback": "4.5 is the fence. A whisker ends at a data value: the largest inside the fence."
+            }
+          ]
+        },
+        {
+          "label": "Outlier",
+          "prompt": "Which value(s) does the modified boxplot show as outliers?",
+          "answer": "high",
+          "options": [
+            {
+              "key": "high",
+              "text": "9 only",
+              "feedback": null
+            },
+            {
+              "key": "both-ends",
+              "text": "1 and 9",
+              "feedback": "1 is above the lower fence 0.5, so it is the low whisker end."
+            },
+            {
+              "key": "none",
+              "text": "None: 9 is just the maximum",
+              "feedback": "The maximum is an outlier when it lies beyond Q3 + 1.5 IQR = 4.5."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "histogram@bins",
+    "skillId": "histogram",
+    "procedureId": "histogram",
+    "title": "Histogram",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "L1 = {1, 2, 2, 3, 3, 9}. Draw the histogram, use ZoomStat, and TRACE the bins. Each bin is [min, max).",
+    "values": {
+      "data": [
+        1,
+        2,
+        2,
+        3,
+        3,
+        9
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          1,
+          2,
+          2,
+          3,
+          3,
+          9
+        ]
+      },
+      "matrices": {},
+      "histogramWindow": {
+        "xmin": 1,
+        "xscl": 2,
+        "bins": 6
+      }
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose DOWN.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE shows a bin: lower boundary (min=), upper boundary (max<) and count (n=).",
+      "Move right to the next bin."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 1,
+          "upper": 3,
+          "y": 3
+        },
+        {
+          "x": 3,
+          "upper": 5,
+          "y": 2
+        },
+        {
+          "x": 5,
+          "upper": 7,
+          "y": 0
+        },
+        {
+          "x": 7,
+          "upper": 9,
+          "y": 0
+        },
+        {
+          "x": 9,
+          "upper": 11,
+          "y": 1
+        },
+        {
+          "x": 11,
+          "upper": 13,
+          "y": 0
+        }
+      ],
+      "stats": {
+        "xbar": 3.3333333333333335,
+        "sumX": 20,
+        "sumX2": 108,
+        "Sx": 2.875181153713043,
+        "sigmaX": 2.6246692913372702,
+        "n": 6,
+        "minX": 1,
+        "Q1": 2,
+        "Med": 2.5,
+        "Q3": 3,
+        "maxX": 9
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 3,
+        "upper": 5,
+        "y": 2
+      }
+    },
+    "interpretation": {
+      "title": "WHICH BIN, HOW MANY?",
+      "note": "A bin [min, max) includes its lower boundary and excludes its upper boundary.",
+      "questions": [
+        {
+          "label": "Bin for 3",
+          "prompt": "Which bin counts the observation 3?",
+          "answer": "[3,5)",
+          "options": [
+            {
+              "key": "[1,3)",
+              "text": "[1, 3)",
+              "feedback": "3 is not less than 3, so it is not in [1, 3). Bins exclude their upper boundary."
+            },
+            {
+              "key": "[3,5)",
+              "text": "[3, 5)",
+              "feedback": null
+            },
+            {
+              "key": "both",
+              "text": "Both [1, 3) and [3, 5)",
+              "feedback": "Each observation is counted in exactly one bin: the one that starts at or below it."
+            }
+          ]
+        },
+        {
+          "label": "Bin for 9",
+          "prompt": "Which bin counts the observation 9?",
+          "answer": "[9,11)",
+          "options": [
+            {
+              "key": "[7,9)",
+              "text": "[7, 9)",
+              "feedback": "9 is not less than 9, so it is not in [7, 9). It starts the bin [9, 11)."
+            },
+            {
+              "key": "[9,11)",
+              "text": "[9, 11)",
+              "feedback": null
+            }
+          ]
+        },
+        {
+          "label": "Empty bin",
+          "prompt": "How many observations are in [5, 7)?",
+          "answer": 0,
+          "options": [
+            {
+              "key": "0",
+              "text": "0",
+              "feedback": null
+            },
+            {
+              "key": "2",
+              "text": "2",
+              "feedback": "2 is the count of [3, 5). TRACE shows n=0 for [5, 7)."
+            },
+            {
+              "key": "1",
+              "text": "1",
+              "feedback": "1 is the count of [9, 11). No value lies from 5 up to 7."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "binompdf@exactly-3",
+    "skillId": "binompdf",
+    "procedureId": "binompdf",
+    "title": "Binomial probability",
+    "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-10",
+          "E": "2026-11-13"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-11-10",
+      "E": "2026-11-13"
+    },
+    "stem": "A fair coin is tossed 10 times. X = the number of heads. Find P(exactly 3 heads).",
+    "values": {
+      "n": 10,
+      "p": 0.5,
+      "x": 3
+    },
+    "setup": {
+      "lists": {},
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "VARS",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "1",
+      "0",
+      "DOWN",
+      "0",
+      ".",
+      "5",
+      "DOWN",
+      "3",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Activate the yellow secondary functions.",
+      "Open the DISTR menu.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Scroll to the function for P(exactly 3 heads): one exact count.",
+      "Open the function you chose.",
+      "Enter trials = 10.",
+      "Enter trials = 10.",
+      "Move to the next field.",
+      "Enter p = 0.5.",
+      "Enter p = 0.5.",
+      "Enter p = 0.5.",
+      "Move to the next field.",
+      "Enter x = 3.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "value": 0.11718749999999993
+    },
+    "finalView": [
+      "0.1171875"
+    ],
+    "interpretation": {
+      "title": "EXACTLY OR AT MOST?",
+      "note": "binompdf gives one exact count. binomcdf adds every count from 0 up to x.",
+      "questions": [
+        {
+          "label": "Event",
+          "prompt": "binompdf(10, .5, 3) is the probability of which event?",
+          "answer": "X=3",
+          "options": [
+            {
+              "key": "X<=3",
+              "text": "P(X <= 3)",
+              "feedback": "At most 3 is binomcdf: it adds 0, 1, 2 and 3 heads. binompdf gives exactly 3."
+            },
+            {
+              "key": "X=3",
+              "text": "P(X = 3)",
+              "feedback": null
+            },
+            {
+              "key": "X>=3",
+              "text": "P(X >= 3)",
+              "feedback": "At least 3 adds 3 through 10 heads. binompdf gives exactly 3."
+            }
+          ]
+        },
+        {
+          "label": "Probability",
+          "prompt": "What is P(exactly 3 heads)?",
+          "answer": 0.11719,
+          "options": [
+            {
+              "key": "0.11719",
+              "text": "0.11719",
+              "feedback": null
+            },
+            {
+              "key": "0.17188",
+              "text": "0.17188",
+              "feedback": "That is binomcdf(10, .5, 3) = P(X <= 3): it also adds 0, 1 and 2 heads."
+            },
+            {
+              "key": "0.3",
+              "text": "0.3",
+              "feedback": "0.3 is 3/10, a proportion of tosses, not a binomial probability."
+            },
+            {
+              "key": "0.5",
+              "text": "0.5",
+              "feedback": "0.5 is p, the chance of heads on one toss."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "binomcdf@at-most-3",
+    "skillId": "binomcdf",
+    "procedureId": "binomcdf",
+    "title": "Binomial probability",
+    "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-10",
+          "E": "2026-11-13"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-11-10",
+      "E": "2026-11-13"
+    },
+    "stem": "A fair coin is tossed 10 times. X = the number of heads. Find P(at most 3 heads).",
+    "values": {
+      "n": 10,
+      "p": 0.5,
+      "x": 3
+    },
+    "setup": {
+      "lists": {},
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "VARS",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "1",
+      "0",
+      "DOWN",
+      "0",
+      ".",
+      "5",
+      "DOWN",
+      "3",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Activate the yellow secondary functions.",
+      "Open the DISTR menu.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Open the function you chose.",
+      "Enter trials = 10.",
+      "Enter trials = 10.",
+      "Move to the next field.",
+      "Enter p = 0.5.",
+      "Enter p = 0.5.",
+      "Enter p = 0.5.",
+      "Move to the next field.",
+      "Enter x = 3.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "value": 0.17187499999999983
+    },
+    "finalView": [
+      "0.171875"
+    ],
+    "interpretation": {
+      "title": "EXACTLY OR AT MOST?",
+      "note": "binomcdf(n, p, x) = P(X <= x): every count from 0 up to and including x.",
+      "questions": [
+        {
+          "label": "Event",
+          "prompt": "binomcdf(10, .5, 3) is the probability of which event?",
+          "answer": "X<=3",
+          "options": [
+            {
+              "key": "X=3",
+              "text": "P(X = 3)",
+              "feedback": "Exactly 3 is binompdf. binomcdf adds 0, 1, 2 and 3 heads."
+            },
+            {
+              "key": "X<3",
+              "text": "P(X < 3)",
+              "feedback": "binomcdf includes x itself: P(X <= 3), not P(X < 3)."
+            },
+            {
+              "key": "X<=3",
+              "text": "P(X <= 3)",
+              "feedback": null
+            }
+          ]
+        },
+        {
+          "label": "Probability",
+          "prompt": "What is P(at most 3 heads)?",
+          "answer": 0.17188,
+          "options": [
+            {
+              "key": "0.17188",
+              "text": "0.17188",
+              "feedback": null
+            },
+            {
+              "key": "0.11719",
+              "text": "0.11719",
+              "feedback": "That is P(X = 3) only (binompdf). At most 3 also adds 0, 1 and 2 heads."
+            },
+            {
+              "key": "0.82813",
+              "text": "0.82813",
+              "feedback": "That is 1 - P(X <= 3) = P(X >= 4), the complement."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "binomcdf@never-heads",
+    "skillId": "binomcdf",
+    "procedureId": "binomcdf",
+    "title": "Binomial probability",
+    "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-10",
+          "E": "2026-11-13"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-11-10",
+      "E": "2026-11-13"
+    },
+    "stem": "A trick coin never lands heads (p = 0). It is tossed 10 times. Find P(at most 0 heads).",
+    "values": {
+      "n": 10,
+      "p": 0,
+      "x": 0
+    },
+    "setup": {
+      "lists": {},
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "VARS",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "1",
+      "0",
+      "DOWN",
+      "0",
+      "DOWN",
+      "0",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Activate the yellow secondary functions.",
+      "Open the DISTR menu.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
+      "Open the function you chose.",
+      "Enter trials = 10.",
+      "Enter trials = 10.",
+      "Move to the next field.",
+      "Enter p = 0.",
+      "Move to the next field.",
+      "Enter x = 0.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "value": 1
+    },
+    "finalView": [
+      "1"
+    ],
+    "interpretation": {
+      "title": "A CERTAIN EVENT",
+      "note": "With p = 0 every toss is tails, so X = 0 every time.",
+      "questions": [
+        {
+          "label": "Probability",
+          "prompt": "What is P(X <= 0) when p = 0?",
+          "answer": 1,
+          "options": [
+            {
+              "key": "1",
+              "text": "1",
+              "feedback": null
+            },
+            {
+              "key": "0",
+              "text": "0",
+              "feedback": "With p = 0 no toss can be heads, so X = 0 is certain: the probability is 1."
+            },
+            {
+              "key": "0.5",
+              "text": "0.5",
+              "feedback": "0.5 would need a fair coin. This coin never lands heads."
+            }
+          ]
+        },
+        {
+          "label": "Why",
+          "prompt": "Why does the calculator give that value?",
+          "answer": "all-zero",
+          "options": [
+            {
+              "key": "impossible",
+              "text": "X = 0 is impossible",
+              "feedback": "X = 0 is the only possible outcome when p = 0."
+            },
+            {
+              "key": "all-zero",
+              "text": "Every outcome has X = 0",
+              "feedback": null
+            },
+            {
+              "key": "rounding",
+              "text": "It is rounding a small number",
+              "feedback": "Nothing is rounded: every one of the 10 tosses is tails."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "binomcdf@always-heads",
+    "skillId": "binomcdf",
+    "procedureId": "binomcdf",
+    "title": "Binomial probability",
+    "topic": "4.10",
+    "coverage": [
+      {
+        "topic": "4.10",
+        "dates": {
+          "B": "2026-11-10",
+          "E": "2026-11-13"
+        },
+        "worksheet": "u4_lesson10-12_live.html",
+        "sources": [
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-11-10",
+      "E": "2026-11-13"
+    },
+    "stem": "A trick coin always lands heads (p = 1). It is tossed 10 times. Find P(at most 3 heads).",
+    "values": {
+      "n": 10,
+      "p": 1,
+      "x": 3
+    },
+    "setup": {
+      "lists": {},
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "VARS",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "1",
+      "0",
+      "DOWN",
+      "1",
+      "DOWN",
+      "3",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Activate the yellow secondary functions.",
+      "Open the DISTR menu.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
+      "Open the function you chose.",
+      "Enter trials = 10.",
+      "Enter trials = 10.",
+      "Move to the next field.",
+      "Enter p = 1.",
+      "Move to the next field.",
+      "Enter x = 3.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "value": 0
+    },
+    "finalView": [
+      "0"
+    ],
+    "interpretation": {
+      "title": "AN IMPOSSIBLE EVENT",
+      "note": "With p = 1 every toss is heads, so X = 10 every time.",
+      "questions": [
+        {
+          "label": "Probability",
+          "prompt": "What is P(X <= 3) when p = 1?",
+          "answer": 0,
+          "options": [
+            {
+              "key": "0",
+              "text": "0",
+              "feedback": null
+            },
+            {
+              "key": "1",
+              "text": "1",
+              "feedback": "With p = 1 every toss is heads, so X = 10. X <= 3 cannot happen."
+            },
+            {
+              "key": "0.17188",
+              "text": "0.17188",
+              "feedback": "That is the fair-coin answer (p = .5). This coin always lands heads."
+            }
+          ]
+        },
+        {
+          "label": "Why",
+          "prompt": "Why does the calculator give that value?",
+          "answer": "all-ten",
+          "options": [
+            {
+              "key": "all-ten",
+              "text": "Every outcome has X = 10",
+              "feedback": null
+            },
+            {
+              "key": "all-zero",
+              "text": "Every outcome has X = 0",
+              "feedback": "p = 1 means every toss is heads, so X = 10, not 0."
+            },
+            {
+              "key": "rounding",
+              "text": "It is rounding a small number",
+              "feedback": "Nothing is rounded: X <= 3 is impossible when all 10 tosses are heads."
+            }
+          ]
+        }
+      ]
     }
   }
 ];

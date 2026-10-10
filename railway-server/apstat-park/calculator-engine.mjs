@@ -10,6 +10,8 @@ export function createMissionEngine(createCalculator, data, route, keys) {
     else {
       for (const [name, values] of Object.entries(data.lists || {})) calculator.setList(name, values);
       for (const [name, values] of Object.entries(data.matrices || {})) calculator.setMatrix(name, values);
+      // A fixture-backed problem carries the ZoomStat histogram window a real TI-84 showed.
+      if (data.histogramWindow) calculator.setHistogramWindow(data.histogramWindow);
     }
     for (const key of history) calculator.pressKey(key);
     return { calculator, fingerprint() {

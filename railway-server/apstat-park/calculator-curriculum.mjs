@@ -52,12 +52,47 @@ export function createLevelRotation(random = Math.random, { varyProblems = true 
 export function initializeCalculator(calculator, level = DEFAULT_LEVEL) {
   for (const [name, values] of Object.entries(level.setup.lists)) calculator.setList(name, values);
   for (const [name, values] of Object.entries(level.setup.matrices)) calculator.setMatrix(name, values);
+  if (level.setup.histogramWindow) calculator.setHistogramWindow(level.setup.histogramWindow);
 }
 
-const round = value => Number(Number(value).toPrecision(5));
+const round = value => typeof value === 'number' ? Number(Number(value).toPrecision(5)) : value;
+
+// One answer check for every challenge (relay and client):
+// - categories (string keys) and whole numbers (counts, n) must match exactly;
+// - decimals: both sides are already rounded to the 5 significant digits the tiles
+//   show, so the source screen-verification tolerance absorbs only float noise.
+export function answerMatches(value, expected) {
+  if (typeof expected === 'string') return value === expected;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+  if (Number.isInteger(expected)) return value === expected;
+  return Math.abs(value - expected) <= Math.max(1, Math.abs(expected)) * 1e-9;
+}
+
+// The value a pressed answer tile stands for: a number for numeric questions, else the key.
+export function answerValue(level, index, key) {
+  return typeof challengeFor(level).answers[index] === 'number' ? Number(key) : String(key);
+}
+
+// Specific feedback for a whole wrong answer: the first wrong pick and why it is wrong.
+export function feedbackFor(level, values) {
+  const challenge = challengeFor(level);
+  const index = values.findIndex((value, i) => !answerMatches(value, challenge.answers[i]));
+  if (index < 0) return null;
+  const option = challenge.questions?.[index]?.options.find(option => option.key === String(values[index]));
+  if (option?.feedback) return option.feedback;
+  return challenge.labels[index] + ': ' + values[index] + ' does not match the calculator result. Read that line again.';
+}
+
 export function challengeFor(level = DEFAULT_LEVEL) {
   const { computed: c, finalView: graph, values: v } = level;
   const id = level.procedureId || level.id;
+  if (level.interpretation) {
+    // Interpretation variants (A-F): reference answers come from the independent oracles.
+    const { title, note, questions } = level.interpretation;
+    return { kind: 'interpret', title, note, questions,
+      labels: questions.map(question => question.label), prompts: questions.map(question => question.prompt),
+      answers: questions.map(question => round(question.answer)) };
+  }
   let kind, title, labels, answers, note;
   if (level.challenge === 'dotplot') {
     kind = 'dotplot'; title = 'BUILD THE DOT PLOT';
@@ -119,8 +154,23 @@ export function challengeFor(level = DEFAULT_LEVEL) {
   return { kind, title, labels, answers, note };
 }
 
+// Answer tiles sit in two rows that a cat can climb (from the floor ledges, each rise
+// is at most 34px) as well as click; number keys choose them too (room).
+// Rows fill upward from the lowest one (y 604), so a single row is never out of reach.
+const ANSWER_BOTTOM_Y = 604, ANSWER_ROW_STEP = 34;
+const answerRowY = (i, count, perRow) => ANSWER_BOTTOM_Y - (Math.ceil(count / perRow) - 1 - Math.floor(i / perRow)) * ANSWER_ROW_STEP;
+// Stable scramble so the authored order (correct first) never shows.
+const scrambleKey = text => [...text].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 9973, 7);
 export function answerTiles(level, index) {
   const challenge = challengeFor(level), answer = challenge.answers[index];
+  const question = challenge.questions?.[index];
+  if (question) {
+    const options = question.options.slice().sort((a, b) => scrambleKey(a.key) - scrambleKey(b.key));
+    const numeric = typeof answer === 'number';
+    const perRow = numeric ? 4 : 2, width = numeric ? 142 : 300, gap = numeric ? 155 : 320;
+    return options.map((option, i) => ({ key: option.key, label: option.text,
+      x: 60 + (i % perRow) * gap, y: answerRowY(i, options.length, perRow), w: width, h: 30 }));
+  }
   let options;
   if (challenge.kind === 'dotplot') options = [3, 0, 5, 1, 4, 2];
   else if (level.id === 'one-var-stats') options = [14, 4, 20, 7, 11];
@@ -131,5 +181,5 @@ export function answerTiles(level, index) {
     // Stable scrambled tiles: classmates see the same choices, not answer-first.
     options.sort((a, b) => Math.sin(a * 17 + 4) - Math.sin(b * 17 + 4));
   }
-  return options.map((value, i) => ({ key: String(value), x: 60 + (i % 4) * 155, y: 566 + Math.floor(i / 4) * 42, w: 142, h: 30 }));
+  return options.map((value, i) => ({ key: String(value), x: 60 + (i % 4) * 155, y: answerRowY(i, options.length, 4), w: 142, h: 30 }));
 }

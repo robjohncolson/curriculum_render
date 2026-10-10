@@ -1,4 +1,4 @@
-const { DEFAULT_LEVEL, levelById, challengeFor, answerTiles } = await import('./calculator-curriculum.mjs' + new URL(import.meta.url).search);
+const { DEFAULT_LEVEL, levelById, challengeFor, answerTiles, answerValue, answerMatches, feedbackFor } = await import('./calculator-curriculum.mjs' + new URL(import.meta.url).search);
 export const missionFor = state => levelById(state?.missionId) || DEFAULT_LEVEL;
 // Shared with the relay's calculator-mission.mjs. Keep byte-identical (tested).
 // Guided route from ti84-procedures-data.json: one-var-stats.
@@ -84,14 +84,17 @@ export function pressMissionKey(state, key, now, transitions = {}) {
   if (state.complete || now - state.startedAt >= timeLimitFor(state)
     || !tilesFor(state.step, level).some(tile => tile.key === key)) return false;
   if (state.step >= ROUTE.length) {
-    state.boxValues.push(Number(key));
+    // Numeric questions keep numbers; category questions keep the chosen key.
+    state.boxValues.push(answerValue(level, state.step - ROUTE.length, key));
     state.step++;
     state.revision++;
     state.holdAt = null; state.holdStep = null;
     state.lastPress = { key, advanced: true };
     if (state.boxValues.length < SUMMARY.length) return true;
-    const correct = state.boxValues.every((value, i) => value === SUMMARY[i]);
+    const correct = state.boxValues.every((value, i) => answerMatches(value, SUMMARY[i]));
     state.lastPlot = { values: state.boxValues.slice(), correct, at: now };
+    // The whole answer is judged once; the first wrong pick gets its specific explanation.
+    if (!correct) state.lastPlot.feedback = feedbackFor(level, state.boxValues);
     if (correct) {
       state.complete = true;
       state.bonus += SUMMARY.length;

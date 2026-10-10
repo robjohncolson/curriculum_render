@@ -494,12 +494,19 @@
   }
 
   // ───────────────────────────────────────────────
-  //  TI-84 Quartile method ("include median" in both halves for odd n)
-  //  For odd n: median = middle value.
-  //  Q1 = median of lower half INCLUDING the median.
-  //  Q3 = median of upper half INCLUDING the median.
+  //  TI-84 Quartile method: median of halves, EXCLUDING the median for odd n.
+  //  For odd n: median = middle value; the middle value belongs to
+  //  NEITHER half. Q1 = median of the values below it, Q3 = median of
+  //  the values above it.
   //  For even n: median = avg of two middle values.
   //  Q1 = median of lower half, Q3 = median of upper half.
+  //
+  //  Evidence: ti84-transpile logs/curriculum-statistics-clocked432-evidence-1.json
+  //  (cases[].rendered: L1={2,4,6} renders Q1=2, Q3=6) and
+  //  APSTAT_PARK_CALCULATOR_HANDOFF_SPEC.md section A. The previous
+  //  "include the median in both halves" rule gave Q1=3, Q3=5 there.
+  //  n=1 (both halves empty) falls back to Q1=Q3=the single value; that
+  //  case is not covered by the ROM evidence.
   // ───────────────────────────────────────────────
 
   function medianOfSorted(arr, lo, hi) {
@@ -543,15 +550,16 @@
     var maxX = sorted[n - 1];
     var Med = medianOfSorted(sorted, 0, n);
 
-    // TI quartile method: include median in both halves for odd n
+    // TI quartile method: the median element (odd n) belongs to neither half
     var midIdx = Math.floor(n / 2);
     var Q1, Q3;
-    if (n % 2 === 1) {
-      // Odd: include the median element in both halves
-      Q1 = medianOfSorted(sorted, 0, midIdx + 1);
-      Q3 = medianOfSorted(sorted, midIdx, n);
+    if (n === 1) {
+      Q1 = sorted[0];
+      Q3 = sorted[0];
+    } else if (n % 2 === 1) {
+      Q1 = medianOfSorted(sorted, 0, midIdx);
+      Q3 = medianOfSorted(sorted, midIdx + 1, n);
     } else {
-      // Even: split exactly in half
       Q1 = medianOfSorted(sorted, 0, midIdx);
       Q3 = medianOfSorted(sorted, midIdx, n);
     }
@@ -918,9 +926,18 @@
     };
   }
 
+  // count * ln(prob), with 0 * ln(0) taken as exactly 0 (prob^0 = 1).
+  // Without this, p = 0 or p = 1 produced 0 * -Infinity = NaN.
+  // Evidence: ti84-transpile logs/curriculum-binomial-clocked431-boundaries-evidence-1.json
+  // (cases[].rendered: binomcdf(10,0,0) renders "1", binomcdf(10,1,3) renders "0").
+  function countTimesLog(count, prob) {
+    if (count === 0) return 0;
+    return count * Math.log(prob);
+  }
+
   function binompdf(trials, p, x) {
     if (x < 0 || x > trials) return 0;
-    return Math.exp(lnChoose(trials, x) + x * Math.log(p) + (trials - x) * Math.log(1 - p));
+    return Math.exp(lnChoose(trials, x) + countTimesLog(x, p) + countTimesLog(trials - x, 1 - p));
   }
 
   function binomcdf(trials, p, x) {

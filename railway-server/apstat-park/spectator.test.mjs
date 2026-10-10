@@ -4,6 +4,7 @@ import { createClassroomRegistry } from '../classroom.js';
 import { createParkService } from './service.mjs';
 import { DEFAULT_LEVEL } from './calculator-curriculum.mjs';
 import { CAMPAIGN_PROTOCOL } from './campaign-service.mjs';
+import { CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { earnCampaignKey, recordCalculatorPacket } from './campaign-access-fixture.mjs';
 
 test('watching is read-only, teacher-only, and scoped to the joined class', async t => {
@@ -53,7 +54,7 @@ test('watching a calculator lobby never adds a teacher or starts an attempt', ()
   try {
     registry.join(teacher, 'B', 'teacher', 'teacher', 0);
     registry.join(alice, 'B', 'alice', 'student', 0);
-    service.handle(alice, { type: 'calculator_lobby', protocol: 8, pose: { x: 65, y: 676 } });
+    service.handle(alice, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL, pose: { x: 65, y: 676 } });
     const view = service.handle(teacher, { type: 'park_watch' });
     assert.ok(view.calculator);
     assert.deepEqual(view.calculator.members, []);

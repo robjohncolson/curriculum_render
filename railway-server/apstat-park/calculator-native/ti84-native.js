@@ -53,6 +53,23 @@
     '6':         'L6'
   };
 
+  // ── Error screens ─────────────────────────────────────────────────────
+
+  // 1-Var Stats with a frequency list whose entries are all zero.
+  // Evidence: ti84-transpile logs/curriculum-statistics-clocked433-all-zero-frequency-evidence-1.json
+  // (rendered[].text). The ROM screen also shows a "2:Goto" option; Goto and
+  // the way the error is dismissed are NOT verified ("limits" field), so this
+  // trainer only shows the message lines and lets ENTER or CLEAR return to
+  // the 1-Var Stats screen (unverified, minimal dismissal).
+  var ONE_VAR_ZERO_FREQ_ERROR = {
+    screenId: 'one-var-stats-error',
+    lines: [
+      'Attempted calculation',
+      'contains division by 0.',
+      'Calculation fails.'
+    ]
+  };
+
   // ── Wizard -> StatMath computation routing ────────────────────────────
 
   /**
@@ -107,6 +124,10 @@
         var data = resolveList('List');
         var freq = resolveList('FreqList');
         result = StatMath.oneVarStats(data, freq);
+        if (!result && data.length && freq) {
+          // Every frequency is zero, so the list holds no observations.
+          return { error: ONE_VAR_ZERO_FREQ_ERROR };
+        }
         if (!result) return null;
         resultScreenId = 'one-var-stats-result-page1';
         return { resultScreenId: resultScreenId, computedValues: result, altHypothesis: null };
@@ -330,6 +351,109 @@
     return { xbar: xbar, Sx: Sx, n: n };
   }
 
+  // ── Stat plot helpers (ZoomStat + TRACE) ──────────────────────────────
+
+  // Plot frequency list: each value repeats freq[i] times; a zero (or
+  // missing) frequency drops the value. null freq = every value once.
+  function expandPlotFreq(data, freq) {
+    if (!freq) return data.slice();
+    var out = [];
+    for (var i = 0; i < data.length; i++) {
+      var f = Number(freq[i]) || 0;
+      for (var j = 0; j < f; j++) out.push(data[i]);
+    }
+    return out;
+  }
+
+  // Trims binary floating-point noise (8/3 * 3 etc.) from bin boundaries.
+  function cleanNumber(value) {
+    return Number(value.toPrecision(12));
+  }
+
+  // Histogram bins as ZoomStat + TRACE show them: { x: lower boundary
+  // (inclusive), upper: upper boundary (exclusive), y: count }.
+  //
+  // Lower-inclusive / upper-exclusive membership and boundary = Xmin + i*Xscl:
+  // ti84-transpile TI-84_Plus_CE/decompiled/histogram-count-step.js and
+  // histogram-bin-boundary-step.js.
+  //
+  // Bin WIDTH (ZoomStat's Xscl): the general ROM rule is UNKNOWN (the ZoomStat
+  // histogram path is only partially decompiled). So by default the trainer
+  // keeps its legacy layout (width = range / ceil(sqrt(n)), at least 1; no
+  // claim that a real TI-84 picks these bins).
+  //
+  // A window supplied by a verified ROM fixture replaces that layout exactly
+  // (setHistogramWindow): ti84-transpile logs/curriculum-plots-clocked433-evidence-1.json
+  // (cases[flow=histogram].geometry.bins) for data {1,2,2,3,3,9} is
+  // { xmin: 1, xscl: 2, bins: 6 }: [1,3) [3,5) [5,7) [7,9) [9,11) and the
+  // empty bin [11,13) that TRACE reaches. The trailing empty bin appears only
+  // where such a window says so.
+  function histogramBins(values, window) {
+    if (window) return windowBins(values, window);
+    var low = Math.min.apply(null, values), high = Math.max.apply(null, values);
+    var width = Math.max(1, (high - low) / Math.ceil(Math.sqrt(values.length)));
+    var bins = Array.from({ length: Math.ceil((high - low) / width) + 1 }, function (_, i) {
+      return { x: low + i * width, upper: low + (i + 1) * width, y: 0 };
+    });
+    values.forEach(function (value) { bins[Math.floor((value - low) / width)].y++; });
+    return bins;
+  }
+
+  // Bins of a fixture-supplied ZoomStat window: bin i is [xmin + i*xscl, xmin + (i+1)*xscl).
+  // Values outside every bin are not counted (none occur in the verified fixture).
+  function windowBins(values, window) {
+    var bins = [];
+    for (var i = 0; i < window.bins; i++) {
+      bins.push({ x: cleanNumber(window.xmin + i * window.xscl), upper: cleanNumber(window.xmin + (i + 1) * window.xscl), y: 0 });
+    }
+    values.forEach(function (value) {
+      var index = Math.floor((value - window.xmin) / window.xscl + 1e-9);
+      if (index >= 0 && index < bins.length) bins[index].y++;
+    });
+    return bins;
+  }
+
+  // Modified-boxplot TRACE stops, left to right, with the label TRACE shows.
+  //
+  // Verified (rightward only): ti84-transpile logs/curriculum-plots-clocked433-evidence-1.json
+  // (cases[flow=boxplot].traceScreens[].visuallyTranscribed) for {1,2,2,3,3,9}:
+  // TRACE starts at Med=2.5, then RIGHT gives Q3=3, X=3 (upper whisker end,
+  // the largest non-outlier), maxX=9 (the outlier), and further RIGHT presses
+  // stay at maxX=9. Fences are Q1 - 1.5*IQR and Q3 + 1.5*IQR (geometry field).
+  //
+  // UNVERIFIED: the leftward stops (Q1, lower whisker end, low outliers) and
+  // the labels when there are several or no outliers. They mirror the right
+  // side by the usual TI convention: the extreme data value is labelled
+  // minX / maxX, every other whisker end or outlier is labelled X.
+  function modBoxplotTraceStops(values, stats) {
+    var iqr = stats.Q3 - stats.Q1;
+    var lowerFence = stats.Q1 - 1.5 * iqr;
+    var upperFence = stats.Q3 + 1.5 * iqr;
+    var sorted = values.slice().sort(function (a, b) { return a - b; });
+    var inside = sorted.filter(function (v) { return v >= lowerFence && v <= upperFence; });
+    var lowOutliers = distinct(sorted.filter(function (v) { return v < lowerFence; }));
+    var highOutliers = distinct(sorted.filter(function (v) { return v > upperFence; }));
+
+    var stops = [];
+    lowOutliers.forEach(function (v, i) {
+      stops.push({ label: i === 0 ? 'minX' : 'X', x: v });
+    });
+    stops.push({ label: lowOutliers.length ? 'X' : 'minX', x: inside[0] });
+    stops.push({ label: 'Q1', x: stats.Q1 });
+    var startIndex = stops.length;
+    stops.push({ label: 'Med', x: stats.Med });
+    stops.push({ label: 'Q3', x: stats.Q3 });
+    stops.push({ label: highOutliers.length ? 'X' : 'maxX', x: inside[inside.length - 1] });
+    highOutliers.forEach(function (v, i) {
+      stops.push({ label: i === highOutliers.length - 1 ? 'maxX' : 'X', x: v });
+    });
+    return { stops: stops, startIndex: startIndex };
+  }
+
+  function distinct(sortedValues) {
+    return sortedValues.filter(function (v, i) { return i === 0 || v !== sortedValues[i - 1]; });
+  }
+
   // ── Orchestrator factory ──────────────────────────────────────────────
 
   function create(canvas, options) {
@@ -377,6 +501,8 @@
     // Home screen lines
     var homeLines = [];
     var plotSettings = { 'On/Off': 'On', Type: 'Scatter', Xlist: 'L1', Ylist: 'L2', Freq: '1' };
+    // Optional ZoomStat histogram window from a verified ROM fixture (see histogramBins).
+    var histogramWindow = null;
     var selectorReturn = null;
     var matrixCursor = null;
 
@@ -427,6 +553,7 @@
     var resultHistory = [];   // stack of previous result screen IDs for UP navigation
     var resultComputedValues = null;
     var resultAltHypothesis = null;
+    var errorReturn = null;   // { wizard, type, id } while an error screen is shown
 
     // Graph screen state
     var graphState = {
@@ -682,6 +809,11 @@
 
         if (!compResult) return;
 
+        if (compResult.error) {
+          showErrorScreen(compResult.error);
+          return;
+        }
+
         bus.emit('compute', {
           type: evt.wizardId,
           inputs: evt.values,
@@ -734,6 +866,30 @@
         activeWizard = null;
         setScreen('graph', 'graph', graphState);
       }
+    }
+
+    // Shows an error message on a result-type screen and remembers the
+    // wizard so the (unverified, minimal) dismissal can return to it.
+    function showErrorScreen(error) {
+      errorReturn = { wizard: activeWizard, type: screen.type, id: screen.id };
+      activeWizard = null;
+      resultState = { lines: error.lines.slice(), scrollable: false, isError: true };
+      resultHistory = [];
+      resultComputedValues = null;
+      resultAltHypothesis = null;
+      setScreen('result', error.screenId, {});
+    }
+
+    function dismissErrorScreen() {
+      var returning = errorReturn;
+      errorReturn = null;
+      resultState = null;
+      if (!returning || !returning.wizard) {
+        goHome();
+        return;
+      }
+      activeWizard = returning.wizard;
+      setScreen(returning.type, returning.id, activeWizard.getState());
     }
 
     function inferGraphType(wizardId) {
@@ -995,6 +1151,13 @@
     // ── Result screen key handler ───────────────────────────────────────
 
     function handleResultKey(key) {
+      if (resultState && resultState.isError) {
+        // Unverified against the ROM: ENTER or CLEAR returns to the screen
+        // that raised the error; every other key is ignored.
+        if (key === 'ENTER' || key === 'CLEAR') dismissErrorScreen();
+        return;
+      }
+
       if (key === 'CLEAR') {
         goHome();
         return;
@@ -1088,19 +1251,37 @@
       }
       var type = settings.Type || 'Scatter';
       var points = xs.map(function (x, i) { return { x: x, y: ys[i] || 0 }; });
-      var stats = xs.length ? StatMath.oneVarStats(xs) : null;
-      if (type === 'Histogram' && xs.length) {
-        var low = Math.min.apply(null, xs), high = Math.max.apply(null, xs);
-        var width = Math.max(1, (high - low) / Math.ceil(Math.sqrt(xs.length)));
-        points = Array.from({ length: Math.ceil((high - low) / width) + 1 }, function (_, i) {
-          return { x: low + i * width, upper: low + (i + 1) * width, y: 0 };
-        });
-        xs.forEach(function (x) { points[Math.floor((x - low) / width)].y++; });
+      var traceStops = null;
+      var traceStart = 0;
+
+      // One-variable plots honour the plot's Freq list ('1' = no list).
+      var isOneVarPlot = ['Histogram', 'ModBoxplot', 'Boxplot'].indexOf(type) !== -1;
+      var values = isOneVarPlot ? expandPlotFreq(xs, plotFreqList(settings)) : xs;
+      var stats = values.length ? StatMath.oneVarStats(values) : null;
+
+      if (type === 'Histogram' && values.length) {
+        points = histogramBins(values, histogramWindow);
+      }
+      if (type === 'ModBoxplot' && stats) {
+        points = values.map(function (x) { return { x: x, y: 0 }; });
+        traceStops = modBoxplotTraceStops(values, stats);
+        traceStart = traceStops.startIndex;
+        traceStops = traceStops.stops;
       }
       graphState = { type: type, title: type, settings: Object.assign({}, settings), points: points,
         stats: stats, traceMode: false, tracePosition: 0, traceInfo: null };
+      if (traceStops) {
+        graphState.traceStops = traceStops;
+        graphState.traceStart = traceStart;
+      }
       activeMenu = null; activeWizard = null;
       setScreen('graph', 'graph', graphState);
+    }
+
+    function plotFreqList(settings) {
+      var name = settings.Freq;
+      if (!name || name === '1') return null;
+      return lists[name] || [];
     }
 
     function matrixPayload() {
@@ -1142,6 +1323,19 @@
       if (key === 'UP') c.row = Math.max(0, c.row - 1);
     }
 
+    // TRACE walks the plot's stops: box-plot stops when the plot has them,
+    // otherwise its points (histogram bins, scatter points).
+    function traceTargets() {
+      return graphState.traceStops || graphState.points || [];
+    }
+
+    function moveTrace(position) {
+      var targets = traceTargets();
+      var last = Math.max(0, targets.length - 1);
+      graphState.tracePosition = Math.max(0, Math.min(last, position));
+      graphState.traceInfo = targets[graphState.tracePosition] || { x: graphState.tracePosition, y: 0 };
+    }
+
     function handleGraphKey(key) {
       if (key === 'CLEAR') {
         goHome();
@@ -1150,20 +1344,18 @@
       if (key === 'TRACE') {
         graphState.traceMode = !graphState.traceMode;
         if (graphState.traceMode) {
-          graphState.traceInfo = graphState.points?.[0] || { x: 0, y: 0 };
+          moveTrace(graphState.traceStart || 0);
         } else {
           graphState.traceInfo = null;
         }
         return;
       }
       if (key === 'LEFT' && graphState.traceMode) {
-        graphState.tracePosition = Math.max(0, graphState.tracePosition - 1);
-        graphState.traceInfo = graphState.points?.[graphState.tracePosition] || { x: graphState.tracePosition, y: 0 };
+        moveTrace(graphState.tracePosition - 1);
         return;
       }
       if (key === 'RIGHT' && graphState.traceMode) {
-        graphState.tracePosition = Math.min((graphState.points?.length || 100) - 1, graphState.tracePosition + 1);
-        graphState.traceInfo = graphState.points?.[graphState.tracePosition] || { x: graphState.tracePosition, y: 0 };
+        moveTrace(graphState.tracePosition + 1);
         return;
       }
     }
@@ -1173,6 +1365,7 @@
     function goHome() {
       activeMenu = null;
       activeWizard = null;
+      errorReturn = null;
       resultState = null;
       resultHistory = [];
       resultComputedValues = null;
@@ -1254,6 +1447,12 @@
 
       getList: function (name) {
         return lists[name] ? lists[name].slice() : [];
+      },
+
+      // { xmin, xscl, bins } observed on a real TI-84 for this data, or null for
+      // the legacy layout. Only fixture-backed problems set it.
+      setHistogramWindow: function (window) {
+        histogramWindow = window ? { xmin: window.xmin, xscl: window.xscl, bins: window.bins } : null;
       },
 
       setMatrix: function (name, data) {
