@@ -14,11 +14,16 @@
 
   var WIDTH = 320;
   var HEIGHT = 240;
-  var BG_COLOR = '#C6D8A0';
-  var TEXT_COLOR = '#000000';
-  var INVERT_BG = '#000000';
-  var INVERT_FG = '#C6D8A0';
-  var FONT = '12px monospace';
+  // LCD look by default. create(canvas, options) may override any of these per renderer
+  // (APStat Park draws the same screens in its own colours); the geometry never changes.
+  var DEFAULT_PALETTE = {
+    bg: '#C6D8A0',
+    fg: '#000000',
+    invertBg: '#000000',
+    invertFg: '#C6D8A0',
+    font: '12px monospace'
+  };
+  var pal = DEFAULT_PALETTE;   // the palette of the renderer currently drawing
   var CHAR_W = 12;     // approximate width of one monospace character at 12px
   var LINE_H = 22;     // line height (fits ~10 rows in 240px)
   var COLS = 26;       // max characters per line (320 / 12 ~ 26)
@@ -33,12 +38,12 @@
   // ───────────────────────────────────────────────
 
   function clearCanvas(ctx) {
-    ctx.fillStyle = BG_COLOR;
+    ctx.fillStyle = pal.bg;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
   }
 
   function setFont(ctx) {
-    ctx.font = FONT;
+    ctx.font = pal.font;
     ctx.textBaseline = 'top';
   }
 
@@ -55,11 +60,11 @@
     var x = LEFT_PAD + (opts.xOffset || 0);
 
     if (opts.invert) {
-      ctx.fillStyle = INVERT_BG;
+      ctx.fillStyle = pal.invertBg;
       ctx.fillRect(0, y, WIDTH, LINE_H);
-      ctx.fillStyle = INVERT_FG;
+      ctx.fillStyle = pal.invertFg;
     } else {
-      ctx.fillStyle = TEXT_COLOR;
+      ctx.fillStyle = pal.fg;
     }
 
     if (opts.align === 'right') {
@@ -78,7 +83,7 @@
    */
   function drawDivider(ctx, row) {
     var y = TOP_PAD + (row + 1) * LINE_H;
-    ctx.strokeStyle = TEXT_COLOR;
+    ctx.strokeStyle = pal.fg;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -102,7 +107,7 @@
     setFont(ctx);
     drawText(ctx, title, 0);
     // Draw axes frame
-    ctx.strokeStyle = TEXT_COLOR;
+    ctx.strokeStyle = pal.fg;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(GRAPH_AREA.x, GRAPH_AREA.y);
@@ -139,7 +144,7 @@
     var barW = Math.floor(GRAPH_AREA.w / (barCount + 1));
     var baseY = GRAPH_AREA.y + GRAPH_AREA.h;
 
-    ctx.fillStyle = TEXT_COLOR;
+    ctx.fillStyle = pal.fg;
     for (var i = 0; i < barCount; i++) {
       var h = Math.floor(GRAPH_AREA.h * barHeights[i]);
       var x = GRAPH_AREA.x + (i + 0.5) * barW;
@@ -156,7 +161,7 @@
     // Positions as fractions of graph width: min, Q1, Med, Q3, max
     var min = 0.05, q1 = 0.25, med = 0.45, q3 = 0.7, max = 0.95;
 
-    ctx.strokeStyle = TEXT_COLOR;
+    ctx.strokeStyle = pal.fg;
     ctx.lineWidth = 2;
 
     // Whisker: min to Q1
@@ -202,7 +207,7 @@
     ];
     var r = 3;
 
-    ctx.fillStyle = TEXT_COLOR;
+    ctx.fillStyle = pal.fg;
     for (var i = 0; i < points.length; i++) {
       var px = GRAPH_AREA.x + GRAPH_AREA.w * points[i][0];
       var py = GRAPH_AREA.y + GRAPH_AREA.h * points[i][1];
@@ -217,7 +222,7 @@
     var baseY = GRAPH_AREA.y + GRAPH_AREA.h / 2;
 
     // Zero line
-    ctx.strokeStyle = TEXT_COLOR;
+    ctx.strokeStyle = pal.fg;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(GRAPH_AREA.x, baseY);
@@ -233,7 +238,7 @@
     var r = 3;
     var halfH = GRAPH_AREA.h / 2;
 
-    ctx.fillStyle = TEXT_COLOR;
+    ctx.fillStyle = pal.fg;
     for (var i = 0; i < points.length; i++) {
       var px = GRAPH_AREA.x + GRAPH_AREA.w * points[i][0];
       var py = baseY - halfH * points[i][1] * 0.8;
@@ -251,7 +256,7 @@
     var steps = 60;
 
     // Draw the chi-square-like curve (right-skewed)
-    ctx.strokeStyle = TEXT_COLOR;
+    ctx.strokeStyle = pal.fg;
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (var i = 0; i <= steps; i++) {
@@ -297,18 +302,27 @@
      * @param {HTMLCanvasElement} canvas — must be 320x240 or will be resized
      * @returns {Object} renderer instance
      */
-    create: function (canvas) {
-      canvas.width = WIDTH;
-      canvas.height = HEIGHT;
+    create: function (canvas, options) {
+      options = options || {};
+      var palette = {};
+      for (var key in DEFAULT_PALETTE) palette[key] = options[key] !== undefined ? options[key] : DEFAULT_PALETTE[key];
+      // options.scale draws the same 320x240 screen on a larger canvas (crisp when shown smaller).
+      var scale = options.scale || 1;
+      canvas.width = WIDTH * scale;
+      canvas.height = HEIGHT * scale;
       var ctx = canvas.getContext('2d');
+      if (scale !== 1) ctx.scale(scale, scale);
+      function use() { pal = palette; }
 
       var renderer = {
+        palette: palette,
 
         /**
          * Render home screen with previous result lines and blinking cursor.
          * @param {string[]} lines — lines of text to display
          */
         renderHome: function (lines) {
+          use();
           clearCanvas(ctx);
           setFont(ctx);
 
@@ -331,6 +345,7 @@
          * @param {Object} menuState — { title, tabs?, activeTab?, items[], cursorIndex }
          */
         renderMenu: function (menuState) {
+          use();
           clearCanvas(ctx);
           setFont(ctx);
 
@@ -341,7 +356,8 @@
             var tabLine = '';
             for (var t = 0; t < menuState.tabs.length; t++) {
               var label = menuState.tabs[t];
-              if (t === menuState.activeTab) {
+              // menu-nav passes the active tab's name; an index is accepted too.
+              if (t === menuState.activeTab || label === menuState.activeTab) {
                 label = '[' + label + ']';
               }
               tabLine += label + '  ';
@@ -379,6 +395,7 @@
          *   from displayValue is there anything extra to draw.
          */
         renderWizard: function (wizardState) {
+          use();
           clearCanvas(ctx);
           setFont(ctx);
 
@@ -404,9 +421,9 @@
             if (isActive) {
               // Inverted row for active field
               var y = TOP_PAD + row * LINE_H;
-              ctx.fillStyle = INVERT_BG;
+              ctx.fillStyle = pal.invertBg;
               ctx.fillRect(0, y, WIDTH, LINE_H);
-              ctx.fillStyle = INVERT_FG;
+              ctx.fillStyle = pal.invertFg;
               ctx.fillText(field.label, LEFT_PAD, y + 4);
 
               var valX = WIDTH - LEFT_PAD;
@@ -425,12 +442,12 @@
                 var curW = ctx.measureText(curStr).width;
                 var curX = valX - CHAR_W - curW;
                 ctx.fillText(curStr, curX, y + 4);
-                ctx.strokeStyle = INVERT_FG;
+                ctx.strokeStyle = pal.invertFg;
                 ctx.lineWidth = 1;
                 ctx.strokeRect(curX - 2, y + 1, curW + 4, LINE_H - 2);
               }
             } else {
-              ctx.fillStyle = TEXT_COLOR;
+              ctx.fillStyle = pal.fg;
               var ny = TOP_PAD + row * LINE_H;
               ctx.fillText(field.label, LEFT_PAD, ny + 4);
               if (field.displayValue !== undefined && field.displayValue !== null) {
@@ -449,6 +466,7 @@
          * @param {Object} resultState — { lines[], scrollable, title? }
          */
         renderResult: function (resultState) {
+          use();
           clearCanvas(ctx);
           setFont(ctx);
 
@@ -467,7 +485,7 @@
 
           // Scroll indicator
           if (resultState.scrollable) {
-            ctx.fillStyle = TEXT_COLOR;
+            ctx.fillStyle = pal.fg;
             var indicatorX = WIDTH - LEFT_PAD - CHAR_W;
             var indicatorY = HEIGHT - LINE_H + 4;
             ctx.fillText(SCROLL_INDICATOR, indicatorX, indicatorY);
@@ -480,6 +498,7 @@
          *   columns: ['L1', 'L2', ...], rows: arrays of cell values
          */
         renderEditor: function (editorState) {
+          use();
           clearCanvas(ctx);
           setFont(ctx);
 
@@ -487,9 +506,9 @@
           var colW = Math.floor(WIDTH / colCount);
 
           // Column headers
-          ctx.fillStyle = INVERT_BG;
+          ctx.fillStyle = pal.invertBg;
           ctx.fillRect(0, TOP_PAD, WIDTH, LINE_H);
-          ctx.fillStyle = INVERT_FG;
+          ctx.fillStyle = pal.invertFg;
           for (var c = 0; c < colCount; c++) {
             var hx = c * colW + LEFT_PAD;
             ctx.fillText(editorState.columns[c], hx, TOP_PAD + 4);
@@ -511,11 +530,11 @@
               var isActive = (r === editorState.cursorRow && cc === editorState.cursorCol);
 
               if (isActive) {
-                ctx.fillStyle = INVERT_BG;
+                ctx.fillStyle = pal.invertBg;
                 ctx.fillRect(cc * colW, cy, colW, LINE_H);
-                ctx.fillStyle = INVERT_FG;
+                ctx.fillStyle = pal.invertFg;
               } else {
-                ctx.fillStyle = TEXT_COLOR;
+                ctx.fillStyle = pal.fg;
               }
               ctx.fillText(String(rowData[cc] !== undefined ? rowData[cc] : ''), cx, cy + 4);
             }
@@ -527,6 +546,7 @@
          * @param {Object} graphState — { type, title, traceMode, traceInfo }
          */
         renderGraph: function (graphState) {
+          use();
           drawGraphFrame(ctx, graphState.title || '');
 
           switch (graphState.type) {
@@ -567,6 +587,7 @@
          * Clear the canvas to the LCD background color.
          */
         clear: function () {
+          use();
           clearCanvas(ctx);
         }
       };
