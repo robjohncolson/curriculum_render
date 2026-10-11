@@ -93,7 +93,7 @@ export function challengeFor(level = DEFAULT_LEVEL) {
       labels: questions.map(question => question.label), prompts: questions.map(question => question.prompt),
       answers: questions.map(question => round(question.answer)) };
   }
-  let kind, title, labels, answers, note;
+  let kind, title, labels, answers, note, challengePrompts = null;
   if (level.challenge === 'dotplot') {
     kind = 'dotplot'; title = 'BUILD THE DOT PLOT';
     const positions = [...new Set(v.data)].sort((a, b) => a - b);
@@ -126,11 +126,23 @@ export function challengeFor(level = DEFAULT_LEVEL) {
     labels = v.matrix.flatMap((row, r) => row.map((_, col) => 'Row ' + (r + 1) + ', col ' + (col + 1)));
     answers = v.matrix.flat(); note = 'Keep the rows and columns in the original category order.';
   } else if (id.startsWith('randint')) {
-    kind = 'sampling'; title = id === 'randint-assignment' ? 'ASSIGN TREATMENT A' : 'BUILD THE SAMPLE';
+    // The screen shows the random ordering; the student reads it back left to right.
+    // Teacher 2026-10-11: "ASSIGN TREATMENT A" + "Label 1" told nobody what the six numbers were.
+    kind = 'sampling';
     const draw = graph.at(-1).replace(/[{}]/g, '').split(' ').map(Number);
-    answers = id === 'randint-assignment' ? draw.slice(0, v.groupSize) : draw;
-    labels = answers.map((_, i) => 'Label ' + (i + 1));
-    note = 'Use the draw in order. No subject appears twice.';
+    const assignment = id === 'randint-assignment';
+    answers = assignment ? draw.slice(0, v.groupSize) : draw;
+    const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+    const count = answers.length;
+    title = assignment ? 'TREATMENT A = THE FIRST ' + count + ' NUMBERS ON THE SCREEN' : 'READ BACK THE SAMPLE: ' + count + ' NUMBERS ON THE SCREEN';
+    labels = answers.map((_, i) => (assignment ? 'Treatment A subject ' : 'Sample member ') + (i + 1));
+    challengePrompts = answers.map((_, i) => (assignment
+      ? 'Treatment A gets the FIRST ' + count + ' subjects in the random order. Subject ' + (i + 1) + ' of ' + count + ' is the '
+      : 'The sample is the whole random order, read left to right. Member ' + (i + 1) + ' of ' + count + ' is the ')
+      + ordinal(i + 1) + ' number on the calculator screen. Which number is it?');
+    note = assignment
+      ? 'Read the ordering left to right. The first ' + count + ' numbers are the subjects in Treatment A; the rest are Treatment B. No subject appears twice.'
+      : 'Read the ordering left to right. Each number is one chosen subject. No subject appears twice.';
   } else if (c.lower != null) {
     kind = 'interval'; title = 'BUILD THE CONFIDENCE INTERVAL';
     labels = ['Lower bound', 'Upper bound']; answers = [c.lower, c.upper];
@@ -151,7 +163,7 @@ export function challengeFor(level = DEFAULT_LEVEL) {
     note = kind === 'quantile' ? 'The cutoff leaves the requested area in the chosen tail.' : 'Probability is area or mass, between 0 and 1.';
   }
   answers = answers.map(round);
-  return { kind, title, labels, answers, note };
+  return challengePrompts ? { kind, title, labels, answers, note, prompts: challengePrompts } : { kind, title, labels, answers, note };
 }
 
 // Answer tiles sit in two rows that a cat can climb (from the floor ledges, each rise
