@@ -185,7 +185,8 @@ export function answerTiles(level, index) {
   }
   let options;
   if (challenge.kind === 'dotplot') options = [3, 0, 5, 1, 4, 2];
-  else if (level.id === 'one-var-stats') options = [14, 4, 20, 7, 11];
+  // The fixed tiles hold only the catalogue's own answers; a round with random data builds its own.
+  else if (level.id === 'one-var-stats' && !level.varied) options = [14, 4, 20, 7, 11];
   else {
     const delta = Math.max(Math.abs(answer || 1) * .2, .01);
     options = [...new Set([...challenge.answers, round(answer + delta), round(answer - delta), 0, 1])];

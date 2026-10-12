@@ -10,6 +10,7 @@ import { getFramework, getFrameworkForQuestion, buildFrameworkContext } from './
 import { createClassroomRegistry } from './classroom.js';
 import { createParkService } from './apstat-park/service.mjs';
 import { createSupabaseKeyStore } from './apstat-park/campaign-key-store.mjs';
+import { createSupabaseClearsStore } from './apstat-park/calculator-clears-store.mjs';
 import { createKeyGrantHandler } from './apstat-park/campaign-key-grant.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
@@ -202,6 +203,8 @@ const classroomPark = createParkService({
   registry: classroomRegistry,
   send: (ws, payload) => { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); },
   keyStore: parkKeyStore,
+  // Calculator clears behind the hint rungs persist in park_calc_clears (migration 0008), same client.
+  clearsStore: createSupabaseClearsStore(quizReviewsSupabase),
 });
 // A campaign key bought with candy: roster-server calls this server-to-server after debiting the
 // candy (shared secret PARK_KEY_GRANT_SECRET; idempotent on receiptId). Migration 0006.

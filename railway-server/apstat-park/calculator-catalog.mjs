@@ -298,8 +298,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -313,8 +311,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the histogram plot type.",
       "Choose the histogram plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -464,8 +460,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -479,8 +473,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the histogram plot type.",
       "Choose the histogram plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -630,8 +622,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -646,8 +636,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the modified-boxplot plot type.",
       "Choose the modified-boxplot plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -841,8 +829,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -857,8 +843,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the modified-boxplot plot type.",
       "Choose the modified-boxplot plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -1117,6 +1101,8 @@ export const CALCULATOR_PROBLEMS = [
       ".",
       "5",
       "DOWN",
+      "CLEAR",
+      "1",
       ".",
       "7",
       "2",
@@ -1138,6 +1124,8 @@ export const CALCULATOR_PROBLEMS = [
       "Enter μ = 15.5.",
       "Enter μ = 15.5.",
       "Move to the next field.",
+      "Clear σ before typing 1.72.",
+      "Enter σ = 1.72.",
       "Enter σ = 1.72.",
       "Enter σ = 1.72.",
       "Enter σ = 1.72.",
@@ -1145,10 +1133,10 @@ export const CALCULATOR_PROBLEMS = [
       "Calculate the result."
     ],
     "computed": {
-      "value": 0.7376878099720275
+      "value": 0.4227799088545892
     },
     "finalView": [
-      "0.73768781"
+      "0.4227799089"
     ]
   },
   {
@@ -1369,6 +1357,8 @@ export const CALCULATOR_PROBLEMS = [
       "0",
       "0",
       "DOWN",
+      "CLEAR",
+      "1",
       "0",
       "0",
       "DOWN",
@@ -1388,6 +1378,8 @@ export const CALCULATOR_PROBLEMS = [
       "Enter μ = 500.",
       "Enter μ = 500.",
       "Move to the next field.",
+      "Clear σ before typing 100.",
+      "Enter σ = 100.",
       "Enter σ = 100.",
       "Enter σ = 100.",
       "Move to the next field.",
@@ -1395,10 +1387,10 @@ export const CALCULATOR_PROBLEMS = [
       "Calculate the result."
     ],
     "computed": {
-      "value": 500
+      "value": 432.55102498039184
     },
     "finalView": [
-      "500"
+      "432.551025"
     ]
   },
   {
@@ -1487,8 +1479,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.8",
         "dates": {
-          "B": "2027-03-09",
-          "E": "2027-03-10"
+          "B": "2027-03-05",
+          "E": "2027-03-08"
         },
         "worksheet": "u2_lesson8_live.html",
         "sources": [
@@ -1498,8 +1490,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-09",
-      "E": "2027-03-10"
+      "B": "2027-03-05",
+      "E": "2027-03-08"
     },
     "stem": "A researcher collected data on study hours (L1) and exam scores (L2) for 10 students. Find the equation of the least-squares regression line and the correlation coefficient. Data in L1: 2, 3, 5, 6, 7, 8, 9, 10, 11, 12. Data in L2: 65, 70, 74, 80, 78, 85, 88, 91, 93, 96.",
     "values": {
@@ -1624,8 +1616,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.8",
         "dates": {
-          "B": "2027-03-09",
-          "E": "2027-03-10"
+          "B": "2027-03-05",
+          "E": "2027-03-08"
         },
         "worksheet": "u2_lesson8_live.html",
         "sources": [
@@ -1635,8 +1627,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-09",
-      "E": "2027-03-10"
+      "B": "2027-03-05",
+      "E": "2027-03-08"
     },
     "stem": "The heights (inches) and shoe sizes for 8 adults are recorded. Find the regression equation. Heights (L1): 62, 65, 67, 69, 70, 72, 74, 76. Shoe sizes (L2): 6, 7, 8, 9, 9.5, 10.5, 11, 12.",
     "values": {
@@ -1751,8 +1743,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.4",
         "dates": {
-          "B": "2027-03-02",
-          "E": "2027-03-05"
+          "B": "2027-02-25",
+          "E": "2027-03-01"
         },
         "worksheet": "u2_lesson4_live.html",
         "sources": [
@@ -1762,8 +1754,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-02",
-      "E": "2027-03-05"
+      "B": "2027-02-25",
+      "E": "2027-03-01"
     },
     "stem": "An ecologist records the number of bird species and the area (acres) of 10 forest fragments. Create a scatterplot with area on the x-axis and species count on the y-axis to explore the relationship.",
     "values": {
@@ -1827,9 +1819,6 @@ export const CALCULATOR_PROBLEMS = [
       "2ND",
       "Y=",
       "ENTER",
-      "DOWN",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -1839,9 +1828,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose 2ND.",
       "Choose Y=.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -1932,8 +1918,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.4",
         "dates": {
-          "B": "2027-03-02",
-          "E": "2027-03-05"
+          "B": "2027-02-25",
+          "E": "2027-03-01"
         },
         "worksheet": "u2_lesson4_live.html",
         "sources": [
@@ -1943,8 +1929,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-02",
-      "E": "2027-03-05"
+      "B": "2027-02-25",
+      "E": "2027-03-01"
     },
     "stem": "Create a scatterplot of temperature (F) versus ice cream sales ($) for 12 summer days to investigate whether higher temperatures are associated with higher sales.",
     "values": {
@@ -2016,9 +2002,6 @@ export const CALCULATOR_PROBLEMS = [
       "2ND",
       "Y=",
       "ENTER",
-      "DOWN",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -2028,9 +2011,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose 2ND.",
       "Choose Y=.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -2129,8 +2109,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.7",
         "dates": {
-          "B": "2027-03-08",
-          "E": "2027-03-08"
+          "B": "2027-03-04",
+          "E": "2027-03-05"
         },
         "worksheet": "u2_lesson7_live.html",
         "sources": [
@@ -2140,8 +2120,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-08",
-      "E": "2027-03-08"
+      "B": "2027-03-04",
+      "E": "2027-03-05"
     },
     "stem": "After fitting a least-squares regression line to the relationship between study hours and exam scores, create a residual plot to assess whether a linear model is appropriate.",
     "values": {
@@ -2316,8 +2296,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "2.7",
         "dates": {
-          "B": "2027-03-08",
-          "E": "2027-03-08"
+          "B": "2027-03-04",
+          "E": "2027-03-05"
         },
         "worksheet": "u2_lesson7_live.html",
         "sources": [
@@ -2327,8 +2307,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-03-08",
-      "E": "2027-03-08"
+      "B": "2027-03-04",
+      "E": "2027-03-05"
     },
     "stem": "A researcher fitted a linear model for tree height versus diameter. Create a residual plot to determine whether the linear model is appropriate for these data.",
     "values": {
@@ -2529,17 +2509,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "MATH",
       "1",
       "0",
       "DOWN",
@@ -2555,17 +2526,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Open the binompdf wizard.",
+      "Press [alpha] to activate letter input.",
+      "Press [math] (the A key) to select binompdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",
@@ -2621,17 +2583,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "MATH",
       "1",
       "5",
       "DOWN",
@@ -2647,17 +2600,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Scroll until A:binompdf( is highlighted.",
-      "Open the binompdf wizard.",
+      "Press [alpha] to activate letter input.",
+      "Press [math] (the A key) to select binompdf.",
       "Enter trials = 15.",
       "Enter trials = 15.",
       "Move to the next field.",
@@ -2713,18 +2657,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "1",
       "0",
       "DOWN",
@@ -2740,18 +2674,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Open the binomcdf wizard.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",
@@ -2807,18 +2731,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "1",
       "8",
       "0",
@@ -2835,18 +2749,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Open the binomcdf wizard.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 180.",
       "Enter trials = 180.",
       "Enter trials = 180.",
@@ -2904,18 +2808,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "2",
       "0",
       "DOWN",
@@ -2932,18 +2826,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Scroll until B:binomcdf( is highlighted.",
-      "Open the binomcdf wizard.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 20.",
       "Enter trials = 20.",
       "Move to the next field.",
@@ -3234,8 +3118,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "5.7",
         "dates": {
-          "B": "2027-01-25",
-          "E": "2027-01-27"
+          "B": "2027-01-21",
+          "E": "2027-01-25"
         },
         "worksheet": "u5_lesson7_live.html",
         "sources": [
@@ -3245,8 +3129,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-25",
-      "E": "2027-01-27"
+      "B": "2027-01-21",
+      "E": "2027-01-25"
     },
     "stem": "The distribution of daily processing times at a coffee shop is approximately normal with mean 276 seconds and standard deviation 38 seconds. In a random sample of 25 orders, what is the probability that the sample mean processing time is less than 260 seconds?",
     "values": {
@@ -3327,8 +3211,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "5.7",
         "dates": {
-          "B": "2027-01-25",
-          "E": "2027-01-27"
+          "B": "2027-01-21",
+          "E": "2027-01-25"
         },
         "worksheet": "u5_lesson7_live.html",
         "sources": [
@@ -3338,8 +3222,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-25",
-      "E": "2027-01-27"
+      "B": "2027-01-21",
+      "E": "2027-01-25"
     },
     "stem": "The mean number of transactions at a bank is 478 per day with standard deviation 64. For a random sample of 16 days, what is the probability that the sample mean exceeds 500 transactions?",
     "values": {
@@ -3371,6 +3255,8 @@ export const CALCULATOR_PROBLEMS = [
       "7",
       "8",
       "DOWN",
+      "CLEAR",
+      "1",
       "6",
       "DOWN",
       "ENTER"
@@ -3393,15 +3279,17 @@ export const CALCULATOR_PROBLEMS = [
       "Enter μ = 478.",
       "Enter μ = 478.",
       "Move to the next field.",
+      "Clear σ before typing 16.",
+      "Enter σ = 16.",
       "Enter σ = 16.",
       "Move to the next field.",
       "Calculate the result."
     ],
     "computed": {
-      "value": 0.0001228663899686122
+      "value": 0.08456572235138748
     },
     "finalView": [
-      "1.2286639E-4"
+      "0.08456572235"
     ]
   },
   {
@@ -3414,8 +3302,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "5.7",
         "dates": {
-          "B": "2027-01-25",
-          "E": "2027-01-27"
+          "B": "2027-01-21",
+          "E": "2027-01-25"
         },
         "worksheet": "u5_lesson7_live.html",
         "sources": [
@@ -3425,8 +3313,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-25",
-      "E": "2027-01-27"
+      "B": "2027-01-21",
+      "E": "2027-01-25"
     },
     "stem": "The weight of field mice is approximately normal with mean 25 grams and standard deviation 4 grams. In a random sample of 36 mice, what is the probability that the sample mean weight is between 24 and 26 grams?",
     "values": {
@@ -3499,8 +3387,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "5.7",
         "dates": {
-          "B": "2027-01-25",
-          "E": "2027-01-27"
+          "B": "2027-01-21",
+          "E": "2027-01-25"
         },
         "worksheet": "u5_lesson7_live.html",
         "sources": [
@@ -3510,8 +3398,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-25",
-      "E": "2027-01-27"
+      "B": "2027-01-21",
+      "E": "2027-01-25"
     },
     "stem": "The mean height of adult women is 64.5 inches with standard deviation 2.5 inches. For random samples of size 49, what sample mean height separates the top 5% of all possible sample means?",
     "values": {
@@ -3588,8 +3476,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "5.7",
         "dates": {
-          "B": "2027-01-25",
-          "E": "2027-01-27"
+          "B": "2027-01-21",
+          "E": "2027-01-25"
         },
         "worksheet": "u5_lesson7_live.html",
         "sources": [
@@ -3599,8 +3487,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-25",
-      "E": "2027-01-27"
+      "B": "2027-01-21",
+      "E": "2027-01-25"
     },
     "stem": "An online store averages 1200 purchases per hour with standard deviation 200. For a random sample of 40 hours, below what sample mean are the lowest 10% of all possible sample means?",
     "values": {
@@ -3675,7 +3563,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-10",
+          "B": "2026-12-08",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3686,7 +3574,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-10",
+      "B": "2026-12-08",
       "E": "2026-12-11"
     },
     "stem": "A company claims that at least 70% of its customers are satisfied with their service. In a random sample of 200 customers, 126 reported satisfaction. Test the company's claim at the alpha = 0.05 significance level.",
@@ -3773,7 +3661,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-10",
+          "B": "2026-12-08",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3784,7 +3672,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-10",
+      "B": "2026-12-08",
       "E": "2026-12-11"
     },
     "stem": "A botanist believes that fewer than 90% of seeds from a certain supplier will germinate. She plants a random sample of 120 seeds and observes that 100 germinate. Is there convincing evidence at alpha = 0.05 to support the botanist's belief?",
@@ -3871,7 +3759,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.4",
         "dates": {
-          "B": "2026-12-10",
+          "B": "2026-12-08",
           "E": "2026-12-11"
         },
         "worksheet": "u6_lesson4_live.html",
@@ -3882,7 +3770,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-10",
+      "B": "2026-12-08",
       "E": "2026-12-11"
     },
     "stem": "Approximately 38% of people in Region W have blood type O positive. A random sample of 100 people from Region X reveals that 45 have blood type O positive. Is there evidence that the proportion in Region X differs from Region W?",
@@ -3965,7 +3853,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-07",
+          "B": "2026-12-04",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -3975,7 +3863,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-07",
+      "B": "2026-12-04",
       "E": "2026-12-07"
     },
     "stem": "A random sample of 80 adults was selected, and 22 indicated they would support eliminating the penny from circulation. Construct a 99% confidence interval for the true proportion of adults who support this idea.",
@@ -4052,7 +3940,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-07",
+          "B": "2026-12-04",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -4062,7 +3950,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-07",
+      "B": "2026-12-04",
       "E": "2026-12-07"
     },
     "stem": "In a random sample of 500 registered voters, 235 said they plan to vote for Candidate A. Construct a 95% confidence interval to estimate the true proportion of voters who support Candidate A.",
@@ -4143,7 +4031,7 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "6.2",
         "dates": {
-          "B": "2026-12-07",
+          "B": "2026-12-04",
           "E": "2026-12-07"
         },
         "worksheet": "u6_lesson1-2_live.html",
@@ -4153,7 +4041,7 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2026-12-07",
+      "B": "2026-12-04",
       "E": "2026-12-07"
     },
     "stem": "A school librarian sampled 50 students from senior English classes, and 35 had read a certain book. Construct a 90% confidence interval for the proportion of all seniors who have read the book.",
@@ -4881,8 +4769,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.4",
         "dates": {
-          "B": "2027-02-01",
-          "E": "2027-02-03"
+          "B": "2027-01-29",
+          "E": "2027-02-01"
         },
         "worksheet": "u7_lesson4_live.html",
         "sources": [
@@ -4892,8 +4780,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-01",
-      "E": "2027-02-03"
+      "B": "2027-01-29",
+      "E": "2027-02-01"
     },
     "stem": "A cereal manufacturer claims that boxes contain a mean of 500 grams of cereal. A quality inspector takes a random sample of 36 boxes and finds a sample mean of 494 grams with a standard deviation of 18 grams. Is there evidence at alpha = 0.05 that the true mean is less than 500 grams?",
     "values": {
@@ -4993,8 +4881,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.4",
         "dates": {
-          "B": "2027-02-01",
-          "E": "2027-02-03"
+          "B": "2027-01-29",
+          "E": "2027-02-01"
         },
         "worksheet": "u7_lesson4_live.html",
         "sources": [
@@ -5004,8 +4892,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-01",
-      "E": "2027-02-03"
+      "B": "2027-01-29",
+      "E": "2027-02-01"
     },
     "stem": "A physical therapist claims that a new stretching routine reduces recovery time to less than 10 days. In a random sample of 25 patients, the mean recovery time was 8.9 days with a standard deviation of 3.2 days. Test this claim at alpha = 0.01.",
     "values": {
@@ -5105,8 +4993,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.4",
         "dates": {
-          "B": "2027-02-01",
-          "E": "2027-02-03"
+          "B": "2027-01-29",
+          "E": "2027-02-01"
         },
         "worksheet": "u7_lesson4_live.html",
         "sources": [
@@ -5116,8 +5004,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-01",
-      "E": "2027-02-03"
+      "B": "2027-01-29",
+      "E": "2027-02-01"
     },
     "stem": "The FAA mandates that airline pilot response time to a warning signal must average no more than 4.5 seconds. A random sample of 40 pilots had a mean response time of 4.8 seconds with s = 1.1 seconds. At alpha = 0.05, is there evidence the mean exceeds the mandate?",
     "values": {
@@ -5221,8 +5109,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.4",
         "dates": {
-          "B": "2027-02-01",
-          "E": "2027-02-03"
+          "B": "2027-01-29",
+          "E": "2027-02-01"
         },
         "worksheet": "u7_lesson4_live.html",
         "sources": [
@@ -5232,8 +5120,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-01",
-      "E": "2027-02-03"
+      "B": "2027-01-29",
+      "E": "2027-02-01"
     },
     "stem": "A teacher claims the mean score on a standardized test for her class is higher than the national average of 72. She records the following scores from her 12 randomly selected students: 68, 74, 79, 71, 85, 77, 82, 73, 80, 76, 88, 69. Test at alpha = 0.05.",
     "values": {
@@ -5339,8 +5227,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.4",
         "dates": {
-          "B": "2027-02-01",
-          "E": "2027-02-03"
+          "B": "2027-01-29",
+          "E": "2027-02-01"
         },
         "worksheet": "u7_lesson4_live.html",
         "sources": [
@@ -5350,8 +5238,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-01",
-      "E": "2027-02-03"
+      "B": "2027-01-29",
+      "E": "2027-02-01"
     },
     "stem": "A nutritionist suspects that the mean daily sodium intake for a group of patients exceeds the recommended 2300 mg. She randomly selects 8 patients and records their daily intake: 2450, 2200, 2650, 2100, 2500, 2350, 2800, 2400. Test at alpha = 0.05.",
     "values": {
@@ -5453,8 +5341,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.2",
         "dates": {
-          "B": "2027-01-28",
-          "E": "2027-01-29"
+          "B": "2027-01-26",
+          "E": "2027-01-27"
         },
         "worksheet": "u7_lesson2_live.html",
         "sources": [
@@ -5464,8 +5352,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-28",
-      "E": "2027-01-29"
+      "B": "2027-01-26",
+      "E": "2027-01-27"
     },
     "stem": "A random sample of 45 students at a university had a mean GPA of 3.12 with a standard deviation of 0.48. Construct a 95% confidence interval for the mean GPA of all students at the university.",
     "values": {
@@ -5563,8 +5451,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.2",
         "dates": {
-          "B": "2027-01-28",
-          "E": "2027-01-29"
+          "B": "2027-01-26",
+          "E": "2027-01-27"
         },
         "worksheet": "u7_lesson2_live.html",
         "sources": [
@@ -5574,8 +5462,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-28",
-      "E": "2027-01-29"
+      "B": "2027-01-26",
+      "E": "2027-01-27"
     },
     "stem": "An engineer measures the tensile strength of 30 randomly selected steel rods and finds a mean of 425 MPa with a standard deviation of 38 MPa. Construct a 99% confidence interval for the true mean tensile strength.",
     "values": {
@@ -5667,8 +5555,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.2",
         "dates": {
-          "B": "2027-01-28",
-          "E": "2027-01-29"
+          "B": "2027-01-26",
+          "E": "2027-01-27"
         },
         "worksheet": "u7_lesson2_live.html",
         "sources": [
@@ -5678,8 +5566,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-28",
-      "E": "2027-01-29"
+      "B": "2027-01-26",
+      "E": "2027-01-27"
     },
     "stem": "A biologist measures the lengths (in cm) of 10 randomly caught fish from a lake: 22.1, 25.3, 19.8, 23.5, 24.7, 21.0, 26.4, 20.2, 23.9, 22.6. Construct a 90% confidence interval for the true mean length of fish in the lake.",
     "values": {
@@ -5771,8 +5659,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.2",
         "dates": {
-          "B": "2027-01-28",
-          "E": "2027-01-29"
+          "B": "2027-01-26",
+          "E": "2027-01-27"
         },
         "worksheet": "u7_lesson2_live.html",
         "sources": [
@@ -5782,8 +5670,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-01-28",
-      "E": "2027-01-29"
+      "B": "2027-01-26",
+      "E": "2027-01-27"
     },
     "stem": "A farmer records the yield (in bushels per acre) for 8 randomly selected plots: 148, 152, 145, 160, 155, 149, 158, 153. Construct a 95% confidence interval for the mean yield per acre.",
     "values": {
@@ -5873,8 +5761,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.8",
         "dates": {
-          "B": "2027-02-11",
-          "E": "2027-02-22"
+          "B": "2027-02-09",
+          "E": "2027-02-12"
         },
         "worksheet": "u7_lesson8_live.html",
         "sources": [
@@ -5884,8 +5772,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-11",
-      "E": "2027-02-22"
+      "B": "2027-02-09",
+      "E": "2027-02-12"
     },
     "stem": "A researcher wants to know whether a new teaching method produces different test scores than the traditional method. A random sample of 28 students using the new method had a mean score of 78.5 (s = 9.2), while 32 students using the traditional method had a mean of 73.1 (s = 10.4). Test at alpha = 0.05.",
     "values": {
@@ -6014,8 +5902,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.8",
         "dates": {
-          "B": "2027-02-11",
-          "E": "2027-02-22"
+          "B": "2027-02-09",
+          "E": "2027-02-12"
         },
         "worksheet": "u7_lesson8_live.html",
         "sources": [
@@ -6025,8 +5913,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-11",
-      "E": "2027-02-22"
+      "B": "2027-02-09",
+      "E": "2027-02-12"
     },
     "stem": "An agronomist tests whether a new fertilizer increases corn yield. Thirty randomly assigned plots using the new fertilizer yielded a mean of 162 bushels/acre (s = 12.5). Twenty-five plots with the standard fertilizer yielded a mean of 155 bushels/acre (s = 14.1). Test at alpha = 0.05 whether the new fertilizer produces higher yields.",
     "values": {
@@ -6159,8 +6047,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.6",
         "dates": {
-          "B": "2027-02-08",
-          "E": "2027-02-10"
+          "B": "2027-02-04",
+          "E": "2027-02-08"
         },
         "worksheet": "u7_lesson6_live.html",
         "sources": [
@@ -6170,8 +6058,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-08",
-      "E": "2027-02-10"
+      "B": "2027-02-04",
+      "E": "2027-02-08"
     },
     "stem": "A health study compares the mean systolic blood pressure of 40 runners (mean 118, s = 10.5) with 35 non-runners (mean 128, s = 14.3). Construct a 95% confidence interval for the difference in mean blood pressure (runners minus non-runners).",
     "values": {
@@ -6303,8 +6191,8 @@ export const CALCULATOR_PROBLEMS = [
       {
         "topic": "7.6",
         "dates": {
-          "B": "2027-02-08",
-          "E": "2027-02-10"
+          "B": "2027-02-04",
+          "E": "2027-02-08"
         },
         "worksheet": "u7_lesson6_live.html",
         "sources": [
@@ -6314,8 +6202,8 @@ export const CALCULATOR_PROBLEMS = [
       }
     ],
     "dates": {
-      "B": "2027-02-08",
-      "E": "2027-02-10"
+      "B": "2027-02-04",
+      "E": "2027-02-08"
     },
     "stem": "Two brands of batteries are tested. A sample of 20 Brand A batteries has a mean life of 52.4 hours (s = 4.8). A sample of 22 Brand B batteries has a mean life of 48.7 hours (s = 5.1). Construct a 90% confidence interval for the difference in mean battery life.",
     "values": {
@@ -8611,8 +8499,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -8626,8 +8512,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the histogram plot type.",
       "Choose the histogram plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -8758,8 +8642,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -8773,8 +8655,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the histogram plot type.",
       "Choose the histogram plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "Choose TRACE.",
@@ -9667,8 +9547,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -9685,8 +9563,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the modified-boxplot plot type.",
       "Choose the modified-boxplot plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "TRACE starts at the median (Med).",
@@ -9917,8 +9793,6 @@ export const CALCULATOR_PROBLEMS = [
       "RIGHT",
       "RIGHT",
       "ENTER",
-      "DOWN",
-      "DOWN",
       "ZOOM",
       "9",
       "TRACE",
@@ -9932,8 +9806,6 @@ export const CALCULATOR_PROBLEMS = [
       "Choose the histogram plot type.",
       "Choose the histogram plot type.",
       "Choose ENTER.",
-      "Choose DOWN.",
-      "Choose DOWN.",
       "Choose ZOOM.",
       "Choose 9.",
       "TRACE shows a bin: lower boundary (min=), upper boundary (max<) and count (n=).",
@@ -10107,17 +9979,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "MATH",
       "1",
       "0",
       "DOWN",
@@ -10132,17 +9995,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Scroll to the function for P(exactly 3 heads): one exact count.",
-      "Open the function you chose.",
+      "Press [alpha] to activate letter input.",
+      "Press [math] (the A key) to select binompdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",
@@ -10252,18 +10106,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "1",
       "0",
       "DOWN",
@@ -10278,18 +10122,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Open the function you chose.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",
@@ -10394,18 +10228,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "1",
       "0",
       "DOWN",
@@ -10418,18 +10242,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 0 heads): it adds up counts from 0.",
-      "Open the function you chose.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",
@@ -10532,18 +10346,8 @@ export const CALCULATOR_PROBLEMS = [
     "route": [
       "2ND",
       "VARS",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "DOWN",
-      "ENTER",
+      "ALPHA",
+      "APPS",
       "1",
       "0",
       "DOWN",
@@ -10556,18 +10360,8 @@ export const CALCULATOR_PROBLEMS = [
     "hints": [
       "Activate the yellow secondary functions.",
       "Open the DISTR menu.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Scroll to the function for P(at most 3 heads): it adds up counts from 0.",
-      "Open the function you chose.",
+      "Press [alpha] to activate letter input.",
+      "Press [apps] (the B key) to select binomcdf.",
       "Enter trials = 10.",
       "Enter trials = 10.",
       "Move to the next field.",

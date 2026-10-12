@@ -2,7 +2,9 @@
 export const TEAM_BLOCK = { start: 400, dock: 1060, y: 668, w: 32, h: 32, speed: 60 };
 // 9 (2026-10-10): interpretation answers may be category keys, lastPlot carries feedback,
 // and the catalog's quartiles/bins changed; an older page must reload, not mis-judge.
-export const CALCULATOR_PROTOCOL = 9;
+// 10 (2026-10-12, APSTAT_PARK_CALCULATOR_FLUENCY_SPEC): calculator_state carries clears/rung, the
+// round's random data (problem) and wrong-key presses (lastPress.wrong/penaltyMs).
+export const CALCULATOR_PROTOCOL = 10;
 
 export function createLobby(now) {
   return { phase: 'gathering', x: TEAM_BLOCK.start, pushers: [], roster: [], members: new Map(), lastTick: now };

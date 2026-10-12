@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createCalculatorService } from './calculator-service.mjs';
 import { createCampaignService } from './campaign-service.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
+import { createCalculatorClears } from './calculator-clears.mjs';
 import { ParkSession } from './session.mjs';
 import { createParkRegistry, eligibleParkLevels, parkSection, SHARED_PARK } from './shared-classroom.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
@@ -15,12 +16,17 @@ const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, 
 // B and E share the park; classroom identity and controls stay in their own registry.
 // keyStore: optional campaign-key store (campaign-key-store.mjs); without one keys are memory-only.
 // One wallet (keys, cleared stages, open stages) is shared by the calculator and campaign services.
-export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {}, keyStore = null }) {
+// clearsStore: optional calculator-clears store (calculator-clears-store.mjs); without one the hint
+// rungs' clear counts are memory-only.
+export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {}, keyStore = null,
+  clearsStore = null }) {
   const classrooms = registry;
   registry = createParkRegistry(classrooms);
   const rooms = new Map(), bindings = new Map();
-  const wallet = createCampaignWallet({ store: keyStore, now, ...(calculatorOptions.log ? { log: calculatorOptions.log } : {}) });
-  const calculator = createCalculatorService({ wallet, ...calculatorOptions, registry, send, now, wallNow,
+  const logOption = calculatorOptions.log ? { log: calculatorOptions.log } : {};
+  const wallet = createCampaignWallet({ store: keyStore, now, ...logOption });
+  const clears = createCalculatorClears({ store: clearsStore, now, ...logOption });
+  const calculator = createCalculatorService({ wallet, clears, ...calculatorOptions, registry, send, now, wallNow,
     available: (section, date) => eligibleParkLevels(section, date, calculatorOptions.available),
     varyProblems: calculatorOptions.varyProblems ?? !calculatorOptions.available });
   const campaign = createCampaignService({ registry, send, now, wallet, canEnter: who => calculator.canEnterCampaign(who) });

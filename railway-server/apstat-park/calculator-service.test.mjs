@@ -121,13 +121,15 @@ test('the locked team retains absent students and their returning work', () => {
   } finally { f.service.close(); }
 });
 
-test('wrong keys and no-ops keep the deadline; only an engine-verified advance renews it', () => {
+test('a wrong key costs 2 s (protocol 10); backing out is free; only an engine-verified advance renews the clock', () => {
   const f = setup();
   try {
     f.clock(5000); f.press(f.a, ['MATH']);
-    assert.equal(f.state(f.a).startedAt, 0);
-    f.clock(9000); f.press(f.a, ['MATH', 'CLEAR']);
-    assert.equal(f.state(f.a).startedAt, 0);
+    assert.equal(f.state(f.a).startedAt, -2000, 'the relay clock is shortened by 2 s');
+    assert.deepEqual(f.state(f.a).lastPress, { key: 'MATH', advanced: false, wrong: true, penaltyMs: 2000 });
+    f.clock(6000); f.press(f.a, ['CLEAR']);
+    assert.equal(f.state(f.a).startedAt, -2000, 'CLEAR back to the start is recovery, not a wrong key');
+    assert.equal(f.state(f.a).lastPress.wrong, undefined);
     f.clock(12000); f.press(f.a, ['STAT']);
     assert.equal(f.state(f.a).startedAt, 12000);
     f.clock(13000); f.press(f.a, ['STAT']);

@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
-import { createCalculatorRuntime } from './calculator-runtime.mjs';
+import { createCalculatorRuntime, varyLevel } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
 import { createSnapshotPublisher } from './snapshot-publisher.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
+import { createCalculatorClears, rungFor } from './calculator-clears.mjs';
 
 import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
 
@@ -13,9 +14,12 @@ export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 // wallet (campaign-wallet.mjs): campaign key counts, cleared stages and open stages, shared with
 // the campaign service. Without one (direct tests) the service keeps a memory-only wallet.
+// clears (calculator-clears.mjs): per student and skill, the completed rounds behind the hint rung.
+// varyData (protocol 10): list-based problems get random data each round (calculator-variation.mjs).
 export function createCalculatorService({ registry, send, now = () => performance.now(), wallNow = Date.now, random = Math.random, available = eligibleLevels, varyProblems = available === eligibleLevels,
-  wallet = null, log = (...args) => console.warn(...args) }) {
+  varyData = varyProblems, wallet = null, clears = null, log = (...args) => console.warn(...args) }) {
   wallet ||= createCampaignWallet({ now, log });
+  clears ||= createCalculatorClears({ now, log });
   const rooms = new Map(), bindings = new Map();
   const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
@@ -28,15 +32,23 @@ export function createCalculatorService({ registry, send, now = () => performanc
     if (!member || member.online === false) throw new Error('Classroom member is offline.');
     return who;
   }
+  // The next round's problem from the rotation; with varyData, list data is new every round.
+  function nextLevel(room) {
+    const level = room.rotation.next(available(room.section, schoolDate(wallNow())));
+    if (!level || !varyData) return level;
+    return varyLevel(level, random);
+  }
   function roomFor(section) {
     if (!rooms.has(section)) {
-      const rotation = createLevelRotation(random, { varyProblems });
-      rooms.set(section, {
+      const room = {
         epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(), failure: null, resetReason: null,
-        lobby: createLobby(now()), section, rotation, keysAwardedEpoch: null,
-        level: rotation.next(available(section, schoolDate(wallNow()))),
-      });
+        lobby: createLobby(now()), section, rotation: createLevelRotation(random, { varyProblems }), keysAwardedEpoch: null,
+        level: null,
+      };
+      room.level = nextLevel(room);
+      rooms.set(section, room);
       wallet.ensure(section);
+      clears.ensure(section);
     }
     return rooms.get(section);
   }
@@ -46,6 +58,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     if (room.keysAwardedEpoch === room.epoch) return;
     room.keysAwardedEpoch = room.epoch;
     wallet.award(room.section, room.lobby.roster);
+    // Protocol 10: the same moment counts one clear per student for this round's skill.
+    clears.record(room.section, room.lobby.roster, room.level?.skillId);
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
@@ -58,6 +72,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function snapshot(room, name) {
     const state = attemptFor(room, name).state;
+    // Protocol 10: this member's clears and hint rung (0 full, 1 goals, 2 none) for the round's skill.
+    const cleared = clears.clearsOf(room.section, name, room.level?.skillId);
     // Teacher decision 2026-10-06: the teacher is a full peer, so the round's members are exactly the roster.
     const names = room.lobby.roster;
     const members = names.map(name => ({
@@ -66,7 +82,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       online: room.members.has(name), step: attemptFor(room, name).state.step, solved: attemptFor(room, name).state.complete,
     }));
     return { type: 'calculator_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch, ...state, clock: now(),
-      teamSize: room.lobby.roster.length,
+      teamSize: room.lobby.roster.length, clears: cleared, rung: rungFor(cleared),
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
       // Teacher decision 2026-10-06: a teacher's solved result counts toward the team like anyone's.
@@ -122,7 +138,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const member = lobby.members.get(name);
       return member?.ready && now() - member.at < 1500;
     })) return;
-    room.level ||= room.rotation.next(available(room.section, schoolDate(wallNow())));
+    room.level ||= nextLevel(room);
     if (!room.level) return;
     lobby.phase = 'active';
     for (const name of lobby.roster) {
@@ -135,7 +151,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
     if (reason.type === 'door' || reason.type === 'abandoned') {
       room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now());
-      room.level = room.rotation.next(available(room.section, schoolDate(wallNow())));
+      room.level = nextLevel(room);
       return;
     }
     else for (const attempt of room.attempts.values()) {
@@ -226,7 +242,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       }
       if (message.type === 'calculator_press') {
         const time = now();
-        pressMissionKey(state, message.key, time, engine.transitions(state));
+        pressMissionKey(state, message.key, time, engine.transitions(state), key => engine.isWrongKey(state, key));
         room.members.get(binding.name).at = time;
         room.touched = time;
         broadcast(room); return null;
@@ -249,6 +265,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     }
     // Wallet rows are written from the tick, so they are retried even after the team left.
     wallet.flush();
+    clears.flush();
     for (const [section, room] of rooms) {
       const emptyTeam = room.lobby.phase === 'active' ? !room.lobby.roster.some(name => room.members.has(name))
         : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
@@ -278,7 +295,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
         const { state, engine } = attemptFor(room, name);
         if (state.complete) continue;
         const transitions = engine.transitions(state);
-        advanceMission(state, [member], time, transitions);
+        advanceMission(state, [member], time, transitions, key => engine.isWrongKey(state, key));
       }
       broadcast(room);
     }
