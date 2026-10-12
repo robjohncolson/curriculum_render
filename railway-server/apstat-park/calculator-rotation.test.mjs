@@ -4,6 +4,7 @@ import { createClassroomRegistry } from '../classroom.js';
 import { createCalculatorService, DEATH_MS } from './calculator-service.mjs';
 import { CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
 import { levelById, eligibleLevels, challengeFor } from './calculator-curriculum.mjs';
+import { missionFor } from './calculator-mission.mjs';
 
 function fixture(date = '2026-10-04T16:00:00Z', section = 'PeriodB') {
   let time = 0, wall = Date.parse(date);
@@ -58,7 +59,8 @@ test('server selects a shared taught skill, retains it through death, and rotate
     assert.equal(f.lobbies.get(b).missionId, preview);
     assert.equal(f.states.size, 0, 'preview must not start a timer');
     f.dock();
-    const first = f.states.get(a).missionId, level = levelById(first);
+    // The round's level: the catalogue problem merged with the round's random data, as the client sees it.
+    const first = f.states.get(a).missionId, level = missionFor(f.states.get(a));
     assert.equal(first, preview);
     assert(eligibleLevels('B', '2026-10-04').some(candidate => candidate.id === level.skillId));
     assert.equal(f.states.get(b).missionId, first);

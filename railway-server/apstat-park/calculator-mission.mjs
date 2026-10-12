@@ -67,9 +67,12 @@ export function tileAt(pose, step, level = DEFAULT_LEVEL) {
     && Math.abs(pose.y + 24 - tile.y) <= 5)?.key ?? null;
 }
 // problem: the round's random data (a varied level from calculator-variation.mjs), else null.
+// Protocol 11: it also carries the round's route and hints (a templated randIntNoRep round types
+// different digits), and goals when the variation rewrote the goal phrases.
 export function createMission(now, level = DEFAULT_LEVEL) {
   const problem = level.varied ? { values: level.values, setup: level.setup, computed: level.computed,
-    finalView: level.finalView, stem: level.stem } : null;
+    finalView: level.finalView, stem: level.stem, route: level.route, hints: level.hints,
+    ...(level.goals ? { goals: level.goals } : {}) } : null;
   return { missionId: level.id, step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
     bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
     timeoutCount: 0, hintKeys: [], boxValues: [], boxAttempts: 0, lastPlot: null,

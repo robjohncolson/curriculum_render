@@ -8459,7 +8459,7 @@ export const CALCULATOR_PROBLEMS = [
       "B": "2026-09-15",
       "E": "2026-09-16"
     },
-    "stem": "Create a histogram of the following test scores to examine the shape of the distribution: 72, 85, 91, 64, 78, 88, 69, 95, 82, 76, 55, 83, 90, 67, 74.",
+    "stem": "Number of pets owned by 10 students: 1, 1, 2, 2, 2, 3, 4, 4, 5, 5. Graph the data with a histogram, then build the dot plot.",
     "values": {
       "data": [
         1,
@@ -8602,7 +8602,7 @@ export const CALCULATOR_PROBLEMS = [
       "B": "2026-09-15",
       "E": "2026-09-16"
     },
-    "stem": "A farm records the daily egg production for 20 days: 145, 152, 148, 160, 155, 149, 158, 153, 147, 156, 150, 162, 144, 159, 151, 157, 146, 154, 161, 148. Display the data in a histogram.",
+    "stem": "Books read this month by 10 students: 2, 2, 3, 4, 4, 4, 5, 5, 6, 6. Graph the data with a histogram, then build the dot plot.",
     "values": {
       "data": [
         2,
@@ -8717,6 +8717,453 @@ export const CALCULATOR_PROBLEMS = [
         "x": 3,
         "upper": 4,
         "y": 1
+      }
+    }
+  },
+  {
+    "id": "dotplot@2",
+    "skillId": "dotplot",
+    "procedureId": "histogram",
+    "challenge": "dotplot",
+    "title": "Histogram to dot plot",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Number of siblings of 12 students: 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5. Graph the data with a histogram, then build the dot plot.",
+    "values": {
+      "data": [
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        5
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          2,
+          2,
+          2,
+          3,
+          3,
+          5
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "Choose TRACE.",
+      "Choose RIGHT."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 0,
+          "upper": 1.25,
+          "y": 6
+        },
+        {
+          "x": 1.25,
+          "upper": 2.5,
+          "y": 3
+        },
+        {
+          "x": 2.5,
+          "upper": 3.75,
+          "y": 2
+        },
+        {
+          "x": 3.75,
+          "upper": 5,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "upper": 6.25,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 1.75,
+        "sumX": 21,
+        "sumX2": 59,
+        "Sx": 1.4222261679238197,
+        "sigmaX": 1.3616778865306827,
+        "n": 12,
+        "minX": 0,
+        "Q1": 1,
+        "Med": 1.5,
+        "Q3": 2.5,
+        "maxX": 5
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 1.25,
+        "upper": 2.5,
+        "y": 3
+      }
+    }
+  },
+  {
+    "id": "dotplot@3",
+    "skillId": "dotplot",
+    "procedureId": "histogram",
+    "challenge": "dotplot",
+    "title": "Histogram to dot plot",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Goals scored by a soccer team in 14 games: 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 6, 7. Graph the data with a histogram, then build the dot plot.",
+    "values": {
+      "data": [
+        0,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        4,
+        4,
+        6,
+        7
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          0,
+          1,
+          1,
+          2,
+          2,
+          2,
+          2,
+          3,
+          3,
+          3,
+          4,
+          4,
+          6,
+          7
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "Choose TRACE.",
+      "Choose RIGHT."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 0,
+          "upper": 1.75,
+          "y": 3
+        },
+        {
+          "x": 1.75,
+          "upper": 3.5,
+          "y": 7
+        },
+        {
+          "x": 3.5,
+          "upper": 5.25,
+          "y": 2
+        },
+        {
+          "x": 5.25,
+          "upper": 7,
+          "y": 1
+        },
+        {
+          "x": 7,
+          "upper": 8.75,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 2.857142857142857,
+        "sumX": 40,
+        "sumX2": 162,
+        "Sx": 1.9158104473902604,
+        "sigmaX": 1.8461211404742979,
+        "n": 14,
+        "minX": 0,
+        "Q1": 2,
+        "Med": 2.5,
+        "Q3": 4,
+        "maxX": 7
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 1.75,
+        "upper": 3.5,
+        "y": 7
+      }
+    }
+  },
+  {
+    "id": "dotplot@4",
+    "skillId": "dotplot",
+    "procedureId": "histogram",
+    "challenge": "dotplot",
+    "title": "Histogram to dot plot",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Hours of sleep reported by 13 students: 5, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 10. Graph the data with a histogram, then build the dot plot.",
+    "values": {
+      "data": [
+        5,
+        6,
+        6,
+        7,
+        7,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8,
+        9,
+        10
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          5,
+          6,
+          6,
+          7,
+          7,
+          7,
+          7,
+          8,
+          8,
+          8,
+          8,
+          9,
+          10
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "Choose TRACE.",
+      "Choose RIGHT."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 5,
+          "upper": 6.25,
+          "y": 3
+        },
+        {
+          "x": 6.25,
+          "upper": 7.5,
+          "y": 4
+        },
+        {
+          "x": 7.5,
+          "upper": 8.75,
+          "y": 4
+        },
+        {
+          "x": 8.75,
+          "upper": 10,
+          "y": 1
+        },
+        {
+          "x": 10,
+          "upper": 11.25,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 7.384615384615385,
+        "sumX": 96,
+        "sumX2": 730,
+        "Sx": 1.3252962900462135,
+        "sigmaX": 1.2733034890189885,
+        "n": 13,
+        "minX": 5,
+        "Q1": 6.5,
+        "Med": 7,
+        "Q3": 8,
+        "maxX": 10
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 6.25,
+        "upper": 7.5,
+        "y": 4
       }
     }
   },
@@ -10422,6 +10869,2080 @@ export const CALCULATOR_PROBLEMS = [
               "key": "rounding",
               "text": "It is rounding a small number",
               "feedback": "Nothing is rounded: X <= 3 is impossible when all 10 tosses are heads."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "histogram@skewed",
+    "skillId": "histogram",
+    "procedureId": "histogram",
+    "title": "Histogram",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Commute distances (miles) for 16 workers: 2, 3, 4, 4, 5, 6, 7, 8, 9, 11, 14, 16, 19, 24, 33, 42. Draw the histogram with ZoomStat and describe its shape.",
+    "values": {
+      "data": [
+        2,
+        3,
+        4,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        14,
+        16,
+        19,
+        24,
+        33,
+        42
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          2,
+          3,
+          4,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          11,
+          14,
+          16,
+          19,
+          24,
+          33,
+          42
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE shows a bin: min=, max< and its count n=.",
+      "Move right to the next bin."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 2,
+          "upper": 12,
+          "y": 10
+        },
+        {
+          "x": 12,
+          "upper": 22,
+          "y": 3
+        },
+        {
+          "x": 22,
+          "upper": 32,
+          "y": 1
+        },
+        {
+          "x": 32,
+          "upper": 42,
+          "y": 1
+        },
+        {
+          "x": 42,
+          "upper": 52,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 12.9375,
+        "sumX": 207,
+        "sumX2": 4663,
+        "Sx": 11.503441514028168,
+        "sigmaX": 11.138159351975531,
+        "n": 16,
+        "minX": 2,
+        "Q1": 4.5,
+        "Med": 8.5,
+        "Q3": 17.5,
+        "maxX": 42
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 12,
+        "upper": 22,
+        "y": 3
+      }
+    },
+    "interpretation": {
+      "title": "DESCRIBE THE SHAPE",
+      "note": "A long tail toward large values means skewed right. The tail pulls the mean toward it.",
+      "questions": [
+        {
+          "label": "Shape",
+          "prompt": "What is the shape of the commute distances?",
+          "answer": "right",
+          "options": [
+            {
+              "key": "right",
+              "text": "Skewed right",
+              "feedback": null
+            },
+            {
+              "key": "left",
+              "text": "Skewed left",
+              "feedback": "The long tail is on the HIGH side, toward 42 miles. A tail to the right is skewed right."
+            },
+            {
+              "key": "symmetric",
+              "text": "Roughly symmetric",
+              "feedback": "Most workers are in the first bar and the bars trail off to the right: not symmetric."
+            }
+          ]
+        },
+        {
+          "label": "Mean vs median",
+          "prompt": "For this shape, how do the mean and the median compare?",
+          "answer": "mean-higher",
+          "options": [
+            {
+              "key": "mean-higher",
+              "text": "The mean is larger than the median",
+              "feedback": null
+            },
+            {
+              "key": "median-higher",
+              "text": "The median is larger than the mean",
+              "feedback": "The few long commutes pull the mean UP, toward the tail. The median resists them."
+            },
+            {
+              "key": "equal",
+              "text": "They are about equal",
+              "feedback": "Equal mean and median fit a symmetric shape. Here the long tail pulls the mean right."
+            }
+          ]
+        },
+        {
+          "label": "Long commutes",
+          "prompt": "How many workers commute 22 miles or more?",
+          "answer": 3,
+          "options": [
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": null
+            },
+            {
+              "key": "1",
+              "text": "1",
+              "feedback": "That counts only [22, 32). Add the bars [32, 42) and [42, 52) too."
+            },
+            {
+              "key": "13",
+              "text": "13",
+              "feedback": "That many workers commute LESS than 22 miles."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "histogram@symmetric",
+    "skillId": "histogram",
+    "procedureId": "histogram",
+    "title": "Histogram",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Heights (inches) of 16 students: 60, 64, 65, 66, 67, 68, 68, 69, 70, 70, 71, 72, 73, 74, 75, 76. Draw the histogram with ZoomStat and describe its shape.",
+    "values": {
+      "data": [
+        60,
+        64,
+        65,
+        66,
+        67,
+        68,
+        68,
+        69,
+        70,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          60,
+          64,
+          65,
+          66,
+          67,
+          68,
+          68,
+          69,
+          70,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE shows a bin: min=, max< and its count n=.",
+      "Move right to the next bin."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 60,
+          "upper": 64,
+          "y": 1
+        },
+        {
+          "x": 64,
+          "upper": 68,
+          "y": 4
+        },
+        {
+          "x": 68,
+          "upper": 72,
+          "y": 6
+        },
+        {
+          "x": 72,
+          "upper": 76,
+          "y": 4
+        },
+        {
+          "x": 76,
+          "upper": 80,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 69.25,
+        "sumX": 1108,
+        "sumX2": 77006,
+        "Sx": 4.2972859651955515,
+        "sigmaX": 4.16082924427331,
+        "n": 16,
+        "minX": 60,
+        "Q1": 66.5,
+        "Med": 69.5,
+        "Q3": 72.5,
+        "maxX": 76
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 64,
+        "upper": 68,
+        "y": 4
+      }
+    },
+    "interpretation": {
+      "title": "DESCRIBE THE SHAPE",
+      "note": "A symmetric mound with no outliers: summarize it with the mean and standard deviation.",
+      "questions": [
+        {
+          "label": "Shape",
+          "prompt": "What is the shape of the heights?",
+          "answer": "symmetric",
+          "options": [
+            {
+              "key": "symmetric",
+              "text": "Roughly symmetric",
+              "feedback": null
+            },
+            {
+              "key": "right",
+              "text": "Skewed right",
+              "feedback": "The bars rise to the middle bar and fall the same way on both sides: no long tail."
+            },
+            {
+              "key": "uniform",
+              "text": "Uniform (all bars equal)",
+              "feedback": "The middle bar has 6 students and the end bars have 1: the bars are not equal."
+            }
+          ]
+        },
+        {
+          "label": "Summary",
+          "prompt": "Which pair best summarizes center and spread here?",
+          "answer": "mean-sd",
+          "options": [
+            {
+              "key": "mean-sd",
+              "text": "Mean and standard deviation",
+              "feedback": null
+            },
+            {
+              "key": "median-iqr",
+              "text": "Median and IQR",
+              "feedback": "Median and IQR are for skewed data or outliers. This shape is symmetric with no outliers."
+            }
+          ]
+        },
+        {
+          "label": "Tallest bar",
+          "prompt": "How many students are in the tallest bar?",
+          "answer": 6,
+          "options": [
+            {
+              "key": "6",
+              "text": "6",
+              "feedback": null
+            },
+            {
+              "key": "4",
+              "text": "4",
+              "feedback": "4 is the bar [64, 68). TRACE right to the tallest bar."
+            },
+            {
+              "key": "16",
+              "text": "16",
+              "feedback": "16 is every student. One bar holds only some of them."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "histogram@gap",
+    "skillId": "histogram",
+    "procedureId": "histogram",
+    "title": "Histogram",
+    "topic": "1.5",
+    "coverage": [
+      {
+        "topic": "1.5",
+        "dates": {
+          "B": "2026-09-15",
+          "E": "2026-09-16"
+        },
+        "worksheet": "u1_lesson5_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-15",
+      "E": "2026-09-16"
+    },
+    "stem": "Quiz scores of 16 students: 40, 42, 45, 61, 63, 65, 66, 68, 70, 71, 73, 74, 75, 77, 79, 80. Draw the histogram with ZoomStat and look for a gap.",
+    "values": {
+      "data": [
+        40,
+        42,
+        45,
+        61,
+        63,
+        65,
+        66,
+        68,
+        70,
+        71,
+        73,
+        74,
+        75,
+        77,
+        79,
+        80
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          40,
+          42,
+          45,
+          61,
+          63,
+          65,
+          66,
+          68,
+          70,
+          71,
+          73,
+          74,
+          75,
+          77,
+          79,
+          80
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the histogram plot type.",
+      "Choose the histogram plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE shows a bin: min=, max< and its count n=.",
+      "Move right to the next bin."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "Histogram",
+      "title": "Histogram",
+      "settings": {
+        "On/Off": "On",
+        "Type": "Histogram",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 40,
+          "upper": 50,
+          "y": 3
+        },
+        {
+          "x": 50,
+          "upper": 60,
+          "y": 0
+        },
+        {
+          "x": 60,
+          "upper": 70,
+          "y": 5
+        },
+        {
+          "x": 70,
+          "upper": 80,
+          "y": 7
+        },
+        {
+          "x": 80,
+          "upper": 90,
+          "y": 1
+        }
+      ],
+      "stats": {
+        "xbar": 65.5625,
+        "sumX": 1049,
+        "sumX2": 71225,
+        "Sx": 12.780029994748318,
+        "sigmaX": 12.374210833422874,
+        "n": 16,
+        "minX": 40,
+        "Q1": 62,
+        "Med": 69,
+        "Q3": 74.5,
+        "maxX": 80
+      },
+      "traceMode": true,
+      "tracePosition": 1,
+      "traceInfo": {
+        "x": 50,
+        "upper": 60,
+        "y": 0
+      }
+    },
+    "interpretation": {
+      "title": "FIND THE GAP",
+      "note": "A gap is an empty bin inside the data. It can split off a separate group.",
+      "questions": [
+        {
+          "label": "Gap",
+          "prompt": "Which bin is empty (the gap)?",
+          "answer": "[50,60)",
+          "options": [
+            {
+              "key": "[40,50)",
+              "text": "[40, 50)",
+              "feedback": "TRACE shows n=3 for [40, 50): three students scored in the 40s."
+            },
+            {
+              "key": "[50,60)",
+              "text": "[50, 60)",
+              "feedback": null
+            },
+            {
+              "key": "[80,90)",
+              "text": "[80, 90)",
+              "feedback": "[80, 90) holds the score 80. A bin includes its lower boundary."
+            }
+          ]
+        },
+        {
+          "label": "Below the gap",
+          "prompt": "How many students scored below the gap?",
+          "answer": 3,
+          "options": [
+            {
+              "key": "3",
+              "text": "3",
+              "feedback": null
+            },
+            {
+              "key": "5",
+              "text": "5",
+              "feedback": "5 is the bar [60, 70), above the gap."
+            },
+            {
+              "key": "0",
+              "text": "0",
+              "feedback": "0 is the gap itself. Count the bar BELOW it, [40, 50)."
+            }
+          ]
+        },
+        {
+          "label": "Low scores",
+          "prompt": "How would you describe the scores in the 40s?",
+          "answer": "cluster",
+          "options": [
+            {
+              "key": "cluster",
+              "text": "A separate low cluster",
+              "feedback": null
+            },
+            {
+              "key": "center",
+              "text": "The center of the distribution",
+              "feedback": "The center is in the 60s and 70s, where most scores are."
+            },
+            {
+              "key": "typical",
+              "text": "Typical scores, like the rest",
+              "feedback": "An empty bin separates them from the other 13 scores."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "modified-boxplot@high-outlier",
+    "skillId": "modified-boxplot",
+    "procedureId": "modified-boxplot",
+    "title": "Modified Boxplot",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Minutes 13 students spent on homework last night: 15, 20, 25, 25, 30, 30, 35, 40, 40, 45, 50, 55, 120. Draw a modified boxplot and identify any outliers.",
+    "values": {
+      "data": [
+        15,
+        20,
+        25,
+        25,
+        30,
+        30,
+        35,
+        40,
+        40,
+        45,
+        50,
+        55,
+        120
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          15,
+          20,
+          25,
+          25,
+          30,
+          30,
+          35,
+          40,
+          40,
+          45,
+          50,
+          55,
+          120
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE starts at the median (Med).",
+      "Move right: Q3, then the whisker end, then any outlier.",
+      "Move right: Q3, then the whisker end, then any outlier.",
+      "Move right: Q3, then the whisker end, then any outlier."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "ModBoxplot",
+      "title": "ModBoxplot",
+      "settings": {
+        "On/Off": "On",
+        "Type": "ModBoxplot",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 15,
+          "y": 0
+        },
+        {
+          "x": 20,
+          "y": 0
+        },
+        {
+          "x": 25,
+          "y": 0
+        },
+        {
+          "x": 25,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 30,
+          "y": 0
+        },
+        {
+          "x": 35,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 0
+        },
+        {
+          "x": 40,
+          "y": 0
+        },
+        {
+          "x": 45,
+          "y": 0
+        },
+        {
+          "x": 50,
+          "y": 0
+        },
+        {
+          "x": 55,
+          "y": 0
+        },
+        {
+          "x": 120,
+          "y": 0
+        }
+      ],
+      "stats": {
+        "xbar": 40.76923076923077,
+        "sumX": 530,
+        "sumX2": 30050,
+        "Sx": 26.524057778281982,
+        "sigmaX": 25.48349042073453,
+        "n": 13,
+        "minX": 15,
+        "Q1": 25,
+        "Med": 35,
+        "Q3": 47.5,
+        "maxX": 120
+      },
+      "traceMode": true,
+      "tracePosition": 5,
+      "traceInfo": {
+        "label": "maxX",
+        "x": 120
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 15
+        },
+        {
+          "label": "Q1",
+          "x": 25
+        },
+        {
+          "label": "Med",
+          "x": 35
+        },
+        {
+          "label": "Q3",
+          "x": 47.5
+        },
+        {
+          "label": "X",
+          "x": 55
+        },
+        {
+          "label": "maxX",
+          "x": 120
+        }
+      ],
+      "traceStart": 2
+    },
+    "interpretation": {
+      "title": "FIND THE OUTLIER",
+      "note": "Fences: Q1 - 1.5 IQR = -8.75 and Q3 + 1.5 IQR = 81.25. Beyond a fence is an outlier.",
+      "questions": [
+        {
+          "label": "Outliers",
+          "prompt": "Which value(s) does the modified boxplot show as outliers?",
+          "answer": "high",
+          "options": [
+            {
+              "key": "high",
+              "text": "120 only",
+              "feedback": null
+            },
+            {
+              "key": "both",
+              "text": "15 and 120",
+              "feedback": "15 is above the lower fence -8.75, so it is the low whisker end."
+            },
+            {
+              "key": "none",
+              "text": "None: 120 is just the maximum",
+              "feedback": "120 is beyond Q3 + 1.5 IQR = 81.25, so it is an outlier."
+            }
+          ]
+        },
+        {
+          "label": "Upper whisker",
+          "prompt": "Where does the upper whisker end?",
+          "answer": 55,
+          "options": [
+            {
+              "key": "55",
+              "text": "55",
+              "feedback": null
+            },
+            {
+              "key": "120",
+              "text": "120",
+              "feedback": "120 is the outlier. The whisker stops at the largest value inside the fence."
+            },
+            {
+              "key": "81.25",
+              "text": "81.25",
+              "feedback": "81.25 is the fence. A whisker ends at a data value."
+            }
+          ]
+        },
+        {
+          "label": "Resistant",
+          "prompt": "Which measure of center is resistant to the 120?",
+          "answer": "median",
+          "options": [
+            {
+              "key": "median",
+              "text": "The median, 35",
+              "feedback": null
+            },
+            {
+              "key": "mean",
+              "text": "The mean, 40.77",
+              "feedback": "The 120 pulls the mean up. The median depends only on the middle value."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "modified-boxplot@low-outlier",
+    "skillId": "modified-boxplot",
+    "procedureId": "modified-boxplot",
+    "title": "Modified Boxplot",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Unit test scores of 14 students: 31, 68, 72, 75, 77, 78, 80, 81, 83, 85, 86, 88, 90, 94. Draw a modified boxplot and identify any outliers.",
+    "values": {
+      "data": [
+        31,
+        68,
+        72,
+        75,
+        77,
+        78,
+        80,
+        81,
+        83,
+        85,
+        86,
+        88,
+        90,
+        94
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          31,
+          68,
+          72,
+          75,
+          77,
+          78,
+          80,
+          81,
+          83,
+          85,
+          86,
+          88,
+          90,
+          94
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE starts at the median (Med).",
+      "Move right: Q3, then the whisker end, then any outlier."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "ModBoxplot",
+      "title": "ModBoxplot",
+      "settings": {
+        "On/Off": "On",
+        "Type": "ModBoxplot",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 31,
+          "y": 0
+        },
+        {
+          "x": 68,
+          "y": 0
+        },
+        {
+          "x": 72,
+          "y": 0
+        },
+        {
+          "x": 75,
+          "y": 0
+        },
+        {
+          "x": 77,
+          "y": 0
+        },
+        {
+          "x": 78,
+          "y": 0
+        },
+        {
+          "x": 80,
+          "y": 0
+        },
+        {
+          "x": 81,
+          "y": 0
+        },
+        {
+          "x": 83,
+          "y": 0
+        },
+        {
+          "x": 85,
+          "y": 0
+        },
+        {
+          "x": 86,
+          "y": 0
+        },
+        {
+          "x": 88,
+          "y": 0
+        },
+        {
+          "x": 90,
+          "y": 0
+        },
+        {
+          "x": 94,
+          "y": 0
+        }
+      ],
+      "stats": {
+        "xbar": 77.71428571428571,
+        "sumX": 1088,
+        "sumX2": 87558,
+        "Sx": 15.203383082158298,
+        "sigmaX": 14.65034651676282,
+        "n": 14,
+        "minX": 31,
+        "Q1": 75,
+        "Med": 80.5,
+        "Q3": 86,
+        "maxX": 94
+      },
+      "traceMode": true,
+      "tracePosition": 4,
+      "traceInfo": {
+        "label": "Q3",
+        "x": 86
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 31
+        },
+        {
+          "label": "X",
+          "x": 68
+        },
+        {
+          "label": "Q1",
+          "x": 75
+        },
+        {
+          "label": "Med",
+          "x": 80.5
+        },
+        {
+          "label": "Q3",
+          "x": 86
+        },
+        {
+          "label": "maxX",
+          "x": 94
+        }
+      ],
+      "traceStart": 3
+    },
+    "interpretation": {
+      "title": "FIND THE OUTLIER",
+      "note": "Fences: Q1 - 1.5 IQR = 58.5 and Q3 + 1.5 IQR = 102.5.",
+      "questions": [
+        {
+          "label": "Outliers",
+          "prompt": "Which value(s) does the modified boxplot show as outliers?",
+          "answer": "low",
+          "options": [
+            {
+              "key": "low",
+              "text": "31 only",
+              "feedback": null
+            },
+            {
+              "key": "both",
+              "text": "31 and 94",
+              "feedback": "94 is below the upper fence 102.5, so it is the high whisker end."
+            },
+            {
+              "key": "none",
+              "text": "None: 31 is just the minimum",
+              "feedback": "31 is below Q1 - 1.5 IQR = 58.5, so it is an outlier."
+            }
+          ]
+        },
+        {
+          "label": "Lower whisker",
+          "prompt": "Where does the lower whisker end?",
+          "answer": 68,
+          "options": [
+            {
+              "key": "68",
+              "text": "68",
+              "feedback": null
+            },
+            {
+              "key": "31",
+              "text": "31",
+              "feedback": "31 is the outlier. The whisker stops at the smallest value inside the fence."
+            },
+            {
+              "key": "58.5",
+              "text": "58.5",
+              "feedback": "58.5 is the fence. A whisker ends at a data value."
+            }
+          ]
+        },
+        {
+          "label": "Mean vs median",
+          "prompt": "How does the outlier affect the mean?",
+          "answer": "lower",
+          "options": [
+            {
+              "key": "lower",
+              "text": "Mean is below the median",
+              "feedback": null
+            },
+            {
+              "key": "higher",
+              "text": "Mean is above the median",
+              "feedback": "A LOW outlier pulls the mean down: mean 77.71, median 80.5."
+            },
+            {
+              "key": "equal",
+              "text": "Mean equals the median",
+              "feedback": "The 31 pulls the mean down to 77.71. The median stays 80.5."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "modified-boxplot@no-outlier",
+    "skillId": "modified-boxplot",
+    "procedureId": "modified-boxplot",
+    "title": "Modified Boxplot",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Resting pulse rates of 15 adults: 58, 62, 64, 66, 68, 70, 71, 72, 74, 75, 77, 79, 82, 85, 88. Draw a modified boxplot and identify any outliers.",
+    "values": {
+      "data": [
+        58,
+        62,
+        64,
+        66,
+        68,
+        70,
+        71,
+        72,
+        74,
+        75,
+        77,
+        79,
+        82,
+        85,
+        88
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          58,
+          62,
+          64,
+          66,
+          68,
+          70,
+          71,
+          72,
+          74,
+          75,
+          77,
+          79,
+          82,
+          85,
+          88
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "2ND",
+      "Y=",
+      "ENTER",
+      "DOWN",
+      "RIGHT",
+      "RIGHT",
+      "RIGHT",
+      "ENTER",
+      "ZOOM",
+      "9",
+      "TRACE",
+      "RIGHT"
+    ],
+    "hints": [
+      "Choose 2ND.",
+      "Choose Y=.",
+      "Choose ENTER.",
+      "Choose DOWN.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose the modified-boxplot plot type.",
+      "Choose ENTER.",
+      "Choose ZOOM.",
+      "Choose 9.",
+      "TRACE starts at the median (Med).",
+      "Move right: Q3, then the whisker end, then any outlier."
+    ],
+    "computed": null,
+    "finalView": {
+      "type": "ModBoxplot",
+      "title": "ModBoxplot",
+      "settings": {
+        "On/Off": "On",
+        "Type": "ModBoxplot",
+        "Xlist": "L1",
+        "Freq": "1",
+        "Color": "BLUE"
+      },
+      "points": [
+        {
+          "x": 58,
+          "y": 0
+        },
+        {
+          "x": 62,
+          "y": 0
+        },
+        {
+          "x": 64,
+          "y": 0
+        },
+        {
+          "x": 66,
+          "y": 0
+        },
+        {
+          "x": 68,
+          "y": 0
+        },
+        {
+          "x": 70,
+          "y": 0
+        },
+        {
+          "x": 71,
+          "y": 0
+        },
+        {
+          "x": 72,
+          "y": 0
+        },
+        {
+          "x": 74,
+          "y": 0
+        },
+        {
+          "x": 75,
+          "y": 0
+        },
+        {
+          "x": 77,
+          "y": 0
+        },
+        {
+          "x": 79,
+          "y": 0
+        },
+        {
+          "x": 82,
+          "y": 0
+        },
+        {
+          "x": 85,
+          "y": 0
+        },
+        {
+          "x": 88,
+          "y": 0
+        }
+      ],
+      "stats": {
+        "xbar": 72.73333333333333,
+        "sumX": 1091,
+        "sumX2": 80373,
+        "Sx": 8.53954387094589,
+        "sigmaX": 8.249983164965988,
+        "n": 15,
+        "minX": 58,
+        "Q1": 66,
+        "Med": 72,
+        "Q3": 79,
+        "maxX": 88
+      },
+      "traceMode": true,
+      "tracePosition": 3,
+      "traceInfo": {
+        "label": "Q3",
+        "x": 79
+      },
+      "traceStops": [
+        {
+          "label": "minX",
+          "x": 58
+        },
+        {
+          "label": "Q1",
+          "x": 66
+        },
+        {
+          "label": "Med",
+          "x": 72
+        },
+        {
+          "label": "Q3",
+          "x": 79
+        },
+        {
+          "label": "maxX",
+          "x": 88
+        }
+      ],
+      "traceStart": 2
+    },
+    "interpretation": {
+      "title": "ANY OUTLIERS?",
+      "note": "An outlier lies below Q1 - 1.5 IQR or above Q3 + 1.5 IQR. The extremes are not automatically outliers.",
+      "questions": [
+        {
+          "label": "Outliers",
+          "prompt": "Which value(s) does the modified boxplot show as outliers?",
+          "answer": "none",
+          "options": [
+            {
+              "key": "none",
+              "text": "None",
+              "feedback": null
+            },
+            {
+              "key": "both",
+              "text": "58 and 88",
+              "feedback": "58 and 88 are the extremes, but both lie inside the fences 46.5 and 98.5."
+            },
+            {
+              "key": "high",
+              "text": "88 only",
+              "feedback": "88 is below Q3 + 1.5 IQR = 98.5, so it is the whisker end."
+            }
+          ]
+        },
+        {
+          "label": "Upper fence",
+          "prompt": "What is Q3 + 1.5 IQR, the upper fence?",
+          "answer": 98.5,
+          "options": [
+            {
+              "key": "98.5",
+              "text": "98.5",
+              "feedback": null
+            },
+            {
+              "key": "88",
+              "text": "88",
+              "feedback": "88 is the maximum. The fence is Q3 + 1.5 x IQR = 79 + 1.5 x 13."
+            },
+            {
+              "key": "92",
+              "text": "92",
+              "feedback": "That adds 1 IQR. The fence adds 1.5 IQR to Q3."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@mean-sd",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "A sample of 12 batteries lasted (hours): 9.8, 10.4, 11.1, 9.5, 10.9, 10.2, 11.8, 10, 9.9, 10.7, 11.3, 10.6. Find the mean and standard deviation.",
+    "values": {
+      "data": [
+        9.8,
+        10.4,
+        11.1,
+        9.5,
+        10.9,
+        10.2,
+        11.8,
+        10,
+        9.9,
+        10.7,
+        11.3,
+        10.6
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          9.8,
+          10.4,
+          11.1,
+          9.5,
+          10.9,
+          10.2,
+          11.8,
+          10,
+          9.9,
+          10.7,
+          11.3,
+          10.6
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ENTER"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Move to the next field.",
+      "Calculate the result."
+    ],
+    "computed": {
+      "xbar": 10.516666666666667,
+      "sumX": 126.2,
+      "sumX2": 1332.3,
+      "Sx": 0.6806859285554047,
+      "sigmaX": 0.6517071598672385,
+      "n": 12,
+      "minX": 9.5,
+      "Q1": 9.95,
+      "Med": 10.5,
+      "Q3": 11,
+      "maxX": 11.8
+    },
+    "finalView": {
+      "lines": [
+        "x̄ = 10.51666667",
+        "Σx = 126.2",
+        "Σx² = 1332.3",
+        "Sx = 0.6806859286",
+        "σx = 0.6517071599",
+        "n = 12"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "MEAN AND STANDARD DEVIATION",
+      "note": "x-bar is the mean. Sx is the sample standard deviation: a typical distance from the mean.",
+      "questions": [
+        {
+          "label": "Mean",
+          "prompt": "What is the mean battery life (x-bar)?",
+          "answer": 10.517,
+          "options": [
+            {
+              "key": "10.517",
+              "text": "10.517",
+              "feedback": null
+            },
+            {
+              "key": "126.2",
+              "text": "126.2",
+              "feedback": "That is Sum x, the total of all 12 lifetimes. The mean divides it by n = 12."
+            },
+            {
+              "key": "10.5",
+              "text": "10.5",
+              "feedback": "That is the median. 1-Var Stats shows the mean as x-bar."
+            }
+          ]
+        },
+        {
+          "label": "SD",
+          "prompt": "These batteries are a sample. What is their standard deviation?",
+          "answer": 0.68069,
+          "options": [
+            {
+              "key": "0.68069",
+              "text": "0.68069",
+              "feedback": null
+            },
+            {
+              "key": "0.65171",
+              "text": "0.65171",
+              "feedback": "sigma x divides by n: the population SD. A sample uses Sx."
+            },
+            {
+              "key": "2.3",
+              "text": "2.3",
+              "feedback": "That is the range, max - min. The SD is a typical distance from the mean."
+            }
+          ]
+        },
+        {
+          "label": "Meaning",
+          "prompt": "What does Sx describe?",
+          "answer": "typical",
+          "options": [
+            {
+              "key": "typical",
+              "text": "Typical distance from the mean",
+              "feedback": null
+            },
+            {
+              "key": "range",
+              "text": "Distance from shortest to longest",
+              "feedback": "That is the range. Sx is a typical distance from the mean."
+            },
+            {
+              "key": "error",
+              "text": "How accurate x-bar is",
+              "feedback": "Sx describes how spread out the 12 lifetimes are, not how accurate x-bar is."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@five-number",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Ages of 15 teachers at a school: 24, 26, 29, 31, 33, 35, 38, 40, 42, 45, 47, 51, 54, 58, 63. Find the five-number summary.",
+    "values": {
+      "data": [
+        24,
+        26,
+        29,
+        31,
+        33,
+        35,
+        38,
+        40,
+        42,
+        45,
+        47,
+        51,
+        54,
+        58,
+        63
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          24,
+          26,
+          29,
+          31,
+          33,
+          35,
+          38,
+          40,
+          42,
+          45,
+          47,
+          51,
+          54,
+          58,
+          63
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "DOWN"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Move to the next field.",
+      "Calculate the result.",
+      "Read the five-number summary."
+    ],
+    "computed": {
+      "xbar": 41.06666666666667,
+      "sumX": 616,
+      "sumX2": 27260,
+      "Sx": 11.841010252910172,
+      "sigmaX": 11.439502708694212,
+      "n": 15,
+      "minX": 24,
+      "Q1": 31,
+      "Med": 40,
+      "Q3": 51,
+      "maxX": 63
+    },
+    "finalView": {
+      "lines": [
+        "minX = 24",
+        "Q1 = 31",
+        "Med = 40",
+        "Q3 = 51",
+        "maxX = 63"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "READ THE FIVE-NUMBER SUMMARY",
+      "note": "IQR = Q3 - Q1: the spread of the middle half of the data.",
+      "questions": [
+        {
+          "label": "Median",
+          "prompt": "What is the median age (Med)?",
+          "answer": 40,
+          "options": [
+            {
+              "key": "40",
+              "text": "40",
+              "feedback": null
+            },
+            {
+              "key": "31",
+              "text": "31",
+              "feedback": "31 is Q1, the median of the lower half."
+            },
+            {
+              "key": "41.067",
+              "text": "41.067",
+              "feedback": "That is the mean x-bar. The median is Med."
+            }
+          ]
+        },
+        {
+          "label": "IQR",
+          "prompt": "What is the IQR?",
+          "answer": 20,
+          "options": [
+            {
+              "key": "20",
+              "text": "20",
+              "feedback": null
+            },
+            {
+              "key": "39",
+              "text": "39",
+              "feedback": "That is the range, maxX - minX. IQR = Q3 - Q1."
+            },
+            {
+              "key": "51",
+              "text": "51",
+              "feedback": "51 is Q3 itself. Subtract Q1."
+            }
+          ]
+        },
+        {
+          "label": "Middle half",
+          "prompt": "The middle half of the ages lies between:",
+          "answer": "q1-q3",
+          "options": [
+            {
+              "key": "q1-q3",
+              "text": "31 and 51",
+              "feedback": null
+            },
+            {
+              "key": "min-max",
+              "text": "24 and 63",
+              "feedback": "That is every teacher. The middle half lies between Q1 and Q3."
+            },
+            {
+              "key": "q1-med",
+              "text": "31 and 40",
+              "feedback": "That is one quarter: Q1 to the median."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "one-var-stats@center",
+    "skillId": "one-var-stats",
+    "procedureId": "one-var-stats",
+    "title": "1-Var Stats",
+    "topic": "1.7",
+    "coverage": [
+      {
+        "topic": "1.7",
+        "dates": {
+          "B": "2026-09-22",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson7_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      },
+      {
+        "topic": "1.8",
+        "dates": {
+          "B": "2026-09-24",
+          "E": "2026-09-23"
+        },
+        "worksheet": "u1_lesson8_live.html",
+        "sources": [
+          "worksheet",
+          "quiz"
+        ]
+      }
+    ],
+    "dates": {
+      "B": "2026-09-22",
+      "E": "2026-09-23"
+    },
+    "stem": "Weekly allowance (dollars) of 10 teens: 0, 5, 5, 10, 10, 10, 15, 20, 20, 60. Find the five-number summary.",
+    "values": {
+      "data": [
+        0,
+        5,
+        5,
+        10,
+        10,
+        10,
+        15,
+        20,
+        20,
+        60
+      ]
+    },
+    "setup": {
+      "lists": {
+        "L1": [
+          0,
+          5,
+          5,
+          10,
+          10,
+          10,
+          15,
+          20,
+          20,
+          60
+        ]
+      },
+      "matrices": {}
+    },
+    "route": [
+      "STAT",
+      "RIGHT",
+      "ENTER",
+      "DOWN",
+      "DOWN",
+      "ENTER",
+      "DOWN"
+    ],
+    "hints": [
+      "Press [STAT] to open the statistics menu.",
+      "Move to the CALC tab.",
+      "Open the 1-Var Stats wizard.",
+      "Move to the next field.",
+      "Move to the next field.",
+      "Calculate the result.",
+      "Read the five-number summary."
+    ],
+    "computed": {
+      "xbar": 15.5,
+      "sumX": 155,
+      "sumX2": 4975,
+      "Sx": 16.906606203887677,
+      "sigmaX": 16.03901493234544,
+      "n": 10,
+      "minX": 0,
+      "Q1": 5,
+      "Med": 10,
+      "Q3": 20,
+      "maxX": 60
+    },
+    "finalView": {
+      "lines": [
+        "minX = 0",
+        "Q1 = 5",
+        "Med = 10",
+        "Q3 = 20",
+        "maxX = 60"
+      ],
+      "scrollable": true
+    },
+    "interpretation": {
+      "title": "WHICH CENTER?",
+      "note": "One large value pulls the mean toward it. The median resists it.",
+      "questions": [
+        {
+          "label": "Median",
+          "prompt": "What is the median allowance (Med)?",
+          "answer": 10,
+          "options": [
+            {
+              "key": "10",
+              "text": "10",
+              "feedback": null
+            },
+            {
+              "key": "5",
+              "text": "5",
+              "feedback": "5 is Q1, the median of the lower half."
+            },
+            {
+              "key": "20",
+              "text": "20",
+              "feedback": "20 is Q3, the median of the upper half."
+            }
+          ]
+        },
+        {
+          "label": "Typical",
+          "prompt": "The mean is 15.5. Which center better describes a typical teen?",
+          "answer": "median",
+          "options": [
+            {
+              "key": "median",
+              "text": "The median, 10",
+              "feedback": null
+            },
+            {
+              "key": "mean",
+              "text": "The mean, 15.5",
+              "feedback": "The 60 pulls the mean up: only 3 of 10 teens get more than 15.5."
+            }
+          ]
+        },
+        {
+          "label": "Outlier",
+          "prompt": "Is 60 an outlier by the 1.5 IQR rule?",
+          "answer": "yes",
+          "options": [
+            {
+              "key": "yes",
+              "text": "Yes, above Q3 + 1.5 IQR = 42.5",
+              "feedback": null
+            },
+            {
+              "key": "no",
+              "text": "No, it is just the maximum",
+              "feedback": "Q3 + 1.5 IQR = 42.5, and 60 is beyond it."
             }
           ]
         }

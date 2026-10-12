@@ -4,7 +4,9 @@ export const TEAM_BLOCK = { start: 400, dock: 1060, y: 668, w: 32, h: 32, speed:
 // and the catalog's quartiles/bins changed; an older page must reload, not mis-judge.
 // 10 (2026-10-12, APSTAT_PARK_CALCULATOR_FLUENCY_SPEC): calculator_state carries clears/rung, the
 // round's random data (problem) and wrong-key presses (lastPress.wrong/penaltyMs).
-export const CALCULATOR_PROTOCOL = 10;
+// 11 (2026-10-12): the randIntNoRep skills are templated per round, so problem carries the round's
+// route and hints (an older client would replay the catalogue route against the new numbers).
+export const CALCULATOR_PROTOCOL = 11;
 
 export function createLobby(now) {
   return { phase: 'gathering', x: TEAM_BLOCK.start, pushers: [], roster: [], members: new Map(), lastTick: now };

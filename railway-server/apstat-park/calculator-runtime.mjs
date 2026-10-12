@@ -18,10 +18,13 @@ export function createCalculatorRuntime(level = DEFAULT_LEVEL) {
 }
 // Protocol 10 (§2): the level with random data for this round, its computed/finalView read off the
 // real calculator. A level that does not vary, or whose replay fails, plays as the catalogue wrote it.
+// Protocol 11: a randIntNoRep level gets a new seed/population/size and its own route; a varied route
+// whose length differs from the catalogue's (the goal spans are keyed by step) throws and falls back.
 export function varyLevel(level, random = Math.random) {
-  const varied = level && varyProblem(level, random);
-  if (!varied) return level;
+  if (!level) return level;
   try {
+    const varied = varyProblem(level, random);
+    if (!varied) return level;
     const solved = solveProblem(varied, sandbox.window.TI84Native.create);
     // Every answer tile must be a real number, or the round cannot be won.
     if (challengeFor(solved).answers.every(Number.isFinite)) return solved;
