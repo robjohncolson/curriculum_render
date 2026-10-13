@@ -2,6 +2,13 @@
  "source": "ap-stats-video-crosswalk.md (EK-verified vs 5 official Fall-2026 unit guides)",
  "schema": "ced2026 overlay: {status core|bonus, newUnit, newTopic, newLabel, bonusUnit}",
  "generatedAt": null,
+ "units": {
+  "1": "Exploring One-Variable Data & Collecting Data",
+  "2": "Probability, Random Variables & Distributions",
+  "3": "Inference for Categorical Data: Proportions",
+  "4": "Inference for Quantitative Data: Means",
+  "5": "Regression Analysis"
+ },
  "map": {
   "1.1": {
    "status": "core",
@@ -87,7 +94,8 @@
    "newUnit": 2,
    "newTopic": "2.1",
    "newLabel": "Two Categorical Variables: Tables & Graphs",
-   "bonusUnit": null
+   "bonusUnit": null,
+   "migrationNote": "also feeds new 2.2 (joint-relative-frequency EK) -- cross-attribution confirmed 2026-08-07 (crosswalk Part C); primary home stays new 2.1"
   },
   "2.3": {
    "status": "core",
@@ -182,12 +190,12 @@
    "bonusUnit": null
   },
   "3.7": {
-   "status": "core",
-   "newUnit": 1,
-   "newTopic": "1.13",
-   "newLabel": "Experimental Design",
-   "bonusUnit": null,
-   "migrationNote": "Inference&Experiments: pull sim-significance segment"
+   "status": "bonus",
+   "newUnit": null,
+   "newTopic": null,
+   "newLabel": "Beyond the Exam: Simulation-Based Significance (is the treatment difference real or due to chance?)",
+   "bonusUnit": 1,
+   "migrationNote": "Inference&Experiments: pull sim-significance segment -- RETAG 2026-08-07: demoted from core/1.13 to bonus. Crosswalk Part C: this segment is NOT in new 1.13's EK -- College Board moved it to later formal inference. The design content (old 3.5+3.6) fully covers 1.13 without it."
   },
   "4.1": {
    "status": "core",
@@ -209,7 +217,8 @@
    "newUnit": 2,
    "newTopic": "2.4",
    "newLabel": "Introduction to Probability",
-   "bonusUnit": null
+   "bonusUnit": null,
+   "migrationNote": "also feeds new 2.3 (long-run-relative-frequency EK) -- cross-attribution confirmed 2026-08-07 (crosswalk Part C); primary home stays new 2.4"
   },
   "4.4": {
    "status": "core",
@@ -519,7 +528,8 @@
    "newUnit": 3,
    "newTopic": "3.15",
    "newLabel": "Carrying Out a Chi-Square Test (homogeneity/independence)",
-   "bonusUnit": null
+   "bonusUnit": null,
+   "migrationNote": "also sources from old 8.4 (expected-count formula EK, not 3.14) -- cross-attribution confirmed 2026-08-07 (crosswalk Part C)"
   },
   "9.1": {
    "status": "bonus",

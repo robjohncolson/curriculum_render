@@ -18,6 +18,13 @@
     let lastFocusedElement = null;
     let outboxWatcherInitialized = false;
 
+    // Visible tag for the question ("1.13 · Q2"); the old U#-L# id stays storage-only.
+    function questionDisplayLabel(questionId) {
+        const overlay = window.SY2627Overlay;
+        const label = overlay ? overlay.questionLabel(questionId, window.SY2627_CROSSWALK) : '';
+        return label || 'Question';
+    }
+
     function getChartTypeList() {
         if (Array.isArray(window.CHART_TYPE_LIST) && window.CHART_TYPE_LIST.length > 0) {
             return window.CHART_TYPE_LIST;
@@ -1353,7 +1360,7 @@
             // Fallback: recreate skeleton (shouldn't happen)
             modal.innerHTML = `
                 <div class="chart-wizard-header">
-                    <div class="chart-wizard-title" id="chart-wizard-title">Chart Wizard · ${wizardState.questionId}</div>
+                    <div class="chart-wizard-title" id="chart-wizard-title">Chart Wizard · ${questionDisplayLabel(wizardState.questionId)}</div>
                     <button class="chart-wizard-close" aria-label="Close chart wizard">&times;</button>
                 </div>
                 <div class="chart-wizard-body" id="${CONTENT_ID}"></div>
@@ -1368,7 +1375,7 @@
 
         // Phase 3E: Update only the content, not the structure
         // Title update (incremental)
-        const newTitle = `Chart Wizard · ${wizardState.questionId}`;
+        const newTitle = `Chart Wizard · ${questionDisplayLabel(wizardState.questionId)}`;
         if (title.textContent !== newTitle) {
             title.textContent = newTitle;
         }
@@ -2740,7 +2747,7 @@
             <div class="chart-preview-header">
                 <div>
                     <strong>Preview</strong>
-                    <div style="font-size:0.85rem;color:rgba(0,0,0,0.6);">${chartData.type.toUpperCase()} · ${wizardState.questionId}</div>
+                    <div style="font-size:0.85rem;color:rgba(0,0,0,0.6);">${chartData.type.toUpperCase()} · ${questionDisplayLabel(wizardState.questionId)}</div>
                 </div>
                 <div class="chart-preview-actions">
                     <button type="button" data-action="edit-data">Edit data</button>

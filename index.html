@@ -2638,6 +2638,16 @@
         let syncProgressSkipped = false;
         let syncProgressCallback = null;
 
+        // Cloud-restore chips group answers by the CED topic the student sees
+        // ("1.13", "★ Beyond the Exam"), never by the stored U#-L# prefix.
+        function cloudLessonDisplayKey(questionId) {
+            const label = SY2627Overlay.topicLabelForId(questionId, window.SY2627_CROSSWALK);
+            if (label.status === 'core') return label.topic;
+            if (label.status === 'bonus') return '★ Beyond the Exam';
+            if (/-PC-/i.test(String(questionId))) return 'Progress Check';
+            return 'Other work';
+        }
+
         /**
          * Show blocking progress screen during cloud restore
          * @param {object} options - Configuration
@@ -3178,7 +3188,7 @@
                         const lessonProgress = {};
                         let lastActivity = 0;
                         cloudAnswers.forEach(row => {
-                            const lesson = row.question_id.replace(/-Q\d+$/, '');
+                            const lesson = cloudLessonDisplayKey(row.question_id);
                             if (!lessonProgress[lesson]) {
                                 lessonProgress[lesson] = { answered: 0 };
                             }
@@ -6601,6 +6611,33 @@ function renderLessonSelector(unitInfo) {
         }
         window.loadQuizReviews = loadQuizReviews;
 
+        // Display heading of the open question set, saved by loadLessonWithResources
+        // so every rerender path reuses it — including PC makeup sets, whose label
+        // exists only in the caller's options (no crosswalk context).
+        let currentQuizDisplay = { questions: null, heading: '' };
+
+        function rememberQuizHeading(questions, heading) {
+            currentQuizDisplay = { questions, heading };
+        }
+
+        // CED heading for the open question set; never the old U#-L# key.
+        function quizHeadingText() {
+            if (currentQuizDisplay.questions === currentQuestions && currentQuizDisplay.heading) {
+                return currentQuizDisplay.heading;
+            }
+
+            const context = SY2627Overlay.contextForQuestions(
+                currentQuestions,
+                window.SY2627_CROSSWALK
+            ) || {};
+            return SY2627Overlay.topicHeading({
+                newUnit: context.newUnit || currentNewUnit,
+                newTopic: context.newTopic || currentTopic,
+                newLabel: context.newLabel || '',
+                bonus: context.bonus
+            });
+        }
+
         // Render quiz - wrapper that checks feature flag
         function renderQuiz() {
             loadQuizReviews();
@@ -6622,10 +6659,10 @@ function renderLessonSelector(unitInfo) {
             const questionsContainer = document.getElementById('questionsContainer');
 
             questionsContainer.innerHTML = `
-                <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                <button onclick="backToLessons()" class="back-button">← Back to Topics</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
-                        <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
+                        <strong>${quizHeadingText()}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                     </div>
                 </div>
 
@@ -6697,10 +6734,10 @@ function renderLessonSelector(unitInfo) {
             if (!questionsList) {
                 // First render - create the header structure
                 questionsContainer.innerHTML = `
-                    <button onclick="backToLessons()" class="back-button">← Back to Lessons</button>
+                    <button onclick="backToLessons()" class="back-button">← Back to Topics</button>
                     <div class="app-controls">
                         <div style="flex: 1;">
-                            <strong>Unit ${currentUnit}, Lesson ${currentLesson}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
+                            <strong>${quizHeadingText()}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                         </div>
                     </div>
                     <div id="questions-list"></div>
@@ -6712,7 +6749,7 @@ function renderLessonSelector(unitInfo) {
                 // Update header text if unit/lesson changed
                 const appControls = questionsContainer.querySelector('.app-controls div');
                 if (appControls) {
-                    const newText = `Unit ${currentUnit}, Lesson ${currentLesson}`;
+                    const newText = quizHeadingText();
                     if (!appControls.innerHTML.includes(newText)) {
                         appControls.innerHTML = `<strong>${newText}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>`;
                     }
@@ -6930,7 +6967,7 @@ function renderLessonSelector(unitInfo) {
                             <span>Question ${questionNumber}</span>
                             ${isAnswered ? (isCorrect ? '<span style="color: #f39c12;">⭐ Correctly Answered</span>' : '<span style="color: #a5d6a7;">✓ Answered</span>') : ''}
                         </div>
-                        <div class="question-id">ID: ${question.id || 'N/A'}</div>
+                        <div class="question-id" title="stored as ${question.id || 'N/A'}">${SY2627Overlay.questionLabel(question.id, window.SY2627_CROSSWALK)}</div>
                         <div class="question-prompt">${question.prompt || 'No prompt provided'}</div>
                         <div id="quiz-reviews-${question.id}" class="quiz-review-history" style="display:${window.QuizReviewUI?.formatQuestionReviews(question.id, window.quizReviewsByQuestion) ? 'block' : 'none'};">
                             ${window.QuizReviewUI?.formatQuestionReviews(question.id, window.quizReviewsByQuestion) || ''}
@@ -12314,6 +12351,10 @@ Respond with JSON:
                 questions,
                 window.SY2627_CROSSWALK
             );
+            if (!context) return false;
+
+            // Bonus ("Beyond the Exam") lessons have no CED topic: they open
+            // under their bonus unit with newTopic null.
             const unitData = allCurriculumData[context.newUnit];
             if (!unitData) return false;
 
@@ -12328,6 +12369,7 @@ Respond with JSON:
                 questions,
                 newTopic: context.newTopic,
                 newLabel: context.newLabel,
+                bonus: context.bonus,
                 updateUrl: false
             });
 
@@ -13099,6 +13141,13 @@ Respond with JSON:
             loadQuizReviews();
 
             const newLabel = options.newLabel || context.newLabel || currentTopic;
+            const topicHeading = SY2627Overlay.topicHeading({
+                newUnit: currentNewUnit,
+                newTopic: currentTopic,
+                newLabel,
+                bonus: Boolean(options.bonus || context.bonus)
+            });
+            rememberQuizHeading(currentQuestions, topicHeading);
             const resources = await loadUnitResources();
             let videoSection = '';
             let hasResources = false;
@@ -13115,7 +13164,15 @@ Respond with JSON:
                     return Array.isArray(resourceTopic.videos) ? resourceTopic.videos : [];
                 }),
                 blookets: resourceTopics.flatMap(resourceTopic => {
-                    return Array.isArray(resourceTopic.blookets) ? resourceTopic.blookets : [];
+                    if (!Array.isArray(resourceTopic.blookets)) return [];
+                    return resourceTopic.blookets.map(blooket => ({
+                        ...blooket,
+                        title: SY2627Overlay.resourceTitle(
+                            blooket.title,
+                            resourceTopic.id,
+                            window.SY2627_CROSSWALK
+                        )
+                    }));
                 })
             };
 
@@ -13199,7 +13256,7 @@ Respond with JSON:
                 <button onclick="backToLessons()" class="back-button">← Back to Topics</button>
                 <div class="app-controls">
                     <div style="flex: 1;">
-                        <strong>Unit ${currentNewUnit}, Topic ${currentTopic}: ${newLabel}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
+                        <strong>${topicHeading}</strong> - <span id="quiz-summary">${quizReviewSummaryText()}</span>
                     </div>
                 </div>
 

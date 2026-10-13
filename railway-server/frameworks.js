@@ -7,6 +7,9 @@
 // Remaining unit/lesson labels + LO/EK text are OLD-CED provenance (ids are the
 // stable keys); full re-derivation is tracked as W9 in the surface plan.
 
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 const UNIT_FRAMEWORKS = {
   4: {
     title: "Probability, Random Variables, and Probability Distributions",
@@ -427,6 +430,67 @@ const UNIT_FRAMEWORKS = {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Fall-2026 CED labels. The framework data above is keyed by the OLD unit/lesson
+// (storage key); what the AI is told — and may repeat to a student — is the CED
+// topic from the vendored crosswalk (railway-server/data/2026-crosswalk.json,
+// copied from follow-alongs/2026-crosswalk.json by
+// follow-alongs/scripts/sync-ced-crosswalk.mjs; never hand-edit it).
+// ---------------------------------------------------------------------------
+const CROSSWALK_CANDIDATES = [
+  new URL('./data/2026-crosswalk.json', import.meta.url),
+  new URL('../data/2026-crosswalk.json', import.meta.url)
+];
+
+let cachedCrosswalk;
+
+function loadCedCrosswalk() {
+  if (cachedCrosswalk !== undefined) return cachedCrosswalk;
+
+  cachedCrosswalk = null;
+  for (const candidate of CROSSWALK_CANDIDATES) {
+    try {
+      const path = fileURLToPath(candidate);
+      if (!existsSync(path)) continue;
+      cachedCrosswalk = JSON.parse(readFileSync(path, 'utf8'));
+      break;
+    } catch (error) {
+      console.warn('CED crosswalk unreadable:', String(candidate), error && error.message);
+    }
+  }
+  return cachedCrosswalk;
+}
+
+function cedUnitName(crosswalk, unit) {
+  const units = crosswalk && (crosswalk.units || crosswalk.unitLabels);
+  const value = units && units[unit];
+  if (!value) return '';
+  return typeof value === 'string' ? value : (value.label || value.title || '');
+}
+
+// Header lines for the AI prompt. Falls back to the old-CED wording only when
+// the crosswalk is missing or has no entry for this lesson.
+function cedFrameworkHeader(framework, crosswalk = loadCedCrosswalk()) {
+  const oldKey = `${framework.unit}.${framework.lesson}`;
+  const entry = crosswalk && crosswalk.map && crosswalk.map[oldKey];
+
+  if (entry && entry.status === 'core' && entry.newUnit && entry.newTopic) {
+    const unitName = cedUnitName(crosswalk, entry.newUnit);
+    return `**Unit ${entry.newUnit}${unitName ? ': ' + unitName : ''}**\n`
+      + `**Topic ${entry.newTopic}: ${entry.newLabel}**\n`
+      + `Lesson focus: ${framework.topic}\n`;
+  }
+
+  if (entry && entry.status === 'bonus') {
+    const label = String(entry.newLabel || framework.topic).replace(/^Beyond the Exam:\s*/i, '');
+    return `**Beyond the Exam (enrichment, not a Fall-2026 AP topic): ${label}**\n`
+      + `Lesson focus: ${framework.topic}\n`;
+  }
+
+  return `**Unit ${framework.unit}: ${framework.unitTitle}**\n`
+    + `**Topic ${framework.unit}.${framework.lesson}: ${framework.topic}**\n`;
+}
+
 /**
  * Get framework data for a specific unit and lesson
  * @param {number} unit - Unit number (e.g., 4)
@@ -487,8 +551,7 @@ function buildFrameworkContext(framework) {
   if (!framework) return '';
 
   let context = `## AP Statistics Framework Context\n`;
-  context += `**Unit ${framework.unit}: ${framework.unitTitle}**\n`;
-  context += `**Topic ${framework.unit}.${framework.lesson}: ${framework.topic}**\n\n`;
+  context += cedFrameworkHeader(framework) + '\n';
 
   // Skills
   context += `### Skills Being Assessed\n`;
@@ -547,5 +610,7 @@ export {
   getFramework,
   parseQuestionId,
   getFrameworkForQuestion,
-  buildFrameworkContext
+  buildFrameworkContext,
+  cedFrameworkHeader,
+  loadCedCrosswalk
 };
