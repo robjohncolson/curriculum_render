@@ -78,15 +78,20 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   // The student's solo room, created on the first join. Joining with a different pinned skill
   // starts a fresh round on it; joining with none, or the same one, resumes the round in progress.
+  // skillId omitted (undefined/null/''): resume the round in progress. Supplied and valid: pin it
+  // (a different pin starts over). Supplied but unknown: clear the pin and pick from the rotation.
+  // Returns null when there is nothing to play (empty rotation): no room is kept for that.
   function createSoloRound(who, skillId) {
     const key = JSON.stringify([who.section, who.username]);
+    const supplied = typeof skillId === 'string' && skillId !== '';
     const pinned = pinnedSkillFor(skillId);
-    if (skillId && !pinned) log('park calculator solo: unknown skill', skillId, 'for', who.username);
+    if (supplied && !pinned) log('park calculator solo: unknown skill', skillId, 'for', who.username);
     const existing = soloRooms.get(key);
     if (existing) {
-      if (pinned && pinned !== existing.skillId) {
+      if (supplied && pinned !== existing.skillId) {
         existing.skillId = pinned;
         resetRoom(existing, { type: 'door' });
+        if (!existing.level) { soloRooms.delete(key); return null; }
       }
       return existing;
     }
@@ -94,17 +99,29 @@ export function createCalculatorService({ registry, send, now = () => performanc
       mode: 'solo', name: who.username, epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(),
       failure: null, resetReason: null, lobby: soloLobby(who.username, now()), section: who.section,
       rotation: createLevelRotation(random, { varyProblems }), keysAwardedEpoch: null, skillId: pinned, lastProblemId: null,
-      level: null,
+      level: null, emptyTeamAt: null,
     };
     room.level = soloLevel(room);
+    if (!room.level) return null;
     soloRooms.set(key, room);
     wallet.ensure(who.section);
     clears.ensure(who.section);
     return room;
   }
+  // What a solo student sees while the section has no playable skill yet: no epoch, no roster,
+  // so an older or newer client neither resets nor joins a round. Nothing is retained for it.
+  function soloWaitingSnapshot(who, skillId) {
+    const campaign = wallet.view(who.section);
+    return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: null,
+      mode: 'solo', pinnedSkill: pinnedSkillFor(skillId), campaignKeyHolders: Object.keys(campaign.keys),
+      campaignKeys: campaign.keys, campaignCleared: campaign.cleared, campaignOpen: campaign.open,
+      missionId: null, eligibleCount: available(who.section, schoolDate(wallNow())).length,
+      phase: 'waiting', blockX: TEAM_BLOCK.dock, pushers: [], roster: [], members: [], rtcPeers: [] };
+  }
   // Puts the solo student into their round (first join, reconnect, or straight after the door).
   // A reconnect keeps the attempt and its clock: joining never renews a deadline.
   function seatSolo(room) {
+    room.emptyTeamAt = null;
     if (room.members.has(room.name)) return;
     const attempt = attemptFor(room, room.name);
     room.members.set(room.name, { pose: { x: 70, y: 646 }, at: now(), revision: -1 });
@@ -258,6 +275,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
       binding.room.lobby.members.delete(binding.name);
       const attempt = binding.room.attempts.get(binding.name);
       if (attempt) attempt.state.holdAt = null;
+      // A solo room's 30 s retention starts the moment its student's last socket leaves.
+      if (binding.room.mode === 'solo') binding.room.emptyTeamAt ??= now();
     }
     broadcast(binding.room);
   }
@@ -275,6 +294,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
           // Protocol 12: the student's own room. No roster gate: the round is theirs by definition.
           const room = createSoloRound(who, message.skill);
           if (old && old.room !== room) detached(ws);
+          // Nothing playable yet (empty rotation): answer, bind nothing, keep nothing.
+          if (!room) { send(ws, soloWaitingSnapshot(who, message.skill)); return null; }
           bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
           seatSolo(room);
           room.touched = now(); broadcast(room); return null;
@@ -317,8 +338,15 @@ export function createCalculatorService({ registry, send, now = () => performanc
         // Teacher decision 2026-10-06: the teacher's restart follows the team rule (no private practice reset).
         if (!teamComplete(room)) return null;
         resetRoom(room, { type: 'door' });
-        // The solo student is standing at the door: the next round starts without a rejoin.
-        if (room.mode === 'solo') seatSolo(room);
+        if (room.mode === 'solo') {
+          // The rotation may have emptied since the round started: drop the room, answer, unbind.
+          if (!room.level) {
+            soloRooms.delete(JSON.stringify([room.section, room.name]));
+            detached(ws); send(ws, soloWaitingSnapshot(who, room.skillId)); return null;
+          }
+          // The solo student is standing at the door: the next round starts without a rejoin.
+          seatSolo(room);
+        }
         broadcast(room); return null;
       }
       if (message.type === 'calculator_press') {
@@ -349,12 +377,13 @@ export function createCalculatorService({ registry, send, now = () => performanc
     clears.flush();
     for (const [key, room] of soloRooms) {
       // A solo room with nobody in it for 30 s is dropped (a reload or a brief disconnect survives).
+      // emptyTeamAt is stamped by detached() and cleared by seatSolo(); the fallback covers a
+      // member removed any other way.
       if (!room.members.has(room.name)) {
         room.emptyTeamAt ??= now();
         if (now() - room.emptyTeamAt >= 30000) soloRooms.delete(key);
         continue;
       }
-      room.emptyTeamAt = null;
       const time = now();
       if (room.failure && time >= room.failure.until) {
         resetRoom(room, { type: 'timeout', name: room.failure.name });
@@ -409,15 +438,19 @@ export function createCalculatorService({ registry, send, now = () => performanc
     },
     // Do not call roomFor/attemptFor: watching must never create an attempt.
     watch(section) {
+      // Protocol 12: the section's solo rounds in progress, with or without a team room.
+      const solo = [...soloRooms.values()].filter(solo => solo.section === section && solo.members.size)
+        .map(solo => ({ name: solo.name, epoch: solo.epoch, level: solo.level, failure: solo.failure,
+          state: solo.attempts.get(solo.name)?.state || null }));
       const room = rooms.get(section);
-      if (!room || (!room.members.size && !room.lobby.members.size)) return null;
+      const teamLive = !!room && (room.members.size > 0 || room.lobby.members.size > 0);
+      if (!teamLive && !solo.length) return null;
+      // Additive empty-team shape: the team fields are null/empty, the lobby is the room's last
+      // snapshot when the room still exists (a spectator may read lobby.blockX), else null.
+      if (!teamLive) return { epoch: null, clock: now(), level: null, lobby: room ? lobbySnapshot(room) : null, failure: null, members: [], solo };
       return { epoch: room.epoch, clock: now(), level: room.level, lobby: lobbySnapshot(room), failure: room.failure,
         members: [...room.members].map(([name, member]) => ({ name, pose: member.pose,
-          state: room.attempts.get(name)?.state || null })),
-        // Protocol 12: the section's solo rounds in progress.
-        solo: [...soloRooms.values()].filter(solo => solo.section === section && solo.members.size)
-          .map(solo => ({ name: solo.name, epoch: solo.epoch, level: solo.level, failure: solo.failure,
-            state: solo.attempts.get(solo.name)?.state || null })) };
+          state: room.attempts.get(name)?.state || null })), solo };
     },
     close() { clearInterval(timer); rooms.clear(); soloRooms.clear(); bindings.clear(); } };
 }

@@ -226,3 +226,114 @@ test('an older client is told to reload', () => {
     assert.match(reply.message, /Reload/);
   } finally { f.service.close(); }
 });
+
+// Codex review fixes (2026-10-15): empty rotation, invalid pin, spectator data, retention stamp.
+
+test('an empty rotation never creates a solo room: a waiting snapshot, no binding, ticks and detaches stay quiet', () => {
+  const f = setup({ available: () => [] });
+  const ws = {};
+  try {
+    for (const extra of [{}, { skill: 'not-a-skill' }]) {
+      assert.equal(f.joinSolo(ws, 'alice', extra), null, 'no calculator_error');
+      const waiting = f.lobby(ws);
+      assert.equal(waiting.mode, 'solo');
+      assert.equal(waiting.phase, 'waiting');
+      assert.equal(waiting.epoch, null);
+      assert.equal(waiting.missionId, null);
+      assert.equal(waiting.eligibleCount, 0);
+      assert.deepEqual(waiting.roster, []);
+      assert.equal(f.state(ws), undefined, 'no round state');
+    }
+    assert.doesNotThrow(() => { f.service.tick(); f.service.detached(ws); f.service.tick(); });
+    assert.equal(f.service.watch('B'), null, 'nothing retained');
+    assert.deepEqual(f.errors, []);
+  } finally { f.service.close(); }
+});
+
+test('a pinned skill still plays when the rotation is empty; the door with an emptied rotation drops the room cleanly', () => {
+  let levels = [DEFAULT_LEVEL];
+  const f = setup({ available: () => levels });
+  const ws = {};
+  try {
+    levels = [];
+    f.joinSolo(ws, 'alice', { skill: 'one-var-stats' });
+    assert.equal(f.state(ws).pinnedSkill, 'one-var-stats', 'a deep link needs no rotation');
+    // An invalid pin on a live pinned room clears the pin; with nothing to rotate to, the room goes.
+    f.joinSolo(ws, 'alice', { skill: 'not-a-skill' });
+    assert.equal(f.lobby(ws).phase, 'waiting');
+    assert.equal(f.service.watch('B'), null);
+    assert.doesNotThrow(() => { f.service.tick(); f.service.detached(ws); f.service.tick(); });
+    assert.deepEqual(f.errors, []);
+  } finally { f.service.close(); }
+});
+
+test('an invalid supplied skill after a valid pinned join clears the pin and picks from the rotation; omitting it resumes', () => {
+  const f = setup({ available: () => [levelById('histogram')] });
+  const ws = {};
+  try {
+    f.joinSolo(ws, 'alice', { skill: 'one-var-stats' });
+    const pinnedEpoch = f.state(ws).epoch;
+    f.joinSolo(ws, 'alice', { skill: 'not-a-skill' });
+    assert.notEqual(f.state(ws).epoch, pinnedEpoch, 'a fresh round');
+    assert.equal(f.state(ws).pinnedSkill, null);
+    assert.equal(f.state(ws).missionId, 'histogram', 'from the rotation, not the old pin');
+    const rotationEpoch = f.state(ws).epoch;
+    f.joinSolo(ws, 'alice');
+    f.joinSolo(ws, 'alice', { skill: null });
+    f.joinSolo(ws, 'alice', { skill: '' });
+    assert.equal(f.state(ws).epoch, rotationEpoch, 'omitted, null and empty all resume');
+    assert.deepEqual(f.errors, []);
+  } finally { f.service.close(); }
+});
+
+test('watch() reports solo-only students, and keeps reporting them after the last team member leaves', () => {
+  const f = setup();
+  const a = {}, c = {};
+  try {
+    f.joinSolo(a, 'alice', { skill: 'one-var-stats' });
+    const soloOnly = f.service.watch('B');
+    assert.ok(soloOnly, 'a solo-only class has spectator data');
+    assert.deepEqual(soloOnly.solo.map(solo => solo.name), ['alice']);
+    assert.deepEqual([soloOnly.epoch, soloOnly.level, soloOnly.failure, soloOnly.members, soloOnly.lobby], [null, null, null, [], null]);
+    assert.equal(typeof soloOnly.clock, 'number');
+    // A team member arrives at the block: the team fields fill in; the solo list stays.
+    f.registry.join(c, 'B', 'cara', 'student', f.time());
+    f.service.handle(c, { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL, pose: { x: 100, y: 676 }, pushing: false });
+    const both = f.service.watch('B');
+    assert.equal(both.lobby.mode, 'team');
+    assert.deepEqual(both.solo.map(solo => solo.name), ['alice']);
+    // The last team member leaves: the team room still exists, so its lobby snapshot is reported.
+    f.service.detached(c);
+    const after = f.service.watch('B');
+    assert.equal(after.epoch, null);
+    assert.deepEqual(after.members, []);
+    assert.equal(after.lobby.mode, 'team');
+    assert.deepEqual(after.solo.map(solo => solo.name), ['alice']);
+    f.service.detached(a);
+    assert.equal(f.service.watch('B'), null, 'nobody left');
+  } finally { f.service.close(); }
+});
+
+test('retention is stamped by the last socket leaving: exactly 30 s drops the room; a rapid rejoin + leave restarts the clock', () => {
+  const f = setup();
+  const ws = {};
+  try {
+    f.joinSolo(ws, 'alice', { skill: 'one-var-stats' });
+    f.press(ws, ['STAT']);
+    const epoch = f.state(ws).epoch;
+    f.clock(1000); f.service.detached(ws);
+    // No tick saw the leave; the stamp is the leave itself.
+    f.clock(30999); f.service.tick();
+    f.joinSolo(ws, 'alice');
+    assert.equal(f.state(ws).epoch, epoch, 'retained just short of 30 s after the leave');
+    f.clock(31000); f.service.detached(ws);
+    f.clock(60999); f.service.tick();
+    f.joinSolo(ws, 'alice');
+    assert.equal(f.state(ws).epoch, epoch, 'a rejoin cleared the stamp; the leave restarted it');
+    f.service.detached(ws);
+    f.clock(60999 + 30000); f.service.tick();
+    f.joinSolo(ws, 'alice');
+    assert.notEqual(f.state(ws).epoch, epoch, 'exactly 30 s empty: dropped');
+    assert.equal(f.state(ws).step, 0);
+  } finally { f.service.close(); }
+});
