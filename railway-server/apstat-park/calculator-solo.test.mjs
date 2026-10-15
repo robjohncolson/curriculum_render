@@ -337,3 +337,28 @@ test('retention is stamped by the last socket leaving: exactly 30 s drops the ro
     assert.equal(f.state(ws).step, 0);
   } finally { f.service.close(); }
 });
+
+// Codex review R1 (2026-10-15, protocol 13): a completed unpinned round meets an emptied rotation.
+
+test('a completed unpinned round reaching the door with an emptied rotation is answered with waiting; nothing lingers', () => {
+  let levels = [DEFAULT_LEVEL];
+  const f = setup({ available: () => levels });
+  const ws = {};
+  try {
+    f.joinSolo(ws, 'alice');
+    assert.equal(f.state(ws).pinnedSkill, null);
+    f.solve(ws);
+    assert.equal(f.state(ws).complete, true);
+    levels = [];
+    f.send(ws, 'calculator_restart');
+    assert.equal(f.lobby(ws).phase, 'waiting');
+    assert.equal(f.lobby(ws).epoch, null);
+    assert.equal(f.service.watch('B'), null, 'the room is gone');
+    assert.doesNotThrow(() => { f.service.tick(); f.service.detached(ws); f.service.tick(); });
+    assert.equal(f.clears.clearsOf('B', 'alice', DEFAULT_LEVEL.skillId), 1, 'the clear it earned stays');
+    levels = [DEFAULT_LEVEL];
+    f.joinSolo(ws, 'alice');
+    assert.equal(f.state(ws).step, 0, 'a fresh round once a skill is back');
+    assert.deepEqual(f.errors, []);
+  } finally { f.service.close(); }
+});

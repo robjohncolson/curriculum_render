@@ -111,6 +111,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
   // What a solo student sees while the section has no playable skill yet: no epoch, no roster,
   // so an older or newer client neither resets nor joins a round. Nothing is retained for it.
   function soloWaitingSnapshot(who, skillId) {
+    // wallet.view starts the section's store load on first sight (a read; no reward, no write).
     const campaign = wallet.view(who.section);
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: null,
       mode: 'solo', pinnedSkill: pinnedSkillFor(skillId), campaignKeyHolders: Object.keys(campaign.keys),
