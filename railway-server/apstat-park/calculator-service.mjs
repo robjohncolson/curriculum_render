@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, pressMissionKey, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { createCalculatorRuntime, varyLevel } from './calculator-runtime.mjs';
-import { createLobby, advanceLobby, CALCULATOR_PROTOCOL } from './calculator-lobby.mjs';
+import { createLobby, advanceLobby, CALCULATOR_PROTOCOL, TEAM_BLOCK } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
 import { createSnapshotPublisher } from './snapshot-publisher.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
 import { createCalculatorClears, rungFor } from './calculator-clears.mjs';
 
-import { eligibleLevels, schoolDate, createLevelRotation } from './calculator-curriculum.mjs';
+import { eligibleLevels, schoolDate, createLevelRotation, levelById, CALCULATOR_PROBLEMS } from './calculator-curriculum.mjs';
 
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
@@ -20,7 +20,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
   varyData = varyProblems, wallet = null, clears = null, log = (...args) => console.warn(...args) }) {
   wallet ||= createCampaignWallet({ now, log });
   clears ||= createCalculatorClears({ now, log });
-  const rooms = new Map(), bindings = new Map();
+  // rooms: one team room per section. soloRooms (protocol 12, ABSORB_SPEC §3): one room per
+  // student, keyed by section + name; the same round machinery with a roster of one.
+  const rooms = new Map(), soloRooms = new Map(), bindings = new Map();
   const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
   const teacherIn = (room, name) => [...bindings.values()].some(binding => binding.room === room && binding.name === name && binding.teacher);
@@ -52,12 +54,70 @@ export function createCalculatorService({ registry, send, now = () => performanc
     }
     return rooms.get(section);
   }
+  // A solo room's lobby is always active with a roster of one: no block, no pushing, no gathering.
+  function soloLobby(name, time) {
+    return { ...createLobby(time), phase: 'active', x: TEAM_BLOCK.dock, roster: [name] };
+  }
+  // A deep link may pin a skill (ABSORB_SPEC §3, teacher decision 4: the bonus skills are reachable
+  // this way only). Only a catalogue skill id counts; a variant id or an unknown id is ignored.
+  function pinnedSkillFor(skillId) {
+    if (typeof skillId !== 'string') return null;
+    const level = levelById(skillId);
+    return level && level.id === level.skillId ? skillId : null;
+  }
+  // The solo round's problem: a pinned skill plays its catalogue problems in turn (never the same
+  // one twice in a row), with random data like a team round; otherwise the section's rotation.
+  function soloLevel(room) {
+    if (!room.skillId) return nextLevel(room);
+    const variants = CALCULATOR_PROBLEMS.filter(problem => problem.skillId === room.skillId);
+    const fresh = variants.filter(problem => problem.id !== room.lastProblemId);
+    const choices = fresh.length ? fresh : variants;
+    const level = choices[Math.min(choices.length - 1, Math.floor(random() * choices.length))];
+    room.lastProblemId = level.id;
+    return varyData ? varyLevel(level, random) : level;
+  }
+  // The student's solo room, created on the first join. Joining with a different pinned skill
+  // starts a fresh round on it; joining with none, or the same one, resumes the round in progress.
+  function createSoloRound(who, skillId) {
+    const key = JSON.stringify([who.section, who.username]);
+    const pinned = pinnedSkillFor(skillId);
+    if (skillId && !pinned) log('park calculator solo: unknown skill', skillId, 'for', who.username);
+    const existing = soloRooms.get(key);
+    if (existing) {
+      if (pinned && pinned !== existing.skillId) {
+        existing.skillId = pinned;
+        resetRoom(existing, { type: 'door' });
+      }
+      return existing;
+    }
+    const room = {
+      mode: 'solo', name: who.username, epoch: randomUUID(), attempts: new Map(), members: new Map(), touched: now(),
+      failure: null, resetReason: null, lobby: soloLobby(who.username, now()), section: who.section,
+      rotation: createLevelRotation(random, { varyProblems }), keysAwardedEpoch: null, skillId: pinned, lastProblemId: null,
+      level: null,
+    };
+    room.level = soloLevel(room);
+    soloRooms.set(key, room);
+    wallet.ensure(who.section);
+    clears.ensure(who.section);
+    return room;
+  }
+  // Puts the solo student into their round (first join, reconnect, or straight after the door).
+  // A reconnect keeps the attempt and its clock: joining never renews a deadline.
+  function seatSolo(room) {
+    if (room.members.has(room.name)) return;
+    const attempt = attemptFor(room, room.name);
+    room.members.set(room.name, { pose: { x: 70, y: 646 }, at: now(), revision: -1 });
+    attempt.state.holdAt = null;
+  }
   // Teacher 2026-10-07: keys are a spendable count. A completed round pays +1 key to every roster
   // member, once per round (epoch). Persistence and retries live in the wallet.
+  // ABSORB_SPEC §6 (Phase 4) pays the solo clear its key; until then a solo clear counts only
+  // toward the hint rung.
   function awardKeys(room) {
     if (room.keysAwardedEpoch === room.epoch) return;
     room.keysAwardedEpoch = room.epoch;
-    wallet.award(room.section, room.lobby.roster);
+    if (room.mode !== 'solo') wallet.award(room.section, room.lobby.roster);
     // Protocol 10: the same moment counts one clear per student for this round's skill.
     clears.record(room.section, room.lobby.roster, room.level?.skillId);
   }
@@ -82,6 +142,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       online: room.members.has(name), step: attemptFor(room, name).state.step, solved: attemptFor(room, name).state.complete,
     }));
     return { type: 'calculator_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch, ...state, clock: now(),
+      mode: room.mode || 'team', pinnedSkill: room.skillId || null,
       teamSize: room.lobby.roster.length, clears: cleared, rung: rungFor(cleared),
       failure: room.failure, resetReason: room.resetReason,
       solved: state.complete, complete: !room.failure && teamComplete(room),
@@ -104,6 +165,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const lobby = room.lobby;
     const campaign = wallet.view(room.section);
     return { type: 'calculator_lobby_state', protocol: CALCULATOR_PROTOCOL, epoch: room.epoch,
+      mode: room.mode || 'team', pinnedSkill: room.skillId || null,
       // Kept for older desks: the players holding at least one unspent key.
       campaignKeyHolders: Object.keys(campaign.keys),
       // Teacher 2026-10-07 (additive): unspent key counts {name: n > 0}, cleared stage indexes
@@ -119,7 +181,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     const { x, y } = message.pose || {};
     if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1420 || y < 0 || y > WORLD.floor) return null;
     const old = bindings.get(ws);
-    if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
+    // A team packet from a solo-bound socket leaves the solo room first (its member must not linger).
+    if (old && (old.section !== who.section || old.name !== who.username || old.room.mode === 'solo')) detached(ws);
     const room = roomFor(who.section);
     bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
     rtc.optIn(ws, message.rtc === 2, message.rtcGeneration);
@@ -150,7 +213,14 @@ export function createCalculatorService({ registry, send, now = () => performanc
   function resetRoom(room, reason) {
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
     if (reason.type === 'door' || reason.type === 'abandoned') {
-      room.attempts.clear(); room.members.clear(); room.lobby = createLobby(now());
+      room.attempts.clear(); room.members.clear();
+      if (room.mode === 'solo') {
+        // The next solo round starts at once: same pinned skill with new data, or the rotation.
+        room.lobby = soloLobby(room.name, now());
+        room.level = soloLevel(room);
+        return;
+      }
+      room.lobby = createLobby(now());
       room.level = nextLevel(room);
       return;
     }
@@ -201,6 +271,15 @@ export function createCalculatorService({ registry, send, now = () => performanc
         if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
+        if (message.mode === 'solo') {
+          // Protocol 12: the student's own room. No roster gate: the round is theirs by definition.
+          const room = createSoloRound(who, message.skill);
+          if (old && old.room !== room) detached(ws);
+          bindings.set(ws, { room, section: who.section, name: who.username, teacher: who.role === 'teacher' });
+          seatSolo(room);
+          room.touched = now(); broadcast(room); return null;
+        }
+        if (old?.room.mode === 'solo') detached(ws);
         const room = roomFor(who.section);
         // Teacher decision 2026-10-06: the teacher joins a round only from the roster, like everyone.
         if (room.lobby.phase !== 'active' || !room.lobby.roster.includes(who.username)) {
@@ -238,6 +317,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         // Teacher decision 2026-10-06: the teacher's restart follows the team rule (no private practice reset).
         if (!teamComplete(room)) return null;
         resetRoom(room, { type: 'door' });
+        // The solo student is standing at the door: the next round starts without a rejoin.
+        if (room.mode === 'solo') seatSolo(room);
         broadcast(room); return null;
       }
       if (message.type === 'calculator_press') {
@@ -266,6 +347,24 @@ export function createCalculatorService({ registry, send, now = () => performanc
     // Wallet rows are written from the tick, so they are retried even after the team left.
     wallet.flush();
     clears.flush();
+    for (const [key, room] of soloRooms) {
+      // A solo room with nobody in it for 30 s is dropped (a reload or a brief disconnect survives).
+      if (!room.members.has(room.name)) {
+        room.emptyTeamAt ??= now();
+        if (now() - room.emptyTeamAt >= 30000) soloRooms.delete(key);
+        continue;
+      }
+      room.emptyTeamAt = null;
+      const time = now();
+      if (room.failure && time >= room.failure.until) {
+        resetRoom(room, { type: 'timeout', name: room.failure.name });
+        broadcast(room); continue;
+      }
+      if (checkDeadline(room, time)) { broadcast(room); continue; }
+      const { state, engine } = attemptFor(room, room.name);
+      if (!state.complete) advanceMission(state, [room.members.get(room.name)], time, engine.transitions(state), key => engine.isWrongKey(state, key));
+      broadcast(room);
+    }
     for (const [section, room] of rooms) {
       const emptyTeam = room.lobby.phase === 'active' ? !room.lobby.roster.some(name => room.members.has(name))
         : room.lobby.phase === 'assembling' && room.lobby.roster.every(name => !room.lobby.members.has(name));
@@ -314,7 +413,11 @@ export function createCalculatorService({ registry, send, now = () => performanc
       if (!room || (!room.members.size && !room.lobby.members.size)) return null;
       return { epoch: room.epoch, clock: now(), level: room.level, lobby: lobbySnapshot(room), failure: room.failure,
         members: [...room.members].map(([name, member]) => ({ name, pose: member.pose,
-          state: room.attempts.get(name)?.state || null })) };
+          state: room.attempts.get(name)?.state || null })),
+        // Protocol 12: the section's solo rounds in progress.
+        solo: [...soloRooms.values()].filter(solo => solo.section === section && solo.members.size)
+          .map(solo => ({ name: solo.name, epoch: solo.epoch, level: solo.level, failure: solo.failure,
+            state: solo.attempts.get(solo.name)?.state || null })) };
     },
-    close() { clearInterval(timer); rooms.clear(); bindings.clear(); } };
+    close() { clearInterval(timer); rooms.clear(); soloRooms.clear(); bindings.clear(); } };
 }

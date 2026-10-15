@@ -6,7 +6,10 @@ export const TEAM_BLOCK = { start: 400, dock: 1060, y: 668, w: 32, h: 32, speed:
 // round's random data (problem) and wrong-key presses (lastPress.wrong/penaltyMs).
 // 11 (2026-10-12): the randIntNoRep skills are templated per round, so problem carries the round's
 // route and hints (an older client would replay the catalogue route against the new numbers).
-export const CALCULATOR_PROTOCOL = 11;
+// 12 (2026-10-15, APSTAT_PARK_TRAINER_ABSORB_SPEC §3): the solo room. calculator_join carries
+// mode: 'solo' and an optional skill; calculator_state and calculator_lobby_state carry mode and
+// pinnedSkill. A solo round has a roster of one and no team block.
+export const CALCULATOR_PROTOCOL = 12;
 
 export function createLobby(now) {
   return { phase: 'gathering', x: TEAM_BLOCK.start, pushers: [], roster: [], members: new Map(), lastTick: now };
