@@ -23,6 +23,20 @@ export function createCalculatorService({ registry, send, now = () => performanc
   // rooms: one team room per section. soloRooms (protocol 12, ABSORB_SPEC §3): one room per
   // student, keyed by section + name; the same round machinery with a roster of one.
   const rooms = new Map(), soloRooms = new Map(), bindings = new Map();
+  // Codex P2 (2026-10-15): a page already open on an older protocol keeps retrying its join and
+  // cannot be patched. Answer the first mismatch with the reload error, then drop (do not answer)
+  // further mismatched packets from that socket for STALE_MS. The Desk's version.json nudge
+  // (banner within 5 min / on refocus) is what refreshes the open page; the protocol-13 stamp
+  // bump already triggers it. Keyed weakly: a closed socket takes its entry with it.
+  const STALE_MS = 10000;
+  const staleUntil = new WeakMap();
+  // true: current protocol. false: a mismatch already answered, drop this packet. Throws the first time.
+  function checkProtocol(ws, message) {
+    if (message.protocol === CALCULATOR_PROTOCOL) return true;
+    if (now() < (staleUntil.get(ws) || 0)) return false;
+    staleUntil.set(ws, now() + STALE_MS);
+    throw new Error('Reload the page to use the team block.');
+  }
   const publish = createSnapshotPublisher({ send, now });
   const rtc = createCalculatorRtc({ bindings, registry, send, now });
   const teacherIn = (room, name) => [...bindings.values()].some(binding => binding.room === room && binding.name === name && binding.teacher);
@@ -195,7 +209,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       members: [...lobby.members].map(([name, member]) => ({ name, ...member })), rtcPeers: rtc.peers(room) };
   }
   function receiveLobby(ws, who, message) {
-    if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
+    if (!checkProtocol(ws, message)) return null;
     const { x, y } = message.pose || {};
     if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1420 || y < 0 || y > WORLD.floor) return null;
     const old = bindings.get(ws);
@@ -288,7 +302,7 @@ export function createCalculatorService({ registry, send, now = () => performanc
       if (message.type === 'calculator_leave') { detached(ws); return null; }
       if (message.type === 'calculator_lobby') return receiveLobby(ws, who, message);
       if (message.type === 'calculator_join') {
-        if (message.protocol !== CALCULATOR_PROTOCOL) throw new Error('Reload the page to use the team block.');
+        if (!checkProtocol(ws, message)) return null;
         const old = bindings.get(ws);
         if (old && (old.section !== who.section || old.name !== who.username)) detached(ws);
         if (message.mode === 'solo') {

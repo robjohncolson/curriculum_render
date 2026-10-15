@@ -216,14 +216,35 @@ test('walking to the team block leaves the solo room; an empty solo room is drop
   } finally { f.service.close(); }
 });
 
-test('an older client is told to reload', () => {
+test('an older client is told to reload once, then its mismatched packets are dropped for 10 s (Codex P2)', () => {
   const f = setup();
-  const ws = {};
+  const ws = {}, other = {};
+  const oldJoin = { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL - 1, mode: 'solo', skill: 'one-var-stats' };
+  const oldLobby = { type: 'calculator_lobby', protocol: CALCULATOR_PROTOCOL - 1, pose: { x: 100, y: 676 }, pushing: false };
   try {
     f.registry.join(ws, 'B', 'alice', 'student', 0);
-    const reply = f.service.handle(ws, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL - 1, mode: 'solo', skill: 'one-var-stats' });
+    f.registry.join(other, 'B', 'bob', 'student', 0);
+    const reply = f.service.handle(ws, oldJoin);
     assert.equal(reply.type, 'calculator_error');
     assert.match(reply.message, /Reload/);
+    // The open page retries every 1.5 s: nothing is answered, nothing is bound.
+    for (const t of [1500, 3000, 4500, 9999]) {
+      f.clock(t);
+      assert.equal(f.service.handle(ws, oldJoin), null, 'join at ' + t + ' ms dropped');
+      assert.equal(f.service.handle(ws, oldLobby), null, 'lobby packet at ' + t + ' ms dropped');
+    }
+    assert.equal(f.state(ws), undefined);
+    assert.equal(f.lobby(ws), undefined);
+    // Another socket is answered on its own first mismatch.
+    assert.equal(f.service.handle(other, oldJoin).type, 'calculator_error');
+    // After the window the reminder is sent once more.
+    f.clock(10000);
+    assert.equal(f.service.handle(ws, oldJoin).type, 'calculator_error');
+    f.clock(10001);
+    assert.equal(f.service.handle(ws, oldJoin), null);
+    // A current-protocol join on the same socket is never held back by the window.
+    assert.equal(f.service.handle(ws, { ...oldJoin, protocol: CALCULATOR_PROTOCOL }), null);
+    assert.equal(f.state(ws).mode, 'solo', 'the reloaded page plays at once');
   } finally { f.service.close(); }
 });
 
