@@ -67,7 +67,7 @@ test('a solo join starts a round on the pinned skill at once: roster of one, no 
   } finally { f.service.close(); }
 });
 
-test('solving the route alone completes the round, records one clear, and pays no key yet (§6 is Phase 4)', () => {
+test('solving the route alone completes the round, records one clear, and pays one key (§6, Phase 4)', () => {
   const f = setup();
   const ws = {};
   try {
@@ -84,7 +84,7 @@ test('solving the route alone completes the round, records one clear, and pays n
     assert.equal(done.clears, 1, 'the completing packet already counts this clear');
     assert.equal(done.rung, 1);
     assert.equal(f.clears.clearsOf('B', 'alice', 'one-var-stats'), 1);
-    assert.deepEqual(f.wallet.view('B').keys, {}, 'no key for a solo clear until Phase 4');
+    assert.deepEqual(f.wallet.view('B').keys, { alice: 1 }, 'Phase 4: a solo clear pays its key through the wallet');
     f.service.tick();
     assert.equal(f.clears.clearsOf('B', 'alice', 'one-var-stats'), 1, 'the tick does not count it twice');
   } finally { f.service.close(); }

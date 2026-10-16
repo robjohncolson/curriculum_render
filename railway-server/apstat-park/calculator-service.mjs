@@ -172,12 +172,11 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   // Teacher 2026-10-07: keys are a spendable count. A completed round pays +1 key to every roster
   // member, once per round (epoch). Persistence and retries live in the wallet.
-  // ABSORB_SPEC §6 (Phase 4) pays the solo clear its key; until then a solo clear counts only
-  // toward the hint rung.
+  // ABSORB_SPEC §6 (Phase 4): a solo clear pays its key through the same path (roster of one).
   function awardKeys(room) {
     if (room.keysAwardedEpoch === room.epoch) return;
     room.keysAwardedEpoch = room.epoch;
-    if (room.mode !== 'solo') wallet.award(room.section, room.lobby.roster);
+    wallet.award(room.section, room.lobby.roster);
     // Protocol 15 (§5): the same moment advances every member's recall record for this skill, at
     // the quality of their own attempt and the hint rung they played at (before this clear counts).
     const skillId = room.level?.skillId, today = schoolDate(wallNow());
