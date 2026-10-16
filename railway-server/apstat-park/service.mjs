@@ -3,6 +3,7 @@ import { createCalculatorService } from './calculator-service.mjs';
 import { createCampaignService } from './campaign-service.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
 import { createCalculatorClears } from './calculator-clears.mjs';
+import { createCalculatorSrs } from './calculator-srs-state.mjs';
 import { ParkSession } from './session.mjs';
 import { createParkRegistry, eligibleParkLevels, parkSection, SHARED_PARK } from './shared-classroom.mjs';
 import { PARK_PROTOCOL, PARK_LEVEL_COUNT, parkLevelMinProtocol } from './levels.mjs';
@@ -18,15 +19,18 @@ const ABANDON_MS = 3 * 60 * 1000;   // a room empty this long (dropped sockets, 
 // One wallet (keys, cleared stages, open stages) is shared by the calculator and campaign services.
 // clearsStore: optional calculator-clears store (calculator-clears-store.mjs); without one the hint
 // rungs' clear counts are memory-only.
+// srsStore: optional spaced-recall store (calculator-srs-store.mjs, migration 0009); without one the
+// records are memory-only. onMastery: see createCalculatorService (the bonus-point hook, §6).
 export function createParkService({ registry, send, now = () => performance.now(), wallNow = () => Date.now(), calculatorOptions = {}, keyStore = null,
-  clearsStore = null }) {
+  clearsStore = null, srsStore = null, onMastery = undefined }) {
   const classrooms = registry;
   registry = createParkRegistry(classrooms);
   const rooms = new Map(), bindings = new Map();
   const logOption = calculatorOptions.log ? { log: calculatorOptions.log } : {};
   const wallet = createCampaignWallet({ store: keyStore, now, ...logOption });
   const clears = createCalculatorClears({ store: clearsStore, now, ...logOption });
-  const calculator = createCalculatorService({ wallet, clears, ...calculatorOptions, registry, send, now, wallNow,
+  const srs = createCalculatorSrs({ store: srsStore, now, ...logOption });
+  const calculator = createCalculatorService({ wallet, clears, srs, ...(onMastery ? { onMastery } : {}), ...calculatorOptions, registry, send, now, wallNow,
     available: (section, date) => eligibleParkLevels(section, date, calculatorOptions.available),
     varyProblems: calculatorOptions.varyProblems ?? !calculatorOptions.available });
   const campaign = createCampaignService({ registry, send, now, wallet, canEnter: who => calculator.canEnterCampaign(who) });
@@ -108,7 +112,11 @@ export function createParkService({ registry, send, now = () => performance.now(
   }, 250);
   maintenance.unref?.();
 
-  return {
+  // Protocol 15: the Desk's due list (GET /park/calc/due). The Desk names its classroom section
+  // (PeriodB / PeriodE); the records live under the shared park room key, like clears and keys.
+  function calcDue(section, username, todaySkills) { return calculator.due(parkSection(section), username, todaySkills); }
+  function calcRecall(section, username) { return calculator.recall(parkSection(section), username); }
+  return { calcDue, calcRecall,
     accepts: message => types.has(message?.type) || calculator.accepts(message) || campaign.accepts(message),
     handle(ws, message) {
       if (calculator.accepts(message)) return calculator.handle(ws, message);

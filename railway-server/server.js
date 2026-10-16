@@ -11,6 +11,7 @@ import { createClassroomRegistry } from './classroom.js';
 import { createParkService } from './apstat-park/service.mjs';
 import { createSupabaseKeyStore } from './apstat-park/campaign-key-store.mjs';
 import { createSupabaseClearsStore } from './apstat-park/calculator-clears-store.mjs';
+import { createSupabaseSrsStore } from './apstat-park/calculator-srs-store.mjs';
 import { createKeyGrantHandler } from './apstat-park/campaign-key-grant.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
@@ -205,6 +206,18 @@ const classroomPark = createParkService({
   keyStore: parkKeyStore,
   // Calculator clears behind the hint rungs persist in park_calc_clears (migration 0008), same client.
   clearsStore: createSupabaseClearsStore(quizReviewsSupabase),
+  // Calculator spaced-recall records persist in park_calc_srs (migration 0009), same client.
+  srsStore: createSupabaseSrsStore(quizReviewsSupabase),
+});
+// APSTAT_PARK_TRAINER_ABSORB_SPEC §5: the student's due calculator skills (most overdue first) and
+// today's skills (the Desk resolves its lesson-map topics and passes skill ids). Read-only; the
+// same identity the park itself trusts (section + username, no grades).
+app.get('/park/calc/due', (req, res) => {
+  const section = String(req.query.section || '').trim(), username = String(req.query.username || '').trim();
+  if (!section || !username) return res.status(400).json({ ok: false, error: 'section and username required' });
+  const skills = String(req.query.skills || '').split(',').map(s => s.trim()).filter(Boolean);
+  try { res.json({ ok: true, ...classroomPark.calcDue(section, username, skills) }); }
+  catch (error) { res.status(500).json({ ok: false, error: error.message }); }
 });
 // A campaign key bought with candy: roster-server calls this server-to-server after debiting the
 // candy (shared secret PARK_KEY_GRANT_SECRET; idempotent on receiptId). Migration 0006.

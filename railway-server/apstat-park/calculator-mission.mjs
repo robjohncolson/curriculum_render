@@ -102,7 +102,10 @@ export function createMission(now, level = DEFAULT_LEVEL, recognition = null) {
   return { missionId: level.id, step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
     bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
     timeoutCount: 0, hintKeys: [], boxValues: [], boxAttempts: 0, lastPlot: null,
-    problem, lastPenaltyAt: null, recognition: recognition ? { ...recognition } : null };
+    problem, lastPenaltyAt: null, recognition: recognition ? { ...recognition } : null,
+    // Protocol 15 (ABSORB_SPEC §5): wrong keys this round, for the recall quality (the relay
+    // carries it and timeoutCount across a time-up restart).
+    wrongKeys: 0 };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
 // isWrong(key): the relay engine's wrong-key judgment (engine.isWrongKey), see pressMissionKey.
@@ -172,7 +175,7 @@ export function pressMissionKey(state, key, now, transitions = {}, isWrong = () 
   const wrong = nextStep == null && !NEVER_WRONG.has(key) && isWrong(key);
   if (state.step < ROUTE.length) state.keys.push(key);
   state.lastPress = { key, advanced: nextStep != null };
-  if (wrong) Object.assign(state.lastPress, { wrong: true, penaltyMs: chargeWrongKey(state, now) });
+  if (wrong) { Object.assign(state.lastPress, { wrong: true, penaltyMs: chargeWrongKey(state, now) }); state.wrongKeys = (state.wrongKeys || 0) + 1; }
   state.revision++;
   state.holdAt = null;
   state.holdStep = null;
