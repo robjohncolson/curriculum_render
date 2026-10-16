@@ -19,7 +19,10 @@ export const TEAM_BLOCK = { start: 400, dock: 1060, y: 668, w: 32, h: 32, speed:
 // 15 (2026-10-16, APSTAT_PARK_TRAINER_ABSORB_SPEC §5): spaced recall. calculator_state carries
 // wrongKeys (and timeoutCount survives a time-up restart) and, once complete, review (quality,
 // next review, mastered); a solo join with no skill opens the first due skill.
-export const CALCULATOR_PROTOCOL = 15;
+// 16 (2026-10-16, APSTAT_PARK_TRAINER_ABSORB_SPEC §7): the handheld check. After a solo clear
+// calculator_state carries handheld ({ label, attempts, status }); the client sends
+// calculator_handheld { value }; a pass masters the skill.
+export const CALCULATOR_PROTOCOL = 16;
 
 export function createLobby(now) {
   return { phase: 'gathering', x: TEAM_BLOCK.start, pushers: [], roster: [], members: new Map(), lastTick: now };

@@ -105,7 +105,10 @@ export function createMission(now, level = DEFAULT_LEVEL, recognition = null) {
     problem, lastPenaltyAt: null, recognition: recognition ? { ...recognition } : null,
     // Protocol 15 (ABSORB_SPEC §5): wrong keys this round, for the recall quality (the relay
     // carries it and timeoutCount across a time-up restart).
-    wrongKeys: 0 };
+    wrongKeys: 0,
+    // Protocol 16 (§7): the handheld check after a solo clear, set by the relay at completion:
+    // { label, attempts, status: null | 'passed' | 'failed' }. null = not offered.
+    handheld: null };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
 // isWrong(key): the relay engine's wrong-key judgment (engine.isWrongKey), see pressMissionKey.

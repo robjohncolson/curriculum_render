@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { createMission, advanceMission, pressMissionKey, pickRecognition, recognitionPending, WORLD, timeLimitFor } from './calculator-mission.mjs';
+import { createMission, advanceMission, pressMissionKey, pickRecognition, recognitionPending, missionFor, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { recognitionFor } from './calculator-recognition.mjs';
+import { handheldFor, handheldMatches, HANDHELD_ATTEMPTS } from './calculator-handheld.mjs';
 import { createCalculatorRuntime, varyLevel } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL, TEAM_BLOCK } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
@@ -12,7 +13,7 @@ import { qualityFor, isMasteryClear } from './calculator-srs.mjs';
 
 import { eligibleLevels, schoolDate, createLevelRotation, levelById, CALCULATOR_PROBLEMS } from './calculator-curriculum.mjs';
 
-const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_pick', 'calculator_recognition', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
+const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_pick', 'calculator_recognition', 'calculator_handheld', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
 // Independent rooms on the existing classroom connection. No grade writes.
 // wallet (campaign-wallet.mjs): campaign key counts, cleared stages and open stages, shared with
@@ -188,13 +189,37 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const mastery = isMasteryClear({ solo: room.mode === 'solo', rung, quality });
       const result = srs.record(room.section, name, skillId, quality, today, { mastery });
       attempt.review = { quality, rung, ...result?.record, masteredNow: result?.masteredNow === true };
-      if (result?.masteredNow) {
-        try { onMastery({ section: room.section, username: name, skillId }); }
-        catch (error) { log('park calculator mastery hook failed for', name, skillId, error?.message || error); }
-      }
+      if (result?.masteredNow) notifyMastery(room, name, skillId);
+      // Protocol 16 (§7): a solo clear may go on to the handheld check (the round's first numeric
+      // result, judged here with the trainer's tolerance). Not offered once the skill is mastered.
+      const prompt = room.mode === 'solo' && !attempt.review.mastered ? handheldFor(room.level) : null;
+      attempt.state.handheld = prompt ? { label: prompt.label, attempts: 0, status: null } : null;
     }
     // Protocol 10: the same moment counts one clear per student for this round's skill.
     clears.record(room.section, room.lobby.roster, room.level?.skillId);
+  }
+  function notifyMastery(room, name, skillId) {
+    try { onMastery({ section: room.section, username: name, skillId }); }
+    catch (error) { log('park calculator mastery hook failed for', name, skillId, error?.message || error); }
+  }
+  // §7: the typed handheld result. Pass: the skill is mastered (first time pays the bonus point).
+  // Fail: one retry, then the check closes and nothing is recorded.
+  function receiveHandheld(room, binding, message) {
+    const attempt = attemptFor(room, binding.name), state = attempt.state;
+    if (room.mode !== 'solo' || !state.complete || !state.handheld || state.handheld.status) return false;
+    const prompt = handheldFor(missionFor(state));
+    if (!prompt) return false;
+    if (handheldMatches(message.value, prompt.expected)) {
+      state.handheld = { ...state.handheld, status: 'passed', attempts: state.handheld.attempts + 1 };
+      const result = srs.master(room.section, binding.name, room.level?.skillId, schoolDate(wallNow()));
+      attempt.review = { ...(attempt.review || {}), ...(result?.record || {}), mastered: true, masteredNow: result?.masteredNow === true };
+      if (result?.masteredNow) notifyMastery(room, binding.name, room.level?.skillId);
+    } else {
+      const attempts = state.handheld.attempts + 1;
+      state.handheld = { ...state.handheld, attempts, status: attempts >= HANDHELD_ATTEMPTS ? 'failed' : null };
+    }
+    state.revision++;
+    return true;
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
@@ -427,6 +452,12 @@ export function createCalculatorService({ registry, send, now = () => performanc
           // The solo student is standing at the door: the next round starts without a rejoin.
           seatSolo(room);
         }
+        broadcast(room); return null;
+      }
+      if (message.type === 'calculator_handheld') {
+        if (!receiveHandheld(room, binding, message)) return null;
+        room.members.get(binding.name).at = now();
+        room.touched = now();
         broadcast(room); return null;
       }
       if (message.type === 'calculator_pick') {
