@@ -1,4 +1,5 @@
 const { DEFAULT_LEVEL, levelById, challengeFor, answerTiles, answerValue, answerMatches, feedbackFor } = await import('./calculator-curriculum.mjs' + new URL(import.meta.url).search);
+const { discriminatorFor, skillTitle } = await import('./calculator-recognition.mjs' + new URL(import.meta.url).search);
 // A round with random data (protocol 10) carries its own values/setup/computed/finalView/stem in
 // state.problem; they replace the catalogue's for that round (APSTAT_PARK_CALCULATOR_FLUENCY_SPEC §2).
 export function missionFor(state) {
@@ -53,7 +54,31 @@ KEYS.push({ key: 'DOWN', x: 455, y: 398, w: 76, h: 26 });
 export const ANSWERS = [14, 4, 20, 7, 11].map((value, i) => ({
   key: String(value), x: 110 + i * 108, y: 600, w: 94, h: 30,
 }));
-export function tilesFor(step, level = DEFAULT_LEVEL) {
+// Protocol 14 (ABSORB_SPEC §4): the recognition step before the route. state.recognition is
+// null (no step) or { skill, stem, options: [4 skillIds], picked, correct, message }; while
+// `picked` is null the round shows the word problem and four procedure tiles, no keypad, no clock.
+export const recognitionPending = state => !!state?.recognition && !state.recognition.picked;
+// Two rows of two wide tiles where the answer choices go (climbable like them).
+export function recognitionTiles(recognition) {
+  return (recognition?.options || []).map((key, i) => ({ key, label: skillTitle(key),
+    x: 60 + (i % 2) * 320, y: 570 + Math.floor(i / 2) * 34, w: 300, h: 30 }));
+}
+// The relay judges the pick: right or wrong, the route then starts on the round's own skill, and
+// the clock starts now (a wrong pick is remembered on the state for the SRS quality and the
+// one-sentence discriminator it is told). false: nothing pending, or not one of the tiles.
+export function pickRecognition(state, skillId, now) {
+  if (!recognitionPending(state) || !state.recognition.options.includes(skillId)) return false;
+  const recognition = state.recognition;
+  recognition.picked = skillId;
+  recognition.correct = skillId === recognition.skill;
+  recognition.message = recognition.correct ? null : discriminatorFor(recognition.skill, skillId);
+  state.revision++;
+  state.startedAt = now;
+  state.holdAt = null; state.holdStep = null;
+  return true;
+}
+export function tilesFor(step, level = DEFAULT_LEVEL, recognition = null) {
+  if (recognition && !recognition.picked) return recognitionTiles(recognition);
   if (step < level.route.length) return KEYS;
   if (level.id === 'one-var-stats' && !level.varied) return ANSWERS;
   return answerTiles(level, Math.min(step - level.route.length, challengeFor(level).answers.length - 1));
@@ -61,29 +86,30 @@ export function tilesFor(step, level = DEFAULT_LEVEL) {
 export function expectedAt(step, level = DEFAULT_LEVEL) {
   return step < level.route.length ? level.route[step] : String(challengeFor(level).answers[step - level.route.length]);
 }
-export function tileAt(pose, step, level = DEFAULT_LEVEL) {
+export function tileAt(pose, step, level = DEFAULT_LEVEL, recognition = null) {
   if (!pose || !Number.isFinite(pose.x) || !Number.isFinite(pose.y)) return null;
-  return tilesFor(step, level).find(tile => pose.x + 10 >= tile.x && pose.x + 10 <= tile.x + tile.w
+  return tilesFor(step, level, recognition).find(tile => pose.x + 10 >= tile.x && pose.x + 10 <= tile.x + tile.w
     && Math.abs(pose.y + 24 - tile.y) <= 5)?.key ?? null;
 }
 // problem: the round's random data (a varied level from calculator-variation.mjs), else null.
 // Protocol 11: it also carries the round's route and hints (a templated randIntNoRep round types
 // different digits), and goals when the variation rewrote the goal phrases.
-export function createMission(now, level = DEFAULT_LEVEL) {
+// recognition: the round's recognition step (calculator-recognition.mjs recognitionFor), or null.
+export function createMission(now, level = DEFAULT_LEVEL, recognition = null) {
   const problem = level.varied ? { values: level.values, setup: level.setup, computed: level.computed,
     finalView: level.finalView, stem: level.stem, route: level.route, hints: level.hints,
     ...(level.goals ? { goals: level.goals } : {}) } : null;
   return { missionId: level.id, step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
     bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
     timeoutCount: 0, hintKeys: [], boxValues: [], boxAttempts: 0, lastPlot: null,
-    problem, lastPenaltyAt: null };
+    problem, lastPenaltyAt: null, recognition: recognition ? { ...recognition } : null };
 }
 // Relay clock only. A stale pose never counts as somebody still holding a key.
 // isWrong(key): the relay engine's wrong-key judgment (engine.isWrongKey), see pressMissionKey.
 export function advanceMission(state, members, now, transitions = {}, isWrong = () => false) {
   const level = missionFor(state), ROUTE = level.route, SUMMARY = challengeFor(level).answers;
   // The room owns timeout deaths and team resets. Input never renews an expired timer.
-  if (state.complete || now - state.startedAt >= timeLimitFor(state)) return false;
+  if (recognitionPending(state) || state.complete || now - state.startedAt >= timeLimitFor(state)) return false;
   const valid = state.step < ROUTE.length ? transitions : { [expectedAt(state.step, level)]: state.step + 1 };
   const key = tileAt(members[0]?.pose, state.step, level);
   const nextStep = valid[key];
@@ -116,7 +142,7 @@ function chargeWrongKey(state, now) {
 // (older callers, the client) no press is ever wrong.
 export function pressMissionKey(state, key, now, transitions = {}, isWrong = () => false) {
   const level = missionFor(state), ROUTE = level.route, SUMMARY = challengeFor(level).answers;
-  if (state.complete || now - state.startedAt >= timeLimitFor(state)
+  if (recognitionPending(state) || state.complete || now - state.startedAt >= timeLimitFor(state)
     || !tilesFor(state.step, level).some(tile => tile.key === key)) return false;
   if (state.step >= ROUTE.length) {
     // Numeric questions keep numbers; category questions keep the chosen key.

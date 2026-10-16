@@ -17,23 +17,31 @@ function setup({ varyData = false, available = () => [DEFAULT_LEVEL] } = {}) {
   const clears = createCalculatorClears({ now: () => time, log: () => {} });
   const service = createCalculatorService({ registry, now: () => time, available, varyData, wallet, clears, log: () => {},
     send: (ws, packet) => (packet.type === 'calculator_lobby_state' ? lobbies : packets).set(ws, packet) });
+  // Protocol 14: a solo round opens with the recognition step; these tests are about the route, so
+  // the fixture answers it with the round's own skill (calculator-recognition.test.mjs covers it).
+  function pick(ws) {
+    const state = packets.get(ws);
+    if (!state?.recognition || state.recognition.picked) return;
+    service.handle(ws, { type: 'calculator_pick', epoch: state.epoch, revision: state.revision, skill: levelById(state.missionId).skillId });
+  }
   function joinSolo(ws, name, extra = {}) {
     registry.join(ws, 'B', name, 'student', time);
     const reply = service.handle(ws, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL, mode: 'solo', ...extra });
     if (reply) errors.push(reply);
+    else pick(ws);
     return reply;
   }
   function send(ws, type, extra = {}) {
     const state = packets.get(ws);
     return service.handle(ws, { type, epoch: state.epoch, revision: state.revision, ...extra });
   }
-  const press = (ws, keys) => { for (const key of keys) send(ws, 'calculator_press', { key }); };
+  const press = (ws, keys) => { pick(ws); for (const key of keys) send(ws, 'calculator_press', { key }); };
   const pose = ws => send(ws, 'calculator_pose', { pose: { x: 70, y: 676 }, ready: false });
   const solve = (ws) => {
     const level = missionFor(packets.get(ws));
     press(ws, [...level.route, ...challengeFor(level).answers.map(String)]);
   };
-  return { service, registry, wallet, clears, joinSolo, send, press, pose, solve, errors,
+  return { service, registry, wallet, clears, joinSolo, pick, send, press, pose, solve, errors,
     state: ws => packets.get(ws), lobby: ws => lobbies.get(ws), clock: value => { time = value; }, time: () => time };
 }
 

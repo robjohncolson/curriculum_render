@@ -225,7 +225,7 @@ test('message shapes are additive: old campaign_state and lobby fields are uncha
     const before = packets.get(a).lobby;
     assert.deepEqual(Object.keys(before).filter(key => OLD_LOBBY_FIELDS.includes(key)), OLD_LOBBY_FIELDS);
     // Protocol 12 (2026-10-15): mode and pinnedSkill name the room (team or a student's solo round).
-    assert.deepEqual(Object.keys(before).filter(key => !OLD_LOBBY_FIELDS.includes(key)), ['mode', 'pinnedSkill', 'campaignKeys', 'campaignCleared', 'campaignOpen']);
+    assert.deepEqual(Object.keys(before).filter(key => !OLD_LOBBY_FIELDS.includes(key)), ['mode', 'pinnedSkill', 'recognition', 'campaignKeys', 'campaignCleared', 'campaignOpen']);
     assert.deepEqual([before.campaignKeyHolders, before.campaignKeys, before.campaignCleared, before.campaignOpen], [[], {}, {}, [0]]);
     earnCampaignKey(service, [a, b], packets, advance);
     advance(100);

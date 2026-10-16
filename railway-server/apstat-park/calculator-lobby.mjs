@@ -12,7 +12,11 @@ export const TEAM_BLOCK = { start: 400, dock: 1060, y: 668, w: 32, h: 32, speed:
 // 13 (2026-10-15, Codex review R1): a solo join with no playable skill is answered with
 // calculator_lobby_state phase 'waiting' (epoch null), which the client treats as a terminal
 // reset of its round; a protocol-12 page kept stale round state and showed reconnect copy.
-export const CALCULATOR_PROTOCOL = 13;
+// 14 (2026-10-15, APSTAT_PARK_TRAINER_ABSORB_SPEC §4): the recognition step. calculator_state
+// carries recognition (word problem, four procedure tiles, the pick and its verdict), the client
+// sends calculator_pick, the lobby carries recognition (room toggle); an older client would show a
+// keypad with no clock running and never see the tiles.
+export const CALCULATOR_PROTOCOL = 14;
 
 export function createLobby(now) {
   return { phase: 'gathering', x: TEAM_BLOCK.start, pushers: [], roster: [], members: new Map(), lastTick: now };
