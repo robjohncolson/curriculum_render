@@ -107,21 +107,25 @@ test('no keypad and no clock while the word problem is open; the pick starts the
   } finally { f.service.close(); }
 });
 
-test('a wrong pick is told the discriminating signal in one sentence; the route still starts on the right skill', () => {
+test('a wrong pick is told the discriminating signal in one sentence; solo branches, then the right skill plays', () => {
   const f = setup();
   const ws = {};
   try {
     f.joinSolo(ws, 'alice', 'one-propztest');
     f.pick(ws, 't-test-stats');
-    const state = f.state(ws);
-    assert.equal(state.recognition.correct, false);
-    assert.equal(state.recognition.picked, 't-test-stats');
-    assert.equal(state.recognition.message, 'This asks about a proportion, not a mean.');
-    assert.equal(levelById(state.missionId).skillId, 'one-propztest', 'the round stays on its own skill');
-    const level = missionFor(state);
+    // ABSORB_2 §1: a solo wrong pick plays the picked skill once (calculator-branch.test.mjs).
+    const branch = f.state(ws);
+    assert.equal(branch.branch.message, 'This asks about a proportion, not a mean.');
+    assert.equal(levelById(branch.missionId).skillId, 't-test-stats');
+    const branchLevel = missionFor(branch);
+    f.press(ws, [...branchLevel.route, ...challengeFor(branchLevel).answers.map(String)]);
+    const back = f.state(ws);
+    assert.equal(levelById(back.missionId).skillId, 'one-propztest', 'the original round comes back');
+    f.pick(ws, 'one-propztest');
+    const level = missionFor(f.state(ws));
     f.press(ws, [...level.route, ...challengeFor(level).answers.map(String)]);
     assert.equal(f.state(ws).complete, true, 'clearable after a wrong pick');
-    assert.equal(f.state(ws).recognition.correct, false, 'the wrong pick is remembered on the round (SRS quality, Phase 3)');
+    assert.equal(f.state(ws).recognition.branches, 1, 'the branch is remembered on the round (SRS quality)');
   } finally { f.service.close(); }
 });
 

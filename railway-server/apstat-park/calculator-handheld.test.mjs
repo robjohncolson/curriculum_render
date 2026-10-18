@@ -30,8 +30,17 @@ test('handheldMatches: the trainer\'s tolerance (any rounding at the typed decim
   assert.equal(handheldMatches('abc', 3), false);
   assert.equal(handheldMatches('0.004', 0), true);
   assert.equal(handheldMatches('0.01', 0), false);
-  assert.deepEqual(handheldFor(DEFAULT_LEVEL), { label: 'Minimum', expected: 4 });
   assert.deepEqual(handheldFor(levelById('one-propztest')).label, 'z statistic');
+});
+
+test('handheldFor (ABSORB_2 §4): up to three labelled numeric answers; a reject decision is never asked', () => {
+  assert.deepEqual(handheldFor(DEFAULT_LEVEL), { label: 'Minimum', fields: [{ label: 'Minimum', expected: 4 }, { label: 'Q1', expected: 7 }, { label: 'Median', expected: 11 }] });
+  const labels = id => handheldFor(levelById(id)).fields.map(field => field.label);
+  assert.deepEqual(labels('t-test-data'), ['t statistic', 'p-value'], 'the challenge has no df; "Reject H0?" is not a calculator reading');
+  assert.deepEqual(handheldFor(levelById('t-test-data')).fields.map(field => field.expected), [2.679, 0.010724]);
+  assert.deepEqual(labels('t-interval-data'), ['Lower bound', 'Upper bound']);
+  assert.deepEqual(labels('histogram'), ['55 to <65', '65 to <75', '75 to <85']);
+  assert.deepEqual(labels('normalcdf'), ['Probability']);
 });
 
 function setup({ clearsSeed = 0 } = {}) {
@@ -58,9 +67,10 @@ function setup({ clearsSeed = 0 } = {}) {
     pick(ws);
   }
   const solve = ws => { pick(ws); const level = missionFor(packets.get(ws)); for (const key of [...level.route, ...challengeFor(level).answers.map(String)]) send(ws, 'calculator_press', { key }); };
-  const typed = (ws, value) => send(ws, 'calculator_handheld', { value });
+  const typed = (ws, ...values) => send(ws, 'calculator_handheld', { values });
+  const typedLegacy = (ws, value) => send(ws, 'calculator_handheld', { value });
   const advance = () => { time += 100; service.tick(); };
-  return { service, registry, srs, mastered, joinSolo, send, pick, solve, typed, advance, state: ws => packets.get(ws), lobby: lobbyOf };
+  return { service, registry, srs, mastered, joinSolo, send, pick, solve, typed, typedLegacy, advance, state: ws => packets.get(ws), lobby: lobbyOf };
 }
 
 test('after a solo clear the packet offers the check (label, no answer); a right value passes and masters the skill once', () => {
@@ -73,19 +83,19 @@ test('after a solo clear the packet offers the check (label, no answer); a right
     assert.equal(f.state(ws).handheld, null, 'ignored before the clear');
     f.solve(ws);
     const offered = f.state(ws).handheld;
-    assert.deepEqual(offered, { label: 'Minimum', attempts: 0, status: null });
+    assert.deepEqual(offered, { label: 'Minimum', fields: ['Minimum', 'Q1', 'Median'], attempts: 0, status: null, misses: [] });
     assert.equal(JSON.stringify(f.state(ws)).includes('"expected"'), false, 'the expected value never leaves the relay');
     assert.equal(f.state(ws).review.mastered, false, 'rung 0: the clear alone does not master');
     const revision = f.state(ws).revision;
-    f.typed(ws, '4.0');
+    f.typed(ws, '4.0', '7', '11');
     const passed = f.state(ws);
     assert.equal(passed.revision, revision + 1);
-    assert.deepEqual(passed.handheld, { label: 'Minimum', attempts: 1, status: 'passed' });
+    assert.deepEqual(passed.handheld, { label: 'Minimum', fields: ['Minimum', 'Q1', 'Median'], attempts: 1, status: 'passed', misses: [] });
     assert.equal(passed.review.mastered, true);
     assert.equal(passed.review.masteredNow, true, 'the pass is the first mastery');
     assert.deepEqual(f.mastered, [{ section: 'B', username: 'alice', skillId: 'one-var-stats' }]);
     assert.equal(f.srs.recordOf('B', 'alice', 'one-var-stats').mastered, true);
-    f.typed(ws, '4');
+    f.typed(ws, '4', '7', '11');
     assert.equal(f.state(ws).revision, revision + 1, 'a passed check takes no more input');
     // The next round: the skill is mastered, so the check is not offered again.
     f.send(ws, 'calculator_restart'); f.pick(ws); f.solve(ws);
@@ -94,24 +104,74 @@ test('after a solo clear the packet offers the check (label, no answer); a right
   } finally { f.service.close(); }
 });
 
-test('a miss gets one retry; a second miss closes the check and records nothing', () => {
+test('one missed field names it and gets one retry; a second miss closes the check and records nothing', () => {
+  const f = setup();
+  const ws = {};
+  const FIELDS = ['Minimum', 'Q1', 'Median'];
+  try {
+    f.joinSolo(ws, 'alice');
+    f.solve(ws);
+    f.typed(ws, '4', '8', '11');
+    assert.deepEqual(f.state(ws).handheld, { label: 'Minimum', fields: FIELDS, attempts: 1, status: null, misses: [1] });
+    assert.equal(f.state(ws).review.mastered, false);
+    f.typed(ws, '4', '7', 'nope');
+    assert.deepEqual(f.state(ws).handheld, { label: 'Minimum', fields: FIELDS, attempts: 2, status: 'failed', misses: [2] });
+    assert.equal(f.state(ws).review.mastered, false);
+    assert.equal(f.srs.recordOf('B', 'alice', 'one-var-stats').mastered, false, 'nothing recorded');
+    assert.deepEqual(f.mastered, []);
+    const revision = f.state(ws).revision;
+    f.typed(ws, '4', '7', '11');
+    assert.equal(f.state(ws).revision, revision, 'closed: a late right answer changes nothing');
+  } finally { f.service.close(); }
+});
+
+test('a check passes only when every field matches; a missing value is a miss', () => {
   const f = setup();
   const ws = {};
   try {
     f.joinSolo(ws, 'alice');
     f.solve(ws);
-    f.typed(ws, '5');
-    assert.deepEqual(f.state(ws).handheld, { label: 'Minimum', attempts: 1, status: null });
-    assert.equal(f.state(ws).review.mastered, false);
-    f.typed(ws, 'nope');
-    assert.deepEqual(f.state(ws).handheld, { label: 'Minimum', attempts: 2, status: 'failed' });
-    assert.equal(f.state(ws).review.mastered, false);
-    assert.equal(f.srs.recordOf('B', 'alice', 'one-var-stats').mastered, false, 'nothing recorded');
-    assert.deepEqual(f.mastered, []);
-    const revision = f.state(ws).revision;
     f.typed(ws, '4');
-    assert.equal(f.state(ws).revision, revision, 'closed: a late right answer changes nothing');
+    assert.deepEqual(f.state(ws).handheld.misses, [1, 2], 'one value for three fields');
+    assert.equal(f.state(ws).handheld.attempts, 1);
+    f.typed(ws, '4', '7', '11');
+    assert.equal(f.state(ws).handheld.status, 'passed');
+    assert.equal(f.state(ws).review.mastered, true);
   } finally { f.service.close(); }
+});
+
+test('an older client\'s `value` string is read as a one-element values array', () => {
+  const f = setup();
+  const ws = {};
+  try {
+    f.joinSolo(ws, 'alice');
+    f.solve(ws);
+    f.typedLegacy(ws, '4.0');
+    assert.deepEqual(f.state(ws).handheld.misses, [1, 2], 'the first field matched; the other two are missing');
+    assert.equal(f.state(ws).handheld.attempts, 1);
+    assert.equal(f.state(ws).handheld.status, null);
+  } finally { f.service.close(); }
+});
+
+test('a one-field skill passes on its single value, legacy `value` included', () => {
+  const level = levelById('normalcdf');
+  const registry = createClassroomRegistry(), packets = new Map();
+  const srs = createCalculatorSrs({ now: () => 0, log: () => {} });
+  const service = createCalculatorService({ registry, now: () => 0, wallNow: () => Date.parse('2026-10-16T16:00:00Z'), random: () => 0,
+    available: () => [level], varyData: false, srs, onMastery: () => {}, log: () => {},
+    send: (ws, packet) => { if (packet.type !== 'calculator_lobby_state') packets.set(ws, packet); } });
+  const ws = {};
+  const send = (type, extra = {}) => service.handle(ws, { type, epoch: packets.get(ws).epoch, revision: packets.get(ws).revision, ...extra });
+  try {
+    registry.join(ws, 'B', 'alice', 'student', 0);
+    service.handle(ws, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL, mode: 'solo', skill: 'normalcdf' });
+    if (packets.get(ws).recognition) send('calculator_pick', { skill: 'normalcdf' });
+    const mission = missionFor(packets.get(ws));
+    for (const key of [...mission.route, ...challengeFor(mission).answers.map(String)]) send('calculator_press', { key });
+    assert.deepEqual(packets.get(ws).handheld.fields, ['Probability']);
+    send('calculator_handheld', { value: String(handheldFor(mission).fields[0].expected) });
+    assert.equal(packets.get(ws).handheld.status, 'passed');
+  } finally { service.close(); }
 });
 
 test('a team round never offers the check', () => {
@@ -132,7 +192,7 @@ test('a team round never offers the check', () => {
     for (const ws of [a, b]) f.solve(ws);
     assert.equal(f.state(a).complete, true);
     assert.equal(f.state(a).handheld, null);
-    assert.equal(f.typed(a, '4'), null);
+    assert.equal(f.typed(a, '4', '7', '11'), null);
     assert.equal(f.state(a).review.mastered, false);
   } finally { f.service.close(); }
 });

@@ -1,20 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { createMission, advanceMission, pressMissionKey, pickRecognition, recognitionPending, missionFor, WORLD, timeLimitFor } from './calculator-mission.mjs';
 import { recognitionFor } from './calculator-recognition.mjs';
-import { handheldFor, handheldMatches, HANDHELD_ATTEMPTS } from './calculator-handheld.mjs';
+import { handheldFor, handheldMatches, HANDHELD_ATTEMPTS, HANDHELD_FIELDS } from './calculator-handheld.mjs';
 import { createCalculatorRuntime, varyLevel } from './calculator-runtime.mjs';
 import { createLobby, advanceLobby, CALCULATOR_PROTOCOL, TEAM_BLOCK } from './calculator-lobby.mjs';
 import { createCalculatorRtc } from './calculator-rtc.mjs';
 import { createSnapshotPublisher } from './snapshot-publisher.mjs';
 import { createCampaignWallet } from './campaign-wallet.mjs';
-import { createCalculatorClears, rungFor } from './calculator-clears.mjs';
+import { createCalculatorClears, rungFor, clearDelta } from './calculator-clears.mjs';
 import { createCalculatorSrs } from './calculator-srs-state.mjs';
 import { qualityFor, isMasteryClear } from './calculator-srs.mjs';
+import { progressRows } from './calculator-progress.mjs';
+import { withDataEntry } from './calculator-data-entry.mjs';
 
-import { eligibleLevels, schoolDate, createLevelRotation, levelById, CALCULATOR_PROBLEMS } from './calculator-curriculum.mjs';
+import { eligibleLevels, schoolDate, createLevelRotation, levelById, CALCULATOR_PROBLEMS, CALCULATOR_LEVELS } from './calculator-curriculum.mjs';
 
 const TYPES = new Set(['calculator_lobby', 'calculator_join', 'calculator_pose', 'calculator_press', 'calculator_pick', 'calculator_recognition', 'calculator_handheld', 'calculator_leave', 'calculator_restart', 'calculator_rtc_signal']);
 export const DEATH_MS = 1000;
+// ABSORB_2 §1: the recall quality a branch round records for the branched skill (the trainer's
+// passive credit), only while that skill's record is still fresh.
+export const BRANCH_QUALITY = 2;
 // Independent rooms on the existing classroom connection. No grade writes.
 // wallet (campaign-wallet.mjs): campaign key counts, cleared stages and open stages, shared with
 // the campaign service. Without one (direct tests) the service keeps a memory-only wallet.
@@ -104,13 +109,22 @@ export function createCalculatorService({ registry, send, now = () => performanc
   // recall schedule says is due (protocol 15, §5), else the section's rotation.
   function soloLevel(room) {
     const skillId = room.skillId || firstDueSkill(room);
-    if (!skillId) return nextLevel(room);
+    if (!skillId) return withRungData(room, nextLevel(room));
     const variants = CALCULATOR_PROBLEMS.filter(problem => problem.skillId === skillId);
     const fresh = variants.filter(problem => problem.id !== room.lastProblemId);
     const choices = fresh.length ? fresh : variants;
     const level = choices[Math.min(choices.length - 1, Math.floor(random() * choices.length))];
     room.lastProblemId = level.id;
-    return varyData ? varyLevel(level, random) : level;
+    return withRungData(room, varyData ? varyLevel(level, random) : level);
+  }
+  // ABSORB_2 §2: once the student has cleared the skill (rung 1+), a list or matrix round starts
+  // with an empty calculator and the route types the round's own data first (applied after the
+  // variation, so the numbers typed are this round's). Solo only: team rounds never call this.
+  function withRungData(room, level) {
+    if (!level) return level;
+    const rung = rungFor(clears.clearsOf(room.section, room.name, level.skillId));
+    if (rung < 1) return level;
+    return withDataEntry(level);
   }
   // The most overdue skill with a catalogue level, or null. Skills no longer taught (not in the
   // section's eligible list) still count: a review is a review.
@@ -142,6 +156,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
       failure: null, resetReason: null, lobby: soloLobby(who.username, now()), section: who.section,
       rotation: createLevelRotation(random, { varyProblems }), keysAwardedEpoch: null, skillId: pinned, lastProblemId: null,
       level: null, emptyTeamAt: null, recognitionRound: null,
+      // ABSORB_2 §1: the rounds a wrong pick branched away from (newest last), and the branch marker.
+      branchStack: [], branch: null,
     };
     setLevel(room, soloLevel(room));
     if (!room.level) return null;
@@ -181,49 +197,71 @@ export function createCalculatorService({ registry, send, now = () => performanc
     // Protocol 15 (§5): the same moment advances every member's recall record for this skill, at
     // the quality of their own attempt and the hint rung they played at (before this clear counts).
     const skillId = room.level?.skillId, today = schoolDate(wallNow());
+    const deltaByName = {};
     for (const name of room.lobby.roster) {
       const attempt = room.attempts.get(name);
       if (!attempt || !skillId) continue;
       const quality = qualityFor(attempt.state);
-      const rung = rungFor(clears.clearsOf(room.section, name, skillId));
+      const cleared = clears.clearsOf(room.section, name, skillId);
+      const rung = rungFor(cleared);
+      // ABSORB_2 §3: a messy clear does not climb the rung; a rough one at rung 2 drops it.
+      const delta = clearDelta({ quality, clears: cleared });
+      deltaByName[name] = delta;
+      attempt.state.clearQuality = quality;
+      attempt.state.rungChange = rungFor(Math.max(0, cleared + delta)) - rung;
       const mastery = isMasteryClear({ solo: room.mode === 'solo', rung, quality });
       const result = srs.record(room.section, name, skillId, quality, today, { mastery });
       attempt.review = { quality, rung, ...result?.record, masteredNow: result?.masteredNow === true };
       if (result?.masteredNow) notifyMastery(room, name, skillId);
-      // Protocol 16 (§7): a solo clear may go on to the handheld check (the round's first numeric
-      // result, judged here with the trainer's tolerance). Not offered once the skill is mastered.
+      // Protocol 16 (§7): a solo clear may go on to the handheld check (ABSORB_2 §4: up to three
+      // numeric results, judged here with the trainer's tolerance). Not offered once mastered.
       const prompt = room.mode === 'solo' && !attempt.review.mastered ? handheldFor(room.level) : null;
-      attempt.state.handheld = prompt ? { label: prompt.label, attempts: 0, status: null } : null;
+      attempt.state.handheld = prompt ? handheldOffer(prompt) : null;
     }
-    // Protocol 10: the same moment counts one clear per student for this round's skill.
-    clears.record(room.section, room.lobby.roster, room.level?.skillId);
+    // Protocol 10: the same moment counts one clear per student for this round's skill (§3: the
+    // change depends on the clear's quality).
+    clears.record(room.section, room.lobby.roster, room.level?.skillId, deltaByName);
   }
   function notifyMastery(room, name, skillId) {
     try { onMastery({ section: room.section, username: name, skillId }); }
     catch (error) { log('park calculator mastery hook failed for', name, skillId, error?.message || error); }
   }
-  // §7: the typed handheld result. Pass: the skill is mastered (first time pays the bonus point).
-  // Fail: one retry, then the check closes and nothing is recorded.
+  // §7: the offer the client sees: labels only, never the expected values. `label` (the first
+  // field's) is kept for older clients.
+  function handheldOffer(prompt) {
+    return { label: prompt.label, fields: prompt.fields.map(field => field.label), attempts: 0, status: null, misses: [] };
+  }
+  // ABSORB_2 §4: the typed values, one per field. The older `value` string counts as one value.
+  function typedValues(message) {
+    if (Array.isArray(message.values)) return message.values.slice(0, HANDHELD_FIELDS).map(value => String(value ?? ''));
+    if (message.value != null) return [String(message.value)];
+    return [];
+  }
+  // §7: the typed handheld results. Pass (every field matches): the skill is mastered (first time
+  // pays the bonus point). Fail: `misses` names the fields that did not match; one retry, then the
+  // check closes and nothing is recorded.
   function receiveHandheld(room, binding, message) {
     const attempt = attemptFor(room, binding.name), state = attempt.state;
     if (room.mode !== 'solo' || !state.complete || !state.handheld || state.handheld.status) return false;
     const prompt = handheldFor(missionFor(state));
     if (!prompt) return false;
-    if (handheldMatches(message.value, prompt.expected)) {
-      state.handheld = { ...state.handheld, status: 'passed', attempts: state.handheld.attempts + 1 };
+    const values = typedValues(message);
+    const misses = prompt.fields.map((field, i) => (handheldMatches(values[i], field.expected) ? -1 : i)).filter(i => i >= 0);
+    const attempts = state.handheld.attempts + 1;
+    if (!misses.length) {
+      state.handheld = { ...state.handheld, status: 'passed', attempts, misses: [] };
       const result = srs.master(room.section, binding.name, room.level?.skillId, schoolDate(wallNow()));
       attempt.review = { ...(attempt.review || {}), ...(result?.record || {}), mastered: true, masteredNow: result?.masteredNow === true };
       if (result?.masteredNow) notifyMastery(room, binding.name, room.level?.skillId);
     } else {
-      const attempts = state.handheld.attempts + 1;
-      state.handheld = { ...state.handheld, attempts, status: attempts >= HANDHELD_ATTEMPTS ? 'failed' : null };
+      state.handheld = { ...state.handheld, attempts, status: attempts >= HANDHELD_ATTEMPTS ? 'failed' : null, misses };
     }
     state.revision++;
     return true;
   }
   function attemptFor(room, name) {
     if (!room.attempts.has(name)) room.attempts.set(name, {
-      state: createMission(now(), room.level, room.recognitionRound), engine: createCalculatorRuntime(room.level),
+      state: createMission(now(), room.level, room.recognitionRound, room.branch), engine: createCalculatorRuntime(room.level),
     });
     return room.attempts.get(name);
   }
@@ -257,7 +295,9 @@ export function createCalculatorService({ registry, send, now = () => performanc
   }
   function broadcast(room) {
     if (room.level && room.lobby.phase === 'active' && !room.failure && teamComplete(room)) {
-      awardKeys(room);
+      // ABSORB_2 §1: a branch clear pays no key and counts no clear: the original problem comes back.
+      if (room.branchStack?.length) finishBranch(room);
+      else awardKeys(room);
     }
     const lobby = lobbySnapshot(room);
     for (const [ws, binding] of bindings) {
@@ -322,6 +362,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
     if (reason.type === 'door' || reason.type === 'abandoned') {
       room.attempts.clear(); room.members.clear();
+      // ABSORB_2 §1: the original problem is gone with the round, so are its branches.
+      if (room.branchStack) { room.branchStack = []; room.branch = null; }
       if (room.mode === 'solo') {
         // The next solo round starts at once: same pinned skill with new data, or the rotation.
         room.lobby = soloLobby(room.name, now());
@@ -335,7 +377,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
     else for (const attempt of room.attempts.values()) {
       const previous = attempt.state;
       // A timeout keeps the answered recognition step: the procedure was already named once.
-      attempt.state = createMission(now(), room.level, previous.recognition);
+      // A branch round restarts as the same branch (ABSORB_2 §1: the stack is kept).
+      attempt.state = createMission(now(), room.level, previous.recognition, previous.branch);
       // Protocol 15: the restart counts against the recall quality, as do the wrong keys so far.
       attempt.state.timeoutCount = (previous.timeoutCount || 0) + 1;
       attempt.state.wrongKeys = previous.wrongKeys || 0;
@@ -345,6 +388,61 @@ export function createCalculatorService({ registry, send, now = () => performanc
       Object.assign(attempt.state, { step: room.level.route.length, keys: previous.checkpointKeys.slice(),
         checkpointKeys: previous.checkpointKeys.slice(), bonus: Math.min(previous.bonus, room.level.route.length) });
     }
+    for (const [name, member] of room.members) {
+      attemptFor(room, name);
+      Object.assign(member, { pose: { x: 65, y: WORLD.floor - 24 }, revision: -1, ready: false });
+    }
+  }
+  // ABSORB_2 §1: the branch round's level: the picked skill's first catalogue problem, varied like
+  // any round. No data-entry prefix (withRungData) and no recognition step. null: no such skill.
+  function branchLevelFor(skillId) {
+    const level = CALCULATOR_PROBLEMS.filter(problem => problem.skillId === skillId)[0];
+    if (!level) return null;
+    return varyData ? varyLevel(level, random) : level;
+  }
+  // A solo wrong pick: park the original round (its problem, data and recognition step minus the
+  // wrong tile) on the stack and play the picked skill once. state: the round just picked wrong.
+  // false: the picked skill has no catalogue level, so the route starts as before (§4).
+  function startBranch(room, state) {
+    const picked = state.recognition.picked;
+    const level = branchLevelFor(picked);
+    if (!level) return false;
+    const recognition = { ...state.recognition, options: state.recognition.options.filter(id => id !== picked),
+      picked: null, correct: null, message: null, branches: (state.recognition.branches || 0) + 1 };
+    room.branchStack.push({ level: room.level, recognition, startedAt: state.startedAt });
+    room.branch = { skillId: picked, picked, message: state.recognition.message,
+      returnTitle: room.level.title, depth: room.branchStack.length };
+    room.level = level;
+    room.recognitionRound = null;
+    restartSoloRound(room, { type: 'branch', skillId: picked });
+    return true;
+  }
+  // The branch route completed: no key, no clear; the recall review at BRANCH_QUALITY only when
+  // the branched skill's record is fresh (a branch never lowers a real schedule). Then the
+  // original problem comes back with the wrong tile gone.
+  function finishBranch(room) {
+    recordBranchReview(room);
+    const back = room.branchStack.pop();
+    room.branch = null;
+    room.level = back.level;
+    room.recognitionRound = back.recognition;
+    restartSoloRound(room, { type: 'branch-return' });
+  }
+  function recordBranchReview(room) {
+    const skillId = room.level?.skillId;
+    if (!skillId) return;
+    // Not until the store has answered: a record that only looks fresh (its row still loading)
+    // must never be overwritten by passive credit (Codex review 2026-10-18).
+    if (!srs.loaded(room.section)) return;
+    const record = srs.recordOf(room.section, room.name, skillId);
+    if (record && record.repetitions > 0) return;
+    srs.record(room.section, room.name, skillId, BRANCH_QUALITY, schoolDate(wallNow()));
+  }
+  // A new solo round on room.level without the door: new epoch, a fresh attempt, the student
+  // back at the calculator's left edge (like a time-up restart).
+  function restartSoloRound(room, reason) {
+    room.epoch = randomUUID(); room.failure = null; room.resetReason = reason;
+    room.attempts.clear();
     for (const [name, member] of room.members) {
       attemptFor(room, name);
       Object.assign(member, { pose: { x: 65, y: WORLD.floor - 24 }, revision: -1, ready: false });
@@ -465,6 +563,8 @@ export function createCalculatorService({ registry, send, now = () => performanc
         if (!pickRecognition(state, message.skill, time)) return null;
         room.members.get(binding.name).at = time;
         room.touched = time;
+        // ABSORB_2 §1: a wrong pick in a solo round plays the picked skill once first.
+        if (room.mode === 'solo' && state.recognition.correct === false) startBranch(room, state);
         broadcast(room); return null;
       }
       if (message.type === 'calculator_press') {
@@ -564,6 +664,21 @@ export function createCalculatorService({ registry, send, now = () => performanc
       const dueIds = new Set(due.map(entry => entry.skillId));
       const todayIds = [...new Set((todaySkills || []).map(pinnedSkillFor).filter(Boolean))].filter(id => !dueIds.has(id));
       return { today, due, todaySkills: todayIds.map(skillId => ({ skillId, title: levelById(skillId).title })), count: due.length };
+    },
+    // ABSORB_2_SPEC §5: GET /park/calc/progress. Every catalogue skill with its calendar gate,
+    // clears, rung and recall record. calendarSection: the student's own class (PeriodB /
+    // PeriodE) when `section` is the shared park key, so the gate follows that class's calendar.
+    // Read-only: no room, no attempt, no record is created.
+    progress(section, username, { calendarSection = section } = {}) {
+      const today = schoolDate(wallNow());
+      const eligibleIds = new Set(available(calendarSection, today).map(level => level.skillId));
+      const skills = progressRows({ levels: CALCULATOR_LEVELS, eligibleIds, rungFor, today,
+        clearsOf: skillId => clears.clearsOf(section, username, skillId),
+        records: srs.recordsOf(section, username) });
+      // loading: the store has not answered yet for this section (a cold relay); the rows are
+      // whatever is in memory and the Desk must not cache them.
+      const loading = !srs.loaded(section) || !clears.loaded(section);
+      return { today, skills, loading };
     },
     // Test and sweep access to the recall records (read-only shape).
     recall(section, username) { return srs.recordsOf(section, username); },

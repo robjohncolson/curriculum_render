@@ -230,6 +230,14 @@ app.get('/park/calc/due', (req, res) => {
   try { res.json({ ok: true, ...classroomPark.calcDue(section, username, skills) }); }
   catch (error) { res.status(500).json({ ok: false, error: error.message }); }
 });
+// APSTAT_PARK_TRAINER_ABSORB_2_SPEC §5: the Calculator Skills progress view. Every catalogue
+// skill with its calendar gate, clears, rung and recall record. Read-only, no grades.
+app.get('/park/calc/progress', (req, res) => {
+  const section = String(req.query.section || '').trim(), username = String(req.query.username || '').trim();
+  if (!section || !username) return res.status(400).json({ ok: false, error: 'section and username required' });
+  try { res.json({ ok: true, ...classroomPark.calcProgress(section, username) }); }
+  catch (error) { res.status(500).json({ ok: false, error: error.message }); }
+});
 // A campaign key bought with candy: roster-server calls this server-to-server after debiting the
 // candy (shared secret PARK_KEY_GRANT_SECRET; idempotent on receiptId). Migration 0006.
 app.post('/park/campaign/keys/grant', createKeyGrantHandler({ park: classroomPark }));

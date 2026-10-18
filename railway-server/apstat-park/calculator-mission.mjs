@@ -2,10 +2,12 @@ const { DEFAULT_LEVEL, levelById, challengeFor, answerTiles, answerValue, answer
 const { discriminatorFor, skillTitle } = await import('./calculator-recognition.mjs' + new URL(import.meta.url).search);
 // A round with random data (protocol 10) carries its own values/setup/computed/finalView/stem in
 // state.problem; they replace the catalogue's for that round (APSTAT_PARK_CALCULATOR_FLUENCY_SPEC §2).
+// ABSORB_2 §2: a data-entry round (rung 1+, solo) rides the same way, with entryData/dataSteps and
+// its own `varied` flag (a catalogue-data round that types its data is not a varied round).
 export function missionFor(state) {
   const level = levelById(state?.missionId) || DEFAULT_LEVEL;
   if (!state?.problem) return level;
-  return { ...level, ...state.problem, varied: true };
+  return { ...level, varied: true, ...state.problem };
 }
 // Shared with the relay's calculator-mission.mjs. Keep byte-identical (tested).
 // Guided route from ti84-procedures-data.json: one-var-stats.
@@ -95,14 +97,20 @@ export function tileAt(pose, step, level = DEFAULT_LEVEL, recognition = null) {
 // Protocol 11: it also carries the round's route and hints (a templated randIntNoRep round types
 // different digits), and goals when the variation rewrote the goal phrases.
 // recognition: the round's recognition step (calculator-recognition.mjs recognitionFor), or null.
-export function createMission(now, level = DEFAULT_LEVEL, recognition = null) {
-  const problem = level.varied ? { values: level.values, setup: level.setup, computed: level.computed,
+// ABSORB_2 §2: a data-entry level (calculator-data-entry.mjs withDataEntry) also travels here, with
+// its empty setup, prefixed route/hints/goals, entryData (the data to type) and dataSteps.
+// branch: ABSORB_2 §1, a solo branch round after a wrong pick ({ skillId, picked, message,
+// returnTitle, depth }), else null. The relay sets it; the client titles the round with it.
+export function createMission(now, level = DEFAULT_LEVEL, recognition = null, branch = null) {
+  const entry = level.dataSteps ? { entryData: level.entryData, dataSteps: level.dataSteps, varied: level.varied === true } : null;
+  const problem = level.varied || entry ? { values: level.values, setup: level.setup, computed: level.computed,
     finalView: level.finalView, stem: level.stem, route: level.route, hints: level.hints,
-    ...(level.goals ? { goals: level.goals } : {}) } : null;
+    ...(level.goals ? { goals: level.goals } : {}), ...entry } : null;
   return { missionId: level.id, step: 0, revision: 0, startedAt: now, holdAt: null, holdStep: null,
     bonus: 0, complete: false, keys: [], checkpointKeys: [], lastPress: null,
     timeoutCount: 0, hintKeys: [], boxValues: [], boxAttempts: 0, lastPlot: null,
     problem, lastPenaltyAt: null, recognition: recognition ? { ...recognition } : null,
+    branch: branch ? { ...branch } : null,
     // Protocol 15 (ABSORB_SPEC §5): wrong keys this round, for the recall quality (the relay
     // carries it and timeoutCount across a time-up restart).
     wrongKeys: 0,

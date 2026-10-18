@@ -12,6 +12,23 @@ export const CLEARS_RETRY_MS = 30000;
 
 export const rungFor = clears => Math.min(2, clears);
 
+// ABSORB_2_SPEC §3: a messy clear does not climb the rung (the trainer's 3+ errors demotion).
+// The change to this student's clear count for one completed round at quality qualityFor(...):
+//   quality >= 3          -> +1 (as before)
+//   quality 2             -> 0 ("messy clear")
+//   quality <= 1, rung 2  -> back to one clear (goals-only hints next round)
+//   quality <= 1, rung 0/1 -> 0
+// Clears are counted past 2, so "back to one clear" is 1 - clears (-1 at exactly two clears).
+export const CLEAN_CLEAR_QUALITY = 3;
+export const MESSY_CLEAR_QUALITY = 2;
+
+export function clearDelta({ quality, clears }) {
+  if (quality >= CLEAN_CLEAR_QUALITY) return 1;
+  if (quality >= MESSY_CLEAR_QUALITY) return 0;
+  if (rungFor(clears) < 2) return 0;
+  return 1 - clears;
+}
+
 const rowKey = (name, skillId) => JSON.stringify([name, skillId]);
 
 export function createCalculatorClears({ store = null, now = () => performance.now(), log = (...args) => console.warn(...args),
@@ -55,13 +72,16 @@ export function createCalculatorClears({ store = null, now = () => performance.n
     state.load = 'done';
   }
 
-  // One completed round: +1 for every name, for that round's skill.
-  function record(section, names, skillId) {
+  // One completed round, for that round's skill. deltaByName (optional, §3): name -> change to the
+  // count (clearDelta); a name it does not list gets +1. Counts never go below 0.
+  function record(section, names, skillId, deltaByName = null) {
     if (!skillId) return;
     const state = sectionState(section);
     for (const name of names) {
+      const delta = deltaByName && Number.isInteger(deltaByName[name]) ? deltaByName[name] : 1;
+      if (delta === 0) continue;
       const key = rowKey(name, skillId);
-      state.counts.set(key, (state.counts.get(key) || 0) + 1);
+      state.counts.set(key, Math.max(0, (state.counts.get(key) || 0) + delta));
       if (state.load !== 'memory') state.dirty.add(key);
     }
   }
@@ -104,10 +124,16 @@ export function createCalculatorClears({ store = null, now = () => performance.n
     return !!state && (state.dirty.size > 0 || state.saving);
   }
 
+  // True once the section's counts are the truth (loaded, or memory-only).
+  function loaded(section) {
+    const load = sectionState(section).load;
+    return load === 'done' || load === 'memory';
+  }
+
   // Starts the section's load (once). Called when a calculator room is created.
   function ensure(section) {
     sectionState(section);
   }
 
-  return { ensure, record, clearsOf, flush, unsaved };
+  return { ensure, record, clearsOf, loaded, flush, unsaved };
 }

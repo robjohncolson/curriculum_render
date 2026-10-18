@@ -116,7 +116,12 @@ export function createParkService({ registry, send, now = () => performance.now(
   // (PeriodB / PeriodE); the records live under the shared park room key, like clears and keys.
   function calcDue(section, username, todaySkills) { return calculator.due(parkSection(section), username, todaySkills); }
   function calcRecall(section, username) { return calculator.recall(parkSection(section), username); }
-  return { calcDue, calcRecall,
+  // ABSORB_2_SPEC §5: the Calculator Skills view. Records under the shared park key; the
+  // calendar gate follows the student's own class.
+  function calcProgress(section, username) {
+    return calculator.progress(parkSection(section), username, { calendarSection: section });
+  }
+  return { calcDue, calcRecall, calcProgress,
     accepts: message => types.has(message?.type) || calculator.accepts(message) || campaign.accepts(message),
     handle(ws, message) {
       if (calculator.accepts(message)) return calculator.handle(ws, message);

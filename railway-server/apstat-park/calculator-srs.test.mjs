@@ -73,6 +73,9 @@ test('qualityFor: 5, minus wrong keys beyond the first, a time-up restart, a wro
   assert.equal(qualityFor({ recognition: { picked: 'x', correct: true } }), 5);
   assert.equal(qualityFor({ wrongKeys: 9, timeoutCount: 1, recognition: { correct: false } }), 0);
   assert.equal(qualityFor(null), 5);
+  // ABSORB_2 §1: minus 1 per branch (solo); the flat -1 stays for a wrong pick that did not branch.
+  assert.equal(qualityFor({ wrongKeys: 0, recognition: { correct: true, branches: 2 } }), 3);
+  assert.equal(qualityFor({ wrongKeys: 0, recognition: { correct: false, branches: 0 } }), 4);
 });
 
 test('mastery: solo, hint rung 2, quality >= 4; never a team clear', () => {
@@ -231,7 +234,10 @@ test('wrong keys and a time-up restart lower the quality; a wrong recognition pi
       g.service.handle(w2, { type: 'calculator_join', protocol: CALCULATOR_PROTOCOL, mode: 'solo', skill: 'one-var-stats' });
       const wrong = g.state(w2).recognition.options.find(id => id !== 'one-var-stats');
       g.send(w2, 'calculator_pick', { skill: wrong });
+      // ABSORB_2 §1: the wrong pick branches (one solve), then the original round (one more).
       g.solve(w2);
+      g.solve(w2);
+      assert.equal(g.state(w2).recognition.branches, 1);
       assert.equal(g.state(w2).review.quality, 4);
     } finally { g.service.close(); }
   } finally { f.service.close(); }

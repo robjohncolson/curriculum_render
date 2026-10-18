@@ -17,14 +17,23 @@ export function freshRecord() {
 }
 
 // Quality 0..5 of one completed round (spec §5): start at 5; minus 1 per wrong key beyond the
-// first; minus 1 if a time-up restart was needed; minus 1 for a wrong recognition pick; floor 0.
+// first; minus 1 if a time-up restart was needed; minus 1 per branch round taken after a wrong
+// recognition pick (ABSORB_2 §1, solo); minus 1 for a wrong pick that did not branch (a team
+// round, unchanged); floor 0.
 // round: { wrongKeys, timeoutCount, recognition } (the round's mission state).
 export function qualityFor(round) {
   const wrongKeys = Math.max(0, Number(round?.wrongKeys) || 0);
   let quality = 5 - Math.max(0, wrongKeys - 1);
   if ((Number(round?.timeoutCount) || 0) > 0) quality -= 1;
-  if (round?.recognition && round.recognition.correct === false) quality -= 1;
+  quality -= recognitionPenalty(round?.recognition);
   return Math.max(0, Math.min(5, quality));
+}
+// A solo wrong pick branches and the return round resets `correct`, so the branches carry the
+// penalty there; a wrong pick still standing on the state (team) costs one.
+function recognitionPenalty(recognition) {
+  if (!recognition) return 0;
+  const branches = Math.max(0, Number(recognition.branches) || 0);
+  return branches + (recognition.correct === false ? 1 : 0);
 }
 
 // mastered flips on the first SOLO clear at hint rung 2 (no hints) with quality >= 4 (spec §5);

@@ -95,6 +95,14 @@ export function createCalculatorSrs({ store = null, now = () => performance.now(
     return { record: next, masteredNow };
   }
 
+  // True once the section's records are the truth: loaded from the store, or memory-only (no
+  // store, or none to load). While a load is pending or failed, a fresh-looking record may just
+  // be one not loaded yet.
+  function loaded(section) {
+    const load = sectionState(section).load;
+    return load === 'done' || load === 'memory';
+  }
+
   function due(section, name, today) {
     return dueSkills(recordsOf(section, name), today);
   }
@@ -136,5 +144,5 @@ export function createCalculatorSrs({ store = null, now = () => performance.now(
   // Starts the section's load (once). Called when a calculator room is created.
   function ensure(section) { sectionState(section); }
 
-  return { ensure, record, master, recordOf, recordsOf, due, flush, unsaved };
+  return { ensure, record, master, recordOf, recordsOf, due, loaded, flush, unsaved };
 }
