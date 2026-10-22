@@ -956,6 +956,24 @@ describe('rate limiter runs in every mode', () => {
       expect(auth.rateLimitStats().allocatedBucketCells).toBe(0);
     }
   });
+
+  it('log mode keeps would-reject-auth on an unauthenticated request with an invalid shape (review 2026-10-22 evening)', () => {
+    const logger = { info: vi.fn() };
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'log' },
+      sidFromRequest: () => null,
+      logger,
+      now: () => 6_000,
+    });
+    const result = invoke(auth, mockRequest('/api/ai/grade', {}, {}, '198.51.100.9'));
+    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.res.statusCode).not.toBe(429);
+    // The identity decision stands; the route returns its own 400 and no quota is charged.
+    expect(result.res.headers['x-ai-grade-auth']).toBe('would-reject-auth');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+    expect(logger.info.mock.calls[0][0]).toMatch(/decision=would-reject-auth items=0 sid=no/);
+    expect(auth.rateLimitStats().allocatedBucketCells).toBe(0);
+  });
 });
 
 describe('approved health exception and server wiring', () => {

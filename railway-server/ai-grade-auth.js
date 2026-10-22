@@ -419,7 +419,9 @@ export function createAiGradeAuth(options = {}) {
       // Let the existing route return its byte-identical 400, without charging a
       // quota. In particular, arrays over the public max of eight cost nothing.
       if (!validRouteShape(req, canonicalPath)) {
-        if (mode === 'log') {
+        // An unauthenticated request already carries would-reject-auth (header +
+        // log line above); it must not be relabelled allow-auth here.
+        if (mode === 'log' && authenticated) {
           setResponseHeader(res, 'X-AI-Grade-Auth', 'allow-auth+skip-invalid');
           writeLog(logger, '[ai-grade-auth] mode=log path=' + canonicalPath +
             ' decision=allow-auth+skip-invalid items=0 sid=' + (sid ? 'yes' : 'no'));
