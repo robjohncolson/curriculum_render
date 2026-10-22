@@ -203,12 +203,13 @@
   function withKeyLock(k, work) {
     var previous = _keyChains[k] || Promise.resolve();
     var run = previous.catch(function () {}).then(work);
-    _keyChains[k] = run.then(function () {}, function () {});
+    var tail = run.then(function () {}, function () {});
+    _keyChains[k] = tail;
     return run.then(function (value) {
-      if (_keyChains[k]) delete _keyChains[k];
+      if (_keyChains[k] === tail) delete _keyChains[k];
       return value;
     }, function (err) {
-      if (_keyChains[k]) delete _keyChains[k];
+      if (_keyChains[k] === tail) delete _keyChains[k];
       throw err;
     });
   }
@@ -301,10 +302,12 @@
                 if (countsAsServerFailure(res)) return s.serverFailure(keyOf(it), it, res.status);
                 return;
               }
-              return s.get(keyOf(it)).then(function (cur) {
-                if (!cur) { sent += 1; return; }
-                if (sequenceOf(cur) !== sequenceOf(it)) { failed += 1; return; } // newer edit arrived → keep it queued
-                return s.del(keyOf(it)).then(function () { sent += 1; }, function () { failed += 1; });
+              return withKeyLock(keyOf(it), function () {
+                return s.get(keyOf(it)).then(function (cur) {
+                  if (!cur) { sent += 1; return; }
+                  if (sequenceOf(cur) !== sequenceOf(it)) { failed += 1; return; } // newer edit arrived → keep it queued
+                  return s.del(keyOf(it)).then(function () { sent += 1; }, function () { failed += 1; });
+                });
               });
             });
           }).catch(function () { failed += 1; });
