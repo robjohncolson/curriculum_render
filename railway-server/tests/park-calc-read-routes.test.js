@@ -82,6 +82,24 @@ describe('park calculator read routes', () => {
     park.close();
   });
 
+  it('the 400 says "too long" for an oversized value and "required" for a missing one (review 2026-10-22 evening)', () => {
+    const { handlers, park } = build();
+    const long = fakeRes(), longSection = fakeRes(), missing = fakeRes(), blank = fakeRes();
+    handlers.due(req({ section: 'PeriodB', username: 'a'.repeat(65) }), long);
+    handlers.progress(req({ section: 'P'.repeat(65), username: 'alice' }), longSection);
+    handlers.due(req({ section: 'PeriodB' }), missing);
+    handlers.progress(req({ section: 'PeriodB', username: '   ' }), blank);
+    expect(long.body).toEqual({ ok: false, error: 'section or username too long' });
+    expect(longSection.body).toEqual({ ok: false, error: 'section or username too long' });
+    expect(missing.body).toEqual({ ok: false, error: 'section and username required' });
+    expect(blank.body).toEqual({ ok: false, error: 'section and username required' });
+    // Exactly 64 characters is still a name, not "too long".
+    const edge = fakeRes();
+    handlers.due(req({ section: 'PeriodB', username: 'a'.repeat(64) }), edge);
+    expect(edge.statusCode).toBe(200);
+    park.close();
+  });
+
   it('a park service failure is the only way to a 500', () => {
     const boom = { calcDue() { throw new Error('store exploded'); }, calcProgress() { throw new Error('store exploded'); } };
     const handlers = createCalcReadHandlers({ park: boom });

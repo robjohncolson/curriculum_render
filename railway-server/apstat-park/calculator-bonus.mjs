@@ -12,6 +12,9 @@
 // Failure never blocks the celebration: one retry, then a log line; park_calc_srs.mastered stays
 // true and the sweep re-posts.
 export const QUARTER_CACHE_MS = 10 * 60 * 1000;
+// posted / failed keep only the last RING entries (review 2026-10-22): a relay that runs for
+// months against a flapping roster-server must not keep every outcome. The sweep is the record.
+export const RING = 500;
 
 export function createBonusRail({ rosterUrl, teacherKey, fetch = globalThis.fetch, now = Date.now,
   skillTitle = id => id, log = (...args) => console.warn(...args), retryDelayMs = 2000, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
@@ -19,6 +22,7 @@ export function createBonusRail({ rosterUrl, teacherKey, fetch = globalThis.fetc
   const enabled = !!(base && teacherKey && fetch);
   const quarterCache = { at: 0, quarter: null };
   const posted = [], failed = [];
+  const remember = (list, entry) => { list.push(entry); if (list.length > RING) list.splice(0, list.length - RING); };
   const headers = () => ({ 'content-type': 'application/json', 'x-teacher-secret': String(teacherKey) });
 
   // The open quarter, from roster-server (GET /class/quarter/current, teacher route). Cached.
@@ -56,9 +60,9 @@ export function createBonusRail({ rosterUrl, teacherKey, fetch = globalThis.fetc
       log('park calculator bonus: first post failed for', username, skillId, error?.message || error, '- retrying once');
       await wait(retryDelayMs);
       return attempt();
-    }).then(result => { posted.push({ section, username, skillId, quarter: result.quarter }); return result; })
+    }).then(result => { remember(posted, { section, username, skillId, quarter: result.quarter }); return result; })
       .catch(error => {
-        failed.push({ section, username, skillId, error: error?.message || String(error) });
+        remember(failed, { section, username, skillId, error: error?.message || String(error) });
         log('park calculator bonus: not banked for', username, skillId, error?.message || error, '(sweep will)');
         return null;
       });

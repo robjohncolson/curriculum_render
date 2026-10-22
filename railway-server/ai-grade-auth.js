@@ -409,18 +409,23 @@ export function createAiGradeAuth(options = {}) {
       if (mode === 'enforce' && !authenticated) {
         return res.status(401).json({ error: 'roster sign-in required' });
       }
-      if (mode === 'log' && !authenticated) {
-        const decision = 'would-reject-auth';
+      // Log mode records what enforce would have done to an unauthenticated request.
+      // items=0: enforce charges no quota for a request it rejects. The IP window still
+      // runs below, and a limited request carries +rate-ip so the log shows how often
+      // anonymous traffic is being limited.
+      const logWouldRejectAuth = (rateIpExceeded) => {
+        const decision = 'would-reject-auth' + (rateIpExceeded ? '+rate-ip' : '');
         setResponseHeader(res, 'X-AI-Grade-Auth', decision);
         writeLog(logger, '[ai-grade-auth] mode=log path=' + canonicalPath +
           ' decision=' + decision + ' items=0 sid=no');
-      }
+      };
 
       // Let the existing route return its byte-identical 400, without charging a
       // quota. In particular, arrays over the public max of eight cost nothing.
       if (!validRouteShape(req, canonicalPath)) {
-        // An unauthenticated request already carries would-reject-auth (header +
-        // log line above); it must not be relabelled allow-auth here.
+        // An unauthenticated request keeps would-reject-auth; it must not be
+        // relabelled allow-auth here.
+        if (mode === 'log' && !authenticated) logWouldRejectAuth(false);
         if (mode === 'log' && authenticated) {
           setResponseHeader(res, 'X-AI-Grade-Auth', 'allow-auth+skip-invalid');
           writeLog(logger, '[ai-grade-auth] mode=log path=' + canonicalPath +
@@ -449,6 +454,7 @@ export function createAiGradeAuth(options = {}) {
       }
 
       const rateExceeded = sidRate.exceeded || ipRate.exceeded;
+      if (mode === 'log' && !authenticated) logWouldRejectAuth(ipRate.exceeded);
       if (mode === 'log' && authenticated) {
         const decisions = ['allow-' + (secretValid ? 'secret' : 'roster')];
         if (sidRate.exceeded) decisions.push('rate-sid');

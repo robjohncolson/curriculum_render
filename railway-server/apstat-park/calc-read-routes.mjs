@@ -11,15 +11,17 @@ import { isClassroomSection } from './shared-classroom.mjs';
 
 const MAX_USERNAME = 64;
 
+// '' when missing, null when longer than max: the 400 names which.
 function queryText(value, max) {
   const text = String(value ?? '').trim();
-  return text.length <= max ? text : '';
+  return text.length <= max ? text : null;
 }
 
 // park: the park service (service.mjs). known: section predicate, for tests.
 export function createCalcReadHandlers({ park, known = isClassroomSection }) {
   function identity(req, res) {
     const section = queryText(req.query?.section, MAX_USERNAME), username = queryText(req.query?.username, MAX_USERNAME);
+    if (section === null || username === null) { res.status(400).json({ ok: false, error: 'section or username too long' }); return null; }
     if (!section || !username) { res.status(400).json({ ok: false, error: 'section and username required' }); return null; }
     if (!known(section)) { res.status(400).json({ ok: false, error: 'unknown section' }); return null; }
     return { section, username };

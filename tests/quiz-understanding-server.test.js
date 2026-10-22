@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { createHmac } from 'node:crypto';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { gradeBodyShapeError } from '../railway-server/grade-shape.js';
 
 const ROOT = resolve(__dirname, '..');
 let server = '';
@@ -152,7 +153,7 @@ function loadRoute({
     'getFrameworkForQuestion', 'buildFrameworkContext', 'applyWrongMcqCap', 'issueReviewGrant',
     'issueReceipt', 'receiptUsernameFromBody', 'normalizeUsername', 'console', 'fetch',
     'existsSync', 'readFileSync', 'CURRICULUM_FILE_CANDIDATES', 'CURRICULUM_URL', 'ROSTER_SERVICE_URL',
-    'createHmac', 'LIFECYCLE_SECRET',
+    'createHmac', 'LIFECYCLE_SECRET', 'gradeBodyShapeError',
     `${creditSource}\n${persistSource}\n${parserSource}\n${routeSource}`
   )(
     app,
@@ -179,7 +180,8 @@ function loadRoute({
     'https://pages.test/curriculum.js',
     'https://roster.test',
     createHmac,
-    secret
+    secret,
+    gradeBodyShapeError
   );
   return { handler, calls, store };
 }

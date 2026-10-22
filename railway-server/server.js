@@ -18,6 +18,7 @@ import { createKeyGrantHandler } from './apstat-park/campaign-key-grant.mjs';
 import { createCalcReadHandlers } from './apstat-park/calc-read-routes.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
+import { gradeBodyShapeError } from './grade-shape.js';
 import { createHmac } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, resolve as resolvePath } from 'path';
@@ -1012,6 +1013,10 @@ app.post('/api/ai/grade', async (req, res) => {
     if (!scenario || !answers) {
       return res.status(400).json({ error: 'Missing scenario or answers' });
     }
+    const shapeError = gradeBodyShapeError(req.body);
+    if (shapeError) {
+      return res.status(400).json({ error: shapeError });
+    }
 
     if (!AI_AVAILABLE) {
       return res.status(503).json({ error: 'No AI providers configured' });
@@ -1582,14 +1587,16 @@ function normalizeGradingResponse(parsed, defaultFieldId = 'answer') {
 
 // Build default grading prompt
 function buildDefaultGradingPrompt(scenario, answers, template) {
+  // Keys come from the client; a regex metacharacter in one must not throw out of new RegExp.
+  const escapeRegExp = key => String(key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   if (template) {
     // Replace template placeholders
     let prompt = template;
     for (const [key, value] of Object.entries(scenario)) {
-      prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
+      prompt = prompt.replace(new RegExp(`\\{\\{${escapeRegExp(key)}\\}\\}`, 'g'), String(value || ''));
     }
     for (const [key, value] of Object.entries(answers)) {
-      prompt = prompt.replace(new RegExp(`\\{\\{${key}Answer\\}\\}`, 'g'), String(value || ''));
+      prompt = prompt.replace(new RegExp(`\\{\\{${escapeRegExp(key)}Answer\\}\\}`, 'g'), String(value || ''));
       prompt = prompt.replace(/\{\{answer\}\}/gi, String(value || ''));
     }
     return prompt;
@@ -1637,6 +1644,10 @@ app.post('/api/ai/appeal', async (req, res) => {
 
     if (!scenario || !answers || !appealText) {
       return res.status(400).json({ error: 'Missing scenario, answers, or appeal text' });
+    }
+    const shapeError = gradeBodyShapeError(req.body, { appeal: true });
+    if (shapeError) {
+      return res.status(400).json({ error: shapeError });
     }
 
     // Guest appeals remain ephemeral.  A roster-authenticated appeal must be

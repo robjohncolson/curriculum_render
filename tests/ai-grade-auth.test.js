@@ -904,11 +904,41 @@ describe('rate limiter runs in every mode', () => {
     expect(limited.next).not.toHaveBeenCalled();
     expect(limited.res.statusCode).toBe(429);
     expect(limited.res.body).toEqual({ error: 'AI grading rate limit exceeded' });
-    expect(limited.res.headers['x-ai-grade-auth']).toBe('would-reject-auth');
+    // Review 2026-10-22 evening: the limited anonymous request carries +rate-ip, like the
+    // sid path, so the log can show how often anonymous traffic is being limited.
+    expect(limited.res.headers['x-ai-grade-auth']).toBe('would-reject-auth+rate-ip');
     expect(logger.info).toHaveBeenCalledTimes(3);
-    for (const [line] of logger.info.mock.calls) {
+    for (const [line] of logger.info.mock.calls.slice(0, 2)) {
       expect(line).toMatch(/mode=log path=\/api\/ai\/grade decision=would-reject-auth items=0 sid=no/);
     }
+    expect(logger.info.mock.calls[2][0]).toMatch(/mode=log path=\/api\/ai\/grade decision=would-reject-auth\+rate-ip items=0 sid=no/);
+  });
+
+  it('log mode: an anonymous request under the IP window stays would-reject-auth with no rate marker, and off mode writes no log line', () => {
+    const logger = { info: vi.fn() };
+    const log = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'log', AI_GRADE_MAX_ITEMS_PER_MIN_IP: '2' },
+      sidFromRequest: () => null,
+      logger,
+      now: () => 6_000,
+    });
+    const allowed = invoke(log, mockRequest('/api/ai/grade', validGradeBody(), {}, '198.51.100.21'));
+    expect(allowed.next).toHaveBeenCalledOnce();
+    expect(allowed.res.headers['x-ai-grade-auth']).toBe('would-reject-auth');
+    expect(logger.info).toHaveBeenCalledTimes(1);
+
+    const off = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'off', AI_GRADE_MAX_ITEMS_PER_MIN_IP: '1' },
+      sidFromRequest: () => null,
+      logger,
+      now: () => 6_000,
+    });
+    invoke(off, mockRequest('/api/ai/grade', validGradeBody(), {}, '198.51.100.22'));
+    const limited = invoke(off, mockRequest('/api/ai/grade', validGradeBody(), {}, '198.51.100.22'));
+    expect(limited.res.statusCode).toBe(429);
+    expect(limited.res.body).toEqual({ error: 'AI grading rate limit exceeded' });
+    expect(limited.res.headers['x-ai-grade-auth']).toBeUndefined();
+    expect(logger.info).toHaveBeenCalledTimes(1);
   });
 
   it('records rate-sid in the log-mode decision and returns 429 for a signed-in burst', () => {
