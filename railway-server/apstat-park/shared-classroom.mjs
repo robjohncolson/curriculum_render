@@ -3,6 +3,11 @@ import { eligibleLevels } from './calculator-curriculum.mjs';
 export const SHARED_PARK = 'park:periods-b-e';
 const SHARED_CLASSES = ['PeriodB', 'PeriodE', 'B', 'E'];
 export const parkSection = section => SHARED_CLASSES.includes(section) ? SHARED_PARK : section;
+// The classroom sections a public read may name (the HTTP routes in calc-read-routes.mjs): the
+// classes that share the park plus the teacher's home. Anything else is refused at the boundary,
+// so an unknown string never allocates a section in the clears / recall modules or starts a load.
+export const CLASSROOM_SECTIONS = Object.freeze([...SHARED_CLASSES, 'PeriodX', 'X']);
+export const isClassroomSection = section => CLASSROOM_SECTIONS.includes(section);
 
 // This adapter belongs only to the park services. The actual classroom registry,
 // its socket identities, polls, grades and teacher commands remain class-scoped.

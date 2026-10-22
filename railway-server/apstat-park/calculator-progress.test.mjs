@@ -117,13 +117,15 @@ test('unit is the CED-2026 unit from the vendored crosswalk (bonus topics under 
   assert.equal(cedUnitOf('nope'), null);
 });
 
-test('server.js serves the route beside /park/calc/due through classroomPark.calcProgress', () => {
+test('server.js serves the route beside /park/calc/due through calc-read-routes.mjs -> park.calcProgress', () => {
   const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
   const due = server.indexOf("app.get('/park/calc/due'");
   const progress = server.indexOf("app.get('/park/calc/progress'");
   assert.ok(due > 0 && progress > due, 'progress route follows the due route');
-  assert.match(server.slice(progress, progress + 600), /classroomPark\.calcProgress\(section, username\)/);
-  assert.match(server.slice(progress, progress + 600), /section and username required/);
+  assert.match(server.slice(progress, progress + 60), /calcReads\.progress/);
+  const routes = readFileSync(new URL('./calc-read-routes.mjs', import.meta.url), 'utf8');
+  assert.match(routes, /park\.calcProgress\(who\.section, who\.username\)/);
+  assert.match(routes, /section and username required/);
 });
 
 test('loading: true while the stores of a section have not answered; false once loaded or memory-only (Codex review 2026-10-18)', async () => {

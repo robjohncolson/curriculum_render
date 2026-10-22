@@ -15,6 +15,7 @@ import { createSupabaseSrsStore } from './apstat-park/calculator-srs-store.mjs';
 import { createBonusRail } from './apstat-park/calculator-bonus.mjs';
 import { CALCULATOR_LEVELS } from './apstat-park/calculator-curriculum.mjs';
 import { createKeyGrantHandler } from './apstat-park/campaign-key-grant.mjs';
+import { createCalcReadHandlers } from './apstat-park/calc-read-routes.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 import { createHmac } from 'crypto';
@@ -220,24 +221,12 @@ const classroomPark = createParkService({
   // Calculator spaced-recall records persist in park_calc_srs (migration 0009), same client.
   srsStore: createSupabaseSrsStore(quizReviewsSupabase),
 });
-// APSTAT_PARK_TRAINER_ABSORB_SPEC §5: the student's due calculator skills (most overdue first) and
-// today's skills (the Desk resolves its lesson-map topics and passes skill ids). Read-only; the
-// same identity the park itself trusts (section + username, no grades).
-app.get('/park/calc/due', (req, res) => {
-  const section = String(req.query.section || '').trim(), username = String(req.query.username || '').trim();
-  if (!section || !username) return res.status(400).json({ ok: false, error: 'section and username required' });
-  const skills = String(req.query.skills || '').split(',').map(s => s.trim()).filter(Boolean);
-  try { res.json({ ok: true, ...classroomPark.calcDue(section, username, skills) }); }
-  catch (error) { res.status(500).json({ ok: false, error: error.message }); }
-});
-// APSTAT_PARK_TRAINER_ABSORB_2_SPEC §5: the Calculator Skills progress view. Every catalogue
-// skill with its calendar gate, clears, rung and recall record. Read-only, no grades.
-app.get('/park/calc/progress', (req, res) => {
-  const section = String(req.query.section || '').trim(), username = String(req.query.username || '').trim();
-  if (!section || !username) return res.status(400).json({ ok: false, error: 'section and username required' });
-  try { res.json({ ok: true, ...classroomPark.calcProgress(section, username) }); }
-  catch (error) { res.status(500).json({ ok: false, error: error.message }); }
-});
+// APSTAT_PARK_TRAINER_ABSORB_SPEC §5 (due) and ABSORB_2_SPEC §5 (progress): the Desk's read-only
+// calculator views. Same identity the park itself trusts (section + username, no grades); the
+// section must be a real classroom section (calc-read-routes.mjs).
+const calcReads = createCalcReadHandlers({ park: classroomPark });
+app.get('/park/calc/due', calcReads.due);
+app.get('/park/calc/progress', calcReads.progress);
 // A campaign key bought with candy: roster-server calls this server-to-server after debiting the
 // candy (shared secret PARK_KEY_GRANT_SECRET; idempotent on receiptId). Migration 0006.
 app.post('/park/campaign/keys/grant', createKeyGrantHandler({ park: classroomPark }));
