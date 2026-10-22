@@ -2512,12 +2512,19 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
 
   // --- castDoorwayVote increments the matched doorId count --------------
 
+  // V7.5.1 (d50bbca): castDoorwayVote auto-closes the doorways once EVERY
+  // online student has voted. These cases keep a second, non-voting
+  // student (bob) online so the doorways stay open and the tally
+  // broadcast is the only one. The auto-close itself is pinned below.
+
   it('castDoorwayVote increments the matched doorId count', () => {
     var wsT = makeWs();
     var wsS = makeWs();
+    var wsB = makeWs();
     var now = 1000;
     registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
     registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsB, 'PeriodA', 'bob',      'student', now);
     registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
 
     var result = registry.castDoorwayVote(wsS, 'doorways-1', 'd1', now + 200);
@@ -2552,9 +2559,11 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
   it('castDoorwayVote switches a vote: prior doorId decrements + new increments', () => {
     var wsT = makeWs();
     var wsS = makeWs();
+    var wsB = makeWs();
     var now = 1000;
     registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
     registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsB, 'PeriodA', 'bob',      'student', now);
     registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
 
     // Alice votes d0 first.
@@ -2576,9 +2585,11 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
   it('castDoorwayVote re-vote for same door is a no-op', () => {
     var wsT = makeWs();
     var wsS = makeWs();
+    var wsB = makeWs();
     var now = 1000;
     registry.join(wsT, 'PeriodA', 'teacher1', 'teacher', now);
     registry.join(wsS, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsB, 'PeriodA', 'bob',      'student', now);
     registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
 
     // First vote.
@@ -2601,15 +2612,18 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
     var wsT  = makeWs();
     var wsS1 = makeWs();
     var wsS2 = makeWs();
+    var wsS3 = makeWs();
     var now = 1000;
     registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
     registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
     registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    registry.join(wsS3, 'PeriodA', 'carol',    'student', now);   // never votes: keeps auto-close off
     registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
 
     registry.castDoorwayVote(wsS1, 'doorways-1', 'd0', now + 200);
     registry.castDoorwayVote(wsS2, 'doorways-1', 'd1', now + 300);
 
+    // Teacher force-closes early (carol still undecided).
     var result = registry.closeDoorways(wsT, 'doorways-1', now + 400);
 
     expect(result.broadcasts).toHaveLength(1);
@@ -2627,6 +2641,35 @@ describe('createClassroomRegistry -- v3 P4 doorways', () => {
     // empty broadcasts because the room has no active doorways.)
     var revote = registry.castDoorwayVote(wsS1, 'doorways-1', 'd0', now + 500);
     expect(revote.broadcasts).toHaveLength(0);
+  });
+
+  // --- V7.5.1 auto-close: the last online student's vote closes the doorways ---
+
+  it('castDoorwayVote auto-closes once every online student has voted (V7.5.1)', () => {
+    var wsT  = makeWs();
+    var wsS1 = makeWs();
+    var wsS2 = makeWs();
+    var now = 1000;
+    registry.join(wsT,  'PeriodA', 'teacher1', 'teacher', now);
+    registry.join(wsS1, 'PeriodA', 'alice',    'student', now);
+    registry.join(wsS2, 'PeriodA', 'bob',      'student', now);
+    registry.openDoorways(wsT, 'doorways-1', 'Q?', defaultOptions(), now + 100);
+
+    var first = registry.castDoorwayVote(wsS1, 'doorways-1', 'd0', now + 200);
+    expect(first.broadcasts.map(function (b) { return b.payload.type; }))
+      .toEqual(['classroom_doorway_tally']);
+
+    var last = registry.castDoorwayVote(wsS2, 'doorways-1', 'd1', now + 300);
+    expect(last.broadcasts.map(function (b) { return b.payload.type; }))
+      .toEqual(['classroom_doorway_tally', 'classroom_close_doorways']);
+    expect(last.broadcasts[1].payload.tally).toEqual([
+      { doorId: 'd0', count: 1 },
+      { doorId: 'd1', count: 1 }
+    ]);
+
+    // Doorways are gone: the teacher's manual close is now a no-op.
+    var manual = registry.closeDoorways(wsT, 'doorways-1', now + 400);
+    expect(manual.broadcasts).toHaveLength(0);
   });
 
   // --- closeDoorways requires teacher role ------------------------------
@@ -2723,6 +2766,7 @@ describe('createClassroomRegistry -- s111 hotfix: doorways snapshot normalizatio
     var studentWs = makeWs();
     reg.join(teacherWs, 'PeriodX', 'teach', 'teacher', 1000, null);
     reg.join(studentWs, 'PeriodX', 'alice', 'student', 1100, null);
+    reg.join(makeWs(),  'PeriodX', 'bob',   'student', 1150, null);   // undecided: keeps auto-close off
     // Open doorways + cast a vote.
     reg.openDoorways(teacherWs, 'dw-1', 'Pick?', [
       { label: 'Yes', doorId: 'y' },
@@ -2768,6 +2812,7 @@ describe('createClassroomRegistry -- s111 hotfix: retractDoorwayVote', () => {
     var studentWs = makeWs();
     reg.join(teacherWs, 'P', 'teach', 'teacher', 1000, null);
     reg.join(studentWs, 'P', 'alice',  'student', 1100, null);
+    reg.join(makeWs(),  'P', 'bob',    'student', 1150, null);   // undecided: keeps auto-close off
     reg.openDoorways(teacherWs, 'dw', 'Q', [
       { label: 'A', doorId: 'a' },
       { label: 'B', doorId: 'b' }
