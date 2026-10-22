@@ -20,6 +20,10 @@ function queryText(value, max) {
 // park: the park service (service.mjs). known: section predicate, for tests.
 export function createCalcReadHandlers({ park, known = isClassroomSection }) {
   function identity(req, res) {
+    if (['section', 'username'].some(key => req.query?.[key] != null && typeof req.query[key] !== 'string')) {
+      res.status(400).json({ ok: false, error: 'section and username must be text' });
+      return null;
+    }
     const section = queryText(req.query?.section, MAX_USERNAME), username = queryText(req.query?.username, MAX_USERNAME);
     if (section === null || username === null) { res.status(400).json({ ok: false, error: 'section or username too long' }); return null; }
     if (!section || !username) { res.status(400).json({ ok: false, error: 'section and username required' }); return null; }
@@ -30,6 +34,10 @@ export function createCalcReadHandlers({ park, known = isClassroomSection }) {
     due(req, res) {
       const who = identity(req, res);
       if (!who) return;
+      if (req.query?.skills != null && typeof req.query.skills !== 'string') {
+        res.status(400).json({ ok: false, error: 'skills must be text' });
+        return;
+      }
       const skills = String(req.query?.skills || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 64);
       try { res.json({ ok: true, ...park.calcDue(who.section, who.username, skills) }); }
       catch (error) { res.status(500).json({ ok: false, error: error.message }); }

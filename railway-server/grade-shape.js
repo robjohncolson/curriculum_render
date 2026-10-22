@@ -14,6 +14,13 @@ const isScalar = value => value === null || value === undefined ||
 const isPlainObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
 const isOptionalString = value => value === null || value === undefined || typeof value === 'string';
 
+// JSON objects can shadow toString with a non-function. Check the coercions the
+// prompt builders perform without rejecting ordinary nested lesson context.
+function canRenderText(value) {
+  try { String(value); return true; }
+  catch { return false; }
+}
+
 // Scenario fields read as text by the prompt builders and the MCQ cap.
 const SCALAR_SCENARIO_FIELDS = ['questionType', 'correctAnswer', 'prompt', 'topic', 'partId'];
 
@@ -33,7 +40,8 @@ export function gradeBodyShapeError(body, { appeal = false } = {}) {
     }
   }
   if (scenario.choices != null) {
-    if (!Array.isArray(scenario.choices) || scenario.choices.some(choice => choice == null)) {
+    if (!Array.isArray(scenario.choices) || scenario.choices.some(choice =>
+      choice == null || !canRenderText(choice.key) || !canRenderText(choice.text))) {
       return 'scenario.choices must be a list';
     }
   }
@@ -43,11 +51,15 @@ export function gradeBodyShapeError(body, { appeal = false } = {}) {
 
   if (!isOptionalString(prompt)) return 'prompt must be a string';
   if (!isOptionalString(aiPromptTemplate)) return 'aiPromptTemplate must be a string';
+  if (!prompt && aiPromptTemplate && !Object.values(scenario).every(canRenderText)) {
+    return 'scenario template values must be text';
+  }
 
   if (!appeal) return null;
   if (typeof appealText !== 'string') return 'appealText must be a string';
   if (previousResults != null) {
-    if (!isPlainObject(previousResults) || Object.values(previousResults).some(result => result == null)) {
+    if (!isPlainObject(previousResults) || Object.values(previousResults).some(result =>
+      result == null || !canRenderText(result.score || result) || !canRenderText(result.feedback || 'No feedback'))) {
       return 'previousResults must be an object of results';
     }
   }
