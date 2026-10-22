@@ -1,3 +1,6 @@
 .gitnexus
 .env
 railway-server/.env
+railway-server/*.log
+railway-server/state/
+test-results/
