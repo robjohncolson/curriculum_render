@@ -826,6 +826,138 @@ describe('quota correctness and poisoning resistance', () => {
   });
 });
 
+describe('rate limiter runs in every mode', () => {
+  it('limits a burst over the sid quota in off mode', () => {
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'off', AI_GRADE_MAX_ITEMS_PER_MIN_SID: '3' },
+      sidFromRequest: (req) => req.get('x-test-sid') || null,
+      now: () => 5_000,
+    });
+    const send = () => invoke(
+      auth,
+      mockRequest('/api/ai/grade', validGradeBody(), { 'x-test-sid': 'student-1' }),
+    );
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(send().next).toHaveBeenCalledOnce();
+    }
+    const limited = send();
+    expect(limited.next).not.toHaveBeenCalled();
+    expect(limited.res.statusCode).toBe(429);
+    expect(limited.res.body).toEqual({ error: 'AI grading rate limit exceeded' });
+    expect(Number(limited.res.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+    // Off mode stays silent about identity: no log-mode header.
+    expect(limited.res.headers['x-ai-grade-auth']).toBeUndefined();
+  });
+
+  it('limits an anonymous burst over the IP quota in off mode without a sid window', () => {
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'off', AI_GRADE_MAX_ITEMS_PER_MIN_IP: '2' },
+      sidFromRequest: () => null,
+      now: () => 5_000,
+    });
+    const send = () => invoke(
+      auth,
+      mockRequest('/api/ai/grade-worksheet', validBodyForRoute('/api/ai/grade-worksheet'), {}, '198.51.100.7'),
+    );
+    expect(send().next).toHaveBeenCalledOnce();
+    expect(send().next).toHaveBeenCalledOnce();
+    const limited = send();
+    expect(limited.next).not.toHaveBeenCalled();
+    expect(limited.res.statusCode).toBe(429);
+    expect(auth.rateLimitStats().sid.keys).toBe(0);
+    expect(auth.rateLimitStats().ip.keys).toBe(1);
+  });
+
+  it('keeps the quota per sid in off mode: a fresh sid is still allowed', () => {
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'off', AI_GRADE_MAX_ITEMS_PER_MIN_SID: '1' },
+      sidFromRequest: (req) => req.get('x-test-sid') || null,
+      now: () => 5_000,
+    });
+    const sendAs = (sid) => invoke(
+      auth,
+      mockRequest('/api/ai/grade', validGradeBody(), { 'x-test-sid': sid }),
+    );
+    expect(sendAs('student-1').next).toHaveBeenCalledOnce();
+    expect(sendAs('student-1').res.statusCode).toBe(429);
+    expect(sendAs('student-2').next).toHaveBeenCalledOnce();
+  });
+
+  it('logs identity failures in log mode and still applies the limiter', () => {
+    const logger = { info: vi.fn() };
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'log', AI_GRADE_MAX_ITEMS_PER_MIN_IP: '2' },
+      sidFromRequest: () => null,
+      logger,
+      now: () => 6_000,
+    });
+    const send = () => invoke(
+      auth,
+      mockRequest('/api/ai/grade', validGradeBody(), {}, '198.51.100.8'),
+    );
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const allowed = send();
+      expect(allowed.next).toHaveBeenCalledOnce();
+      expect(allowed.res.headers['x-ai-grade-auth']).toBe('would-reject-auth');
+    }
+    const limited = send();
+    expect(limited.next).not.toHaveBeenCalled();
+    expect(limited.res.statusCode).toBe(429);
+    expect(limited.res.body).toEqual({ error: 'AI grading rate limit exceeded' });
+    expect(limited.res.headers['x-ai-grade-auth']).toBe('would-reject-auth');
+    expect(logger.info).toHaveBeenCalledTimes(3);
+    for (const [line] of logger.info.mock.calls) {
+      expect(line).toMatch(/mode=log path=\/api\/ai\/grade decision=would-reject-auth items=0 sid=no/);
+    }
+  });
+
+  it('records rate-sid in the log-mode decision and returns 429 for a signed-in burst', () => {
+    const logger = { info: vi.fn() };
+    const auth = createAiGradeAuth({
+      env: { AI_GRADE_AUTH: 'log', AI_GRADE_MAX_ITEMS_PER_MIN_SID: '1' },
+      sidFromRequest: (req) => req.get('x-test-sid') || null,
+      logger,
+      now: () => 6_000,
+    });
+    const send = () => invoke(
+      auth,
+      mockRequest('/api/ai/grade', validGradeBody(), { 'x-test-sid': 'student-1' }),
+    );
+    const allowed = send();
+    expect(allowed.next).toHaveBeenCalledOnce();
+    expect(allowed.res.headers['x-ai-grade-auth']).toBe('allow-roster');
+    const limited = send();
+    expect(limited.next).not.toHaveBeenCalled();
+    expect(limited.res.statusCode).toBe(429);
+    expect(limited.res.headers['x-ai-grade-auth']).toBe('allow-roster+rate-sid');
+    expect(logger.info.mock.calls.at(-1)[0]).toMatch(/decision=allow-roster\+rate-sid items=1 sid=yes/);
+  });
+
+  it('still lets the internal secret bypass both quota maps in off and log modes', () => {
+    for (const mode of ['off', 'log']) {
+      const auth = createAiGradeAuth({
+        env: {
+          AI_GRADE_AUTH: mode,
+          ROSTER_GRADER_SECRET: 'server-secret',
+          AI_GRADE_MAX_ITEMS_PER_MIN_SID: '1',
+          AI_GRADE_MAX_ITEMS_PER_MIN_IP: '1',
+        },
+        sidFromRequest: () => 'student-1',
+        now: () => 7_000,
+      });
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const request = mockRequest(
+          '/api/ai/grade-batch',
+          validBatchBody(8),
+          { 'x-roster-grader-secret': 'server-secret' },
+        );
+        expect(invoke(auth, request).next).toHaveBeenCalledOnce();
+      }
+      expect(auth.rateLimitStats().allocatedBucketCells).toBe(0);
+    }
+  });
+});
+
 describe('approved health exception and server wiring', () => {
   it('adds exactly the two approved health fields in off and unknown modes', () => {
     const baseline = {

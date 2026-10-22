@@ -389,10 +389,9 @@ export function createAiGradeAuth(options = {}) {
       const violation = capViolation(req, canonicalPath, routeCaps);
       if (violation) return res.status(413).json({ error: violation });
 
-      // Deploy safety: live worksheets can still omit roster auth. Off/unknown
-      // preserves route behavior except for the approved byte-cap boundaries.
-      if (mode === 'off') return next();
-
+      // Identity is resolved in every mode. The mode decides only what an
+      // identity failure means: enforce rejects, log records, off ignores.
+      // The rate limiter below runs regardless of the mode.
       const candidateDigest = sha256Digest(requestHeader(req, 'x-roster-grader-secret'));
       const secretValid = secretEnabled &&
         timingSafeEqual(candidateDigest, configuredSecretDigest);
@@ -410,12 +409,11 @@ export function createAiGradeAuth(options = {}) {
       if (mode === 'enforce' && !authenticated) {
         return res.status(401).json({ error: 'roster sign-in required' });
       }
-      if (!authenticated) {
+      if (mode === 'log' && !authenticated) {
         const decision = 'would-reject-auth';
         setResponseHeader(res, 'X-AI-Grade-Auth', decision);
         writeLog(logger, '[ai-grade-auth] mode=log path=' + canonicalPath +
           ' decision=' + decision + ' items=0 sid=no');
-        return next();
       }
 
       // Let the existing route return its byte-identical 400, without charging a
@@ -429,23 +427,27 @@ export function createAiGradeAuth(options = {}) {
         return next();
       }
 
+      // The internal secret bypasses both quota maps. Everyone else is limited
+      // in every mode: the sid window when a roster sid resolved, the IP window
+      // always. Anonymous traffic (off/log modes) shares only the IP window so a
+      // classroom NAT without roster sign-in is not held to one student's quota.
       const count = itemCount(req, canonicalPath);
       let sidRate = { exceeded: false, retryAfterSeconds: 0 };
       let ipRate = { exceeded: false, retryAfterSeconds: 0 };
       if (!secretValid) {
         const currentTime = now();
-        sidRate = sidWindow.check(String(sid), count, config.sidItemsPerMinute, currentTime);
+        if (sid) sidRate = sidWindow.check(String(sid), count, config.sidItemsPerMinute, currentTime);
         ipRate = ipWindow.check(requestIp(req), count, config.ipItemsPerMinute, currentTime);
         // Check both first, then commit atomically. Rejected attempts consume no
         // quota and cannot grow per-key memory.
         if (!sidRate.exceeded && !ipRate.exceeded) {
-          sidWindow.commit(String(sid), count, currentTime);
+          if (sid) sidWindow.commit(String(sid), count, currentTime);
           ipWindow.commit(requestIp(req), count, currentTime);
         }
       }
 
       const rateExceeded = sidRate.exceeded || ipRate.exceeded;
-      if (mode === 'log') {
+      if (mode === 'log' && authenticated) {
         const decisions = ['allow-' + (secretValid ? 'secret' : 'roster')];
         if (sidRate.exceeded) decisions.push('rate-sid');
         if (ipRate.exceeded) decisions.push('rate-ip');
@@ -456,7 +458,6 @@ export function createAiGradeAuth(options = {}) {
           '[ai-grade-auth] mode=log path=' + canonicalPath + ' decision=' + decision +
             ' items=' + count + ' sid=' + (sid ? 'yes' : 'no'),
         );
-        return next();
       }
 
       if (rateExceeded) {
