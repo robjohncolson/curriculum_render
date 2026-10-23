@@ -660,6 +660,81 @@ describe('round 4: correct-first legacy, rollback vs restore, POST ordering', ()
   });
 });
 
+describe('server kept an earlier first answer (fresh device answered before the restore)', () => {
+  // The fixture key is B. The server already holds C as the first answer; this device sends a letter
+  // as attempt 1 and is told firstAnswerKept + keptResponse:'C'.
+  function keptBoot(records, { kept = 'C', acceptRetry = true } = {}) {
+    return boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
+      ? Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: kept })
+      : (acceptRetry ? Promise.resolve({ ok: true }) : new Promise(() => {}))) });
+  }
+
+  it('with an explanation ready: the chosen letter is sent as the retry and settles', async () => {
+    const records = [];
+    const w = keptBoot(records);
+    render(w);
+    await submit(w, 'B', 'I misread the axis');
+    await tick(300);
+    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'B', 'I misread the axis'], [2, 'B', 'I misread the axis']]);
+    const state = JSON.parse(w.localStorage.getItem('quizRetryState_Me'));
+    expect(state.firstAnswers[QID]).toBe('C');
+    expect(state.retries[QID]).toMatchObject({ state: 'accepted', value: 'B' });
+    const v = view(w);
+    expectRevealed(w, v);
+    expect(v.checked).toBe('B');
+    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('already had your first answer');
+  });
+
+  it('without an explanation: the retry form opens with the chosen letter and says why', async () => {
+    const records = [];
+    const w = keptBoot(records);
+    render(w);
+    await submit(w, 'B');
+    await tick(300);
+    expect(records.length).toBe(1);
+    const v = view(w);
+    expectLocked(v);
+    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonDisabled).toBe(true);
+    expect(v.checked).toBe('B');
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).firstAnswers[QID]).toBe('C');
+    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('already had your first answer on this question (C)');
+    // The explanation unlocks the retry as usual.
+    await submit(w, 'B', 'I misread the axis');
+    await tick(300);
+    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'B'], [2, 'B']]);
+    expectRevealed(w, view(w));
+  });
+
+  it('the kept first answer was correct: it is the grade, the chosen letter is dropped', async () => {
+    const records = [];
+    const w = keptBoot(records, { kept: 'B' });
+    render(w);
+    await submit(w, 'C', 'I changed my mind');
+    await tick(300);
+    expect(records.length).toBe(1);
+    const v = view(w);
+    expect(v.checked).toBe('B');
+    expect(v.lockText).toBe('This answer is your grade.');
+    expect(v.buttonHidden).toBe(true);
+    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('it was correct');
+  });
+
+  it('the kept first answer equals the chosen letter: nothing changes', async () => {
+    const records = [];
+    const w = keptBoot(records, { kept: 'C' });
+    render(w);
+    await submit(w, 'C');
+    await tick(300);
+    expect(records.length).toBe(1);
+    const v = view(w);
+    expect(v.checked).toBe('C');
+    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+  });
+});
+
 describe('ledger restore repaints the question', () => {
   it('a restored accepted retry (attempt-2 row) settles and reveals a rendered question', async () => {
     const w = boot();

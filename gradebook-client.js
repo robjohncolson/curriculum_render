@@ -228,7 +228,14 @@
         return { ok: false, status: res.status, reason: res.status === 401 ? 'auth-expired' : 'network', retryable: retryable };
       }
       var data = await res.json();
-      if (data && data.ok) { _captureReceipt(data.receipt, opts.source, opts.itemId, opts.score); return { ok: true, ledgerId: data.ledgerId, receipt: data.receipt || null }; }
+      if (data && data.ok) {
+        _captureReceipt(data.receipt, opts.source, opts.itemId, opts.score);
+        var result = { ok: true, ledgerId: data.ledgerId, receipt: data.receipt || null };
+        // The server kept an earlier first answer and ignored this one (QUIZ_FIRST_ANSWER_SPEC v2);
+        // the page turns the ignored letter into the retry.
+        if (data.firstAnswerKept) { result.firstAnswerKept = true; result.keptResponse = (data.keptResponse === undefined) ? null : data.keptResponse; }
+        return result;
+      }
       console.warn('gradebook-client: server returned ok:false', data);
       return { ok: false, reason: 'network' };
     } catch (err) {
