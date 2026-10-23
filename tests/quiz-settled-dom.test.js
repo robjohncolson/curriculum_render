@@ -682,6 +682,51 @@ describe('ledger restore repaints the question', () => {
     expect(w.document.getElementById(`reason-${QID}`).value).toBe('I misread the axis');
   });
 
+  it('a teacher reset (no attempt-2 row on the server) drops the local accepted retry and reopens the form', async () => {
+    const acceptedWrong = JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'accepted', value: 'A', submittedAt: 9 } } });
+    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
+    seedMine(w, { answer: 'A', attempts: 2, reason: 'I meant B' });
+    render(w);
+    await tick(300);
+    expectRevealed(w, view(w));
+    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+    w.ROSTER_SERVICE_URL = 'https://roster.test';
+    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
+      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
+    ] }) });
+    await w.restoreOwnAnswersFromLedger();
+    await tick(300);
+    const v = view(w);
+    expect(v.keyShown).toBe(false);        // the reveal box closed again
+    expect(v.peerLetters).toBe(0);
+    expect(v.radiosDisabled).toBe(false);
+    expect(v.checked).toBe('C');
+    expect(v.panelText).toContain('retry with an explanation');
+    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toBeUndefined();
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+  });
+
+  it('a retry accepted after the restore fetch began is kept even when the reply lacks its row', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'C', attempts: 1 });
+    render(w);
+    await tick(300);
+    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+    w.ROSTER_SERVICE_URL = 'https://roster.test';
+    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
+      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
+    ] }) });
+    const restore = w.restoreOwnAnswersFromLedger();
+    // Lands while the fetch is in flight: an accepted retry newer than the fetch start.
+    w.localStorage.setItem('quizRetryState_Me', JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'accepted', value: 'B', submittedAt: Date.now() + 1000 } } }));
+    w.eval(`_quizRetryStateCache = {}; classData.users.Me.answers['${QID}'] = { value: 'B', timestamp: Date.now() }; classData.users.Me.attempts['${QID}'] = 2;`);
+    await restore;
+    await tick(300);
+    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toMatchObject({ state: 'accepted', value: 'B' });
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(2);
+  });
+
   it('F: an already-rendered FRQ input shows the restored response', async () => {
     const w = boot();
     w.eval(`document.getElementById('host').innerHTML = renderQuestion(currentQuestions[1], 1).html;`);

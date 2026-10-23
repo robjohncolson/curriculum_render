@@ -2985,6 +2985,7 @@
                 const base = window.ROSTER_SERVICE_URL;
                 const user = window.currentUsername;
                 if (!token || !sid || !base || !user) return;
+                const fetchStartedAt = Date.now();   // a retry accepted after this instant may be missing from the reply
                 const res = await fetch(base + '/ledger/student/' + encodeURIComponent(sid), { headers: { Authorization: 'Bearer ' + token } });
                 if (res.status !== 200) return;
                 const data = await res.json();
@@ -3081,7 +3082,17 @@
 
                     if (!hasResponse(a1)) return;
                     if (retry && retry.state === 'pending') return;   // its own outcome decides
-                    if (retry && retry.state === 'accepted') return;  // accepted locally just now
+                    if (retry && retry.state === 'accepted') {
+                        // Accepted on this device, but the server holds no attempt-2 row any more: the
+                        // teacher reset the retry (POST /ledger/quiz-reset). Drop the local record and
+                        // fall back to the kept first answer so the retry form reopens. A retry accepted
+                        // after this fetch began may simply be missing from the reply: keep that one.
+                        if ((Number(retry.submittedAt) || 0) >= fetchStartedAt) return;
+                        delete retryState.retries[qid];
+                        retryStateChanged = true;
+                        takeServer(qid, a1, 1);
+                        return;
+                    }
                     // No retry on the server: the graded answer is attempt 1. A local second attempt
                     // with no record (pre-v2 / lost state) and any local first answer that differs
                     // from the server's kept first answer both reconcile to the server.
