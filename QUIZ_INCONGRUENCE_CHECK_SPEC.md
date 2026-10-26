@@ -1,6 +1,6 @@
 # Quiz retry form: keep the student's pick, and ask when the explanation points to a different letter (spec v1, 2026-10-25)
 
-Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A shipped 2026-10-25 (cr `0389295`), the two §0 resets done the same evening, Part B shipped 2026-10-26 (the commit carrying this line). Client-only (curriculum_render `index.html` + tests); no roster-server,
+Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A shipped 2026-10-25 (cr `0389295`), the two §0 resets done the same evening, Part B shipped 2026-10-26 (the commit carrying this line); addendum 2026-10-26 shipped (the commit carrying this line). Client-only (curriculum_render `index.html` + tests); no roster-server,
 ledger, migration or grade-engine change. Builds on QUIZ_FIRST_ANSWER_SPEC v2 (one explained retry = the grade),
 the 2026-10-23 teacher retry reset (`POST /ledger/quiz-reset`) and `_reconcileKeptFirstAnswer` (cr `02dbe58`).
 Reviewed 2026-10-25 by a six-lens adversarial pass (key leakage, state races, detector red team, UX,
@@ -50,6 +50,20 @@ Hence two parts, shipped in this order:
 
 The two open cases are the teacher's call (dashboard → "Reset a quiz retry", then the student reloads and submits
 their one retry). **Do the resets after Part A ships**, or the redo can fail the same way.
+
+**Addendum 2026-10-26 (teacher test).** The teacher tried the shipped card on two U4 items and it never appeared:
+"0.19 because" names option B (`0.190`) by its number, and "law of large numbers" is option D without its
+article, but Step 4 wanted the option text verbatim with three words and a letter, so both read as unclear; §4 now
+has R1 (the paste may drop one leading article) and R2 (a bare-number option is named by its value). The wrong
+retry was recorded correctly as the picked letter, but a blue line over the "Correct answer" box read as "marked
+correct", so a wrong retry now says in red "Not correct. This retry is your grade. The correct answer is shown
+below." once the server accepts it, in place of the blue "waiting" line, also when a queued retry replays after a
+reload (the line is read from the retry and the key, never from the old text) and when the sign-in ledger restore
+finds a retry this device was still waiting on already accepted. On the fresh-device reconcile path the verdict
+follows that path's own line ("… Your C was sent as your one retry. Not correct. …"), and a right retry sent there
+says "✅ It is correct." in green. An item with no key on the page (a
+Progress Check makeup, scored by the server) never says "Not correct": its first answer gets the plain "submitted"
+line and its retry no verdict.
 
 ## 1. Part A — the retry form never overrides the student's pick
 
@@ -170,6 +184,34 @@ Drop a reference when:
 - it is a **dotted abbreviation** (`E.g.`, `C.I.`, `A.M.`) or follows `°` (`20°C`);
 - it is a **lowercase** verb-cue letter in an explanation that contains `=` ("y = a + bx, the slope is b": a variable).
 
+**R2 (2026-10-26) — a bare-number option named by its value.** An option whose whole normalised text (a string;
+a number value prints differently in the browser and in Python) is a bare number (optional sign, optional leading
+`$`, digits with optional thousands commas, optional decimals, optional trailing `%`, nothing else; 36 of the 354
+items have one) has a value: the number, divided by 100 when it ends in `%`. A number in the explanation is a
+maximal run of those characters, trailing `.`/`,` trimmed, of the same shape, outside LaTeX `\( \)` / `\[ \]`, with
+only a space or plain punctuation `( ) [ ] " ' : ; ! ?` on each side: never a letter or digit (`0l19`, `x2`), a slash
+or brace (a fraction, `9/51`, `\frac{9}{51}`) or any other character (`~0.19`), so no Unicode table decides it. A
+number whose value equals the value of exactly one numeric option is a reference to that option **when it has a
+cue**, as a plain `A` needs one: it leads the explanation alone or before a reason (`because | since | bc | b/c | cuz
+| cause | porque | pues`): "0.19 because" → B when B is `0.190`, "0.19", "19% because" too; never as the subject of a
+step ("0.19 is P(at least 3) so I took the complement", "5 is the intercept", "0 books has 0.35 so multiply"), a pick
+word sits right before it (a noun cue, or `its | it's | picked | chose | think | guess | put | meant | want | keep |
+stick | actually | probably | maybe | …`, or `is | was` right after `it` or a noun cue: "the answer is 0.19"; never
+`is` alone, "the probability is 0.19" is working), it is negated by Step 2, or it continues a bare list after
+another number reference ("0.19 or 0.474" names both → unclear). Anywhere else a number is a step: "1 minus 0.19",
+"the complement of 0.19", "the observed count is 58", "add 0.16, 0.34, 0.29 and 0.15" name nothing. A negation
+carries along a bare list of numbers of any length ("not 0.19, 0.474, 0.526, 0.81" rejects all four), and a
+negation after such a list reaches back along it ("I think 0.19 and 0.474 are wrong" rejects both). Never a value the
+prompt prints (read the same way but taking every run, plus N/100 for "N percent" however it is spelled: `19
+percent`, `19 %`, `19 per cent`, `19-percent`, LaTeX's `\%` and its spacing `\ `; a hyphen after a digit is a dash
+there, so `10-20` prints 10 and 20; "percent" followed by an ASCII letter or digit is another word: "15 percent of
+callers … so 0.15" and `\(19\ \%\)` … "0.19" name nothing). Options that share a value never match. An explanation
+that shows arithmetic gives no number references: an operator (`= + * × ÷`), or two numbers joined as a fraction,
+ratio or product (`/` or `:` with or without spaces or brackets, `)(`, `over | out of | of | of the | in | per | times
+| divided by | multiplied by | x`, or a number before `half | third | fifth | …`), never a lone `/`, which `b/c`
+uses: ".55+.40 = .95 then subtract", "9 of the 38 students", "(39)(87)/91", "its 1 / 30" name a step, not the answer.
+No rounding tolerance and no fractions, on purpose: "about .2" or "19/100" is working, not a pick.
+
 **Step 2 — negation.** A reference is *rejected* rather than *supported* when:
 
 - one of the 3 tokens before it is `not | isn't | wasn't | aren't | can't | cannot | couldn't | wouldn't | shouldn't |
@@ -199,8 +241,19 @@ letter.
 `choice.value` with ≥12 characters, ≥3 words and a letter (never a bare number like `25%`). It is a hit when the
 normalised explanation **contains it and is essentially it**: the option covers ≥70% of the explanation's length,
 or the explanation has at most 3 words beyond it ("the interquartile range is the same" → B; "the range is the same
-since both go from about 2 to 6, the interquartile range looks different" → nothing). Exactly one hit and no letter
-survived → that option; a hit that conflicts with a surviving letter → unclear.
+since both go from about 2 to 6, the interquartile range looks different" → nothing). A hit the words around it
+reject, read by the Step 2 rules as if the option were a letter, is no hit ("not the law of large numbers", "law of
+large numbers is wrong", "the law of large numbers? no"). Exactly one hit and no letter survived → that option; a
+hit that conflicts with a surviving letter → unclear.
+
+**R1 (2026-10-26) — without its article.** Each option is also tried with one leading `the ` / `a ` / `an ` removed
+(after normalising). The stripped form must itself pass the ≥12 characters, ≥3 words and a letter test, and "is
+essentially it" is measured against the form that matched: "law of large numbers" → D ("The law of large
+numbers"). The floor stays: "addition rule because!" (option C "The addition rule", two words once stripped) is
+still unclear, because the floor is what keeps a short common phrase ("the mean", "standard deviation") from
+ever matching. A capital `A` is not the article when the option names another letter A–E or a copula follows it
+("A and B are independent" and "A is independent of itself" keep their `A`, so "C and B are independent" and "B is
+independent of itself" name nothing; "A sample of thirty students" still loses its article).
 
 **Decision.** Exactly one supported letter → that letter. Zero, or two or more → `null` (unclear). Unclear never
 prompts: "I was between C and D", "Both C and E seem correct", "not C", "I misread it", "I put D but meant C" all
@@ -212,6 +265,10 @@ probability notation, eliminations, grades, abbreviations): 2 cards a human woul
 there was no outlier but there is one" → D; "the letter E is the most common letter in english…" → E) — both
 dismissed with one tap, no grade effect. On 40 explanations written against real bank items with lettered entities
 (random variable B, Agency B, Simulation B, strain B, populations C and F): 0. The §7 tables pin all of it.
+R1 and R2 (2026-10-26, with both reviews' cue, fraction, list and rejected-paste rules) change nothing on the 105
+ledger and 87 peer-table explanations (the dry run reads line for line as before them) and nothing in the 255 older
+corpus rows; the JS-vs-Python differential (84,953 cases per run, two 20,000-explanation fuzz seeds) agrees on
+every one.
 
 Not in this spec: a server-side AI read for explanations that argue the content without naming a letter. It adds
 seconds, a server call and an offline path to the submit button; every real case so far named its letter, and Part
@@ -286,7 +343,8 @@ picked, we'll ask which one you mean before it counts."
 
 ## 7. Tests (cr `tests/`, Vitest + jsdom, same harness as `quiz-settled-dom.test.js`)
 
-**Contract.** `tests/fixtures/quiz-congruence-corpus.json` — 255 rows in 38 sets: the tables below (spec:*), the
+**Contract.** `tests/fixtures/quiz-congruence-corpus.json` — 345 rows in 68 sets: the tables below (spec:*, the
+2026-10-26 teacher test and its two reviews included), the
 32 Spanish/notation review cases, the 86 red-team rows (adversarial-*), the 40 rows written against real bank items
 plus the §0 cases on their real items (bank:*, prompt and choices inlined from `data/curriculum.js`; letters only,
 never names or ids). Every row's `expect` was computed by the Python reference `scripts/quiz-congruence-dry-run.py`
@@ -296,8 +354,22 @@ included. `humanSays` is informational. Regenerate the fixture only together wit
 
 `quiz-retry-pick.test.js` — **Part A** (§1.4).
 
+`quiz-retry-copy-dom.test.js` — **the line under Submit** (§0 addendum): first wrong → the red first-wrong line;
+wrong retry → the blue "waiting" line, then the red "This retry is your grade" line over "Correct answer: X" once
+accepted, also after a re-render when a queued retry replays, and for its own 3 s when the reply lands just before
+the submit line fades; still pending or refused → no key, no verdict; correct → green; the generic blue "submitted
+successfully" line never appears for an MCQ with a key; a PC makeup item (no key) never says "Not correct"; an FRQ
+gets the generic line. The fresh-device reconcile: a wrong retry it sends ends on its own line followed by the red
+verdict, a right one on its own line in green; a pending wrong retry the sign-in ledger restore finds accepted gets
+the red verdict.
+
 `quiz-congruence.test.js` — **detector unit tests**: every fixture row (one `it` per set, naming the failing rows);
-the correctness-blind source pins (§3); the retry fallback (`firstAnswers[qid]` absent, classData first answer present → the card for
+the R1 / R2 rows on the real items, with the key deleted and with a wrong key (same letters); the review's cases
+with hand-written outcomes (rejected pastes, cue-less numbers, fractions, long lists, LaTeX percents, number values,
+a label `A`, neighbours outside the plain list) and of its second review (a leading number that describes a step,
+fractions in words and with spaces, a negation after a number list, LaTeX with a space before `\)`, prompt percents
+spelled every way, a label `A` before a copula); the correctness-blind
+source pins (§3); the retry fallback (`firstAnswers[qid]` absent, classData first answer present → the card for
 "I accidentally chose A." does not appear).
 
 `quiz-congruence-dom.test.js` — **runtime** (real `renderQuestion` + real `submitAnswer`, `gradebookClient.record`
@@ -453,6 +525,69 @@ proportion use at least one?", choices A 0.15, B 0.40, C 0.55, D 0.80, E 0.95:
 | Agency B is only .40 so you cant just add, you need the overlap | C | – | null |
 | agency B .40, agency A .55, .55+.40 = .95 then subtract | D | – | null |
 | I think its B | C | – | B |
+
+Teacher test 2026-10-26 (`spec:teacher-test-2026-10-26/*`; the first two rows of each item table are the real ones). U4-L2-Q01
+(prompt prints "15 percent", "1,000", "8", "10", "2"), choices A `0.150`, B `0.190`, C `0.474`, D `0.526`, E `0.810`:
+
+| Explanation | Pick | First | Expect |
+|---|---|---|---|
+| 0.19 because | A | – | B |
+| 0l19 because I like | C | A | null |
+| 0.19 because I like | C | A | B |
+| 0.190 | A | – | B |
+| 19% because | A | – | B |
+| 15 percent of callers wait so 0.15 | B | – | null |
+| 0.15 because | B | – | null |
+| 0.19 or 0.474 | A | – | null |
+| not 0.19, it is 0.474 | A | – | C |
+| \(0.19\) because | A | – | null |
+| x0.19 because | A | – | null |
+| 0.19 because 0.15 + 0.04 = 0.19 | A | – | null |
+
+U4-L2-Q02 (sentence options): "0 to 6 because!" (pick E) → null. U4-L2-Q03, choices A "The conditional probability
+rule", B "The multiplication rule", C "The addition rule", D "The law of large numbers", E "The property of mutually
+exclusive events":
+
+| Explanation | Pick | First | Expect |
+|---|---|---|---|
+| addition rule because! | B | – | null (R1 floor: two words) |
+| law of large numbers | B | B | D |
+| the law of large numbers | B | B | D |
+| law of large numbers | B | – | D |
+| conditional probability rule | D | – | A |
+| multiplication rule | D | – | null |
+
+The spread item above ("The range" … "The standard deviation"), pick A: "mean", "the mean", "standard deviation",
+"interquartile range" → null; "the standard deviation" → E. Percent options (U4-L2-Q01's prompt; A `15%`, B `19%`,
+C `47.4%`, D `52.6%`, E `81%`), pick A unless noted: "0.19 because" → B, "19% because" → B, "19 because" → null,
+"0.15 because" (pick B) → null, "0.474 or 52.6%" → null. Shared value (A `0.5`, B `50%`, C `0.25`, D `1`, E `2`):
+"0.5 because half" and "50%" (pick C) → null; "0.25 because" (pick A) → C.
+
+The review of R1 / R2 (`spec:fix-round-1/*`, 2026-10-26), every row null unless noted. U4-L2-Q03, pick B: "not law of
+large numbers", "law of large numbers is wrong", "the law of large numbers? no", "not the law of large numbers";
+"I think the law of large numbers" → D. U4-L2-Q01: pick E "1 minus 0.19", "the complement of 0.19", "at least 3
+callers is 0.19, so at most 2 is the rest"; pick A "not 0.19, 0.474, 0.526, 0.81", "I ruled out 0.19, 0.474, 0.526
+and 0.81", "0.19" followed by U+1C89; pick A "its 0.19" → B, "the answer is 0.19" → B, "I think it is 0.474" → C.
+U8-L4-Q02: "9/51" (pick B), "9/38 because 9 out of 38" (pick A). U2-L8-Q02: "its 1/30" (pick E), "the slope is the
+estimate next to diameter, the 5 is the intercept, 2.50 is its standard error" (pick A). U4-L10-Q03: "add 0.16,
+0.34, 0.29 and 0.15" (pick E). U8-L4-Q01: "the observed count is 58 but expected uses the totals" (pick E). Options
+0.1 … 0.5: "not 0.1, 0.2, 0.3, 0.4" (pick E), "0.3 or 0.4 or 0.5" (pick A). Prompt "The rate is \(19\%\). Find its
+complement.", A `0.19`, B `0.81`, C `19`, D `75%`, E `0.5`: "0.19 is the given rate" (pick B), "19/100 because" (pick
+A); "its 0.81" (pick A) → B. Number values (A 0.000001, B `0.5`, C `0.25`, D `19`, E 0.19 as numbers where not
+quoted): "0.000001 because", "its 0.19" (pick B); "its 19" (pick B) → D. Events A, B and C (C "A and B are
+independent"): "C and B are independent" (pick D), "and C are mutually exclusive" (pick B).
+
+The second review of R1 / R2 (`spec:fix-round-2/*`, 2026-10-26), every row null unless noted. U4-L2-Q01: pick E
+"0.19 is P(at least 3) so I took the complement", "0.19 and 0.474 are wrong", "I think 0.19 and 0.474 are wrong";
+pick A "its \(0.19 \) because", "the answer is \(0.19 \)"; "0.19, because" (pick A) → B. A number that describes a
+step, on its real item: U2-L8-Q02 "5 is the intercept and 30 the slope" (pick A), U4-L10-Q03 "0.15 is the last bar so
+I added up to 3" (pick E), U1-L8-Q01 "50 is the max but Q3 is 35" (pick D), U4-L8-Q01 "0 books has 0.35 so multiply"
+(pick C), U1-L10-Q07 "32% is outside so half" (pick C). Fractions: U8-L4-Q03 "(39)(87)/91", "(39)(87)/91 because row
+times column" (pick B); U8-L4-Q02 "9 divided by 51" (pick B), "9 / 38", "9 of the 38 students", "(9)/(38)" (pick A),
+"9 times 38 over 153" (pick E); options A `1`, B `0.5`, C `0.2`, pick B: "its 1 / 30", "its 1 in 5", "its 1:5", "its 1
+fifth"; "its 1" → A. Options A `0.19`, B `0.81`, pick B: "0.19 because" with the prompt "The rate is 19 percent"
+followed by U+1C89, "its 0.19" with `\(19\ \%\)`, "19-percent" and "19 per cent". Events A and B, C "A is
+independent of itself": "B is independent of itself" (pick A).
 
 Also pin, from the real bank: U4-L8-Q01 (random variable \(B\)), U4-L6-Q03 (Agency A/B), U5-L3-Q01 (Simulation
 A/B), U3-L5-Q01 (strain A/B), U6-L11-Q09 (populations C and F): "B is the number of books…", "Agency B is only

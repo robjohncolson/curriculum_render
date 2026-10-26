@@ -7,6 +7,13 @@ It never sees the answer key. Correctness is used only in main(), afterwards, to
 Rules folded in from the 2026-10-25 adversarial review: copula negation, generic item labels, slash /
 notation / grade / abbreviation drops, change-vs-range for "X to Y", negation along lists, whole-paste
 option text, first-letter discard on both signals, Spanish cues, negative-question prompts.
+Added after the 2026-10-26 teacher test (spec §4 R1, R2): the whole paste also matches an option without
+its leading article, and a bare-number option is named by its value ("0.19 because" names "0.190") when the
+number leads, follows a pick word or a negation, or continues such a list. A pasted option the explanation
+rejects ("not the law of large numbers") is no hit.
+Second review round: a leading number counts only alone or before a reason ("0.19 because", never "0.19 is
+P(at least 3)"), a fraction, ratio or product typed in words or with spaces is arithmetic, a negation after a list
+of numbers reaches back along it, and "A is independent of itself" keeps its label A.
 """
 import json
 import re
@@ -108,6 +115,115 @@ def label_letters(prompt, choices):
     return label_info(prompt, choices)[0]
 
 
+# a bare number: optional sign and $, digits (thousands commas allowed), optional decimals, optional %
+NUMBER = re.compile(r"[+-]?\$?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)?(?:\.[0-9]+)?%?")
+NUMBER_RUN = re.compile(r"[+\-$0-9.,%]+")
+LATEX_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]")   # \( ... \) and \[ ... \]
+# arithmetic: an operator, or two numbers joined as a fraction, ratio or product ("1 / 30", "(9)/(38)", "1:5",
+# "9 of the 38", "1 in 5", "9 divided by 51", "(39)(87)", "1 fifth"). Never a lone "/", which "b/c" uses.
+SHOWS_WORK = re.compile(r"[=+*×÷]"
+                        r"|[0-9][ )%]*(?:/|:|over|out of|of|of the|in|per|times|divided by|multiplied by|x)[ (]*[$.]?[0-9]"
+                        r"|[0-9] *\) *\( *[$.]?[0-9]"
+                        r"|[0-9] *(?:halves|half|thirds?|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?"
+                        r"|tenths?|hundredths?)(?![a-z])", re.I)
+# what may follow a number that leads the explanation for it to be the pick: nothing, or a reason ("0.19",
+# "0.19 because"). "0.19 is P(at least 3)", "5 is the intercept", "0 books has 0.35" describe a step.
+LEAD_REST = re.compile(r"[ .,!?;:)\]\"']*(?:\Z|(?:because|since|bc|b/c|cuz|cause|porque|pues)(?:\Z|[ .,!?;:)\]\"']))", re.I)
+# "N percent" in the question, however it is spelled: "19 percent", "19 %", "19 per cent". The end is no ASCII
+# letter or digit, so no Unicode table decides it (the browser's and Python's differ).
+PERCENT_AFTER = re.compile(r" ?(?:%|percent|per cent)(?![A-Za-z0-9])", re.I)
+# what may touch a number in an explanation: a space or plain punctuation. Never a letter or digit ("0l19",
+# "x2"), a slash or brace (a fraction: "9/51", "\frac{9}{51}"), or any other character, so no Unicode table
+# decides it (the browser's and Python's differ).
+NUMBER_EDGE = re.compile(r"[\s()\[\]\"':;!?]")
+BARE_LIST = re.compile(r"[\s,;&/]*(?:and|or|y|o|nor|,)?[\s,;&/]*")
+# a word right before a number that makes it the student's pick, as "chose C" does a letter: "I picked 0.19",
+# "its 0.19". "is" counts only after "it" or a noun cue ("the answer is 0.19"): "the probability is 0.19" is working.
+NUMBER_CUES = NOUN_CUES | {"its", "it's", "pick", "picked", "picking", "chose", "choose", "choosing", "chosen", "select",
+                           "selected", "think", "thought", "guess", "guessed", "put", "putting", "clicked", "click",
+                           "pressed", "press", "meant", "want", "wanted", "keep", "keeping", "stick", "stay", "actually",
+                           "definitely", "probably", "likely", "maybe", "elegí", "elegi", "escogí", "escogi", "puse",
+                           "pongo", "marqué", "marque", "seleccioné", "seleccione", "creo", "pienso", "opté", "opte"}
+
+
+def _norm(s):
+    """Option or explanation text as the whole-paste rule compares it: no tags, one space, lowercase, no final dot."""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(s))).strip().lower().rstrip(".")
+
+
+def _without_article(v, raw):
+    """v without one leading article ("the law of large numbers" -> "law of large numbers"). A capital A is a
+    label, not the article, when the option names another letter too ("A and B are independent") or a copula
+    follows it ("A is independent of itself")."""
+    for article in ("the ", "an ", "a "):
+        if not v.startswith(article):
+            continue
+        if article == "a " and _a_is_label(str(raw)):
+            return v
+        return v[len(article):]
+    return v
+
+
+def _a_is_label(raw):
+    """True when an option's leading A names event A: another letter A-E follows, or a copula right after it."""
+    if re.search(r"(?<![A-Za-z0-9])[A-E](?![A-Za-z0-9])", raw.strip()[1:]):
+        return True
+    words = raw.split()
+    return len(words) > 1 and words[0] == "A" and _strip(words[1]) in COPULA
+
+
+def _number_value(s):
+    """The value of a bare number ("0.190" -> 0.19, "19%" -> 0.19, "$1,200" -> 1200.0), else None."""
+    if not NUMBER.fullmatch(s) or not re.search(r"[0-9]", s):
+        return None
+    value = float(s.replace("$", "").replace(",", "").rstrip("%"))
+    return value / 100 if s.endswith("%") else value
+
+
+def _numbers_in(text, loose=False):
+    """(start, end, value) of every bare number in text: a maximal run of number characters with the
+    sentence punctuation after it trimmed, and a space or plain punctuation on each side (NUMBER_EDGE).
+    loose (the question's own text) takes every run, so all the item prints counts as printed."""
+    found = []
+    for m in NUMBER_RUN.finditer(text):
+        before, after = text[m.start() - 1:m.start()], text[m.end():m.end() + 1]
+        if not loose and ((before and not NUMBER_EDGE.fullmatch(before)) or (after and not NUMBER_EDGE.fullmatch(after))):
+            continue
+        run = m.group(0).rstrip(".,")
+        value = _number_value(run)
+        if value is not None:
+            found.append((m.start(), m.start() + len(run), value))
+    return found
+
+
+def _prompt_numbers(prompt):
+    """Every number the question prints, plus N/100 for "N percent" ("15 percent of callers" -> 15, 0.15).
+    LaTeX's escaped percent is a percent and its spacing is nothing: "\\(19\\ \\%\\)" prints 0.19. A hyphen
+    after a digit is a dash, not a sign: "19-percent", "10-20"."""
+    text = _clean_item_text(prompt, []).replace("\\%", "%")
+    text = re.sub(r"\\[ ,;:!]", "", text)
+    text = re.sub(r"([0-9])-", r"\1 ", text)
+    values = set()
+    for _, end, value in _numbers_in(text, loose=True):
+        values.add(value)
+        if PERCENT_AFTER.match(text, end):
+            values.add(value / 100)
+    return values
+
+
+def _numeric_options(choices):
+    """{value: letter} for the options whose whole text is a bare number no other option shares. Only text
+    counts: a number value prints differently here and in the browser (1e-06 against 0.000001)."""
+    letters = {}
+    for c in choices:
+        if not c.get("key") or not isinstance(c.get("value"), str):
+            continue
+        value = _number_value(_norm(c.get("value", "")))
+        if value is not None:
+            letters.setdefault(value, []).append(str(c.get("key")).upper())
+    return {value: found[0] for value, found in letters.items() if len(found) == 1}
+
+
 def _inside_notation(t, pos):
     """True when the letter sits inside P(...), E[...], Var(...): an identifier right before the
     unmatched opening bracket."""
@@ -123,6 +239,28 @@ def _inside_notation(t, pos):
         elif ch in ".!?":
             return False
     return False
+
+
+def _paste_context(nt, form):
+    """(before, after, raw before) around the first place of a pasted option in nt, the words Step 2 reads
+    around a letter. A word the option only starts or ends inside ("numbers?") is not one of them."""
+    at = nt.find(form)
+    head, tail = nt[:at], nt[at + len(form):]
+    before_raw = head.split()
+    if head and head[-1] != " ":
+        before_raw = before_raw[:-1]
+    after = tail.split()
+    if tail and tail[0] != " ":
+        after = after[1:]
+    before_raw = before_raw[-6:]
+    return [_strip(w) for w in before_raw], [_strip(w) for w in after[:3]], before_raw
+
+
+def _number_cue(before):
+    """A pick word right before a number: "its 0.19", "I picked 0.19", "the answer is 0.19"."""
+    if before and before[-1] in NUMBER_CUES:
+        return True
+    return len(before) > 1 and before[-1] in ("is", "was", "es", "era") and (before[-2] in NUMBER_CUES or before[-2] == "it")
 
 
 def points_to(text, choices, picked, first_letter=None, prompt=""):
@@ -276,14 +414,45 @@ def points_to(text, choices, picked, first_letter=None, prompt=""):
             continue            # a letter the item uses as a label needs an explicit cue
         add(letter, pos, "upper")
 
+    # a bare-number option named by its value: "0.19 because" names B when B is 0.190 ----------------
+    # Never inside LaTeX, never a number the item itself prints, and not at all in an explanation
+    # that shows arithmetic (".55+.40 = .95 then subtract": its numbers are steps, not the answer).
+    # Like a plain "A", a number needs a cue: it leads the explanation, follows a pick word or a
+    # negation, or continues a bare list of them ("0.19 or 0.474"). Elsewhere it is working: "1 minus
+    # 0.19", "the observed count is 58".
+    numeric = _numeric_options(choices)
+    number_ends = {}   # a number reference's start -> its end, for the bare-list pass below
+    if numeric and not SHOWS_WORK.search(t):
+        printed = _prompt_numbers(prompt)
+        unlatexed = LATEX_SPAN.sub(lambda m: " " * len(m.group(0)), t)
+        lead_at = re.match(r"[(\[\"']*", t).end()
+        list_from = None   # the end of the last number reference
+        for start, end, value in _numbers_in(unlatexed):
+            if value not in numeric or value in printed:
+                continue
+            before, after, i = context(start)
+            negated = negation(before, after, raw_before(i))
+            listed = list_from is not None and BARE_LIST.fullmatch(t[list_from:start])
+            leads = start == lead_at and LEAD_REST.match(t, end)
+            if not (leads or _number_cue(before) or negated or listed):
+                continue
+            refs.append((numeric[value], start, "number", negated))
+            number_ends[start] = end
+            list_from = end
+
     # a negated letter passes its negation along a bare list: "ruled out A, B, C, D"
     refs.sort(key=lambda r: r[1])
     for k in range(1, len(refs)):
         prev, cur = refs[k - 1], refs[k]
         if prev[3] and not cur[3] and prev[1] < cur[1]:
-            between = t[prev[1] + 1:cur[1]]
-            if re.fullmatch(r"[\s,;&/]*(?:and|or|y|o|nor|,)?[\s,;&/]*", between):
+            prev_end = number_ends[prev[1]] if prev[2] == "number" else prev[1] + 1
+            if BARE_LIST.fullmatch(t[prev_end:cur[1]]):
                 refs[k] = (cur[0], cur[1], cur[2], True)
+    # and a negation after a bare list of numbers reaches back along it: "I think 0.19 and 0.474 are wrong"
+    for k in range(len(refs) - 1, 0, -1):
+        prev, cur = refs[k - 1], refs[k]
+        if cur[3] and not prev[3] and prev[2] == cur[2] == "number" and BARE_LIST.fullmatch(t[number_ends[prev[1]]:cur[1]]):
+            refs[k - 1] = (prev[0], prev[1], prev[2], True)
 
     # fold --------------------------------------------------------------------------------------
     supported = {letter for letter, _, _, negated in refs if not negated}
@@ -293,15 +462,20 @@ def points_to(text, choices, picked, first_letter=None, prompt=""):
         supported.discard(first)        # a retry naturally names the answer it leaves
 
     # the whole explanation is an option's text (pasted), not a phrase inside it ----------------
-    norm = lambda s: re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(s))).strip().lower().rstrip(".")
-    nt = norm(t)
+    # (also without its leading article: "law of large numbers" is "The law of large numbers"), and never
+    # one the words around it reject by the Step 2 rules: "not the law of large numbers", "… is wrong"
+    nt = _norm(t)
     text_hits = set()
     for c in choices:
-        v = norm(c.get("value", ""))
-        if len(v) < 12 or len(v.split()) < 3 or not re.search(r"[a-z]", v) or v not in nt:
-            continue
-        extra_words = len(nt.split()) - len(v.split())
-        if len(v) >= 0.7 * len(nt) or extra_words <= 3:
+        v = _norm(c.get("value", ""))
+        for form in (v, _without_article(v, c.get("value", ""))):
+            if len(form) < 12 or len(form.split()) < 3 or not re.search(r"[a-z]", form) or form not in nt:
+                continue
+            extra_words = len(nt.split()) - len(form.split())
+            if not (len(form) >= 0.7 * len(nt) or extra_words <= 3):
+                continue
+            if negation(*_paste_context(nt, form)):
+                continue
             text_hits.add(str(c.get("key")).upper())
     if first:
         text_hits.discard(first)

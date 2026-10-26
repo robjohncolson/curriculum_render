@@ -3009,6 +3009,7 @@
                 if (!u.timestamps) u.timestamps = {};
                 let restored = 0;
                 const changed = new Set();   // question ids whose visible state may have moved
+                const settledRetries = new Map();   // question id → the pending retry this restore found accepted
                 if (!u.attempts) u.attempts = {};
                 if (!u.reasons) u.reasons = {};
                 const retryState = _quizRetryState(user);
@@ -3080,7 +3081,9 @@
                             }
                             return;
                         }
-                        // Otherwise the accepted answer IS the server's attempt-2 response.
+                        // Otherwise the accepted answer IS the server's attempt-2 response. A retry this device
+                        // was still waiting on lost its reply: the verdict that reply would have given is due.
+                        if (retry && retry.state === 'pending') settledRetries.set(qid, a2.response);
                         retryState.retries[qid] = { state: 'accepted', value: a2.response, submittedAt: tsOf(a2) };
                         // The retry is decided: void this student's unsent pick. Only theirs: this reply can
                         // land after a same-tab sign-in, and the next student's pick is not its business.
@@ -3132,6 +3135,7 @@
                         reasonInput.value = getReasonString(u.reasons[qid]);
                     }
                     _refreshAfterReveal(qid);
+                    if (settledRetries.has(qid) && user === currentUsername) _sayWrongRetryRecorded(qid, settledRetries.get(qid));
                 });
             } catch (_) { /* best-effort — never block sign-in */ }
         };
@@ -7372,6 +7376,9 @@ function renderLessonSelector(unitInfo) {
         var QUIZ_PEERS_LOCKED_TEXT = 'Answer (and, if you were wrong, retry with an explanation) to see what classmates wrote.';
         var QUIZ_RETRY_PENDING_TEXT = 'Retry saved \u2014 waiting for the server / connection.';
         var QUIZ_RETRY_CHECKING_TEXT = 'Checking your retry with the server\u2026';
+        // A wrong retry, recorded: the reveal box below it shows the key, and that must never read as
+        // "your retry was marked correct" (2026-10-26 teacher test).
+        var QUIZ_RETRY_WRONG_TEXT = 'Not correct. This retry is your grade. The correct answer is shown below.';
 
         // Classmates' text (names, letters, explanations) is untrusted: never render it as HTML.
         function _escHtml(value) {
@@ -7737,7 +7744,143 @@ function renderLessonSelector(unitInfo) {
                 return i > 0 && (isAlphaBefore(t, i) || t[i - 1] === '(' || t[i - 1] === '|');
             }
 
-            // points_to: { letter, refs }; refs are the letter references it weighed, in text order.
+            // a bare number: optional sign and $, digits (thousands commas allowed), optional decimals, optional %
+            const NUMBER = /^[+-]?\$?(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)?(?:\.[0-9]+)?%?$/;
+            const NUMBER_RUN = /[+\-$0-9.,%]+/g;
+            const LATEX_SPAN = /\\\(.*?\\\)|\\\[.*?\\\]/g;   // \( ... \) and \[ ... \]
+            // arithmetic: an operator, or two numbers joined as a fraction, ratio or product ("1 / 30", "(9)/(38)", "1:5",
+            // "9 of the 38", "1 in 5", "9 divided by 51", "(39)(87)", "1 fifth"). Never a lone "/", which "b/c" uses.
+            // (re.IGNORECASE in the Python: tested over caseless() text)
+            const SHOWS_WORK = rx(String.raw`[=+*×÷]` +
+                String.raw`|[0-9][ )%]*(?:/|:|over|out of|of|of the|in|per|times|divided by|multiplied by|x)[ (]*[$.]?[0-9]` +
+                String.raw`|[0-9] *\) *\( *[$.]?[0-9]` +
+                String.raw`|[0-9] *(?:halves|half|thirds?|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?` +
+                String.raw`|tenths?|hundredths?)(?![a-z])`);
+            // what may follow a number that leads the explanation for it to be the pick: nothing, or a reason ("0.19",
+            // "0.19 because"). "0.19 is P(at least 3)", "5 is the intercept", "0 books has 0.35" describe a step.
+            const LEAD_REST = rx(String.raw`^[ .,!?;:)\]"']*(?:$|(?:because|since|bc|b/c|cuz|cause|porque|pues)(?:$|[ .,!?;:)\]"']))`);
+            // "N percent" in the question, however it is spelled: "19 percent", "19 %", "19 per cent". The end is no ASCII
+            // letter or digit, so no Unicode table decides it (the browser's and Python's differ).
+            const PERCENT_AFTER = /^ ?(?:%|percent|per cent)(?![A-Za-z0-9])/;
+            // what may touch a number in an explanation: a space or plain punctuation. Never a letter or digit ("0l19",
+            // "x2"), a slash or brace (a fraction: "9/51", "\frac{9}{51}"), or any other character, so no Unicode table
+            // decides it (the browser's and Python's differ). One code unit: an astral neighbour is never in the list.
+            const NUMBER_EDGE = rx(String.raw`^[${WS}()\[\]"':;!?]$`);
+            const BARE_LIST = rx(`^[${WS},;&/]*(?:and|or|y|o|nor|,)?[${WS},;&/]*$`);
+            // a word right before a number that makes it the student's pick, as "chose C" does a letter: "I picked 0.19",
+            // "its 0.19". "is" counts only after "it" or a noun cue ("the answer is 0.19"): "the probability is 0.19" is working.
+            const NUMBER_CUES = new Set([...NOUN_CUES, 'its', "it's", 'pick', 'picked', 'picking', 'chose', 'choose', 'choosing',
+                'chosen', 'select', 'selected', 'think', 'thought', 'guess', 'guessed', 'put', 'putting', 'clicked', 'click',
+                'pressed', 'press', 'meant', 'want', 'wanted', 'keep', 'keeping', 'stick', 'stay', 'actually',
+                'definitely', 'probably', 'likely', 'maybe', 'elegí', 'elegi', 'escogí', 'escogi', 'puse',
+                'pongo', 'marqué', 'marque', 'seleccioné', 'seleccione', 'creo', 'pienso', 'opté', 'opte']);
+
+            // _norm: option or explanation text as the whole-paste rule compares it: no tags, one space,
+            // lowercase, no final dot. Trailing dots go by trimEndWhile: /\.+$/ retries a long dot run from every start.
+            function norm(s) {
+                return trimEndWhile(pyStrip(s.replace(/<[^>]+>/g, ' ').replace(rx(`[${WS}]+`, 'g'), ' ')).toLowerCase(), /^\.$/);
+            }
+
+            // _without_article: v without one leading article ("the law of large numbers" → "law of large numbers").
+            // A capital A is a label, not the article, when the option names another letter too ("A and B are
+            // independent") or a copula follows it ("A is independent of itself").
+            function withoutArticle(v, raw) {
+                for (const article of ['the ', 'an ', 'a ']) {
+                    if (!v.startsWith(article)) continue;
+                    if (article === 'a ' && aIsLabel(raw)) return v;
+                    return v.slice(article.length);
+                }
+                return v;
+            }
+
+            // _a_is_label: an option's leading A names event A: another letter A-E follows, or a copula right after it.
+            function aIsLabel(raw) {
+                if (rx('(?<![A-Za-z0-9])[A-E](?![A-Za-z0-9])').test(pyStrip(raw).slice(1))) return true;
+                const words = pySplit(raw);
+                return words.length > 1 && words[0] === 'A' && COPULA.has(strip(words[1]));
+            }
+
+            // _number_value: the value of a bare number ("0.190" → 0.19, "19%" → 0.19, "$1,200" → 1200), else null.
+            function numberValue(s) {
+                if (!NUMBER.test(s) || !/[0-9]/.test(s)) return null;
+                const value = Number(s.replace('$', '').replace(/,/g, '').replace(/%$/, ''));
+                return s.endsWith('%') ? value / 100 : value;
+            }
+
+            // _numbers_in: { start, end, value } of every bare number in text: a maximal run of number
+            // characters with the sentence punctuation after it trimmed, and a space or plain punctuation on
+            // each side (NUMBER_EDGE). loose (the question's own text) takes every run, so all the item prints
+            // counts as printed.
+            function numbersIn(text, loose = false) {
+                const found = [];
+                for (const m of text.matchAll(NUMBER_RUN)) {
+                    const start = m.index;
+                    const end = start + m[0].length;
+                    const before = text.slice(Math.max(0, start - 1), start);
+                    const after = text.slice(end, end + 1);
+                    if (!loose && ((before && !NUMBER_EDGE.test(before)) || (after && !NUMBER_EDGE.test(after)))) continue;
+                    const run = trimEndWhile(m[0], /^[.,]$/);
+                    const value = numberValue(run);
+                    if (value !== null) found.push({ start, end: start + run.length, value });
+                }
+                return found;
+            }
+
+            // _prompt_numbers: every number the item prints, plus N/100 for "N percent" ("15 percent of callers" → 15, 0.15).
+            // LaTeX's escaped percent is a percent and its spacing is nothing: "\(19\ \%\)" prints 0.19. A hyphen after
+            // a digit is a dash, not a sign: "19-percent", "10-20".
+            function promptNumbers(prompt) {
+                const text = cleanItemText(prompt, []).replace(/\\%/g, '%').replace(/\\[ ,;:!]/g, '').replace(/([0-9])-/g, '$1 ');
+                const textCaseless = caseless(text);   // PERCENT_AFTER is re.IGNORECASE in the Python
+                const values = new Set();
+                for (const { end, value } of numbersIn(text, true)) {
+                    values.add(value);
+                    if (PERCENT_AFTER.test(textCaseless.slice(end))) values.add(value / 100);
+                }
+                return values;
+            }
+
+            // _numeric_options: value → letter for the options whose whole text is a bare number no other option shares.
+            // Only text counts: a number value prints differently here and in Python (0.000001 against 1e-06).
+            function numericOptions(choices) {
+                const letters = new Map();
+                for (const c of choices) {
+                    if (!c.key || typeof c.value !== 'string') continue;
+                    const value = numberValue(norm(choiceText(c)));
+                    if (value === null) continue;
+                    if (!letters.has(value)) letters.set(value, []);
+                    letters.get(value).push(String(c.key).toUpperCase());
+                }
+                const unique = new Map();
+                for (const [value, found] of letters) {
+                    if (found.length === 1) unique.set(value, found[0]);
+                }
+                return unique;
+            }
+
+            // _paste_context: { before, after, beforeRaw } around the first place of a pasted option in nt, the words
+            // Step 2 reads around a letter. A word the option only starts or ends inside ("numbers?") is not one of them.
+            function pasteContext(nt, form) {
+                const at = nt.indexOf(form);
+                const head = nt.slice(0, at);
+                const tail = nt.slice(at + form.length);
+                let beforeRaw = pySplit(head);
+                if (head && head.slice(-1) !== ' ') beforeRaw = beforeRaw.slice(0, -1);
+                let after = pySplit(tail);
+                if (tail && tail[0] !== ' ') after = after.slice(1);
+                beforeRaw = beforeRaw.slice(-6);
+                return { before: beforeRaw.map(strip), after: after.slice(0, 3).map(strip), beforeRaw };
+            }
+
+            // _number_cue: a pick word right before a number: "its 0.19", "I picked 0.19", "the answer is 0.19".
+            function numberCue(before) {
+                const last = before.length ? before[before.length - 1] : '';
+                if (NUMBER_CUES.has(last)) return true;
+                return before.length > 1 && ['is', 'was', 'es', 'era'].includes(last)
+                    && (NUMBER_CUES.has(before[before.length - 2]) || before[before.length - 2] === 'it');
+            }
+
+            // points_to: { letter, refs }; refs are the letter and number references it weighed, in text order.
             function pointsTo(text, choices, firstLetter, prompt) {
                 const keys = choices.filter(c => c.key).map(c => String(c.key).toUpperCase());
                 if (typeof text !== 'string' || !pyStrip(text) || !keys.length) return { letter: null, refs: [] };
@@ -7917,17 +8060,51 @@ function renderLessonSelector(unitInfo) {
                     add(letter, pos, 'upper');
                 }
 
+                // a bare-number option named by its value: "0.19 because" names B when B is 0.190 ----------------
+                // Never inside LaTeX, never a number the item itself prints, and not at all in an explanation
+                // that shows arithmetic (".55+.40 = .95 then subtract": its numbers are steps, not the answer).
+                // Like a plain "A", a number needs a cue: it leads the explanation, follows a pick word or a
+                // negation, or continues a bare list of them ("0.19 or 0.474"). Elsewhere it is working: "1 minus
+                // 0.19", "the observed count is 58".
+                const numeric = numericOptions(choices);
+                const numberEnds = new Map();   // a number reference's start → its end, for the bare-list pass below
+                if (numeric.size && !SHOWS_WORK.test(tCaseless)) {
+                    const printed = promptNumbers(prompt);
+                    const unlatexed = t.replace(LATEX_SPAN, span => ' '.repeat(span.length));
+                    const leadAt = /^[(["']*/.exec(t)[0].length;
+                    let listFrom = null;   // the end of the last number reference
+                    for (const { start, end, value } of numbersIn(unlatexed)) {
+                        if (!numeric.has(value) || printed.has(value)) continue;
+                        const { before, after, i } = context(start);
+                        const negated = negation(before, after, rawBefore(i));
+                        const listed = listFrom !== null && BARE_LIST.test(t.slice(listFrom, start));
+                        const leads = start === leadAt && LEAD_REST.test(tCaseless.slice(end));
+                        if (!(leads || numberCue(before) || negated || listed)) continue;
+                        refs.push({ letter: numeric.get(value), pos: start, strength: 'number', negated });
+                        numberEnds.set(start, end);
+                        listFrom = end;
+                    }
+                }
+
                 // a negated letter passes its negation along a bare list: "ruled out A, B, C, D"
                 refs.sort((x, y) => x.pos - y.pos);
-                const bareList = rx(`^[${WS},;&/]*(?:and|or|y|o|nor|,)?[${WS},;&/]*$`);
                 for (let k = 1; k < refs.length; k++) {
                     const prev = refs[k - 1];
                     const cur = refs[k];
                     if (prev.negated && !cur.negated && prev.pos < cur.pos) {
-                        const between = t.slice(prev.pos + 1, cur.pos);
-                        if (bareList.test(between)) {
+                        const prevEnd = prev.strength === 'number' ? numberEnds.get(prev.pos) : prev.pos + 1;
+                        if (BARE_LIST.test(t.slice(prevEnd, cur.pos))) {
                             refs[k] = { letter: cur.letter, pos: cur.pos, strength: cur.strength, negated: true };
                         }
+                    }
+                }
+                // and a negation after a bare list of numbers reaches back along it: "I think 0.19 and 0.474 are wrong"
+                for (let k = refs.length - 1; k > 0; k--) {
+                    const prev = refs[k - 1];
+                    const cur = refs[k];
+                    if (cur.negated && !prev.negated && prev.strength === 'number' && cur.strength === 'number'
+                        && BARE_LIST.test(t.slice(numberEnds.get(prev.pos), cur.pos))) {
+                        refs[k - 1] = { letter: prev.letter, pos: prev.pos, strength: prev.strength, negated: true };
                     }
                 }
 
@@ -7937,17 +8114,21 @@ function renderLessonSelector(unitInfo) {
                 if (first) supported.delete(first);   // a retry naturally names the answer it leaves
 
                 // the whole explanation is an option's text (pasted), not a phrase inside it ----------------
-                // Trailing dots go by trimEndWhile too: /\.+$/ retries a long dot run from every start.
-                const norm = s => trimEndWhile(pyStrip(s.replace(/<[^>]+>/g, ' ').replace(rx(`[${WS}]+`, 'g'), ' '))
-                    .toLowerCase(), /^\.$/);
+                // (also without its leading article: "law of large numbers" is "The law of large numbers"), and never
+                // one the words around it reject by the Step 2 rules: "not the law of large numbers", "… is wrong"
                 const nt = norm(t);
                 const textHits = new Set();
                 for (const c of choices) {
                     if (!c.key) continue;   // a choice without a key is never an answer (the Python would call it "NONE")
                     const v = norm(choiceText(c));
-                    if (pyLen(v) < 12 || pySplit(v).length < 3 || !/[a-z]/.test(v) || !nt.includes(v)) continue;
-                    const extraWords = pySplit(nt).length - pySplit(v).length;
-                    if (pyLen(v) >= 0.7 * pyLen(nt) || extraWords <= 3) textHits.add(String(c.key).toUpperCase());
+                    for (const form of [v, withoutArticle(v, choiceText(c))]) {
+                        if (pyLen(form) < 12 || pySplit(form).length < 3 || !/[a-z]/.test(form) || !nt.includes(form)) continue;
+                        const extraWords = pySplit(nt).length - pySplit(form).length;
+                        if (!(pyLen(form) >= 0.7 * pyLen(nt) || extraWords <= 3)) continue;
+                        const { before, after, beforeRaw } = pasteContext(nt, form);
+                        if (negation(before, after, beforeRaw)) continue;
+                        textHits.add(String(c.key).toUpperCase());
+                    }
                 }
                 if (first) textHits.delete(first);
                 if (textHits.size === 1) {
@@ -9808,10 +9989,11 @@ function renderLessonSelector(unitInfo) {
                     isCorrect = (value.toString().toLowerCase().trim() === correctAnswer.toString().toLowerCase().trim());
                 }
 
+                // (an item with no key on the page, a PC makeup, is scored by the server: never "Not correct" here)
                 if (isCorrect) {
                     successSpan.textContent = '✅ Correct answer submitted!';
                     successSpan.style.color = '#27ae60';
-                } else if (!isFRQ && canRetry(questionId)) {
+                } else if (!isFRQ && correctAnswer && canRetry(questionId)) {
                     successSpan.textContent = 'Not correct. You get one retry: explain what changed your mind, then submit.';
                     successSpan.style.color = '#c0392b';
                 } else if (!isFRQ && _quizRetryStatus(questionId) === 'pending') {
@@ -9823,9 +10005,7 @@ function renderLessonSelector(unitInfo) {
                 }
 
                 successSpan.classList.add('show');
-                setTimeout(() => {
-                    successSpan.classList.remove('show');
-                }, 3000);
+                _fadeSuccessLine(successSpan);
             }
 
             // Update header to show answered
@@ -13544,6 +13724,32 @@ Respond with JSON:
             await Promise.all(list);
         }
 
+        // Hide the line under Submit 3 s after its latest message. One timer per line: a newer message
+        // restarts it, so the timer of the submit before it never cuts it short.
+        function _fadeSuccessLine(span) {
+            clearTimeout(span._fadeTimer);
+            span._fadeTimer = setTimeout(() => span.classList.remove('show'), 3000);
+        }
+
+        // The server accepted a wrong retry and the reveal box with the key has just painted: say plainly,
+        // in red, that the retry is wrong and is the grade. Read from the retry and the key: the line may be
+        // empty by now (a re-render or a reload, before a queued retry replays). It replaces the "waiting"
+        // line or nothing, and follows the reconcile path's "sent as your one retry" line; any other message
+        // stays. A right retry is green already; an item with no key on the page (a PC makeup, scored by the
+        // server) gets no verdict.
+        function _sayWrongRetryRecorded(questionId, value) {
+            const span = document.getElementById(`success-${questionId}`);
+            if (!span || _quizKeyFor(questionId) === null) return;
+            const sentText = _quizRetrySentText(_quizRetryState(currentUsername).firstAnswers[questionId], value);
+            const shown = span.textContent;
+            if (shown && shown !== QUIZ_RETRY_PENDING_TEXT && shown !== sentText) return;
+            if (_quizAnswerMatchesKey(questionId, value)) return;
+            span.textContent = shown === sentText ? `${sentText} ${QUIZ_RETRY_WRONG_TEXT}` : QUIZ_RETRY_WRONG_TEXT;
+            span.style.color = '#c0392b';
+            span.classList.add('show');   // the reply may land after the submit line has faded
+            _fadeSuccessLine(span);
+        }
+
         // One handler for the online result AND a replayed offline write.
         function _settleQuizRetry(username, questionId, outcome, detail) {
             const retry = _quizRetryState(username).retries[questionId];
@@ -13555,7 +13761,10 @@ Respond with JSON:
             if (outcome === 'accepted') {
                 _quizRetryState(username).retries[questionId] = { state: 'accepted', value: retry.value, submittedAt: retry.submittedAt };
                 _saveQuizRetryState(username);
-                if (username === currentUsername) _refreshAfterReveal(questionId);
+                if (username === currentUsername) {
+                    _refreshAfterReveal(questionId);
+                    _sayWrongRetryRecorded(questionId, retry.value);
+                }
                 return Promise.resolve();
             }
             return _revertRefusedRetry(username, questionId, retry, outcome === 'refused' ? detail : null, outcome);
@@ -13789,6 +13998,11 @@ Respond with JSON:
             } catch (_) { /* never block cr's submit */ }
         }
 
+        // The reconcile path's line once it has sent the retry (_sayWrongRetryRecorded adds the verdict to it).
+        function _quizRetrySentText(kept, chosen) {
+            return `The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`;
+        }
+
         // The roster already held a first answer for this item — a fresh device answered before its
         // ledger restore landed — so the server kept THAT letter and ignored this one
         // (firstAnswerKept + keptResponse). Reconcile to the kept first answer; when it was wrong,
@@ -13854,7 +14068,12 @@ Respond with JSON:
                     // The system's own submit: the detector still runs, the AI read never does.
                     const sent = window.submitAnswer(questionId, 'multiple-choice', { congruenceAiSkip: true });
                     if (sent === true) {
-                        say(`The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`, '#3498db');
+                        // a right retry says so at once, as a plain submit does; a wrong one hears when the server accepts it
+                        if (_quizAnswerMatchesKey(questionId, chosen)) {
+                            say(`${_quizRetrySentText(kept, chosen)} ✅ It is correct.`, '#27ae60');
+                        } else {
+                            say(_quizRetrySentText(kept, chosen), '#3498db');
+                        }
                         return;
                     }
                     if (_quizCongruenceMarkers()[questionId]) {   // the explanation points elsewhere: the card asks

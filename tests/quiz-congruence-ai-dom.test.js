@@ -547,7 +547,7 @@ describe('7. the detector goes first and is unchanged', () => {
 });
 
 describe('8. the reconcile auto-send never reads', () => {
-  it('a first answer kept by the server: the retry auto-sends with no request, and its message is unchanged', async () => {
+  it('a first answer kept by the server: the retry auto-sends with no request; its message, then the verdict on the wrong retry', async () => {
     const records = [];
     const { w, net } = boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
       ? Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: 'D' })
@@ -562,7 +562,8 @@ describe('8. the reconcile auto-send never reads', () => {
     await tick(500);
     expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'A'], [2, 'A']]);
     expect(net.reads()).toHaveLength(1);       // the auto-sent retry never read
-    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (D). Your A was sent as your one retry.');
+    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (D). Your A was sent as your one retry.'
+      + ' Not correct. This retry is your grade. The correct answer is shown below.');   // A is wrong (QUIZ_INCONGRUENCE_CHECK_SPEC §0 addendum)
   });
 
   it('source pin: the reconcile passes congruenceAiSkip, and the eligibility check honours it', () => {
