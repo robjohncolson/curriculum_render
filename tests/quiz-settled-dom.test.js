@@ -197,7 +197,7 @@ describe('settled gate at runtime', () => {
     const v = view(w);
     expectLocked(v);
     expect(v.panelText).toContain('retry with an explanation');
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(v.buttonDisabled).toBe(true);
     expect(v.radiosDisabled).toBe(false);
   });
@@ -276,7 +276,7 @@ describe('settled gate at runtime', () => {
     expect(w.eval(`_quizRetryStatus('${QID}')`)).toBeNull();
     expect(v.checked).toBeNull();   // a retry is a new click: nothing preselected, the first answer C disabled
     expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(v.error).toContain('at least 3 words');
   });
 
@@ -345,7 +345,7 @@ describe('settled gate at runtime', () => {
     await tick(300);
     const v = view(w);
     expectLocked(v);
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
   });
 });
 
@@ -446,7 +446,7 @@ describe('round 3: identity, reconcile, clear, chart XSS', () => {
     expectLocked(v);
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(v.checked).toBeNull();   // the retry form: nothing preselected, the first answer C disabled
     expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
   });
@@ -700,7 +700,7 @@ describe('server kept an earlier first answer (fresh device answered before the 
     expect(records.length).toBe(1);
     const v = view(w);
     expectLocked(v);
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(v.buttonDisabled).toBe(true);
     expect(v.checked).toBe('B');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
@@ -737,7 +737,7 @@ describe('server kept an earlier first answer (fresh device answered before the 
     const v = view(w);
     expect(v.checked).toBeNull();
     expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(v.buttonDisabled).toBe(true);
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
     expect(w.document.getElementById(`success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (C), and it was not correct. Pick a different letter and explain what changed your mind.');
@@ -787,7 +787,7 @@ describe('ledger restore repaints the question', () => {
     expect(v.checked).toBeNull();   // nothing preselected; the kept first answer C is disabled
     expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
     expect(v.panelText).toContain('retry with an explanation');
-    expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
     expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toBeUndefined();
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
   });

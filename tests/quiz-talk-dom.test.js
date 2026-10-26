@@ -726,6 +726,30 @@ describe('multiple-choice feedback appeal (teacher 2026-09-29)', () => {
       .toContain('Your answer is correct: full credit. This feedback is about your explanation only');
   });
 
+  it('a CORRECT retry with a P verdict: the note names no credit, since the server decides half or full (QUIZ_RETRY_HALF_CREDIT_SPEC)', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 2 });
+    render(w);
+    await tick(50);
+    showVerdict(w, 'P');
+    const text = w.document.getElementById(`grading-feedback-${QID}`).textContent;
+    expect(text).toContain('Your retry is correct. This feedback is about your explanation only');
+    expect(text).not.toContain('full credit');
+    expect(text).not.toContain('half credit');
+  });
+
+  it('a legacy attempt count (3) gets the same no-credit retry note', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'B', attempts: 3 });
+    render(w);
+    await tick(50);
+    showVerdict(w, 'P');
+    const text = w.document.getElementById(`grading-feedback-${QID}`).textContent;
+    expect(text).toContain('Your retry is correct.');
+    expect(text).not.toContain('half credit');
+    expect(text).not.toContain('full credit');
+  });
+
   it('a WRONG answer never offers the appeal (retry, then Talk it through) and shows no full-credit note', async () => {
     const w = boot();
     seedMine(w, { answer: 'A', attempts: 1 });

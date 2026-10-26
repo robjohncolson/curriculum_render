@@ -72,3 +72,10 @@ peer answers are revealed. Only display student answers if they have an explanat
 "Answer. If you're right, that's your grade and you'll see what classmates wrote. If you're wrong, you get one
 retry — but you have to explain what changed your mind, and that second answer is your grade. Only classmates who
 explained their answer show up."
+
+## Half credit for a correct retry (2026-10-26)
+
+A correct first answer earns full credit; a correct retry earns half credit; a wrong retry earns nothing.
+The retry itself is unchanged (one retry, a different letter, an explanation of 3+ words); only the credit and the copy move.
+Retries recorded before 2026-10-27T04:00:00Z keep full credit; the roster server scores it, the page never computes a grade.
+Full rule, file map and rollout: `follow-alongs/QUIZ_RETRY_HALF_CREDIT_SPEC.md` (C:/Users/rober/Downloads/Projects/school/follow-alongs/QUIZ_RETRY_HALF_CREDIT_SPEC.md).

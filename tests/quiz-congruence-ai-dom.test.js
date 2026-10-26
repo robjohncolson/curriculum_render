@@ -841,7 +841,7 @@ describe('the retry', () => {
     expect(cardTitle(w)).toBe('Your explanation argues for D, your first answer, which was not correct. You picked C: send it as your retry, or fix your explanation.');
     expect(letterButton(w, 'D')).toBeNull();   // a retry is another letter: D is never a button
     expect([...w.document.querySelectorAll(`#congruence-${QID} .congruence-pick`)].map(b => b.dataset.letter)).toEqual(['C']);
-    expect(label(w)).toBe('Submit retry (this becomes your grade)');
+    expect(label(w)).toBe('Submit retry (half credit if correct)');
     expect(button(w).disabled).toBe(false);
     letterButton(w, 'C').click();
     await settle();
@@ -856,7 +856,7 @@ describe('the retry', () => {
     type(w, NO_LETTER);
     expect(await pressSubmit(w)).toBe(false);
     type(w, 'too short');
-    expect(label(w)).toBe('Submit retry (this becomes your grade)');
+    expect(label(w)).toBe('Submit retry (half credit if correct)');
     expect(button(w).disabled).toBe(true);
     net.last().reply(200, { letter: null });
     await settle();

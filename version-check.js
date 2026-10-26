@@ -8,7 +8,7 @@
 // APP_BUILD here and version.json are bumped TOGETHER by scripts/bump-build.mjs —
 // a vitest pins version.json.build === APP_BUILD (or a fresh load would nudge-loop).
 (function () {
-  var APP_BUILD = '2026-10-26-h4hf';   // scripts/bump-build.mjs replaces this stamp
+  var APP_BUILD = '2026-10-26-2pl2';   // scripts/bump-build.mjs replaces this stamp
   var nudged = false;
 
   function showBanner() {

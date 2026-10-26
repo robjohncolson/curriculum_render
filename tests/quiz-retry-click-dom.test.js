@@ -21,7 +21,7 @@ const ROOT = resolve(__dirname, '..');
 const QID = 'U1-L1-Q01';   // key B; choices A alpha, B bravo, C charlie, D delta
 const ROUTE = '/api/quiz/congruence';
 const TAG = 'your first answer (not correct)';
-const RETRY_LABEL = 'Submit retry (this becomes your grade)';
+const RETRY_LABEL = 'Submit retry (half credit if correct)';
 const NO_LETTER = 'the middle value resists the extreme outlier';   // names no option
 
 let pageSources = null;

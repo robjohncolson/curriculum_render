@@ -9,6 +9,9 @@
  * "submitted successfully" line never appears for a multiple-choice item with a key; an item without one
  * (a PC makeup, scored by the server) never hears "Not correct". Boots the real page the way
  * quiz-retry-pick.test.js does.
+ *
+ * QUIZ_RETRY_HALF_CREDIT_SPEC §3 (2026-10-26): a right retry earns half credit, and both of its lines say so
+ * (the direct submit and the fresh-device reconcile); a right first answer keeps its plain green line.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -18,11 +21,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 const ROOT = resolve(__dirname, '..');
 const QID = 'U1-L1-Q01';
 const PC_QID = 'U1-PC26-MCQ-A-Q01';
-const FIRST_WRONG_TEXT = 'Not correct. You get one retry: explain what changed your mind, then submit.';
+const FIRST_WRONG_TEXT = 'Not correct. You get one retry for half credit: explain what changed your mind, then submit.';
 const RETRY_WRONG_TEXT = 'Not correct. This retry is your grade. The correct answer is shown below.';
 const GENERIC_TEXT = '📝 Answer submitted successfully!';
 const PENDING_TEXT = 'Retry saved — waiting for the server / connection.';
 const CORRECT_TEXT = '✅ Correct answer submitted!';
+const RETRY_CORRECT_TEXT = '✅ Correct on your retry: half credit.';
 const RED = 'rgb(192, 57, 43)';      // #c0392b
 const GREEN = 'rgb(39, 174, 96)';    // #27ae60
 const BLUE = 'rgb(52, 152, 219)';    // #3498db
@@ -147,6 +151,7 @@ describe('the line under Submit after each kind of multiple-choice submit', () =
     await answer(w, 'B', 'bravo because');
     expect(seen.now()).toEqual({ text: CORRECT_TEXT, color: GREEN });
     expect(seen.texts).not.toContain(GENERIC_TEXT);
+    expect(seen.texts).not.toContain(RETRY_CORRECT_TEXT);
   });
 
   it('a wrong retry: "waiting" while it is pending, then the red retry line over "Correct answer: B"', async () => {
@@ -209,12 +214,13 @@ describe('the line under Submit after each kind of multiple-choice submit', () =
     expect(itemText(w)).not.toContain('Correct answer');
   });
 
-  it('a correct retry: the green line', async () => {
+  it('a correct retry: the green half-credit line, never the first-answer line', async () => {
     const w = boot();
     const seen = watchSuccessLine(w);
     await answer(w, 'A', 'alpha because');
     await answer(w, 'B', 'bravo because the median resists');
-    expect(seen.now()).toEqual({ text: CORRECT_TEXT, color: GREEN });
+    expect(seen.now()).toEqual({ text: RETRY_CORRECT_TEXT, color: GREEN });
+    expect(seen.texts).not.toContain(CORRECT_TEXT);
     expect(seen.texts).not.toContain(GENERIC_TEXT);
     expect(seen.texts).not.toContain(RETRY_WRONG_TEXT);
   });
@@ -249,12 +255,42 @@ describe('the line under Submit when the retry is sent or settled by another pat
     expect(itemText(w)).toContain('Correct answer: B');
   });
 
-  it('the reconcile sends a right retry: its own line, in green, saying so', async () => {
+  it('the reconcile sends a right retry: its own line, in green, saying it earns half credit', async () => {
     const w = boot({ recordImpl: keptA });
     const seen = watchSuccessLine(w);
     await answer(w, 'B', 'bravo because it fits best', 600);
-    expect(seen.now()).toEqual({ text: `${SENT_B} ✅ It is correct.`, color: GREEN });
+    expect(seen.now()).toEqual({ text: `${SENT_B} ✅ It is correct: half credit.`, color: GREEN });
     expect(seen.texts).not.toContain(RETRY_WRONG_TEXT);
+  });
+
+  // The stale-device case: the student already retried on another device, so the server refuses this one.
+  const refuseRetry = rec => Promise.resolve(rec.attempt === 2
+    ? { ok: false, reason: 'retry-not-allowed', detail: 'already-retried' }
+    : { ok: true, ledgerId: 'L' });
+  const shownLine = w => (span(w).classList.contains('show') ? span(w).textContent : '');
+
+  it('a refused correct retry never leaves "half credit" visible next to the refusal', async () => {
+    const w = boot({ recordImpl: refuseRetry });
+    await answer(w, 'A', 'alpha because');
+    await answer(w, 'B', 'bravo because the median resists', 600);
+    expect(w.document.getElementById(`error-${QID}`).textContent).toBe('You already used your one retry. That answer is your grade.');
+    expect(span(w).textContent).not.toContain('half credit');
+    expect(shownLine(w)).not.toContain('half credit');
+  });
+
+  it('a failed correct retry (not signed in) never leaves "half credit" visible either', async () => {
+    const w = boot({ recordImpl: rec => Promise.resolve(rec.attempt === 2 ? { ok: false, reason: 'unauthorized' } : { ok: true, ledgerId: 'L' }) });
+    await answer(w, 'A', 'alpha because');
+    await answer(w, 'B', 'bravo because the median resists', 600);
+    expect(w.document.getElementById(`error-${QID}`).textContent).toContain('could not be saved');
+    expect(span(w).textContent).not.toContain('half credit');
+  });
+
+  it('the reconcile sends a right retry the server refuses: its half-credit line is taken back', async () => {
+    const w = boot({ recordImpl: rec => (rec.attempt === 1 ? keptA(rec) : refuseRetry(rec)) });
+    await answer(w, 'B', 'bravo because it fits best', 600);
+    expect(w.document.getElementById(`error-${QID}`).textContent).toBe('You already used your one retry. That answer is your grade.');
+    expect(span(w).textContent).not.toContain('half credit');
   });
 
   it('a pending wrong retry the sign-in ledger restore finds accepted (its reply was lost): the red verdict', async () => {

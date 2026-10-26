@@ -134,8 +134,8 @@ describe('surfaces behind the gate', () => {
 describe('retry form + outcomes', () => {
   it('labels, button text and the pending line per spec', () => {
     const fn = fnSrc('_quizFormState');
-    expect(fn).toContain("'You were not correct. One retry: explain what changed your mind.'");
-    expect(fn).toContain("'Submit retry (this becomes your grade)'");
+    expect(fn).toContain("'You were not correct. One retry for half credit: explain what changed your mind.'");
+    expect(fn).toContain("'Submit retry (half credit if correct)'");
     expect(fn).toContain("mode: 'pending'");
     expect(html).toContain("'Retry saved \\u2014 waiting for the server / connection.'");
     expect(html).toContain("'This answer is your grade.'");

@@ -7392,6 +7392,10 @@ function renderLessonSelector(unitInfo) {
         // A wrong retry, recorded: the reveal box below it shows the key, and that must never read as
         // "your retry was marked correct" (2026-10-26 teacher test).
         var QUIZ_RETRY_WRONG_TEXT = 'Not correct. This retry is your grade. The correct answer is shown below.';
+        // A right retry, sent: worth half credit (QUIZ_RETRY_HALF_CREDIT_SPEC §3). The reconcile path ends
+        // its own line with the suffix.
+        var QUIZ_RETRY_CORRECT_TEXT = '✅ Correct on your retry: half credit.';
+        var QUIZ_RETRY_CORRECT_SUFFIX = '✅ It is correct: half credit.';
 
         // Classmates' text (names, letters, explanations) is untrusted: never render it as HTML.
         function _escHtml(value) {
@@ -8566,7 +8570,7 @@ function renderLessonSelector(unitInfo) {
                     mode: 'checking',
                     label: 'Your explanation:',
                     placeholder: '',
-                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonText: 'Submit retry (half credit if correct)',
                     buttonDisabled: true,
                     lockText: QUIZ_RETRY_CHECKING_TEXT
                 };
@@ -8576,7 +8580,7 @@ function renderLessonSelector(unitInfo) {
                     mode: 'pending',
                     label: 'Your retry explanation:',
                     placeholder: '',
-                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonText: 'Submit retry (half credit if correct)',
                     buttonDisabled: true,
                     lockText: QUIZ_RETRY_PENDING_TEXT
                 };
@@ -8584,9 +8588,9 @@ function renderLessonSelector(unitInfo) {
             if (canRetry(questionId)) {
                 return {
                     mode: 'retry',
-                    label: 'You were not correct. One retry: explain what changed your mind.',
+                    label: 'You were not correct. One retry for half credit: explain what changed your mind.',
                     placeholder: 'What changed your mind? (at least 3 words)',
-                    buttonText: 'Submit retry (this becomes your grade)',
+                    buttonText: 'Submit retry (half credit if correct)',
                     buttonDisabled: true,
                     lockText: ''
                 };
@@ -9341,6 +9345,13 @@ function renderLessonSelector(unitInfo) {
             try { return _quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId)); } catch (_) { return false; }
         }
         var MCQ_CORRECT_FEEDBACK_NOTE = 'Your answer is correct: full credit. This feedback is about your explanation only and does not change your grade.';
+        // A right retry is worth half, or full when made before the cutoff (QUIZ_RETRY_HALF_CREDIT_SPEC §1).
+        // The page never computes a grade, so this note names no credit at all.
+        var MCQ_CORRECT_RETRY_FEEDBACK_NOTE = 'Your retry is correct. This feedback is about your explanation only and does not change your grade.';
+        function _mcqCorrectFeedbackNote(questionId) {
+            if (_quizEffectiveAttempts(questionId) >= 2) return MCQ_CORRECT_RETRY_FEEDBACK_NOTE;
+            return MCQ_CORRECT_FEEDBACK_NOTE;
+        }
 
         // Populate peer reasoning section with peer response cards
         function populatePeerReasoning(questionId, contributors) {
@@ -9858,7 +9869,7 @@ function renderLessonSelector(unitInfo) {
                 // A retry needs an explanation of the change of mind (3+ words, as the server enforces)
                 if (_quizEffectiveAttempts(questionId) > 0 && !retryReasoningReady(reason)) {
                     if (errorSpan) {
-                        errorSpan.textContent = 'One retry: explain what changed your mind (at least 3 words).';
+                        errorSpan.textContent = 'One retry for half credit: explain what changed your mind (at least 3 words).';
                         errorSpan.classList.add('show');
                     }
                     if (reasonTextarea) {
@@ -10071,11 +10082,13 @@ function renderLessonSelector(unitInfo) {
                 }
 
                 // (an item with no key on the page, a PC makeup, is scored by the server: never "Not correct" here)
+                // A right retry earns half credit (QUIZ_RETRY_HALF_CREDIT_SPEC §1); a right first answer, full.
+                const isRetry = !isFRQ && ledgerAttempt === 2;
                 if (isCorrect) {
-                    successSpan.textContent = '✅ Correct answer submitted!';
+                    successSpan.textContent = isRetry ? QUIZ_RETRY_CORRECT_TEXT : '✅ Correct answer submitted!';
                     successSpan.style.color = '#27ae60';
                 } else if (!isFRQ && correctAnswer && canRetry(questionId)) {
-                    successSpan.textContent = 'Not correct. You get one retry: explain what changed your mind, then submit.';
+                    successSpan.textContent = 'Not correct. You get one retry for half credit: explain what changed your mind, then submit.';
                     successSpan.style.color = '#c0392b';
                 } else if (!isFRQ && _quizRetryStatus(questionId) === 'pending') {
                     successSpan.textContent = QUIZ_RETRY_PENDING_TEXT;
@@ -11334,9 +11347,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             }
 
-            // Update feedback text (a correct multiple-choice answer says plainly that the grade is full)
+            // Update feedback text (a correct first answer says full credit; a correct retry names no credit, since the server decides half or full)
             const _mcqCorrectNote = (result.questionType === 'multiple-choice' && _appealAllowedFor(questionId, 'multiple-choice'))
-                ? MCQ_CORRECT_FEEDBACK_NOTE + ' ' : '';
+                ? _mcqCorrectFeedbackNote(questionId) + ' ' : '';
             updateText(feedbackText, _mcqCorrectNote + (result.feedback || 'Review the official solution for detailed grading criteria.'));
 
             // Phase 3B: Update matched list using keyed diffing
@@ -13812,6 +13825,17 @@ Respond with JSON:
             span._fadeTimer = setTimeout(() => span.classList.remove('show'), 3000);
         }
 
+        // A refused or failed retry earned nothing: take back the green half-credit line it showed.
+        function _clearRetryCorrectLine(questionId) {
+            const span = document.getElementById(`success-${questionId}`);
+            if (!span) return;
+            const shown = span.textContent || '';
+            if (shown !== QUIZ_RETRY_CORRECT_TEXT && !shown.endsWith(QUIZ_RETRY_CORRECT_SUFFIX)) return;
+            clearTimeout(span._fadeTimer);
+            span.textContent = '';
+            span.classList.remove('show');
+        }
+
         // The server accepted a wrong retry and the reveal box with the key has just painted: say plainly,
         // in red, that the retry is wrong and is the grade. Read from the retry and the key: the line may be
         // empty by now (a re-render or a reload, before a queued retry replays). It replaces the "waiting"
@@ -13983,6 +14007,7 @@ Respond with JSON:
 
                 if (username !== currentUsername) return;
                 _refreshAfterReveal(questionId);
+                _clearRetryCorrectLine(questionId);
                 const message = outcome === 'refused'
                     ? (QUIZ_RETRY_REFUSED_TEXT[detail] || 'This retry was not accepted by the gradebook.')
                     : QUIZ_RETRY_FAILED_TEXT;
@@ -14163,7 +14188,7 @@ Respond with JSON:
                     if (sent === true) {
                         // a right retry says so at once, as a plain submit does; a wrong one hears when the server accepts it
                         if (_quizAnswerMatchesKey(questionId, chosen)) {
-                            say(`${_quizRetrySentText(kept, chosen)} ✅ It is correct.`, '#27ae60');
+                            say(`${_quizRetrySentText(kept, chosen)} ${QUIZ_RETRY_CORRECT_SUFFIX}`, '#27ae60');
                         } else {
                             say(_quizRetrySentText(kept, chosen), '#3498db');
                         }
