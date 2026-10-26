@@ -371,7 +371,7 @@ describe('4. a missing server and broken replies fail open', () => {
     await settle();
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ response: 'D', attempt: 1 });
-    // The retry: 5+ words, no letter → would read, but the route is off.
+    // The retry: 3+ words, no letter → would read, but the route is off.
     radio(w, 'C').click();
     type(w, 'I now see the middle value resists outliers');
     expect(await pressSubmit(w)).toBe(true);
@@ -493,7 +493,8 @@ describe('6. no request, one record at once', () => {
     expect(records).toHaveLength(1);
   });
 
-  for (const [name, text] of [['under 5 words', 'the middle value resists'], ['over 2,000 characters', 'resists '.repeat(260).trim()]]) {
+  // The floor is the retry minimum, 3 real words (teacher decision 2026-10-26; 5 until then).
+  for (const [name, text] of [['under 3 words', 'middle resists'], ['over 2,000 characters', 'resists '.repeat(260).trim()]]) {
     it(name, async () => {
       const records = [];
       const { w, net } = boot({ records });
@@ -506,6 +507,19 @@ describe('6. no request, one record at once', () => {
       expect(records).toHaveLength(1);
     });
   }
+
+  it('3 words reach the read: one request, nothing recorded yet', async () => {
+    const records = [];
+    const { w, net } = boot({ records });
+    render(w);
+    await settle();
+    radio(w, 'D').click();
+    type(w, 'law of averages');
+    expect(await pressSubmit(w)).toBe(false);
+    expect(net.reads()).toHaveLength(1);
+    expect(net.last().body).toEqual({ questionId: QID, explanation: 'law of averages' });
+    expect(records).toHaveLength(0);
+  });
 
   it('an empty explanation on a first answer: no request, one record', async () => {
     const records = [];
@@ -587,7 +601,7 @@ describe('8. the reconcile auto-send never reads', () => {
     render(w);
     await settle();
     radio(w, 'D').click();
-    type(w, 'median resists outliers');   // under five words: no read on the first answer
+    type(w, 'median resists');   // under three words: no read on the first answer
     expect(await pressSubmit(w)).toBe(true);
     await settle();
     expect(mode(w)).toBe('retry');
@@ -605,7 +619,7 @@ describe('8. the reconcile auto-send never reads', () => {
 
     net.last().reply(200, { letter: null });
     await settle();
-    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'D', 'median resists outliers'], [2, 'C', NO_LETTER]]);
+    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'D', 'median resists'], [2, 'C', NO_LETTER]]);
   });
 });
 
@@ -814,7 +828,7 @@ describe('the retry', () => {
     return { w, net };
   }
 
-  it('a retry read that names the first answer shows the card (decision 1); its letter sends attempt 2', async () => {
+  it('a retry read that names the first answer shows the card (decision 1), the first letter as text; C sends attempt 2', async () => {
     const records = [];
     const { w, net } = await openRetry(records);
     radio(w, 'C').click();
@@ -824,7 +838,9 @@ describe('the retry', () => {
     expect(label(w)).toBe(CHECKING);
     net.last().reply(200, { letter: 'D' });
     await settle();
-    expect(cardTitle(w)).toBe('Your explanation points to D, but you picked C. Which one is your answer?');
+    expect(cardTitle(w)).toBe('Your explanation argues for D, your first answer, which was not correct. You picked C: send it as your retry, or fix your explanation.');
+    expect(letterButton(w, 'D')).toBeNull();   // a retry is another letter: D is never a button
+    expect([...w.document.querySelectorAll(`#congruence-${QID} .congruence-pick`)].map(b => b.dataset.letter)).toEqual(['C']);
     expect(label(w)).toBe('Submit retry (this becomes your grade)');
     expect(button(w).disabled).toBe(false);
     letterButton(w, 'C').click();

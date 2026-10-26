@@ -457,7 +457,8 @@ describe('9. no call, and { letter: null }', () => {
     ['an unkeyed item', { questionId: 'U1-L1-Q03', explanation: EXPLANATION }],
     ['an option without text', { questionId: 'U1-L1-Q04', explanation: EXPLANATION }],
     ['a PC item', { questionId: 'U1-PC-Q01', explanation: EXPLANATION }],
-    ['under 5 words', { questionId: 'U1-L1-Q02', explanation: 'the median stays put' }],
+    // The floor is the retry minimum, 3 real words (teacher decision 2026-10-26; 5 until then).
+    ['under 3 words', { questionId: 'U1-L1-Q02', explanation: 'median stays' }],
   ];
   for (const [name, body] of cases) {
     it(name, async () => {
@@ -468,6 +469,13 @@ describe('9. no call, and { letter: null }', () => {
       expect(calls).toHaveLength(0);
     });
   }
+
+  it('3 words are enough for a call', async () => {
+    const { run, calls } = makeRoute({ reply: '{"letter":"B","confidence":0.9,"reason":"middle stays put"}' });
+    const res = await run({ questionId: 'U1-L1-Q02', explanation: 'middle stays put' });
+    expect(calls).toHaveLength(1);
+    expect(res.body).toEqual({ letter: 'B' });
+  });
 
   it('a bank that fails to load', async () => {
     const { run, calls } = makeRoute({ loadBank: async () => { throw new Error('offline'); } });

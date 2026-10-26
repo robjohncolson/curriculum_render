@@ -1,6 +1,6 @@
 # Quiz confirm card, Phase 2: an AI read for explanations that name no option (spec v1, draft, 2026-10-26)
 
-Status: APPROVED by the teacher 2026-10-26 ("go!") with the §9 decisions below; shipped 2026-10-26 (the commit carrying this line). Extends QUIZ_INCONGRUENCE_CHECK_SPEC
+Status: APPROVED by the teacher 2026-10-26 ("go!") with the §9 decisions below; shipped 2026-10-26 (the commit carrying this line); floor 3 since 2026-10-26. Extends QUIZ_INCONGRUENCE_CHECK_SPEC
 Part B (§2–§5, shipped 2026-10-26, cr `4a25e5f`) with the phase its §4 last paragraph held back. Touches cr
 `index.html`, a new `railway-server/quiz-congruence.js` mounted by `railway-server/server.js` (Railway auto-deploys
 on push to main), tests, and one advisory script. No roster-server, ledger, migration or grade-engine change. The
@@ -42,8 +42,10 @@ When a student presses **Submit Answer** or **Submit retry** on a multiple-choic
 1. The shipped detector (QUIZ_INCONGRUENCE_CHECK_SPEC §4) runs first, unchanged. If it names a letter different from
    the pick, the card shows as today. If it names the pick, the submit goes out as today. Nothing below runs.
 2. The AI read runs only when the detector says unclear (`null`) **and** all of these hold:
-   - the explanation has at least 5 real words (tokens with a letter or digit, the `retryReasoningReady` rule) and
-     at most 2,000 characters;
+   - the explanation has at least 3 real words (tokens with a letter or digit, the `retryReasoningReady` rule; 5
+     until 2026-10-26; lowered by teacher decision; the §7 calibration population was built with the 5-word floor
+     and was not re-run) and at most 2,000 characters. 3 is the retry minimum, so every retry with a token is
+     eligible;
    - the item is an MCQ whose options all carry text, and its id is not a PC item (`^U\d+-PC`). PC items are College
      Board-secure, are not in the server's bank, and their text never goes to a third party;
    - the browser is online (`navigator.onLine !== false`) and a roster token is present;
@@ -89,7 +91,8 @@ directly instead of slicing `server.js`. `server.js` mounts it next to the AI gr
   - The prompt is built from `congruenceItemView(item)` = `{ prompt, options: [{ key, text }] }`, with tags
     stripped and whitespace collapsed; this view never touches the key.
   - `understandingCanonicalQuestion` (1954) is not reused, because it returns the key.
-  - Under 5 real words → `{ letter: null }`, repeating the client gate.
+  - Under 3 real words → `{ letter: null }`, repeating the client gate (`CONGRUENCE_MIN_WORDS`; 5 until 2026-10-26;
+    lowered by teacher decision; the §7 calibration population was built with the 5-word floor and was not re-run).
 - **Provider.** The existing AI providers in server.js (`AI_PROVIDERS`, 702–752): DeepSeek is primary
   (`deepseek-v4-flash`; `thinkingControl` sends thinking disabled) and Groq (`llama-3.3-70b-versatile`) is the
   failover. The route calls `callAI` (1354) **directly, not through `gradingQueue`** (990). The queue is shared with
@@ -163,15 +166,18 @@ the model is less able to solve the item itself.
   `quizExplanationPointsTo` returns `null`, before the first state write.
   - A cached answer is used at once: a differing letter shows the card; anything else lets the submit continue in
     the same call.
-  - Otherwise, if the submit is eligible (§1.2): record a **pending check**, set the Submit button to "Checking your
+  - Otherwise, if the submit is eligible (§1.2; `QUIZ_CONGRUENCE_READ_MIN_WORDS` = 3 real words, 5 until 2026-10-26;
+    lowered by teacher decision; the §7 calibration population was built with the 5-word floor and was not re-run):
+    record a **pending check**, set the Submit button to "Checking your
     explanation…" (disabled, `aria-busy`), fire the read, and **return `false`**.
   - `submitAnswer` stays synchronous and keeps returning `true`/`false`.
 - **Pending marker.** `_quizCongruenceChecks()[qid] = { text, picked, attempt, startedAt }`. It lives for the page
   and belongs to one student: a same-tab sign-in resets it, as `_quizCongruenceMarkers()` (8014) does for cards.
   - It is cleared by the same events that clear a card: any `change` on the item's radios (`_onQuizChoiceChange`,
     8200), any `input` on `reason-<id>` (`_onQuizReasonInput`, 8183), the start of every `submitAnswer` for the
-    item, and `_applyQuizFormState` (8126) when the mode is not `first`/`retry` or the text or pick no longer match.
-    §9 concern 4 proposes two exceptions.
+    item, and `_applyQuizFormState` (8126) when the mode is not `first`/`retry`, the text or pick no longer match,
+    or the pick is the retry form's first letter (a first answer that landed late made it so; 2026-10-26, the
+    retry-click rule). §9 concern 4 proposes two exceptions.
   - While a marker matches, `_applyQuizFormState` keeps the button's "Checking your explanation…" label and
     `disabled` state. Without this, every peer repaint and the 30-second pull would re-enable it mid-wait.
 - **The read.** `fetch(base + '/api/quiz/congruence')`, with `base` and `Authorization: Bearer <roster token>` exactly
@@ -227,7 +233,7 @@ year. Load peaks at a few reads a minute during a quiz, far below the 30/min per
 | Failure | What happens | Why it is safe |
 |---|---|---|
 | Server not deployed yet, or old (404) | read off for the page; submit at once | the client tolerates a missing server |
-| Offline, no token, PC item, over 2,000 characters, under 5 words | no request; submit at once | today's behavior |
+| Offline, no token, PC item, over 2,000 characters, under 3 words (5 until 2026-10-26) | no request; submit at once | today's behavior |
 | DeepSeek slower than 3.5 s, or network slower than 4 s | `null` or abort → submit; two in a row → read off | the check is advisory |
 | DeepSeek 5xx or 429 | Groq once if at least 1.5 s remain, else `null` → submit | same |
 | Invalid JSON, a letter that is not an option, a reason that is not the student's words | `null` → submit | a card needs a grounded letter |
@@ -329,15 +335,16 @@ bank, clock and console are stubs.
 7. Length: 2,001 characters → 413 and no call; 2,000 → a call.
 8. Logs: with the console spied through a success, a provider error (whose body echoes the text), a timeout and bad
    JSON, no logged string contains the explanation, any 12-character slice of it, or the sid.
-9. No call, and `{ letter: null }`, for: an unknown id, an FRQ, an unkeyed item, an option without text, under 5
-   words, a bank that fails to load.
+9. No call, and `{ letter: null }`, for: an unknown id, an FRQ, an unkeyed item, an option without text, under 3
+   words (5 until 2026-10-26; lowered by teacher decision; the §7 calibration population was built with the 5-word
+   floor and was not re-run), a bank that fails to load. Three words → a call.
 10. Bypass: the route never calls `gradingQueue.add` (source pin), and it answers within the deadline while a stub
     queue that never drains is full.
 
 **Client**: `tests/quiz-congruence-ai-dom.test.js`. It uses the harness of `quiz-congruence-dom.test.js` (the real
 page in jsdom, `gradebookClient.record` captured), with `rosterClient.token` returning a token and a scripted `fetch`.
 
-1. Pick D and type a 5-plus-word explanation that names no letter:
+1. Pick D and type a 3-plus-word explanation that names no letter (5-plus until 2026-10-26):
    - `submitAnswer` returns `false`; there is no record and one POST to `/api/quiz/congruence`, whose body is exactly
      `{ questionId, explanation }` and which carries the bearer;
    - the button reads "Checking your explanation…" and is disabled.
@@ -351,8 +358,9 @@ page in jsdom, `gradebookClient.record` captured), with `rosterClient.token` ret
 4. 404 → one record, and no request on later submits. A 500, invalid JSON, or `{ letter: 'Z' }` → one record each.
 5. The student types, or picks another radio, during the wait → the reply is discarded: no record, no card, and the
    button is enabled with its normal label.
-6. `navigator.onLine` false, no token, a PC id, under 5 words, or over 2,000 characters → no request, and one record
-   at once.
+6. `navigator.onLine` false, no token, a PC id, under 3 words (5 until 2026-10-26; lowered by teacher decision; the
+   §7 calibration population was built with the 5-word floor and was not re-run), or over 2,000 characters → no
+   request, and one record at once. Three words → one request.
 7. The detector names another letter → its card at once and no request. The detector names the pick → one record
    and no request.
 8. `_reconcileKeptFirstAnswer` auto-sends with an explanation that names no letter → no request, and its message
@@ -368,14 +376,17 @@ page in jsdom, `gradebookClient.record` captured), with `rosterClient.token` ret
     student.
 13. If §9 concern 4 is adopted: `pagehide`, and a topic reload, during the wait → exactly one record, sent before the
     form goes.
-14. These existing suites stay green unchanged: `quiz-congruence-dom`, `quiz-congruence`, `quiz-retry-pick`,
+14. These existing suites stay green: `quiz-congruence-dom`, `quiz-congruence`, `quiz-retry-pick`,
     `quiz-settled-dom`, `quiz-settled-gate`, `quiz-answer-restore`, `quiz-mcq-feedback-reload`. Most of their submits
-    run with no token, and their token-bearing submits use explanations under five words. A suite that does go
-    through the read is a finding, not a test edit.
+    run with no token. A suite that goes through the read without meaning to is a finding, not a test edit. Every
+    token-bearing retry reaches the read now that the floor is 3 real words (2026-10-26); the two suites that send
+    one (`quiz-talk-dom` and one `quiz-retry-pick` case) answer the route with `{ letter: null }`, and the suites
+    that pinned the old retry form were revised to the retry-click rule (QUIZ_INCONGRUENCE_CHECK_SPEC §1 rule 1).
 
 **Calibration script**: `scripts/quiz-congruence-ai-calibrate.mjs`.
 - Builds the §7 population, with the detector loaded from `index.html` between the delimiter comments, and adds the
-  26 probes.
+  26 probes. Its word floor is the route's `CONGRUENCE_MIN_WORDS` (3 since 2026-10-26; the §7 run used 5), and the
+  summary tallies the texts under it as `underFloor`.
 - Calls sequentially under a 150-call cap and writes `results.jsonl`, without student ids, to the given directory.
 - Prints the §7 counts and, for the human read, every differing and UNCLEAR row with its options.
 - Reads the key from the environment and never prints it. `--provider groq` runs the same set against the failover
@@ -440,7 +451,9 @@ page in jsdom, `gradebookClient.record` captured), with `rosterClient.token` ret
 
    Recommended: keep all three.
 
-**Decisions (teacher, 2026-10-26).** 1. A retry whose explanation argues for its own first answer **shows the card**.
+**Decisions (teacher, 2026-10-26).** 1. A retry whose explanation argues for its own first answer **shows the card**
+(since the retry-click rule, 2026-10-26, the card names that letter in its sentence and never offers it as a button:
+QUIZ_INCONGRUENCE_CHECK_SPEC §5).
 2. Method-only explanations **stay UNCLEAR** (the "do not solve" rule stands). 3. The three §0 resets were **done**
 2026-10-26 (U3-L2-Q01, U3-L2-Q03, U1-L7-Q04; each back to attempt 1). 4. **DeepSeek-only** for this route: no Groq
 failover until a Groq calibration run looks like §7. 5. **Keep all three additions**: the verbatim-reason rule (§3),

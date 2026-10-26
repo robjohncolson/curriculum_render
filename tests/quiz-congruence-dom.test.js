@@ -210,7 +210,7 @@ async function firstAnswerCard({ records, pick = 'D', text = 'C because the medi
   return w;
 }
 
-// Wrong first answer D on file, retry form open with D shown.
+// Wrong first answer D on file, retry form open: nothing checked, D disabled (a retry is a new click).
 async function openRetry(opts = {}, { seedState = true } = {}) {
   const w = boot({ ...opts, seedLocalStorage: seedState ? { quizRetryState_Me: WRONG_FIRST_D } : {} });
   seedMine(w, { answer: 'D', attempts: 1 });
@@ -218,7 +218,8 @@ async function openRetry(opts = {}, { seedState = true } = {}) {
   w.eval(`_applyQuizFormState('${QID}')`);
   await tick(250);
   expect(mode(w)).toBe('retry');
-  expect(checked(w)).toBe('D');
+  expect(checked(w)).toBeNull();
+  expect(radio(w, 'D').disabled).toBe(true);
   return w;
 }
 
@@ -242,13 +243,16 @@ describe('Part B: the confirm card on a first answer', () => {
     expect(host.parentElement.lastElementChild).toBe(host);
   });
 
-  it('(2) click C: one record with C, attempt 1 and the explanation as typed; C checked; card and marker gone', async () => {
+  it('(2) click C: one record with C, attempt 1 and the explanation as typed; C is the first answer now; card and marker gone', async () => {
     const records = [];
     const w = await firstAnswerCard({ records });
     await clickAndSettle(letterButton(w, 'C'));
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ response: 'C', attempt: 1, reasoning: 'C because the median resists' });
-    expect(checked(w)).toBe('C');
+    // C is wrong (key B): the retry form opens with nothing checked and C disabled.
+    expect(mode(w)).toBe('retry');
+    expect(checked(w)).toBeNull();
+    expect(radio(w, 'C').disabled).toBe(true);
     expect(card(w)).toBeNull();
     expect(marker(w)).toBeNull();
     expect(w.document.activeElement).toBe($(w, `success-${QID}`));
@@ -260,7 +264,9 @@ describe('Part B: the confirm card on a first answer', () => {
     await clickAndSettle(letterButton(w, 'D'));
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ response: 'D', attempt: 1, reasoning: 'C because the median resists' });
-    expect(checked(w)).toBe('D');
+    expect(mode(w)).toBe('retry');
+    expect(checked(w)).toBeNull();
+    expect(radio(w, 'D').disabled).toBe(true);
     expect(card(w)).toBeNull();
   });
 
@@ -310,13 +316,14 @@ describe('Part B: the confirm card on a first answer', () => {
 });
 
 describe('Part B: the confirm card on the retry', () => {
-  it('(7) retry re-picks D with "C observing only": the card; click C → attempt 2 with C, pending C', async () => {
+  it('(7) retry picks A with "C observing only": the card; click C → attempt 2 with C, pending C', async () => {
     const records = [];
     const w = await openRetry({ records, recordImpl: () => new Promise(() => {}) });   // the server never answers
+    radio(w, 'A').click();   // re-picking D is no longer possible: D is disabled
     type(w, 'C observing only');
     expect(await pressSubmit(w)).toBe(false);
-    expect(cardTitle(w)).toBe('Your explanation points to C, but you picked D. Which one is your answer?');
-    expect(marker(w)).toMatchObject({ picked: 'D', pointsTo: 'C', attempt: 2 });
+    expect(cardTitle(w)).toBe('Your explanation points to C, but you picked A. Which one is your answer?');
+    expect(marker(w)).toMatchObject({ picked: 'A', pointsTo: 'C', attempt: 2 });
     expect(records).toHaveLength(0);
     await clickAndSettle(letterButton(w, 'C'));
     expect(records).toHaveLength(1);
@@ -363,43 +370,59 @@ describe('Part B: the confirm card on the retry', () => {
     expect(records[0]).toMatchObject({ response: 'D', attempt: 1 });
   });
 
-  // The ledger restore lands a wrong first answer A while a first-answer card is up: the item is
-  // now on its retry and the card was shown for attempt 1.
+  // The ledger restore lands a wrong first answer while a first-answer card is up: the item is now
+  // on its retry, and a card stamped attempt 1 is stale (§5 marker). The retry form shows nothing
+  // checked and the restored letter disabled.
   const ROW_A1 = { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'A', recorded_at: '2026-09-29T10:00:00Z' };
-  async function cardAcrossRestore(records) {
+  const ROW_D1 = { ...ROW_A1, response: 'D' };
+  async function cardAcrossRestore(records, row = ROW_A1) {
     const w = await firstAnswerCard({ records });
-    await restoreFromLedger(w, [ROW_A1]);
-    expect(mode(w)).toBe('retry');
     expect(marker(w)).toMatchObject({ picked: 'D', pointsTo: 'C', attempt: 1 });
-    expect(checked(w)).toBe('D');
+    await restoreFromLedger(w, [row]);
+    expect(mode(w)).toBe('retry');
+    expect(marker(w)).toBeNull();
+    expect(card(w)).toBeNull();
+    expect(checked(w)).toBeNull();
+    expect(radio(w, row.response).disabled).toBe(true);
+    expect($(w, `submit-${QID}`).disabled).toBe(true);
     return w;
   }
 
-  it('(13) a first-answer card carried into the retry by a restore: its letter re-runs the check, then sends once', async () => {
+  it('(13) a first-answer card does not survive a restore into the retry; a new pick checks attempt 2, then sends once', async () => {
     const records = [];
     const w = await cardAcrossRestore(records);
-    await clickAndSettle(letterButton(w, 'D'));
-    expect(records).toHaveLength(0);   // stamped attempt 1, the item is on attempt 2: no bypass
+    await repaint(w);
+    expect(card(w)).toBeNull();
+    expect(checked(w)).toBeNull();
+    radio(w, 'D').click();
+    expect(await pressSubmit(w)).toBe(false);   // the text still names C: the retry's own card
     expect(cardTitle(w)).toBe('Your explanation points to C, but you picked D. Which one is your answer?');
     expect(marker(w)).toMatchObject({ picked: 'D', pointsTo: 'C', attempt: 2 });
-    expect(w.document.activeElement).toBe($(w, `congruence-title-${QID}`));
-    await repaint(w);
-    expect(card(w)).not.toBeNull();
-    expect(checked(w)).toBe('D');
+    expect(records).toHaveLength(0);
     await clickAndSettle(letterButton(w, 'D'));
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ response: 'D', attempt: 2, reasoning: 'C because the median resists' });
     expect(card(w)).toBeNull();
   });
 
-  it('(13) the same carried card, but the student edits the explanation: gone through repaints, Submit checks attempt 2', async () => {
+  it('(13) the restored first answer is the card pick itself: the first letter is not checked, and no card can send the retry', async () => {
+    const records = [];
+    const w = await cardAcrossRestore(records, ROW_D1);
+    expect(w.document.querySelector(`[data-question-id="${QID}"] .choice.first-answer .first-answer-tag`)).not.toBeNull();
+    expect(letterButton(w, 'C')).toBeNull();
+    await repaint(w);
+    expect(checked(w)).toBeNull();
+    expect(records).toHaveLength(0);
+  });
+
+  it('(13) after the restore the student edits the explanation: Submit checks attempt 2', async () => {
     const records = [];
     const w = await cardAcrossRestore(records);
     type(w, 'C because the median resists more');
-    expect(card(w)).toBeNull();
-    expect(marker(w)).toBeNull();
     await repaint(w);
     expect(card(w)).toBeNull();
+    expect(radio(w, 'A').disabled).toBe(true);
+    radio(w, 'D').click();
     expect(await pressSubmit(w)).toBe(false);   // the edited text still names C
     expect(marker(w)).toMatchObject({ pointsTo: 'C', text: 'C because the median resists more', attempt: 2 });
     expect(records).toHaveLength(0);
@@ -465,6 +488,7 @@ describe('Part B: repaints carry the card; leaving the open form drops it', () =
   for (const state of ['pending', 'accepted']) {
     it(`(10) a card is removed once the item is ${state === 'pending' ? 'pending' : 'settled'}`, async () => {
       const w = await openRetry();
+      radio(w, 'A').click();
       type(w, 'C observing only');
       expect(await pressSubmit(w)).toBe(false);
       expect(card(w)).not.toBeNull();
@@ -528,9 +552,10 @@ describe('Part B: the fresh-device reconcile path', () => {
 });
 
 describe('Part B: the reconcile lands while a retry card is up', () => {
-  it('never sends under the card or swaps its explanation; the student answers the card, once', async () => {
+  it('never sends under the card or swaps its explanation; a card on the kept letter goes, and the student picks again', async () => {
     // Fresh device; the server already holds A. Attempt 1 (D) is slow to answer; meanwhile the
-    // student re-picks A with "C observing only" and gets the card. Then the reply says A was kept.
+    // student re-picks A with "C observing only" and gets the card. Then the reply says A was kept:
+    // A is the first answer now, so the card (its pick A) goes and A cannot be the retry (§1 rule 1).
     const records = [];
     let resolveFirst = null;
     const w = boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
@@ -550,12 +575,14 @@ describe('Part B: the reconcile lands while a retry card is up', () => {
     resolveFirst({ ok: true, firstAnswerKept: true, keptResponse: 'A' });
     await tick(400);
     expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'D']]);   // nothing sent for the student
-    expect(card(w)).not.toBeNull();
-    expect(checked(w)).toBe('A');
+    expect(card(w)).toBeNull();
+    expect(checked(w)).toBeNull();
+    expect(radio(w, 'A').disabled).toBe(true);
     expect($(w, `reason-${QID}`).value).toBe('C observing only');
-    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (A). Check the question below and submit your one retry.');
+    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (A), and it was not correct. Pick a different letter and explain what changed your mind.');
 
-    await clickAndSettle(letterButton(w, 'C'));
+    radio(w, 'C').click();
+    expect(await pressSubmit(w)).toBe(true);
     expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'D', 'the median resists the outlier'], [2, 'C', 'C observing only']]);
   });
 });

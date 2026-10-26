@@ -145,7 +145,9 @@ describe('retry form + outcomes', () => {
     expect(html).toContain("document.addEventListener('input', _onQuizReasonInput);");
     const fn = fnSrc('_onQuizReasonInput');
     expect(fn).toContain("_quizFormState(questionId).mode !== 'retry'");
-    expect(fn).toContain('button.disabled = !retryReasoningReady(target.value);');
+    expect(fn).toContain('button.disabled = !_quizRetrySubmitReady(questionId);');
+    // a retry is a new click: a letter other than the first answer, and 3+ words
+    expect(fnSrc('_quizRetrySubmitReady')).toContain("retryReasoningReady(textarea ? textarea.value : '')");
   });
 
   it('the dead "Add Explanation to Retry" path is gone', () => {

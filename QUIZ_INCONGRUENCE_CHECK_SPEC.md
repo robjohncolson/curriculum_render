@@ -1,6 +1,6 @@
 # Quiz retry form: keep the student's pick, and ask when the explanation points to a different letter (spec v1, 2026-10-25)
 
-Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A shipped 2026-10-25 (cr `0389295`), the two §0 resets done the same evening, Part B shipped 2026-10-26 (the commit carrying this line); addendum 2026-10-26 shipped (the commit carrying this line). Client-only (curriculum_render `index.html` + tests); no roster-server,
+Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A shipped 2026-10-25 (cr `0389295`), the two §0 resets done the same evening, Part B shipped 2026-10-26 (the commit carrying this line); addendum 2026-10-26 shipped (the commit carrying this line); retry-click rule shipped (the commit carrying this line). Client-only (curriculum_render `index.html` + tests); no roster-server,
 ledger, migration or grade-engine change. Builds on QUIZ_FIRST_ANSWER_SPEC v2 (one explained retry = the grade),
 the 2026-10-23 teacher retry reset (`POST /ledger/quiz-reset`) and `_reconcileKeptFirstAnswer` (cr `02dbe58`).
 Reviewed 2026-10-25 by a six-lens adversarial pass (key leakage, state races, detector red team, UX,
@@ -65,17 +65,35 @@ says "✅ It is correct." in green. An item with no key on the page (a
 Progress Check makeup, scored by the server) never says "Not correct": its first answer gets the plain "submitted"
 line and its retry no verdict.
 
+**Decisions (teacher, 2026-10-26, second set).** Both "Yes".
+
+1. **The AI read's floor drops from 5 real words to 3**, the retry minimum (QUIZ_CONGRUENCE_AI_READ_SPEC §1): the
+   four explanations in the teacher's own test ("law of large numbers", "0.19 because", …) never reached the read.
+2. **A retry is a new click** (§1 rule 1). The retry form kept the wrong first letter selected, so typing an
+   explanation and pressing Submit re-sent it: the teacher's own U4-L2-Q03 retry did exactly this (B, then B, nine
+   seconds apart), and the ledger holds 5 same-letter retries out of 39, four of them recorded before Part A. Now
+   nothing is preselected, the first letter is disabled and tagged, and Submit retry needs a different letter. The
+   card never offers the first letter as a button (§5), and the reconcile path never sends the kept first answer
+   as the retry (§5).
+
 ## 1. Part A — the retry form never overrides the student's pick
 
-1. `_applyQuizFormState` in `first` and `retry` mode shows, in this order: the confirm-card marker's `picked` if a
-   card is up (Part B); else `_quizRetryChoice[qid]` if set; else the stored answer (today's rule). What changes is
-   who writes `_quizRetryChoice`: today only the reconcile path does, and every submit deletes it; after Part A the
-   student's own clicks write it (rule 2) and only a submit that goes out deletes it (rule 3). So a repaint keeps the
-   live pick, while a page-driven transition — a 409 revert, a ledger restore, a teacher reset — still shows the
-   stored letter (`quiz-settled-dom.test.js` pins those: "rejected retry (409)" expects the first answer back,
-   "a teacher reset … reopens the form" expects the kept first answer). Never "leave whatever radio is checked":
-   that version was tried in review and keeps a refused letter selected after the revert. In `pending`, `checking`
-   and `settled` mode nothing changes: the stored (sent) letter, radios disabled.
+1. **A retry is a new click** (teacher, 2026-10-26, second set). `_applyQuizFormState` in `retry` mode shows, in this
+   order: the confirm-card marker's `picked` if a card is up (Part B); else `_quizRetryChoice[qid]` if the student
+   clicked a letter in this session; else **no radio is checked**. The radio of the first answer is disabled (the
+   recorded first answer, `_quizRetryState().firstAnswers[qid]`, which is what decided retry mode, else the stored
+   letter; the two differ only after a refused retry under a late ledger restore, and the tag must never land on
+   another letter), its `.choice` gets the class `first-answer`, and a tag "your first answer (not correct)" sits inside its label, so
+   a screen reader hears it with the option. **Submit retry** enables only when a letter other than the first answer
+   is checked **and** the explanation has 3+ real words; `submitAnswer` refuses no letter, or the first letter, with
+   "Pick a different letter for your retry." before any write. Only the first letter is disabled: the student
+   already knows it is wrong, and nothing on the form says anything about the others. In `first` mode the form shows
+   the marker's `picked` if a card is up, else the stored answer. The student's own clicks write `_quizRetryChoice`
+   (rule 2), and so does the reconcile path; only a submit that goes out deletes it (rule 3). So a repaint keeps the
+   live pick, while a page-driven transition — a 409 revert, a ledger restore, a teacher reset — reopens the retry
+   form with nothing checked (`quiz-settled-dom.test.js` and `quiz-retry-click-dom.test.js` pin those). Never "leave
+   whatever radio is checked": that version was tried in review and keeps a refused letter selected after the
+   revert. In `pending`, `checking` and `settled` mode nothing changes: the stored (sent) letter, radios disabled.
 2. One delegated `change` listener on `document` for `input[name^="choice-"]`: in `retry` mode it records
    `_quizRetryChoice[qid] = radio.value` (the live pick survives any repaint); in every mode it clears the Part B
    marker and removes the card. The per-radio listeners in `setupQuestionActivityTracking` only log activity and are
@@ -89,8 +107,8 @@ line and its retry no verdict.
    resistant"; Submit → exactly one `gradebookClient.record` with `response:'C', attempt:2`. Same with a
    `<3-word` refusal in between (the refusal must not reset the pick). The pre-fix failure is pinned directly: after
    the repaints the checked radio is still C. Pending/settled: radios disabled and showing the stored letter after a
-   repaint (unchanged behaviour, pinned). The 409 revert and the teacher reset keep showing the stored letter
-   (existing tests, unchanged).
+   repaint (unchanged behaviour, pinned). The 409 revert and the teacher reset reopen the retry form with nothing
+   checked and the first letter tagged (revised 2026-10-26 with rule 1).
 
 Part A alone is one small commit. It ships first, then the two resets in §0 happen.
 
@@ -288,8 +306,12 @@ A removes the mechanism that produced them.
   `change` on the item's radios (Part A listener); any `input` on `reason-<id>` (`_onQuizReasonInput` clears it in
   **every** form mode, before its retry-only button logic); and the start of every `submitAnswer` for that item.
   `_applyQuizFormState` also **deletes** it (and removes the card) when the mode is not `first`/`retry`, or the
-  textarea's trimmed text ≠ `marker.text`, or the checked radio ≠ `marker.picked`. Invariant: a card is only ever
-  shown over the exact text and pick it was computed from, and while it is up the radio shows `marker.picked`
+  textarea's trimmed text ≠ `marker.text`, or the checked radio ≠ `marker.picked`, or `marker.attempt` ≠ the
+  item's attempts + 1 (a ledger restore landed a first answer under a first-answer card, 2026-10-26; the pending
+  AI read already had this test), or `marker.picked` is the retry form's first letter (a ledger restore or the
+  reconcile made the retry card's own pick the first answer, 2026-10-26; the pending AI read and the retry pick go
+  the same way). Invariant: a card is only ever shown over the exact text and pick it was
+  computed from, on the attempt it was computed for, and while it is up the radio shows `marker.picked`
   (Part A rule 1).
 - **The card.** `renderQuestion` emits the card's **content from the marker** (not an empty host filled later) as
   the last child of the MCQ `answer-section`; `_applyQuizFormState` repaints it idempotently (rewrite only when the
@@ -311,6 +333,12 @@ A removes the mechanism that produced them.
   painter runs `MathJax.typesetPromise([host])` when MathJax is present (a third of the bank's option texts are
   LaTeX), guarded by the same dataset check. No colour or icon that could read as right/wrong; the same neutral card
   in every case.
+- **The retry's first letter (2026-10-26).** In `retry` mode the card never offers the first answer as a button: a
+  retry is a different letter (§1 rule 1). The picked letter can no longer be the first answer (`submitAnswer`
+  refuses it before the check), so only `pointsTo` can be, and only from the AI read (the detector drops the first
+  letter on a retry, §4 Step 3; QUIZ_CONGRUENCE_AI_READ_SPEC decision 1 shows the card). The sentence then names it
+  and one letter button remains: "**Your explanation argues for B, your first answer, which was not correct.** You
+  picked C: send it as your retry, or fix your explanation." with **C** and "Let me fix my explanation".
 - **Focus.** The title gets `.focus()` **once**, at the two places a card first appears — the `submitAnswer` branch
   that shows it and the `_reconcileKeptFirstAnswer` branch below — never inside `_applyQuizFormState`. That also
   scrolls the card into view on a phone, where Submit is full-width and the keyboard has just closed. After a letter
@@ -323,11 +351,20 @@ A removes the mechanism that produced them.
   explanation is ready. It branches on the result: `true` → today's "Your C was sent as your one retry" message;
   `false` with a marker set → "The gradebook already had your first answer on this question (D). Check the question
   below and submit your one retry." and focus the card title; `false` otherwise → today's "explain what changed your
-  mind … and submit" message.
+  mind … and submit" message. The letter it sends differs from the kept first answer by construction. When the kept
+  first answer **is** the letter this device sent (the server answers `firstAnswerKept` for the same letter too),
+  there is nothing to reconcile and nothing is ever sent: a wrong one says, in red, "The gradebook already had your
+  first answer on this question (X), and it was not correct. Pick a different letter and explain what changed your
+  mind." (the submit line's fade does not take it away) over the retry form with nothing checked; a right one adds
+  nothing to the submit line (2026-10-26). When a card is up, or an AI read is out, on a retry pick that **is** the
+  kept letter, the repaint drops it (§5 marker) and the line is that same red one, over nothing checked, the
+  student's text kept and nothing sent; a card or read on another letter keeps the "check the question below" line.
 - **Repaint paths, named.** `_refreshAfterReveal` (reached from every `peer:answer`, the 30-second peer pull via
   `refreshQuestionIfVisible`, and the ledger restore) → `_applyQuizFormState`: the marker and Part A rule 1 carry
   the card and the pick through it. A full `renderQuestion` rebuild happens only on topic (re)load, which also
-  empties the retry textarea: the card goes with the form, nothing was recorded, the student answers again.
+  empties the retry textarea: the card goes with the form, nothing was recorded, the student answers again. Its
+  markup already follows Part A rule 1 (the first letter disabled and tagged, only the student's pick checked), so
+  the form never flashes the old rule before the render timer repaints it.
 - **Nothing else moves.** `attempt` numbering, `_quizRetryState`, the pending → accepted → closed model,
   first-writer-wins on the server, the offline queue (the check runs before anything is queued), "Talk it through",
   the teacher reset and `firstAnswerKept` handling are untouched. The share-reasoning form (`reasoning-text-<id>`,
@@ -353,6 +390,19 @@ never names or ids). Every row's `expect` was computed by the Python reference `
 included. `humanSays` is informational. Regenerate the fixture only together with the Python.
 
 `quiz-retry-pick.test.js` — **Part A** (§1.4).
+
+`quiz-retry-click-dom.test.js` — **the retry-click rule** (§1 rule 1, 2026-10-26): a wrong first answer opens the
+retry form with nothing checked, the first letter disabled and tagged, Submit retry disabled; 3+ words alone keep it
+disabled, a new letter plus 3 words enables it and the send records that letter as attempt 2; the first letter
+cannot be clicked, and a programmatic submit with it (or with no letter) is refused with the message, no write and
+no card; the retry card names the first letter in its sentence and offers only the other one, "fix my explanation"
+works; the reconcile with the same kept letter says the new line and sends nothing, with a different one auto-sends
+as before; a teacher reset, the peer repaints, the 30 s pull and the ledger restore keep "nothing checked" (or the
+pick); a same-tab sign-in starts the next student with nothing checked; `renderQuestion`'s own markup, before any
+timer, already shows nothing checked (or the pick) and the first letter tagged; a first answer that lands late (a
+ledger restore under a retry card, the reconcile under a retry card or a pending AI read) on the retry's own pick
+drops the card or read and the pick, tags that letter, and sends nothing; the recorded first answer, not a
+different stored letter, is the one tagged and refused.
 
 `quiz-retry-copy-dom.test.js` — **the line under Submit** (§0 addendum): first wrong → the red first-wrong line;
 wrong retry → the blue "waiting" line, then the red "This retry is your grade" line over "Correct answer: X" once
@@ -394,7 +444,9 @@ captured; `window.MathJax = { typesetPromise: spy }` stubbed):
 12. `_reconcileKeptFirstAnswer` with a ready explanation that names another letter: no auto-send, card shown, the
     "check the question below" message, and after a repaint the form shows `chosen`, not `kept`;
 13. a card's `attempt` no longer matching (ledger restore moved the item to retry mode under a first-answer card) →
-    the letter button re-runs the check instead of bypassing it;
+    the card and marker are gone, nothing is checked and the restored first letter is disabled, also when it is
+    the card's own pick; a new pick re-runs the check on attempt 2 (revised 2026-10-26: the card used to survive the
+    restore and its letter re-ran the check);
 14. the existing suites `quiz-settled-dom`, `quiz-settled-gate`, `quiz-answer-restore`, `quiz-mcq-feedback-reload`
     stay green unchanged.
 

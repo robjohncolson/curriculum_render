@@ -102,6 +102,8 @@ function boot({ server = createServer(), records, ack = () => ({ ok: true, ledge
   for (const [k, v] of Object.entries(seedLocalStorage)) w.localStorage.setItem(k, v);
   w.__server = server;
   w.fetch = (url, opts) => {
+    // A retry's 3+ words reach the confirm card's AI read (floor 3 since 2026-10-26): it names no letter here.
+    if (String(url).includes('/api/quiz/congruence')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ letter: null }) });
     if (!String(url).includes('/api/ai/appeal')) return new Promise(() => {});
     const body = JSON.parse(opts.body);
     server.requests.push(body);

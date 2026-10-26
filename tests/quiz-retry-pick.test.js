@@ -6,6 +6,11 @@
  * an explanation, and Submit recorded the first letter again. Loads the real page into jsdom
  * (helpers copied from quiz-settled-dom.test.js) and clicks the radio for real: the click fires
  * the `change` event the page listens for, where the old harness only set `.checked`.
+ *
+ * Since 2026-10-26 (second teacher decision) a retry is a new click: the retry form preselects
+ * nothing, the first (wrong) letter is disabled and tagged "your first answer (not correct)", and
+ * Submit retry needs a different letter. Every case that pinned "retry mode shows the stored
+ * letter" now pins that; tests/quiz-retry-click-dom.test.js covers the rule itself.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -116,6 +121,15 @@ function mode(w) {
   return w.eval(`_quizFormState('${QID}').mode`);
 }
 
+// The retry form's first letter: disabled, its .choice marked, the tag inside its label.
+function expectFirstAnswerShown(w, letter) {
+  expect(radio(w, letter).disabled).toBe(true);
+  const div = radio(w, letter).closest('.choice');
+  expect(div.classList.contains('first-answer')).toBe(true);
+  expect(div.querySelector('label .first-answer-tag').textContent).toBe('your first answer (not correct)');
+  expect(w.document.querySelectorAll(`[data-question-id="${QID}"] .first-answer-tag`)).toHaveLength(1);
+}
+
 function type(w, text) {
   const textarea = w.document.getElementById(`reason-${QID}`);
   textarea.value = text;
@@ -137,7 +151,7 @@ async function repaint(w) {
   await tick();
 }
 
-// Wrong first answer A on file, retry form open, the stored A shown.
+// Wrong first answer A on file, retry form open: nothing checked, the first answer A disabled and tagged.
 async function openRetry(opts = {}) {
   const w = boot({ ...opts, seedLocalStorage: { quizRetryState_Me: WRONG_FIRST } });
   seedMine(w, { answer: 'A', attempts: 1 });
@@ -145,7 +159,8 @@ async function openRetry(opts = {}) {
   w.eval(`_applyQuizFormState('${QID}')`);
   await tick(250);
   expect(mode(w)).toBe('retry');
-  expect(checked(w)).toBe('A');
+  expect(checked(w)).toBeNull();
+  expectFirstAnswerShown(w, 'A');
   return w;
 }
 
@@ -157,6 +172,9 @@ describe("Part A: the retry form keeps the student's pick through repaints", () 
     await repaint(w);
     expect(checked(w)).toBe('C');
     expect(selectedChoices(w)).toEqual(['C']);
+    expectFirstAnswerShown(w, 'A');
+    radio(w, 'A').click();   // disabled: the first answer can never be the retry
+    expect(checked(w)).toBe('C');
     type(w, 'the median is resistant');
     await pressSubmit(w);
     expect(records).toHaveLength(1);
@@ -232,7 +250,7 @@ describe("Part A: the retry form keeps the student's pick through repaints", () 
     expect(w.__quizRetryChoiceWired).toBe(true);
   });
 
-  it('a 409 revert after a clicked pick shows the stored first answer again', async () => {
+  it('a 409 revert after a clicked pick reopens the retry form with nothing checked, the first answer tagged', async () => {
     let refuse;
     const w = await openRetry({ recordImpl: () => new Promise(r => { refuse = r; }) });
     radio(w, 'C').click();
@@ -241,7 +259,8 @@ describe("Part A: the retry form keeps the student's pick through repaints", () 
     refuse({ ok: false, reason: 'retry-not-allowed', detail: 'explanation-required' });
     await tick(250);
     expect(mode(w)).toBe('retry');
-    expect(checked(w)).toBe('A');
+    expect(checked(w)).toBeNull();
+    expectFirstAnswerShown(w, 'A');
   });
 });
 
@@ -274,16 +293,21 @@ describe('Part A: a pick belongs to one student and one open retry form', () => 
     w.eval(`_applyQuizFormState('${QID}')`);   // what loadProgress does on the reopened topic
     await repaint(w);
     expect(mode(w)).toBe('retry');
-    expect(checked(w)).toBe('A');
-    expect(selectedChoices(w)).toEqual(['A']);
+    expect(checked(w)).toBeNull();
+    expect(selectedChoices(w)).toEqual([]);
+    expectFirstAnswerShown(w, 'A');
 
     type(w, 'I still think alpha');
+    await pressSubmit(w);   // nothing picked: refused, nothing sent
+    expect(records).toHaveLength(0);
+    expect(w.document.getElementById(`error-${QID}`).textContent).toBe('Pick a different letter for your retry.');
+    radio(w, 'B').click();
     await pressSubmit(w);
     expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({ response: 'A', attempt: 2 });
+    expect(records[0]).toMatchObject({ response: 'B', attempt: 2 });
   });
 
-  it('an unsent pick does not survive settle then teacher reset: the reopened form shows the first answer', async () => {
+  it('an unsent pick does not survive settle then teacher reset: the reopened form preselects nothing', async () => {
     const w = await openRetry();
     radio(w, 'C').click();
     expect(w.eval(`_quizRetryChoice['${QID}']`)).toBe('C');   // the click did record a pick
@@ -294,9 +318,11 @@ describe('Part A: a pick belongs to one student and one open retry form', () => 
 
     await restoreFromLedger(w, [ROW_A1]);   // the teacher reset the retry
     expect(mode(w)).toBe('retry');
-    expect(checked(w)).toBe('A');
+    expect(checked(w)).toBeNull();
+    expectFirstAnswerShown(w, 'A');
     await repaint(w);
-    expect(checked(w)).toBe('A');
+    expect(checked(w)).toBeNull();
+    expectFirstAnswerShown(w, 'A');
   });
 
   it('the same chain with the item off screen: the restore itself voids the pick', async () => {
@@ -311,7 +337,8 @@ describe('Part A: a pick belongs to one student and one open retry form', () => 
     w.eval(`_applyQuizFormState('${QID}')`);
     await tick(250);
     expect(mode(w)).toBe('retry');
-    expect(checked(w)).toBe('A');
+    expect(checked(w)).toBeNull();
+    expectFirstAnswerShown(w, 'A');
   });
 
   it("a slow ledger reply for the last student leaves the new student's pick alone", async () => {
@@ -346,6 +373,8 @@ describe('Part A: a pick belongs to one student and one open retry form', () => 
     await repaint(w);
     expect(checked(w)).toBe('C');
 
+    // A retry's 3+ words reach the confirm card's AI read while a token is present: it names no letter.
+    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ letter: null }) });
     type(w, 'the median is resistant');
     await pressSubmit(w);
     expect(records).toHaveLength(1);

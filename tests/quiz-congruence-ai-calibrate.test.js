@@ -2,9 +2,10 @@
  * QUIZ_CONGRUENCE_AI_READ_SPEC §7: the calibration script measures what the route does.
  *
  * Runs scripts/quiz-congruence-ai-calibrate.mjs as a child process against a one-item bank and a
- * two-row ledger, with fetch stubbed by a preload module (no network, no real key). Pins two
- * things: latency is measured after the body, as the route's deadline is; and the
- * verbatim-reason rule reads the sanitized text the model saw, as the route does.
+ * four-row ledger, with fetch stubbed by a preload module (no network, no real key). Pins three
+ * things: latency is measured after the body, as the route's deadline is; the verbatim-reason
+ * rule reads the sanitized text the model saw, as the route does; and the population floor is the
+ * route's CONGRUENCE_MIN_WORDS.
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -17,6 +18,8 @@ const ROOT = resolve(__dirname, '..');
 const SCRIPT = resolve(ROOT, 'scripts/quiz-congruence-ai-calibrate.mjs');
 const SLOW = 'the slow body talks about the middle value resisting outliers';
 const MARKED = 'the <<<middle value>>> resists the extreme outlier here';
+const THREE_WORDS = 'law of averages';   // the route's floor: in the population
+const TWO_WORDS = 'law averages';        // under it: tallied, never sent
 
 // Headers at once; the body of the SLOW read only after the route's 3.5 s deadline.
 const PRELOAD = `
@@ -48,6 +51,8 @@ function run() {
   writeFileSync(ledger, JSON.stringify([
     { student_id: 's1', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: SLOW },
     { student_id: 's2', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: MARKED },
+    { student_id: 's3', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: THREE_WORDS },
+    { student_id: 's4', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: TWO_WORDS },
   ]));
   const out = join(dir, 'out');
   const child = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, SCRIPT, ledger, bank, out], {
@@ -76,5 +81,11 @@ describe('calibration matches the route', () => {
     expect(row(MARKED).letter).toBe('C');
     expect(summary.droppedByVerbatimRule).toBe(0);
     expect(summary.lettersGrounded).toBe(2);
+  });
+
+  it("the population floor is the route's: three words are read, two are tallied under it", () => {
+    expect(row(THREE_WORDS)).toBeTruthy();
+    expect(row(TWO_WORDS)).toBeUndefined();
+    expect(summary.detector.underFloor).toBe(1);
   });
 });

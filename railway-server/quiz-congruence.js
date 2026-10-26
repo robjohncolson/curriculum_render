@@ -10,7 +10,9 @@
 export const CONGRUENCE_BEGIN = '<<<BEGIN STUDENT EXPLANATION>>>';
 export const CONGRUENCE_END = '<<<END STUDENT EXPLANATION>>>';
 export const CONGRUENCE_MAX_CHARS = 2000;
-export const CONGRUENCE_MIN_WORDS = 5;
+// The retry minimum: 3 real words (teacher decision 2026-10-26; 5 until then), as the page's
+// QUIZ_CONGRUENCE_READ_MIN_WORDS. Short explanations such as "law of large numbers" argue too.
+export const CONGRUENCE_MIN_WORDS = 3;
 // The page counts a null that took this long as a timeout toward its two-timeout pause
 // (index.html QUIZ_CONGRUENCE_SERVER_DEADLINE_MS; a test pins the two equal), so the reply
 // stays only { letter }.

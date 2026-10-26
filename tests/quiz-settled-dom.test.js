@@ -202,11 +202,15 @@ describe('settled gate at runtime', () => {
     expect(v.radiosDisabled).toBe(false);
   });
 
-  it('the retry button enables live at 3 words (letters/digits), not before', async () => {
+  it('the retry button enables live at 3 words (letters/digits) and a new letter, not before', async () => {
     const w = boot();
     render(w);
     await submit(w, 'C');
     const textarea = w.document.getElementById(`reason-${QID}`);
+    textarea.value = 'I misread it';
+    textarea.dispatchEvent(new w.Event('input', { bubbles: true }));
+    expect(view(w).buttonDisabled).toBe(true);   // 3 words, but no letter other than the first answer C
+    w.document.querySelector(`input[name="choice-${QID}"][value="B"]`).click();
     for (const [text, disabled] of [['. . .', true], ['I misread', true], ['I misread it', false]]) {
       textarea.value = text;
       textarea.dispatchEvent(new w.Event('input', { bubbles: true }));
@@ -270,7 +274,8 @@ describe('settled gate at runtime', () => {
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
     expect(w.eval(`_quizRetryStatus('${QID}')`)).toBeNull();
-    expect(v.checked).toBe('C');
+    expect(v.checked).toBeNull();   // a retry is a new click: nothing preselected, the first answer C disabled
+    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
     expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
     expect(v.error).toContain('at least 3 words');
   });
@@ -442,7 +447,8 @@ describe('round 3: identity, reconcile, clear, chart XSS', () => {
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
     expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
-    expect(v.checked).toBe('C');
+    expect(v.checked).toBeNull();   // the retry form: nothing preselected, the first answer C disabled
+    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
   });
 
   it('B: two local attempts with no record + an attempt-2 row on the server → accepted with the SERVER value', async () => {
@@ -721,17 +727,20 @@ describe('server kept an earlier first answer (fresh device answered before the 
     expect(w.document.getElementById(`success-${QID}`).textContent).toContain('it was correct');
   });
 
-  it('the kept first answer equals the chosen letter: nothing changes', async () => {
+  it('the kept first answer equals the chosen letter: no auto-send; the retry form says to pick a different letter', async () => {
     const records = [];
     const w = keptBoot(records, { kept: 'C' });
     render(w);
-    await submit(w, 'C');
+    await submit(w, 'C', 'I misread the axis');   // a ready explanation is still never sent as the retry
     await tick(300);
     expect(records.length).toBe(1);
     const v = view(w);
-    expect(v.checked).toBe('C');
+    expect(v.checked).toBeNull();
+    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
     expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
+    expect(v.buttonDisabled).toBe(true);
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+    expect(w.document.getElementById(`success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (C), and it was not correct. Pick a different letter and explain what changed your mind.');
   });
 });
 
@@ -775,7 +784,8 @@ describe('ledger restore repaints the question', () => {
     expect(v.keyShown).toBe(false);        // the reveal box closed again
     expect(v.peerLetters).toBe(0);
     expect(v.radiosDisabled).toBe(false);
-    expect(v.checked).toBe('C');
+    expect(v.checked).toBeNull();   // nothing preselected; the kept first answer C is disabled
+    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
     expect(v.panelText).toContain('retry with an explanation');
     expect(v.buttonText).toBe('Submit retry (this becomes your grade)');
     expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toBeUndefined();

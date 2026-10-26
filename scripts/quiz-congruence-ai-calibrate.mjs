@@ -7,10 +7,11 @@
 //
 // <ledger rows json> is the roster ledger's curriculum_quiz rows (student_id, item_id, attempt,
 // response, reasoning). The population is every explanation the shipped detector (loaded from
-// index.html between its delimiter comments) is silent on, with 5+ words, on a keyed MCQ whose
-// options all carry text; 26 probes with no student data are added. Calls are sequential, under a
-// 150-call cap. The out dir gets results.jsonl (no student ids; it holds student writing, so keep
-// it outside the repo). The console gets counts only; the key is never printed.
+// index.html between its delimiter comments) is silent on, with CONGRUENCE_MIN_WORDS+ words (the
+// route's floor: 3 since 2026-10-26; the §7 run used 5), on a keyed MCQ whose options all carry
+// text; 26 probes with no student data are added. Calls are sequential, under a 150-call cap.
+// The out dir gets results.jsonl (no student ids; it holds student writing, so keep it outside the
+// repo). The console gets counts only; the key is never printed.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -95,7 +96,7 @@ function buildPopulation(rows, bank, pointsTo) {
     for (const row of rows) {
         if (Number(row.attempt || 1) === 1) firstAnswer.set(`${row.student_id}|${row.item_id}`, String(row.response || '').toUpperCase());
     }
-    const tally = { explained: 0, detectorAgree: 0, detectorCard: 0, detectorSilent: 0, notInBank: 0, unkeyedOrNoText: 0, under5: 0 };
+    const tally = { explained: 0, detectorAgree: 0, detectorCard: 0, detectorSilent: 0, notInBank: 0, unkeyedOrNoText: 0, underFloor: 0 };
     const population = [];
     for (const row of rows) {
         if (typeof row.reasoning !== 'string' || !row.reasoning.trim()) continue;
@@ -113,7 +114,7 @@ function buildPopulation(rows, bank, pointsTo) {
         }
         tally.detectorSilent += 1;
         if (!isKeyedMcq(item) || !allOptionsHaveText(item)) { tally.unkeyedOrNoText += 1; continue; }
-        if (congruenceWordCount(row.reasoning) < CONGRUENCE_MIN_WORDS) { tally.under5 += 1; continue; }
+        if (congruenceWordCount(row.reasoning) < CONGRUENCE_MIN_WORDS) { tally.underFloor += 1; continue; }
         population.push({ rid: 'r' + String(population.length + 1).padStart(3, '0'), kind: 'population',
             item: row.item_id, attempt, pick, first, text: row.reasoning.trim() });
     }
