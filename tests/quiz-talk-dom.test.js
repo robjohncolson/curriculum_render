@@ -16,10 +16,6 @@ const QID = 'U1-L1-Q01';
 const FRQ = 'U1-L1-FRQ01';
 const FINAL_MARKER = '{"mode":"understanding","phase":"final"}';
 const E1_MARKER = '{"mode":"understanding","phase":1}';
-const SETTLED_WRONG = JSON.stringify({
-  firstAnswers: { [QID]: 'C' },
-  retries: { [QID]: { state: 'accepted', value: 'A', submittedAt: 9 } }
-});
 const HOSTILE = '<img src=x onerror="window.__xss = 1"> B is right because';
 
 let pageSources = null;
@@ -102,7 +98,7 @@ function boot({ server = createServer(), records, ack = () => ({ ok: true, ledge
   for (const [k, v] of Object.entries(seedLocalStorage)) w.localStorage.setItem(k, v);
   w.__server = server;
   w.fetch = (url, opts) => {
-    // A retry's 3+ words reach the confirm card's AI read (floor 3 since 2026-10-26): it names no letter here.
+    // An explanation of any length reaches the confirm card's AI read (QUIZ_RETRY_REMOVAL_SPEC rule 4): it names no letter here.
     if (String(url).includes('/api/quiz/congruence')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ letter: null }) });
     if (!String(url).includes('/api/ai/appeal')) return new Promise(() => {});
     const body = JSON.parse(opts.body);
@@ -168,8 +164,9 @@ async function submit(w, letter, reasoning) {
 }
 
 async function bootSettledWrong(opts = {}) {
-  const w = boot({ ...opts, seedLocalStorage: { quizRetryState_Me: SETTLED_WRONG, ...(opts.seedLocalStorage || {}) } });
-  seedMine(w, { answer: 'A', attempts: 2 });
+  // One answer per question (QUIZ_RETRY_REMOVAL_SPEC): a wrong first answer is settled.
+  const w = boot(opts);
+  seedMine(w, { answer: 'A', attempts: 1 });
   if (opts.beforeRender) opts.beforeRender(w);
   render(w);
   await tick(300);
@@ -232,46 +229,28 @@ describe('Talk it through: the gate', () => {
     expect(talk(w).shown).toBe(false);
   });
 
-  it('absent after a wrong FIRST answer (retry open); the old appeal button is not offered', async () => {
+  it('present after a wrong first answer (it is the grade); the old appeal button is not offered', async () => {
     const w = boot();
     render(w);
     await submit(w, 'C');
-    expect(talk(w).shown).toBe(false);
+    expect(talk(w).shown).toBe(true);
+    expect(talk(w).text).toContain('Talk it through with the AI: explain why the correct answer is right and why yours was not.');
     expect(talk(w).oldReviewShown).toBe(false);
-    expect(w.document.getElementById(`grading-feedback-${QID}`).textContent).toContain('Use your one retry first');
+    expect(w.document.getElementById(`grading-feedback-${QID}`).textContent).toContain('Talk it through with the AI below');
   });
 
-  it('absent after a correct first answer and after a CORRECT retry', async () => {
+  it('absent after a correct first answer and after a correct historical retry', async () => {
     const w1 = boot();
     render(w1);
     await submit(w1, 'B');
     expect(talk(w1).shown).toBe(false);
 
-    let call = 0;
-    const w2 = boot({ ack: () => ({ ok: true }) });
-    w2.gradebookClient.record = () => Promise.resolve(++call === 1 ? { ok: true } : { ok: true, ledgerId: 'L2' });
+    const w2 = boot();
+    seedMine(w2, { answer: 'B', attempts: 2 });
     render(w2);
-    await submit(w2, 'C');
-    await submit(w2, 'B', 'I misread the axis');
-    await tick(250);
+    await tick(300);
     expect(w2.eval(`quizSettledFor('${QID}')`)).toBe(true);
     expect(talk(w2).shown).toBe(false);
-  });
-
-  it('absent while a wrong retry is pending, present the moment the server accepts it', async () => {
-    let accept;
-    let call = 0;
-    const w = boot();
-    w.gradebookClient.record = () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { accept = r; }));
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'A', 'I misread the axis');
-    expect(talk(w).shown).toBe(false);
-    accept({ ok: true, ledgerId: 'L2' });
-    await tick(250);
-    expect(talk(w).shown).toBe(true);
-    expect(talk(w).text).toContain("You've used your retry. Talk it through with the AI");
-    expect(talk(w).oldReviewShown).toBe(false);
   });
 
   it('direct sends for ineligible items never reach the server', async () => {
@@ -281,9 +260,6 @@ describe('Talk it through: the gate', () => {
     await tick(300);
     forceTextarea(w, 'B is right because of the spread');
     w.eval(`sendTalkItThrough('${QID}')`);       // unanswered
-    await submit(w, 'C');
-    forceTextarea(w, 'B is right because of the spread');
-    w.eval(`sendTalkItThrough('${QID}')`);       // wrong first answer, retry still open
     await tick(60);
     const w2 = boot({ server });
     seedMine(w2, { answer: 'B', attempts: 1 });
@@ -320,7 +296,8 @@ describe('Talk it through: the gate', () => {
     const w = await bootSettledWrong();
     const t = talk(w);
     expect(t.shown).toBe(true);
-    expect(t.text).toContain('If you show you understand, you get half credit.');
+    expect(t.text).toContain('Talk it through with the AI: explain why the correct answer is right and why yours was not.');
+    expect(t.text).not.toContain('retry');
     expect(t.counter).toBe('Exchange 1 of 2');
   });
 });
@@ -726,31 +703,18 @@ describe('multiple-choice feedback appeal (teacher 2026-09-29)', () => {
       .toContain('Your answer is correct: full credit. This feedback is about your explanation only');
   });
 
-  it('a CORRECT retry with a P verdict: the note names no credit, since the server decides half or full (QUIZ_RETRY_HALF_CREDIT_SPEC)', async () => {
+  it('a correct historical retry (2 attempts) gets the same full-credit note (QUIZ_RETRY_REMOVAL_SPEC rule 2)', async () => {
     const w = boot();
     seedMine(w, { answer: 'B', attempts: 2 });
     render(w);
     await tick(50);
     showVerdict(w, 'P');
     const text = w.document.getElementById(`grading-feedback-${QID}`).textContent;
-    expect(text).toContain('Your retry is correct. This feedback is about your explanation only');
-    expect(text).not.toContain('full credit');
-    expect(text).not.toContain('half credit');
+    expect(text).toContain('Your answer is correct: full credit. This feedback is about your explanation only');
+    expect(text).not.toContain('retry');
   });
 
-  it('a legacy attempt count (3) gets the same no-credit retry note', async () => {
-    const w = boot();
-    seedMine(w, { answer: 'B', attempts: 3 });
-    render(w);
-    await tick(50);
-    showVerdict(w, 'P');
-    const text = w.document.getElementById(`grading-feedback-${QID}`).textContent;
-    expect(text).toContain('Your retry is correct.');
-    expect(text).not.toContain('half credit');
-    expect(text).not.toContain('full credit');
-  });
-
-  it('a WRONG answer never offers the appeal (retry, then Talk it through) and shows no full-credit note', async () => {
+  it('a WRONG answer never offers the appeal (Talk it through instead) and shows no full-credit note', async () => {
     const w = boot();
     seedMine(w, { answer: 'A', attempts: 1 });
     render(w);

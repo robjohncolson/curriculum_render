@@ -258,10 +258,11 @@ describe('parked answer notification', () => {
   });
 });
 
-// QUIZ_FIRST_ANSWER_SPEC v2: a quiz retry (attempt 2) captured offline must replay WITH its
-// explanation (the roster server refuses attempt 2 without one), and the replay's final answer
-// (accepted / refused 409) must reach the page, which keeps the retry PENDING until then.
-describe('quiz retry replay (spec v2)', () => {
+// A quiz retry (attempt 2) queued offline by the page before QUIZ_RETRY_REMOVAL_SPEC still replays
+// WITH its explanation, and the replay's final answer (accepted / refused 409) reaches the page,
+// which repaints from the ledger. After the cutoff the server refuses it (retries-closed): the row
+// leaves the queue and never loops.
+describe('quiz retry replay (queued before the retry was removed)', () => {
   function bootWithEvents() {
     const win = boot({ offline: true });
     const events = [];
@@ -310,6 +311,36 @@ describe('quiz retry replay (spec v2)', () => {
     // a second sync sends nothing (it can never succeed)
     await win.gradebookClient.syncOfflineQueue();
     expect(win.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a retries-closed replay (rule 6) leaves the queue at once and tells the page', async () => {
+    const { win, events } = bootWithEvents();
+    win.fetch = vi.fn();
+    await win.gradebookClient.record(retry());
+    win.OFFLINE_MODE = undefined;
+    win.fetch = vi.fn().mockResolvedValue({ ok: false, status: 409,
+      json: async () => ({ ok: false, error: 'retry not allowed', reason: 'retries-closed' }) });
+    await win.gradebookClient.syncOfflineQueue();
+    expect(events.map(e => [e.type, e.detail.outcome, e.detail.reason])).toEqual([['gradebook:quiz-retry-outcome', 'refused', 'retries-closed']]);
+    expect(await win.OfflineQueue.all()).toHaveLength(0);
+    await win.gradebookClient.syncOfflineQueue();
+    expect(win.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('the outcome names its owner as sent: the student signed in at the POST, not whoever is by the answer', async () => {
+    const { win, events } = bootWithEvents();
+    win.fetch = vi.fn();
+    await win.gradebookClient.record(retry());
+    win.OFFLINE_MODE = undefined;
+    win.rosterClient = { token: () => 'tok', studentId: () => 'stu-1', current: () => ({ studentId: 'stu-1', username: 'Owner_Fox' }) };
+    win.fetch = vi.fn().mockImplementation(async () => {
+      // another student signs in while the replay is out
+      win.rosterClient = { token: () => 'tokB', studentId: () => 'stu-2', current: () => ({ studentId: 'stu-2', username: 'Other_Owl' }) };
+      return { ok: false, status: 409, json: async () => ({ ok: false, error: 'retry not allowed', reason: 'retries-closed' }) };
+    });
+    await win.gradebookClient.syncOfflineQueue();
+    expect(events).toHaveLength(1);
+    expect(events[0].detail).toEqual({ itemId: 'U1-L1-Q01', studentId: 'stu-1', username: 'Owner_Fox', response: 'B', outcome: 'refused', reason: 'retries-closed' });
   });
 
   it('an online 409 comes back as retry-not-allowed with the server reason, and is not queued', async () => {

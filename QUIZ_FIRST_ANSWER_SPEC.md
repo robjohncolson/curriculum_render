@@ -3,6 +3,8 @@
 Status: BUILT 2026-09-29 (Opus 5.5 implemented; three Codex gpt-6-astra review rounds folded; Fable gated) — supersedes v1 (first-answer-only + letters hidden, shipped `27fc3574` /
 `f9dcf61` / `72e1bac`). Grade-affecting on the roster server. Reasoning sync becomes part of this build.
 
+Retry removed 2026-10-26, see QUIZ_RETRY_REMOVAL_SPEC.md; sections on the retry describe history.
+
 Teacher (2026-09-29, in session): "if a student gets a wrong answer, they get one retry but they have to explain
 their mind change. No grade window. They can't see peer answers until then. The 2nd answer becomes THE grade, and the
 peer answers are revealed. Only display student answers if they have an explanation."

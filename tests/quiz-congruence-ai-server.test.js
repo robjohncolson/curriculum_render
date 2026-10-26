@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CONGRUENCE_BEGIN,
   CONGRUENCE_END,
+  CONGRUENCE_MIN_WORDS,
   CONGRUENCE_SYSTEM,
   buildCongruencePrompt,
   buildCongruenceView,
@@ -457,8 +458,9 @@ describe('9. no call, and { letter: null }', () => {
     ['an unkeyed item', { questionId: 'U1-L1-Q03', explanation: EXPLANATION }],
     ['an option without text', { questionId: 'U1-L1-Q04', explanation: EXPLANATION }],
     ['a PC item', { questionId: 'U1-PC-Q01', explanation: EXPLANATION }],
-    // The floor is the retry minimum, 3 real words (teacher decision 2026-10-26; 5 until then).
-    ['under 3 words', { questionId: 'U1-L1-Q02', explanation: 'median stays' }],
+    // The floor is one real word (QUIZ_RETRY_REMOVAL_SPEC rule 4; 3 until then): a box with no
+    // letter or digit never calls.
+    ['no real word', { questionId: 'U1-L1-Q02', explanation: '?! ...' }],
   ];
   for (const [name, body] of cases) {
     it(name, async () => {
@@ -470,11 +472,15 @@ describe('9. no call, and { letter: null }', () => {
     });
   }
 
-  it('3 words are enough for a call', async () => {
-    const { run, calls } = makeRoute({ reply: '{"letter":"B","confidence":0.9,"reason":"middle stays put"}' });
-    const res = await run({ questionId: 'U1-L1-Q02', explanation: 'middle stays put' });
+  it('one word is enough for a call', async () => {
+    const { run, calls } = makeRoute({ reply: '{"letter":"B","confidence":0.9,"reason":"median"}' });
+    const res = await run({ questionId: 'U1-L1-Q02', explanation: 'median' });
     expect(calls).toHaveLength(1);
     expect(res.body).toEqual({ letter: 'B' });
+  });
+
+  it('the floor is one word', () => {
+    expect(CONGRUENCE_MIN_WORDS).toBe(1);
   });
 
   it('a bank that fails to load', async () => {

@@ -400,7 +400,6 @@ describe('pure', () => {
       currentUsername = 'Someone'; window.currentUsername = 'Someone';
       classData.users.Someone = { answers: { '${QID}': { value: 'E', timestamp: 1 } }, reasons: {}, timestamps: {}, attempts: { '${QID}': 1 } };
       currentQuestions[0].answerKey = 'E';
-      localStorage.setItem('quizRetryState_Someone', JSON.stringify({ firstAnswers: { '${QID}': 'C' }, retries: {} }));
     `);
     try {
       const answersLater = allRows().map(({ set, row }) => rowCall(set, row));
@@ -410,7 +409,6 @@ describe('pure', () => {
         currentUsername = 'Me'; window.currentUsername = 'Me';
         delete classData.users.Someone;
         currentQuestions[0].answerKey = 'B';
-        localStorage.removeItem('quizRetryState_Someone');
       `);
     }
   });

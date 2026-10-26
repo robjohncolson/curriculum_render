@@ -6,6 +6,8 @@ Part B (§2–§5, shipped 2026-10-26, cr `4a25e5f`) with the phase its §4 last
 on push to main), tests, and one advisory script. No roster-server, ledger, migration or grade-engine change. The
 §7 calibration ran the exact §3 prompt over every real explanation the shipped detector cannot read.
 
+Retry removed 2026-10-26, see QUIZ_RETRY_REMOVAL_SPEC.md; sections on the retry describe history.
+
 Teacher (2026-10-26, in session): "each time a student submits a response, DeepSeek API is used to compare their
 written response to their MC and give a verdict on whether the two answers are congruent; if not, the student is
 allowed an opportunity to choose between the two before submitting for a grade." Decided in the same session: the

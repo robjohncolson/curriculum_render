@@ -2039,7 +2039,7 @@ async function legacyAppealRefusal(scenario, appealText, req) {
     const chosen = canonical ? understandingChoiceKey(canonical, counting) : null;
     const correct = chosen != null && chosen.toUpperCase() === canonical.key.toUpperCase();
     if (!correct) {
-      return { status: 400, body: { error: 'Your answer was not correct: use your one retry, then Talk it through.' } };
+      return { status: 400, body: { error: 'Your answer was not correct: use Talk it through.' } };
     }
     return null;
   }

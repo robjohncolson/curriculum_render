@@ -8,7 +8,8 @@
 // <ledger rows json> is the roster ledger's curriculum_quiz rows (student_id, item_id, attempt,
 // response, reasoning). The population is every explanation the shipped detector (loaded from
 // index.html between its delimiter comments) is silent on, with CONGRUENCE_MIN_WORDS+ words (the
-// route's floor: 3 since 2026-10-26; the §7 run used 5), on a keyed MCQ whose options all carry
+// route's floor: 1 since QUIZ_RETRY_REMOVAL_SPEC, 2026-10-26, so only a box with no letter or digit
+// is left out; 3 earlier that day; the §7 run used 5), on a keyed MCQ whose options all carry
 // text; 26 probes with no student data are added. Calls are sequential, under a 150-call cap.
 // The out dir gets results.jsonl (no student ids; it holds student writing, so keep it outside the
 // repo). The console gets counts only; the key is never printed.

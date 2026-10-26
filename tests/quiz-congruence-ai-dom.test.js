@@ -3,7 +3,8 @@
  *
  * When the letter detector is silent, Submit asks the server which ONE option the explanation
  * argues for: "Checking your explanation…", then either the usual submit or the shipped card.
- * Every failure submits as today. Loads the real page into jsdom (the harness of
+ * Every failure submits as today. One answer per question (QUIZ_RETRY_REMOVAL_SPEC): the read runs on
+ * the first answer, for an explanation of any length (rule 4). Loads the real page into jsdom (the harness of
  * quiz-congruence-dom.test.js), drives the real renderQuestion + submitAnswer, captures
  * gradebookClient.record, and scripts fetch per test.
  */
@@ -229,7 +230,8 @@ describe('2. a reply that agrees or is unclear: the submit goes out as today', (
       expect(records).toHaveLength(1);
       expect(records[0]).toMatchObject({ response: 'D', attempt: 1, reasoning: NO_LETTER });
       expect(card(w)).toBeNull();
-      expect(mode(w)).toBe('retry');   // D was wrong: the retry form, as today
+      expect(mode(w)).toBe('settled');   // D was wrong, and it is the grade
+      expect($(w, `success-${QID}`).textContent).toBe('Not correct. The correct answer is shown below.');
       expect(button(w).hasAttribute('aria-busy')).toBe(false);
     });
   }
@@ -298,7 +300,7 @@ describe('3b. late replies and server-side timeouts', () => {
     await settle();
     expect(records).toHaveLength(1);
     expect(card(w)).toBeNull();
-    expect(mode(w)).toBe('retry');
+    expect(mode(w)).toBe('settled');
   }, 10000);
 
   it('a transport that ignores the abort: the reply after the budget reaches the page and does nothing', async () => {
@@ -352,7 +354,7 @@ describe('3b. late replies and server-side timeouts', () => {
     await settle();
     expect(records).toHaveLength(1);
     expect(w.eval('_quizCongruenceReadState.timeouts')).toBe(0);
-    expect(w.eval(`_congruenceReadCached('${QID}', 1, ${JSON.stringify(NO_LETTER)})`)).toBeNull();
+    expect(w.eval(`_congruenceReadCached('${QID}', ${JSON.stringify(NO_LETTER)})`)).toBeNull();
   });
 
   it("source pin: the page's server deadline is the route's", () => {
@@ -366,18 +368,25 @@ describe('3b. late replies and server-side timeouts', () => {
 describe('4. a missing server and broken replies fail open', () => {
   it('404 → one record, and no request on later submits for the life of the page', async () => {
     const records = [];
-    const { w, net } = await firstAnswerRead({ records });
+    const { w, net } = boot({ records });
+    w.eval(`currentQuestions.push(
+      { id: 'U1-L1-Q02', type: 'multiple-choice', prompt: 'Two?', answerKey: 'A', choices: [{ key: 'A', value: 'x one' }, { key: 'B', value: 'y two' }] })`);
+    render(w);
+    await settle();
+    radio(w, 'D').click();
+    type(w, NO_LETTER);
+    expect(await pressSubmit(w)).toBe(false);
     net.last().reply(404, { error: 'Not Found' });
     await settle();
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ response: 'D', attempt: 1 });
-    // The retry: 3+ words, no letter → would read, but the route is off.
-    radio(w, 'C').click();
-    type(w, 'I now see the middle value resists outliers');
-    expect(await pressSubmit(w)).toBe(true);
+    // The next item: words, no letter → would read, but the route is off.
+    radio(w, 'B', 'U1-L1-Q02').click();
+    type(w, 'I now see the middle value resists outliers', 'U1-L1-Q02');
+    expect(await pressSubmit(w, 'U1-L1-Q02')).toBe(true);
     expect(net.reads()).toHaveLength(1);
     expect(records).toHaveLength(2);
-    expect(records[1]).toMatchObject({ response: 'C', attempt: 2 });
+    expect(records[1]).toMatchObject({ itemId: 'U1-L1-Q02', response: 'B', attempt: 1 });
   });
 
   const broken = [
@@ -440,13 +449,13 @@ describe('5. the student changes the form during the wait: the reply is discarde
     expect(net.reads()).toHaveLength(2);
     const second = net.last();
     expect(second).not.toBe(first);
-    expect(second.body).toEqual(first.body);   // same text, pick and attempt as the obsolete read
+    expect(second.body).toEqual(first.body);   // same text and pick as the obsolete read
     first.reply(200, { letter: 'C' });
     await settle();
     expect(records).toHaveLength(0);
     expect(card(w)).toBeNull();
     expect(label(w)).toBe(CHECKING);   // the newest read is still out
-    expect(w.eval(`_congruenceReadCached('${QID}', 1, ${JSON.stringify(NO_LETTER)})`)).toBeUndefined();
+    expect(w.eval(`_congruenceReadCached('${QID}', ${JSON.stringify(NO_LETTER)})`)).toBeUndefined();
     second.reply(200, { letter: 'A' });
     await settle();
     expect(cardTitle(w)).toBe('Your explanation points to A, but you picked D. Which one is your answer?');
@@ -493,8 +502,9 @@ describe('6. no request, one record at once', () => {
     expect(records).toHaveLength(1);
   });
 
-  // The floor is the retry minimum, 3 real words (teacher decision 2026-10-26; 5 until then).
-  for (const [name, text] of [['under 3 words', 'middle resists'], ['over 2,000 characters', 'resists '.repeat(260).trim()]]) {
+  // No floor (QUIZ_RETRY_REMOVAL_SPEC rule 4): one real word reads; a box with no letter or digit,
+  // or over the length cap, sends nothing.
+  for (const [name, text] of [['punctuation only', '?! ...'], ['over 2,000 characters', 'resists '.repeat(260).trim()]]) {
     it(name, async () => {
       const records = [];
       const { w, net } = boot({ records });
@@ -508,17 +518,47 @@ describe('6. no request, one record at once', () => {
     });
   }
 
-  it('3 words reach the read: one request, nothing recorded yet', async () => {
+  for (const text of ['law of averages', 'median resists', 'median', '0.19']) {
+    it(`${JSON.stringify(text)} reaches the read: one request, nothing recorded yet`, async () => {
+      const records = [];
+      const { w, net } = boot({ records });
+      render(w);
+      await settle();
+      radio(w, 'D').click();
+      type(w, text);
+      expect(await pressSubmit(w)).toBe(false);
+      expect(net.reads()).toHaveLength(1);
+      expect(net.last().body).toEqual({ questionId: QID, explanation: text });
+      expect(records).toHaveLength(0);
+    });
+  }
+
+  it('a one-word explanation the read places on another letter shows the card; that letter is the one answer', async () => {
     const records = [];
     const { w, net } = boot({ records });
     render(w);
     await settle();
     radio(w, 'D').click();
-    type(w, 'law of averages');
+    type(w, 'median');
     expect(await pressSubmit(w)).toBe(false);
-    expect(net.reads()).toHaveLength(1);
-    expect(net.last().body).toEqual({ questionId: QID, explanation: 'law of averages' });
+    net.last().reply(200, { letter: 'C' });
+    await settle();
+    expect(cardTitle(w)).toBe('Your explanation points to C, but you picked D. Which one is your answer?');
     expect(records).toHaveLength(0);
+    letterButton(w, 'C').click();
+    await settle();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ response: 'C', attempt: 1, reasoning: 'median' });
+    expect(net.reads()).toHaveLength(1);
+    expect(mode(w)).toBe('settled');
+  });
+
+  it('source pin: the page floor is the route floor, one word', () => {
+    const server = readFileSync(resolve(ROOT, 'railway-server/quiz-congruence.js'), 'utf8');
+    const routeFloor = Number(/export const CONGRUENCE_MIN_WORDS = (\d+);/.exec(server)[1]);
+    const { w } = boot();
+    expect(routeFloor).toBe(1);
+    expect(w.eval('QUIZ_CONGRUENCE_READ_MIN_WORDS')).toBe(routeFloor);
   });
 
   it('an empty explanation on a first answer: no request, one record', async () => {
@@ -560,12 +600,10 @@ describe('7. the detector goes first and is unchanged', () => {
   });
 });
 
-describe('8. the reconcile auto-send never reads', () => {
-  it('a first answer kept by the server: the retry auto-sends with no request; its message, then the verdict on the wrong retry', async () => {
+describe('8. the fresh-device reconcile sends nothing', () => {
+  it('a first answer kept by the server after the read: the kept answer stands, nothing re-sent or re-read', async () => {
     const records = [];
-    const { w, net } = boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
-      ? Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: 'D' })
-      : Promise.resolve({ ok: true })) });
+    const { w, net } = boot({ records, recordImpl: () => Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: 'D' }) });
     render(w);
     await settle();
     radio(w, 'A').click();
@@ -574,52 +612,18 @@ describe('8. the reconcile auto-send never reads', () => {
     expect(net.reads()).toHaveLength(1);
     net.last().reply(200, { letter: null });
     await tick(500);
-    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'A'], [2, 'A']]);
-    expect(net.reads()).toHaveLength(1);       // the auto-sent retry never read
-    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (D). Your A was sent as your one retry.'
-      + ' Not correct. This retry is your grade. The correct answer is shown below.');   // A is wrong (QUIZ_INCONGRUENCE_CHECK_SPEC §0 addendum)
+    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'A']]);
+    expect(net.reads()).toHaveLength(1);
+    expect(checked(w)).toBe('D');
+    expect($(w, `success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (D). That answer stands.');
   });
 
-  it('source pin: the reconcile passes congruenceAiSkip, and the eligibility check honours it', () => {
+  it('source pin: the reconcile never submits, and the read has no skip flag but the card\'s own', () => {
     const html = readFileSync(resolve(ROOT, 'index.html'), 'utf8');
     const start = html.indexOf('function _reconcileKeptFirstAnswer(');
     const body = html.slice(start, html.indexOf('\n        }\n', start));
-    expect(body).toContain("window.submitAnswer(questionId, 'multiple-choice', { congruenceAiSkip: true })");
-    expect(body.match(/window\.submitAnswer\(/g)).toHaveLength(1);
-    const eligible = html.slice(html.indexOf('function _congruenceReadEligible('));
-    expect(eligible.slice(0, eligible.indexOf('\n        }\n'))).toContain('opts.congruenceAiSkip');
-  });
-
-  it('the reconcile lands while the student\'s own retry read is out: nothing is sent for them, the reply sends their retry', async () => {
-    // Fresh device; the server already holds A. Attempt 1 (D) is slow to answer; meanwhile the
-    // student re-picks C with an explanation naming no letter, and the read goes out.
-    const records = [];
-    let resolveFirst = null;
-    const { w, net } = boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
-      ? new Promise(res => { resolveFirst = res; })
-      : Promise.resolve({ ok: true })) });
-    render(w);
-    await settle();
-    radio(w, 'D').click();
-    type(w, 'median resists');   // under three words: no read on the first answer
-    expect(await pressSubmit(w)).toBe(true);
-    await settle();
-    expect(mode(w)).toBe('retry');
-    radio(w, 'C').click();
-    type(w, NO_LETTER);
-    expect(await pressSubmit(w)).toBe(false);
-    expect(net.reads()).toHaveLength(1);
-
-    resolveFirst({ ok: true, firstAnswerKept: true, keptResponse: 'A' });
-    await tick(400);
-    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'D']]);   // nothing sent for the student
-    expect($(w, `reason-${QID}`).value).toBe(NO_LETTER);
-    expect(checked(w)).toBe('C');
-    expect(label(w)).toBe(CHECKING);
-
-    net.last().reply(200, { letter: null });
-    await settle();
-    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'D', 'median resists'], [2, 'C', NO_LETTER]]);
+    expect(body).not.toContain('submitAnswer(');
+    expect(html).not.toContain('congruenceAiSkip');
   });
 });
 
@@ -811,55 +815,6 @@ describe('13. send-on-exit (decision 5)', () => {
     const { w } = await firstAnswerRead({ records });
     w.eval(`document.getElementById('reason-${QID}').value = 'something else entirely now typed'`);   // no input event
     w.dispatchEvent(new w.Event('pagehide'));
-    expect(records).toHaveLength(0);
-  });
-});
-
-describe('the retry', () => {
-  // Wrong first answer D on file, retry form open.
-  async function openRetry(records) {
-    const { w, net } = boot({ records });
-    w.localStorage.setItem('quizRetryState_Me', JSON.stringify({ firstAnswers: { [QID]: 'D' }, retries: {} }));
-    w.eval(`classData.users.Me.answers['${QID}'] = { value: 'D', timestamp: 5 }; classData.users.Me.attempts['${QID}'] = 1;`);
-    render(w);
-    w.eval(`_applyQuizFormState('${QID}')`);
-    await settle();
-    expect(mode(w)).toBe('retry');
-    return { w, net };
-  }
-
-  it('a retry read that names the first answer shows the card (decision 1), the first letter as text; C sends attempt 2', async () => {
-    const records = [];
-    const { w, net } = await openRetry(records);
-    radio(w, 'C').click();
-    type(w, 'If I had gone slower I would have seen the table supports it');
-    expect(await pressSubmit(w)).toBe(false);
-    expect(net.last().body).toEqual({ questionId: QID, explanation: 'If I had gone slower I would have seen the table supports it' });
-    expect(label(w)).toBe(CHECKING);
-    net.last().reply(200, { letter: 'D' });
-    await settle();
-    expect(cardTitle(w)).toBe('Your explanation argues for D, your first answer, which was not correct. You picked C: send it as your retry, or fix your explanation.');
-    expect(letterButton(w, 'D')).toBeNull();   // a retry is another letter: D is never a button
-    expect([...w.document.querySelectorAll(`#congruence-${QID} .congruence-pick`)].map(b => b.dataset.letter)).toEqual(['C']);
-    expect(label(w)).toBe('Submit retry (half credit if correct)');
-    expect(button(w).disabled).toBe(false);
-    letterButton(w, 'C').click();
-    await settle();
-    expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({ response: 'C', attempt: 2 });
-  });
-
-  it('typing under three words during a retry wait: the button follows the retry rule', async () => {
-    const records = [];
-    const { w, net } = await openRetry(records);
-    radio(w, 'C').click();
-    type(w, NO_LETTER);
-    expect(await pressSubmit(w)).toBe(false);
-    type(w, 'too short');
-    expect(label(w)).toBe('Submit retry (half credit if correct)');
-    expect(button(w).disabled).toBe(true);
-    net.last().reply(200, { letter: null });
-    await settle();
     expect(records).toHaveLength(0);
   });
 });

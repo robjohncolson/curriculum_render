@@ -18,8 +18,8 @@ const ROOT = resolve(__dirname, '..');
 const SCRIPT = resolve(ROOT, 'scripts/quiz-congruence-ai-calibrate.mjs');
 const SLOW = 'the slow body talks about the middle value resisting outliers';
 const MARKED = 'the <<<middle value>>> resists the extreme outlier here';
-const THREE_WORDS = 'law of averages';   // the route's floor: in the population
-const TWO_WORDS = 'law averages';        // under it: tallied, never sent
+const ONE_WORD = 'averages';   // the route's floor, one real word: in the population
+const NO_WORDS = '?! ...';      // no letter or digit, under it: tallied, never sent
 
 // Headers at once; the body of the SLOW read only after the route's 3.5 s deadline.
 const PRELOAD = `
@@ -51,8 +51,8 @@ function run() {
   writeFileSync(ledger, JSON.stringify([
     { student_id: 's1', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: SLOW },
     { student_id: 's2', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: MARKED },
-    { student_id: 's3', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: THREE_WORDS },
-    { student_id: 's4', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: TWO_WORDS },
+    { student_id: 's3', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: ONE_WORD },
+    { student_id: 's4', item_id: 'U1-L1-Q01', attempt: 1, response: 'D', reasoning: NO_WORDS },
   ]));
   const out = join(dir, 'out');
   const child = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, SCRIPT, ledger, bank, out], {
@@ -83,9 +83,9 @@ describe('calibration matches the route', () => {
     expect(summary.lettersGrounded).toBe(2);
   });
 
-  it("the population floor is the route's: three words are read, two are tallied under it", () => {
-    expect(row(THREE_WORDS)).toBeTruthy();
-    expect(row(TWO_WORDS)).toBeUndefined();
+  it("the population floor is the route's: one word is read, a box with no word is tallied under it", () => {
+    expect(row(ONE_WORD)).toBeTruthy();
+    expect(row(NO_WORDS)).toBeUndefined();
     expect(summary.detector.underFloor).toBe(1);
   });
 });

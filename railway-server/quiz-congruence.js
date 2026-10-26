@@ -10,9 +10,9 @@
 export const CONGRUENCE_BEGIN = '<<<BEGIN STUDENT EXPLANATION>>>';
 export const CONGRUENCE_END = '<<<END STUDENT EXPLANATION>>>';
 export const CONGRUENCE_MAX_CHARS = 2000;
-// The retry minimum: 3 real words (teacher decision 2026-10-26; 5 until then), as the page's
-// QUIZ_CONGRUENCE_READ_MIN_WORDS. Short explanations such as "law of large numbers" argue too.
-export const CONGRUENCE_MIN_WORDS = 3;
+// Any length: one real word (QUIZ_RETRY_REMOVAL_SPEC rule 4; 3 until then), as the page's
+// QUIZ_CONGRUENCE_READ_MIN_WORDS. A single word such as "median" can name an option.
+export const CONGRUENCE_MIN_WORDS = 1;
 // The page counts a null that took this long as a timeout toward its two-timeout pause
 // (index.html QUIZ_CONGRUENCE_SERVER_DEADLINE_MS; a test pins the two equal), so the reply
 // stays only { letter }.
@@ -86,7 +86,7 @@ export function buildCongruencePrompt(view, explanation) {
     return { system: CONGRUENCE_SYSTEM, user };
 }
 
-// Tokens with a letter or digit: the page's retryReasoningReady rule.
+// Tokens with a letter or digit: the page's talkReasoningReady rule.
 export function congruenceWordCount(text) {
     return String(text || '').trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length;
 }

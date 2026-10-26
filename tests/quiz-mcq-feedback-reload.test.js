@@ -14,11 +14,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 const ROOT = resolve(__dirname, '..');
 const QID = 'U1-L1-Q01';
 const FRQ = 'U1-L1-FRQ01';
-const SETTLED_WRONG = JSON.stringify({
-  firstAnswers: { [QID]: 'C' },
-  retries: { [QID]: { state: 'accepted', value: 'A', submittedAt: 9 } }
-});
-const WRONG_FIRST = JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: {} });
 
 let pageSources = null;
 function pageScripts() {
@@ -160,9 +155,9 @@ describe('reload restores the MCQ AI area', () => {
     expectNoWrites(w);
   });
 
-  it('wrong settled MCQ: Incorrect header points to Talk it through; no Verify button', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: SETTLED_WRONG } });
-    seedMine(w, { answer: 'A', attempts: 2 });
+  it('wrong MCQ (one answer, settled): Incorrect header points to Talk it through; no Verify button', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'A', attempts: 1 });
     await reload(w);
     const v = aiArea(w);
     expect(v.hintShown).toBe(false);
@@ -174,14 +169,13 @@ describe('reload restores the MCQ AI area', () => {
     expectNoWrites(w);
   });
 
-  it('wrong first answer with the retry still unused: "Use your one retry first"', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: WRONG_FIRST } });
-    seedMine(w, { answer: 'C', attempts: 1 });
+  it('a historical retry (2 attempts) reloads the same way: Talk it through, no Verify button', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'A', attempts: 2 });
     await reload(w);
     const v = aiArea(w);
-    expect(v.hintShown).toBe(false);
-    expect(v.feedbackText).toContain('Incorrect');
-    expect(v.feedbackText).toContain('Use your one retry first');
+    expect(v.feedbackText).toContain('Talk it through with the AI below');
+    expect(v.feedbackText).not.toContain('retry');
     expect(v.verifyShown).toBe(false);
     expectNoWrites(w);
   });
@@ -203,16 +197,15 @@ describe('reload restores the MCQ AI area', () => {
     expect(v.result.feedback).toBe('AI verified.');
   });
 
-  it('retry after a wrong answer: the submit path still redraws with the new answer', async () => {
+  it('a first answer submitted on the page: the submit path draws its feedback at once', async () => {
     const w = boot();
     await reload(w);
     await submit(w, 'C');
-    expect(aiArea(w).feedbackText).toContain('Use your one retry first');
-    await submit(w, 'B', 'I misread the axis');
     const v = aiArea(w);
-    expect(v.feedbackText).toContain('MC Answer Correct');
-    expect(v.verifyShown).toBe(true);
-    expect(v.result.answer).toBe('B');
+    expect(v.feedbackText).toContain('Incorrect');
+    expect(v.feedbackText).toContain('Talk it through with the AI below');
+    expect(v.verifyShown).toBe(false);
+    expect(v.result.answer).toBe('C');
   });
 
   it('unanswered MCQ: hint stays visible, nothing drawn', async () => {
@@ -274,23 +267,22 @@ describe('restore follows the DOM host and the state it shows', () => {
   });
 
   it('an AI result for a DIFFERENT answer is not re-shown', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: WRONG_FIRST } });
+    const w = boot();
     seedMine(w, { answer: 'C', attempts: 1 });
     w.eval(`window.gradingResults['${QID}'] = { score: 'I', feedback: 'Old AI words.', answer: 'A', _aiGraded: true };`);
     await reload(w);
     const v = aiArea(w);
-    expect(v.feedbackText).toContain('Use your one retry first');
+    expect(v.feedbackText).toContain('Talk it through with the AI below');
     expect(v.feedbackText).not.toContain('Old AI words.');
   });
 
-  it('late ledger reconciliation (local wrong C -> server accepted retry B) redraws as correct', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: WRONG_FIRST } });
+  it('late ledger reconciliation (local wrong C -> server historical retry B) redraws as correct', async () => {
+    const w = boot();
     seedMine(w, { answer: 'C', attempts: 1 });
     await reload(w);
-    expect(aiArea(w).feedbackText).toContain('Use your one retry first');
-    // What restoreOwnAnswersFromLedger does: take the server's answer + retry record, then repaint.
+    expect(aiArea(w).feedbackText).toContain('Talk it through with the AI below');
+    // What restoreOwnAnswersFromLedger does: take the server's graded answer, then repaint.
     w.eval(`
-      _quizRetryState().retries['${QID}'] = { state: 'accepted', value: 'B', submittedAt: 9 };
       classData.users.Me.answers['${QID}'] = { value: 'B', timestamp: 9 };
       classData.users.Me.attempts['${QID}'] = 2;
       _refreshAfterReveal('${QID}');
@@ -303,35 +295,18 @@ describe('restore follows the DOM host and the state it shows', () => {
     expectNoWrites(w);
   });
 
-  it('the reverse: local correct B superseded by a server wrong retry redraws as incorrect', async () => {
+  it('the reverse: local correct B superseded by the server\'s wrong answer redraws as incorrect', async () => {
     const w = boot();
     seedMine(w, { answer: 'B', attempts: 1 });
     await reload(w);
     w.eval(`
-      _quizRetryState().firstAnswers['${QID}'] = 'C';
-      _quizRetryState().retries['${QID}'] = { state: 'accepted', value: 'A', submittedAt: 9 };
       classData.users.Me.answers['${QID}'] = { value: 'A', timestamp: 9 };
-      classData.users.Me.attempts['${QID}'] = 2;
       _refreshAfterReveal('${QID}');
     `);
     const v = aiArea(w);
     expect(v.feedbackText).toContain('Incorrect');
     expect(v.feedbackText).toContain('Talk it through with the AI below');
     expect(v.verifyShown).toBe(false);
-    expectNoWrites(w);
-  });
-
-  it('unsettled -> settled (pending retry accepted) redraws the wrong-answer text', async () => {
-    const pending = JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'pending', value: 'A', submittedAt: 9, before: { answer: { value: 'C', timestamp: 5 }, attempts: 1 } } } });
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: pending } });
-    seedMine(w, { answer: 'A', attempts: 2 });
-    await reload(w);
-    expect(aiArea(w).feedbackText).not.toContain('Talk it through with the AI below');
-    w.eval(`
-      _quizRetryState().retries['${QID}'] = { state: 'accepted', value: 'A', submittedAt: 9 };
-      _refreshAfterReveal('${QID}');
-    `);
-    expect(aiArea(w).feedbackText).toContain('Talk it through with the AI below');
     expectNoWrites(w);
   });
 

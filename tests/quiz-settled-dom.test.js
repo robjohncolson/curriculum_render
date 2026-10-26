@@ -1,11 +1,14 @@
 /**
- * QUIZ_FIRST_ANSWER_SPEC v2 — RUNTIME DOM tests of the settled gate.
+ * QUIZ_RETRY_REMOVAL_SPEC (teacher 2026-10-26) — RUNTIME DOM tests of the settled gate.
  *
- * Loads the real page scripts (every local <script> up to and including the main inline block)
- * into jsdom, renders a real MCQ with the page's own renderQuestion, and drives the real
- * submitAnswer. Chart.js is replaced by a counter so "no chart before settlement" is measurable.
- * States: unanswered / wrong-first / correct-first / pending-retry / accepted-retry /
- * rejected-retry / queued-then-replayed / reload-of-settled / reload-of-pending, plus XSS.
+ * One answer per multiple-choice question: the first answer the ledger records is the grade and
+ * settles the item at once (right or wrong). Loads the real page scripts (every local <script> up
+ * to and including the main inline block) into jsdom, renders a real MCQ with the page's own
+ * renderQuestion, and drives the real submitAnswer. Chart.js is replaced by a counter so "no chart
+ * before settlement" is measurable. States: unanswered / wrong first / correct first / a second
+ * answer refused / reload / a replayed old-page retry (rule 6) / the fresh-device reconcile (rule 5)
+ * / the ledger restore with a historical attempt-2 row / FRQ / a PC makeup item (one answer too),
+ * plus XSS.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -169,6 +172,31 @@ function expectRevealed(w, v) {
   expect(w.__xss).toBeUndefined();
 }
 
+const RED = 'rgb(192, 57, 43)';      // #c0392b
+const GREEN = 'rgb(39, 174, 96)';    // #27ae60
+const BLUE = 'rgb(52, 152, 219)';    // #3498db
+const successLine = (w) => w.document.getElementById(`success-${QID}`);
+
+// The roster answers the ledger restore with these rows.
+async function restoreWith(w, rows) {
+  w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+  w.ROSTER_SERVICE_URL = 'https://roster.test';
+  w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows }) });
+  await w.restoreOwnAnswersFromLedger();
+  await tick(300);
+}
+
+const row = (attempt, response, extra = {}) => ({ source: 'curriculum_quiz', item_id: QID, attempt, response,
+  recorded_at: `2026-09-29T10:0${attempt}:00Z`, ...extra });
+
+// Turbo mode on, with the peer-server write captured as [username, questionId, value, reasoning].
+function capturePeerWrites(w) {
+  const writes = [];
+  w.eval('turboModeActive = true;');
+  w.submitAnswerViaRailway = (user, qid, value, ts, reasoning) => { writes.push([user, qid, value, reasoning]); return Promise.resolve(true); };
+  return writes;
+}
+
 describe('the MCQ template hosts the key and the chart (DOM-host claim verified)', () => {
   it('renderQuestion emits the answer-key and dotplot-section hosts', () => {
     const w = boot();
@@ -188,135 +216,50 @@ describe('settled gate at runtime', () => {
     const v = view(w);
     expectLocked(v);
     expect(v.buttonText).toBe('Submit Answer');
+    expect(w.document.getElementById(`reason-${QID}`).placeholder).toBe('Optional: say why, in your own words. It protects you from a mis-click.');
   });
 
-  it('wrong first answer: retry form opens, everything stays hidden', async () => {
-    const w = boot();
+  it('wrong first answer: "Not correct" in red, then the reveal; settled, no retry form', async () => {
+    const records = [];
+    const w = boot({ records });
     render(w);
-    await submit(w, 'C');
+    await submit(w, 'C', 'the middle value');
     const v = view(w);
-    expectLocked(v);
-    expect(v.panelText).toContain('retry with an explanation');
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(v.buttonDisabled).toBe(true);
-    expect(v.radiosDisabled).toBe(false);
+    expectRevealed(w, v);
+    expect(successLine(w).textContent).toBe('Not correct. The correct answer is shown below.');
+    expect(successLine(w).style.color).toBe(RED);
+    expect(v.keyText).toContain('Correct answer: B');
+    expect(v.checked).toBe('C');
+    expect(v.radiosDisabled).toBe(true);
+    expect(v.buttonHidden).toBe(true);
+    expect(v.lockText).toBe('This answer is your grade.');
+    expect(w.document.getElementById(`reason-${QID}`).readOnly).toBe(true);
+    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'C', 'the middle value']]);
   });
 
-  it('the retry button enables live at 3 words (letters/digits) and a new letter, not before', async () => {
-    const w = boot();
-    render(w);
-    await submit(w, 'C');
-    const textarea = w.document.getElementById(`reason-${QID}`);
-    textarea.value = 'I misread it';
-    textarea.dispatchEvent(new w.Event('input', { bubbles: true }));
-    expect(view(w).buttonDisabled).toBe(true);   // 3 words, but no letter other than the first answer C
-    w.document.querySelector(`input[name="choice-${QID}"][value="B"]`).click();
-    for (const [text, disabled] of [['. . .', true], ['I misread', true], ['I misread it', false]]) {
-      textarea.value = text;
-      textarea.dispatchEvent(new w.Event('input', { bubbles: true }));
-      expect(view(w).buttonDisabled).toBe(disabled);
-    }
-  });
-
-  it('correct first answer: settled — key, College Board, chart, letters, explained peers only, XSS inert', async () => {
+  it('correct first answer: settled, "Correct answer submitted!" in green — key, chart, letters, explained peers only, XSS inert', async () => {
     const w = boot();
     render(w);
     await submit(w, 'B');
     const v = view(w);
     expectRevealed(w, v);
+    expect(successLine(w).textContent).toBe('✅ Correct answer submitted!');
+    expect(successLine(w).style.color).toBe(GREEN);
     expect(v.buttonHidden).toBe(true);
     expect(v.lockText).toBe('This answer is your grade.');
     expect(v.radiosDisabled).toBe(true);
   });
 
-  it('pending retry (server has not answered): choices locked, waiting line, nothing revealed', async () => {
+  it('a second answer is refused: nothing recorded, the first answer stays', async () => {
     const records = [];
-    let call = 0;
-    const w = boot({ records, recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(() => {})) });
+    const w = boot({ records });
     render(w);
     await submit(w, 'C');
     await submit(w, 'B', 'I misread the axis');
-    const v = view(w);
-    expectLocked(v);
-    expect(v.lockText).toBe('Retry saved — waiting for the server / connection.');
-    expect(v.radiosDisabled).toBe(true);
-    expect(v.buttonHidden).toBe(true);
-    expect(records.map(r => [r.attempt, r.reasoning])).toEqual([[1, undefined], [2, 'I misread the axis']]);
-  });
-
-  it('accepted retry: revealed the moment the server says yes', async () => {
-    let accept;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { accept = r; })) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'A', 'I misread the axis');   // a WRONG retry is still THE grade
-    expectLocked(view(w));
-    accept({ ok: true, ledgerId: 'L2' });
-    await tick(250);
-    const v = view(w);
-    expectRevealed(w, v);
-    expect(v.lockText).toBe('This answer is your grade.');
-    expect(v.checked).toBe('A');
-  });
-
-  it('rejected retry (409): rolled back to the first answer, retry form back, reason shown, still hidden', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'explanation-required' });
-    await tick(250);
-    const v = view(w);
-    expectLocked(v);
+    expect(records).toHaveLength(1);
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBeNull();
-    expect(v.checked).toBeNull();   // a retry is a new click: nothing preselected, the first answer C disabled
-    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(v.error).toContain('at least 3 words');
-  });
-
-  it('queued offline, then the replay is accepted: pending until the event, revealed after', async () => {
-    let call = 0;
-    const w = boot({ recordImpl: () => Promise.resolve(++call === 1 ? { ok: true } : { ok: false, reason: 'network', queued: true }) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    expectLocked(view(w));
-    expect(view(w).lockText).toContain('waiting for the server');
-    w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome', { detail: { itemId: QID, studentId: 'stu-me', outcome: 'accepted' } }));
-    await tick(250);
-    expectRevealed(w, view(w));
-  });
-
-  it('queued offline, then the replay is refused: rolled back', async () => {
-    let call = 0;
-    const w = boot({ recordImpl: () => Promise.resolve(++call === 1 ? { ok: true } : { ok: false, reason: 'network', queued: true }) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome', { detail: { itemId: QID, studentId: 'stu-me', outcome: 'refused', reason: 'correct-first' } }));
-    await tick(250);
-    const v = view(w);
-    expectLocked(v);
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
-    expect(v.error).toContain('first answer was correct');
-  });
-
-  it('a retry cannot be submitted while one is pending', async () => {
-    const records = [];
-    let call = 0;
-    const w = boot({ records, recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(() => {})) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    await submit(w, 'A', 'changed my mind again');
-    expect(records).toHaveLength(2);
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('B');
+    expect(view(w).error).toBe('This answer is already your grade.');
   });
 
   it('reload of a settled item (correct first answer): key, chart and peers appear on render', async () => {
@@ -327,213 +270,267 @@ describe('settled gate at runtime', () => {
     expectRevealed(w, view(w));
   });
 
-  it('reload of an item whose retry is still pending: stays hidden', async () => {
-    const pending = JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'pending', value: 'B', submittedAt: 9, before: { answer: { value: 'C', timestamp: 5 }, attempts: 1 } } } });
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: pending } });
-    seedMine(w, { answer: 'B', attempts: 2 });
-    render(w);
-    await tick(300);
-    const v = view(w);
-    expectLocked(v);
-    expect(v.lockText).toContain('waiting for the server');
-  });
-
-  it('reload of a wrong first answer: retry form, nothing revealed', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: {} }) } });
+  it('reload of a wrong first answer: settled and revealed', async () => {
+    const w = boot();
     seedMine(w, { answer: 'C', attempts: 1 });
     render(w);
     await tick(300);
     const v = view(w);
-    expectLocked(v);
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
+    expectRevealed(w, v);
+    expect(v.checked).toBe('C');
+    expect(v.lockText).toBe('This answer is your grade.');
+  });
+
+  it('reload of a historical retry kept on this device (2 attempts): settled on that answer, nothing "checking"', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'A', attempts: 2 });
+    render(w);
+    await tick(300);
+    const v = view(w);
+    expectRevealed(w, v);
+    expect(v.checked).toBe('A');
+    expect(v.lockText).toBe('This answer is your grade.');
   });
 });
 
-describe('409 rollback is ordered and complete (IDB + outbox)', () => {
-  // A fake of the page's storage adapter: answers/reasons/attempts stores + the sync outbox.
-  // `slowSetMs` delays every answers write so the refused save is still in flight when the 409 lands.
-  function fakeStorage(slowSetMs) {
-    const stores = { answers: new Map(), reasons: new Map(), attempts: new Map() };
-    const outbox = [];
-    let nextId = 1;
-    const k = (key) => JSON.stringify(key);
-    return {
-      stores, outbox,
-      async getMeta() { return 'client-1'; },
-      async set(store, key, value) {
-        if (store === 'answers' && slowSetMs) await new Promise(r => setTimeout(r, slowSetMs));
-        if (!stores[store]) stores[store] = new Map();
-        stores[store].set(k(key), value);
-      },
-      async remove(store, key) { if (stores[store]) stores[store].delete(k(key)); },
-      async enqueueOutbox(opType, payload) { const id = nextId++; outbox.push({ id, opType, payload }); return id; },
-      async getOutboxAll() { return outbox.slice(); },
-      async removeOutboxItem(id) { const i = outbox.findIndex(o => o.id === id); if (i >= 0) outbox.splice(i, 1); },
-      async getOutboxSize() { return outbox.length; },
-      async getAllForUser() { return []; },
+describe('retries have closed: a replayed old-page retry (QUIZ_RETRY_REMOVAL_SPEC rule 6)', () => {
+  // The old page queued an attempt 2 (B) offline over the wrong first answer C; this page loads with
+  // B as the local answer, and gradebook-client.js replays the queued row.
+  async function oldPageRetry() {
+    const records = [];
+    const w = boot({ records });
+    seedMine(w, { answer: 'B', attempts: 2, reason: 'I misread the axis' });
+    render(w);
+    await tick(300);
+    return { w, records };
+  }
+  // gradebook-client.js names the owner signed in when it sent the replay, and the refused letter.
+  const outcome = (w, detail) => w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome',
+    { detail: { itemId: QID, studentId: 'stu-me', username: 'Me', response: 'B', ...detail } }));
+
+  // The page's persistent peer outbox, seeded with the old page's queued writes: the first answer C
+  // (still queued) and the retry B. Other storage calls are no-ops.
+  function fakeOutbox(w, ops = [['Me', 'C', 5], ['Me', 'B', 6], ['Other', 'B', 7]]) {
+    const outbox = ops.map(([username, value, timestamp], i) => ({ id: i + 1, opType: 'answer_submit', payload: { username, questionId: QID, value, timestamp } }));
+    let nextId = outbox.length + 1;
+    const api = {
+      getOutboxAll: async () => outbox.slice(),
+      removeOutboxItem: async (id) => { const i = outbox.findIndex(op => op.id === id); if (i >= 0) outbox.splice(i, 1); },
+      enqueueOutbox: async (opType, payload) => { outbox.push({ id: nextId, opType, payload }); return nextId++; },
+      getOutboxSize: async () => outbox.length,
+      getMeta: async () => 'client-1',
     };
+    const storage = new Proxy(api, { get: (t, k) => (k in t ? t[k] : (k === 'then' ? undefined : async () => undefined)) });
+    w.waitForStorage = async () => storage;
+    // [username, value] per queued write, plus whether its time is fresh (after the seeded ones).
+    return () => outbox.map(op => [op.payload.username, op.payload.value, op.payload.timestamp > 1000]);
   }
 
-  it('a late save of the refused answer cannot win; the refused outbox op is dropped; the answer that counts is re-synced', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    const storage = fakeStorage(0);
-    w.waitForStorage = async () => storage;
-    render(w);
-    await submit(w, 'C');
-    await tick(50);
-    storage.set = ((orig) => async function (store, key, value) {
-      // only the REFUSED answer's writes are slow: they must not land after the rollback
-      if (store === 'answers' && value && value.value === 'B') await new Promise(r => setTimeout(r, 600));
-      return orig.call(this, store, key, value);
-    })(storage.set);
-    await submit(w, 'B', 'I misread the axis');
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });   // 409 before the save lands
-    await tick(1500);
-    const idbAnswer = storage.stores.answers.get(JSON.stringify(['Me', QID]));
-    expect(idbAnswer.value).toBe('C');
-    const answerOps = storage.outbox.filter(o => o.opType === 'answer_submit' && o.payload.questionId === QID);
-    expect(answerOps.some(o => o.payload.value === 'B')).toBe(false);          // refused op removed
-    expect(answerOps[answerOps.length - 1].payload.value).toBe('C');            // the answer that counts, re-synced
+  // Someone else signs in on this device: the roster session and the page user both move.
+  function signInAsOther(w) {
+    w.rosterClient = { token: () => 'tok-other', studentId: () => 'stu-other' };
+    w.eval(`currentUsername = 'Other'; window.currentUsername = 'Other';
+      classData.users.Other = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };`);
+  }
+
+  // The ledger answers /ledger/student with `replies` in turn (a number = that HTTP status).
+  function ledgerReplies(w, replies) {
+    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+    w.ROSTER_SERVICE_URL = 'https://roster.test';
+    w.eval('QUIZ_LEDGER_REREAD_DELAYS_MS = [20, 20];');
+    let reads = 0;
+    w.fetch = () => {
+      const reply = replies[Math.min(reads++, replies.length - 1)];
+      if (typeof reply === 'number') return Promise.resolve({ status: reply, json: async () => ({}) });
+      return Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: reply }) });
+    };
+    return () => reads;
+  }
+
+  function expectFirstAnswerStands(w, v) {
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
-    expect(JSON.parse(w.localStorage.getItem('answers_Me'))[QID].value).toBe('C');
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+    expect(v.checked).toBe('C');
+    expectRevealed(w, v);
+    expect(v.lockText).toBe('This answer is your grade.');
+    expect(successLine(w).textContent).toBe('Retries have closed; your first answer stands.');
+    expect(successLine(w).style.color).toBe(BLUE);
+    expect(successLine(w).classList.contains('show')).toBe(true);
+    expect(v.error).toBe('');
+  }
+
+  it('refused (retries-closed): the item settles on the first answer with the line; classmates see it, the ledger gets nothing', async () => {
+    const { w, records } = await oldPageRetry();
+    const peer = capturePeerWrites(w);
+    ledgerReplies(w, [[row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expectFirstAnswerStands(w, view(w));
+    // the refused retry's explanation is gone from the item and from the peer server
+    expect(w.document.getElementById(`reason-${QID}`).value).toBe('');
+    expect(peer).toEqual([['Me', QID, 'C', '']]);
+    expect(records).toHaveLength(0);
   });
 
-  it('the rollback belongs to the student who submitted, even if currentUsername changes', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    w.eval(`currentUsername = 'SomeoneElse'; window.currentUsername = 'SomeoneElse'; classData.users.SomeoneElse = { answers: { '${QID}': { value: 'A' } }, reasons: {}, timestamps: {}, attempts: { '${QID}': 1 }, charts: {} };`);
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });
-    await tick(300);
+  it('refused (retries-closed) while the ledger read fails: no claim until a read lands, then the line', async () => {
+    const { w, records } = await oldPageRetry();
+    const reads = ledgerReplies(w, [500, [row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(5);
+    expect(successLine(w).textContent).toBe('');
+    expect(view(w).checked).toBe('B');
+    await tick(400);
+    expect(reads()).toBe(2);
+    expectFirstAnswerStands(w, view(w));
+    expect(records).toHaveLength(0);
+  });
+
+  it('refused (retries-closed) and every ledger read fails: the line never shows', async () => {
+    const { w, records } = await oldPageRetry();
+    const reads = ledgerReplies(w, [500]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expect(reads()).toBe(3);
+    expect(successLine(w).textContent).toBe('');
+    expect(view(w).checked).toBe('B');
+    expect(records).toHaveLength(0);
+  });
+
+  it('refused with turbo off: the queued retry B leaves the outbox and the kept C is queued fresh, nothing live', async () => {
+    const { w } = await oldPageRetry();
+    const queued = fakeOutbox(w);
+    const live = [];
+    w.submitAnswerViaRailway = (...args) => { live.push(args); return Promise.resolve(true); };
+    ledgerReplies(w, [[row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expectFirstAnswerStands(w, view(w));
+    expect(queued()).toEqual([['Other', 'B', false], ['Me', 'C', true]]);
+    expect(live).toHaveLength(0);
+  });
+
+  it('refused while the live peer write fails: the queued kept C still replaces the queued B', async () => {
+    const { w } = await oldPageRetry();
+    const queued = fakeOutbox(w);
+    w.eval('turboModeActive = true;');
+    let liveTries = 0;
+    w.submitAnswerViaRailway = () => { liveTries++; return Promise.reject(new Error('peer server down')); };
+    ledgerReplies(w, [[row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expectFirstAnswerStands(w, view(w));
+    expect(liveTries).toBe(1);
+    expect(queued()).toEqual([['Other', 'B', false], ['Me', 'C', true]]);
+  });
+
+  it('another student signed in while the replay was out: nothing is read or shown for them; the owner is reconciled at their next sign-in', async () => {
+    const { w } = await oldPageRetry();
+    const queued = fakeOutbox(w);
+    const reads = ledgerReplies(w, [[row(1, 'C')]]);
+    signInAsOther(w);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expect(reads()).toBe(0);                                 // the other student's token reads nothing for the owner
+    expect(successLine(w).textContent).toBe('');
+    expect(w.eval(`classData.users.Other.answers['${QID}']`)).toBeUndefined();
+    expect(queued()).toEqual([['Me', 'C', false], ['Other', 'B', false]]);   // only the owner's refused B left
+
+    // The owner signs back in: the sign-in restore moves their answer and classmates' view to C.
+    w.eval(`currentUsername = 'Me'; window.currentUsername = 'Me';`);
+    await restoreWith(w, [row(1, 'C')]);
     expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
-    expect(w.eval(`classData.users.SomeoneElse.answers['${QID}'].value`)).toBe('A');
+    expect(queued()).toEqual([['Other', 'B', false], ['Me', 'C', true]]);
+  });
+
+  it('another student signs in during a reread wait: the rereads stop, nothing is shown for them', async () => {
+    const { w } = await oldPageRetry();
+    fakeOutbox(w);
+    const reads = ledgerReplies(w, [500, [row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(5);
+    expect(reads()).toBe(1);
+    signInAsOther(w);
+    await tick(400);
+    expect(reads()).toBe(1);
+    expect(successLine(w).textContent).toBe('');
+    expect(w.eval(`classData.users.Other.answers['${QID}']`)).toBeUndefined();
+    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('B');   // the owner's next sign-in reconciles it
+  });
+
+  it('another student signs in while a ledger read is out: the owner\'s rows land on the owner, no line for the other', async () => {
+    const { w } = await oldPageRetry();
+    fakeOutbox(w);
+    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+    w.ROSTER_SERVICE_URL = 'https://roster.test';
+    let answerRead;
+    w.fetch = () => new Promise(resolve => { answerRead = () => resolve({ status: 200, json: async () => ({ ok: true, rows: [row(1, 'C')] }) }); });
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(5);
+    signInAsOther(w);
+    answerRead();
+    await tick(400);
+    expect(successLine(w).textContent).toBe('');
+    expect(w.eval(`classData.users.Other.answers['${QID}']`)).toBeUndefined();
+    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
+  });
+
+  it('an event that does not name its owner is ignored', async () => {
+    const { w } = await oldPageRetry();
+    const reads = ledgerReplies(w, [[row(1, 'C')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed', username: null });
+    await tick(400);
+    expect(reads()).toBe(0);
+    expect(view(w).checked).toBe('B');
+  });
+
+  for (const reason of ['already-retried', null]) {
+    it(`refused (${reason}): the item repaints from the ledger without the closed line`, async () => {
+      const { w, records } = await oldPageRetry();
+      ledgerReplies(w, [[row(1, 'C')]]);
+      outcome(w, { outcome: 'refused', reason });
+      await tick(400);
+      expect(view(w).checked).toBe('C');
+      expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
+      expect(successLine(w).textContent).toBe('');
+      expect(records).toHaveLength(0);
+    });
+  }
+
+  it('refused (retries-closed) over a historical retry the server holds: it shows, without the closed line', async () => {
+    const { w } = await oldPageRetry();
+    ledgerReplies(w, [[row(1, 'C'), row(2, 'A')]]);
+    outcome(w, { outcome: 'refused', reason: 'retries-closed' });
+    await tick(400);
+    expect(view(w).checked).toBe('A');
+    expect(successLine(w).textContent).toBe('');
+  });
+
+  it('accepted (it reached the server before the cutoff): that retry is the grade, no closed line', async () => {
+    const { w } = await oldPageRetry();
+    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
+    w.ROSTER_SERVICE_URL = 'https://roster.test';
+    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [row(1, 'C'), row(2, 'B')] }) });
+    outcome(w, { outcome: 'accepted' });
+    await tick(400);
+    expect(view(w).checked).toBe('B');
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(2);
+    expect(successLine(w).textContent).toBe('');
+  });
+
+  it('this page never sends an attempt 2, and a leftover quizRetryState_ key is ignored', async () => {
+    const records = [];
+    const w = boot({ records, seedLocalStorage: { quizRetryState_Me: JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: {} }) } });
+    seedMine(w, { answer: 'C', attempts: 1 });
+    render(w);
+    await tick(300);
+    expectRevealed(w, view(w));
+    await submit(w, 'B', 'I misread the axis');
+    expect(records).toHaveLength(0);
+    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
   });
 });
 
-describe('round 3: identity, reconcile, clear, chart XSS', () => {
-  const pendingState = (value, studentId, extra = {}) => JSON.stringify({
-    firstAnswers: { [QID]: 'C' },
-    retries: { [QID]: { state: 'pending', value, studentId, submittedAt: 9,
-      before: { answer: { value: 'C', timestamp: 5 }, reason: '', attempts: 1, timestamp: 5 }, ...extra } },
-  });
-  const restoreWith = async (w, rows) => {
-    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
-    w.ROSTER_SERVICE_URL = 'https://roster.test';
-    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows }) });
-    await w.restoreOwnAnswersFromLedger();
-    await tick(300);
-  };
-  const row = (attempt, response, extra = {}) => ({ source: 'curriculum_quiz', item_id: QID, attempt, response,
-    recorded_at: `2026-09-29T10:0${attempt}:00Z`, ...extra });
-
-  it('B: two local attempts with NO retry record stay closed ("checking"), then reconcile to the server', async () => {
-    const w = boot();
-    seedMine(w, { answer: 'B', attempts: 2 });
-    render(w);
-    await tick(300);
-    let v = view(w);
-    expectLocked(v);
-    expect(v.lockText).toBe('Checking your retry with the server\u2026');
-    expect(v.radiosDisabled).toBe(true);
-    // The server has only the first answer: that is the graded answer, and the retry is open again.
-    await restoreWith(w, [row(1, 'C')]);
-    v = view(w);
-    expectLocked(v);
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
-    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(v.checked).toBeNull();   // the retry form: nothing preselected, the first answer C disabled
-    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-  });
-
-  it('B: two local attempts with no record + an attempt-2 row on the server → accepted with the SERVER value', async () => {
-    const w = boot();
-    seedMine(w, { answer: 'A', attempts: 2 });
-    render(w);
-    await tick(300);
-    await restoreWith(w, [row(1, 'C'), row(2, 'B', { reasoning: 'I misread the axis' })]);
-    const v = view(w);
-    expectRevealed(w, v);
-    expect(v.checked).toBe('B');
-  });
-
-  it('C: a replayed outcome applies to the student who queued it, never the signed-in one', async () => {
-    const w = boot({ seedLocalStorage: {
-      quizRetryState_Alice: pendingState('B', 'stu-alice'),
-      quizRetryState_Me: pendingState('A', 'stu-me'),
-    } });
-    seedMine(w, { answer: 'A', attempts: 2 });
-    w.eval(`classData.users.Alice = { answers: { '${QID}': { value: 'B', timestamp: 9 } }, reasons: {}, timestamps: {}, attempts: { '${QID}': 2 }, charts: {} };`);
-    render(w);
-    await tick(300);
-    w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome', { detail: { itemId: QID, studentId: 'stu-alice', outcome: 'refused', reason: 'already-retried' } }));
-    await tick(300);
-    // Me (signed in) untouched: still pending, still locked, answer A
-    expect(w.eval(`_quizRetryStatus('${QID}', 'Me')`)).toBe('pending');
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('A');
-    expect(view(w).lockText).toContain('waiting for the server');
-    expect(view(w).error).toBe('');
-    // Alice reconciled: retry gone, her first answer restored, persisted
-    expect(w.eval(`_quizRetryStatus('${QID}', 'Alice')`)).toBeNull();
-    expect(w.eval(`classData.users.Alice.answers['${QID}'].value`)).toBe('C');
-    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Alice')).retries[QID]).toBeUndefined();
-    // an outcome for an unknown student is ignored
-    w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome', { detail: { itemId: QID, studentId: 'stu-nobody', outcome: 'accepted' } }));
-    await tick(100);
-    expect(w.eval(`_quizRetryStatus('${QID}', 'Me')`)).toBe('pending');
-  });
-
-  it('D: a server-accepted retry never blesses a DIFFERENT local pending retry; its 409 restores the server value', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: pendingState('A', 'stu-me') } });
-    seedMine(w, { answer: 'A', attempts: 2 });
-    render(w);
-    await tick(300);
-    await restoreWith(w, [row(1, 'C'), row(2, 'B', { reasoning: 'server explanation here' })]);
-    // still pending: the local A retry has its own outcome coming
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBe('pending');
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('A');
-    expectLocked(view(w));
-    w.dispatchEvent(new w.CustomEvent('gradebook:quiz-retry-outcome', { detail: { itemId: QID, studentId: 'stu-me', outcome: 'refused', reason: 'already-retried' } }));
-    await tick(400);
-    const v = view(w);
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('B');   // the grade, never the refused A
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBe('accepted');
-    expect(v.checked).toBe('B');
-    expectRevealed(w, v);
-  });
-
-  it('D: the same local pending retry as the server row is simply accepted', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: pendingState('B', 'stu-me') } });
-    seedMine(w, { answer: 'B', attempts: 2 });
-    render(w);
-    await tick(300);
-    await restoreWith(w, [row(1, 'C'), row(2, 'B')]);
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBe('accepted');
-    expectRevealed(w, view(w));
-  });
-
-  it('E: the rollback re-posts the first answer with an explicit empty explanation (clears the refused one)', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    const posts = [];
-    w.eval('turboModeActive = true;');
-    w.submitAnswerViaRailway = (...args) => { posts.push(args); return Promise.resolve(true); };
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });
-    await tick(300);
-    const last = posts[posts.length - 1];
-    expect(last[2]).toBe('C');
-    expect(last[4]).toBe('');
-  });
-
+describe('peer rendering: cleared explanations and chart XSS', () => {
   it('E: a pulled/broadcast empty explanation clears a cached classmate explanation', () => {
     const w = boot();
     w.eval(`mergePeerAnswer({ username: 'Peer1', question_id: '${QID}', answer_value: 'C', timestamp: 99, reasoning: '' })`);
@@ -591,225 +588,97 @@ describe('round 3: identity, reconcile, clear, chart XSS', () => {
   });
 });
 
-describe('round 4: correct-first legacy, rollback vs restore, POST ordering', () => {
-  it('3: legacy profile (2 attempts, correct first answer, no retry record) settles via correct-first', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: JSON.stringify({ firstAnswers: { [QID]: 'B' }, retries: {} }) } });
-    seedMine(w, { answer: 'C', attempts: 2 });
-    render(w);
-    await tick(300);
-    const v = view(w);
-    expect(v.lockText).not.toContain('Checking');
-    expect(v.lockText).toBe('This answer is your grade.');
-    expectRevealed(w, v);
-  });
-
-  it('8: a restore that ACCEPTS the retry while its 409 rollback is paused wins — nothing reverted', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    // storage whose write of the retry's answer (B) is held until we release it
-    let release;
-    const held = new Promise(r => { release = r; });
-    const answers = new Map();
-    w.waitForStorage = async () => ({
-      async getMeta() { return 'c'; },
-      async set(store, key, value) { if (store === 'answers' && value && value.value === 'B' && value.timestamp > 100) await held; if (store === 'answers') answers.set(JSON.stringify(key), value); },
-      async remove() {}, async enqueueOutbox() { return 1; }, async getOutboxAll() { return []; },
-      async removeOutboxItem() {}, async getOutboxSize() { return 0; }, async getAllForUser() { return []; },
-    });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });   // rollback starts, waits on the held write
-    await tick(100);
-    // the server accepted B (from another device): the restore marks it accepted meanwhile
-    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
-    w.ROSTER_SERVICE_URL = 'https://roster.test';
-    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
-      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
-      { source: 'curriculum_quiz', item_id: QID, attempt: 2, response: 'B', recorded_at: '2026-09-29T10:05:00Z' },
-    ] }) });
-    await w.restoreOwnAnswersFromLedger();
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBe('accepted');
-    release();
-    await tick(500);
-    expect(w.eval(`_quizRetryStatus('${QID}')`)).toBe('accepted');
-    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('B');
-    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(2);
-    expect(answers.get(JSON.stringify(['Me', QID])).value).toBe('B');
-    const v = view(w);
-    expect(v.error).toBe('');
-    expectRevealed(w, v);
-  });
-
-  it('9: the rollback clear is sent only after the original retry POST lands (unconditional server)', async () => {
-    let refuse;
-    let call = 0;
-    const w = boot({ recordImpl: () => (++call === 1 ? Promise.resolve({ ok: true }) : new Promise(r => { refuse = r; })) });
-    const server = new Map();   // an upsert-always store: order of arrival decides
-    w.eval('turboModeActive = true;');
-    w.submitAnswerViaRailway = (user, qid, value, ts, reasoning) => new Promise(resolve => {
-      const delay = value === 'B' ? 600 : 0;   // the retry POST is slow
-      setTimeout(() => {
-        const row = { value, ts };
-        if (reasoning !== undefined) row.reasoning = reasoning;
-        server.set(`${user}|${qid}`, { ...(server.get(`${user}|${qid}`) || {}), ...row });
-        resolve(true);
-      }, delay);
-    });
-    render(w);
-    await submit(w, 'C');
-    await submit(w, 'B', 'I misread the axis');
-    refuse({ ok: false, reason: 'retry-not-allowed', detail: 'already-retried' });   // 409 before the POST lands
-    await tick(1200);
-    expect(server.get(`Me|${QID}`)).toMatchObject({ value: 'C', reasoning: '' });
-  });
-});
-
-describe('server kept an earlier first answer (fresh device answered before the restore)', () => {
-  // The fixture key is B. The server already holds C as the first answer; this device sends a letter
-  // as attempt 1 and is told firstAnswerKept + keptResponse:'C'.
-  function keptBoot(records, { kept = 'C', acceptRetry = true } = {}) {
-    return boot({ records, recordImpl: (rec) => (Number(rec.attempt) === 1
-      ? Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: kept })
-      : (acceptRetry ? Promise.resolve({ ok: true }) : new Promise(() => {}))) });
+describe('server kept an earlier first answer (QUIZ_RETRY_REMOVAL_SPEC rule 5)', () => {
+  // The fixture key is B. The server already holds a first answer; this device sends a letter as
+  // attempt 1 and is told firstAnswerKept + keptResponse. The kept answer is the grade.
+  function keptBoot(records, kept) {
+    return boot({ records, recordImpl: () => Promise.resolve({ ok: true, firstAnswerKept: true, keptResponse: kept }) });
   }
 
-  it('with an explanation ready: the chosen letter is sent as the retry and settles', async () => {
+  it('a wrong kept answer: it shows settled with the line in red, the chosen letter is dropped, nothing re-sent', async () => {
     const records = [];
-    const w = keptBoot(records);
+    const w = keptBoot(records, 'C');
+    const peer = capturePeerWrites(w);
     render(w);
     await submit(w, 'B', 'I misread the axis');
     await tick(300);
-    expect(records.map(r => [r.attempt, r.response, r.reasoning])).toEqual([[1, 'B', 'I misread the axis'], [2, 'B', 'I misread the axis']]);
-    const state = JSON.parse(w.localStorage.getItem('quizRetryState_Me'));
-    expect(state.firstAnswers[QID]).toBe('C');
-    expect(state.retries[QID]).toMatchObject({ state: 'accepted', value: 'B' });
+    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'B']]);
     const v = view(w);
     expectRevealed(w, v);
-    expect(v.checked).toBe('B');
-    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('already had your first answer');
-  });
-
-  it('without an explanation: the retry form opens with the chosen letter and says why', async () => {
-    const records = [];
-    const w = keptBoot(records);
-    render(w);
-    await submit(w, 'B');
-    await tick(300);
-    expect(records.length).toBe(1);
-    const v = view(w);
-    expectLocked(v);
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(v.buttonDisabled).toBe(true);
-    expect(v.checked).toBe('B');
+    expect(v.checked).toBe('C');
+    expect(v.lockText).toBe('This answer is your grade.');
+    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).firstAnswers[QID]).toBe('C');
-    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('already had your first answer on this question (C)');
-    // The explanation unlocks the retry as usual.
-    await submit(w, 'B', 'I misread the axis');
-    await tick(300);
-    expect(records.map(r => [r.attempt, r.response])).toEqual([[1, 'B'], [2, 'B']]);
-    expectRevealed(w, view(w));
+    expect(successLine(w).textContent).toBe('The gradebook already had your first answer on this question (C). That answer stands.');
+    expect(successLine(w).style.color).toBe(RED);
+    // The explanation argued for B: it leaves the item, and classmates see C with no explanation.
+    expect(w.eval(`classData.users.Me.reasons['${QID}']`)).toBe('');
+    expect(w.document.getElementById(`reason-${QID}`).value).toBe('');
+    expect(peer).toEqual([['Me', QID, 'B', 'I misread the axis'], ['Me', QID, 'C', '']]);
   });
 
-  it('the kept first answer was correct: it is the grade, the chosen letter is dropped', async () => {
+  it('a correct kept answer: the same line in green', async () => {
     const records = [];
-    const w = keptBoot(records, { kept: 'B' });
+    const w = keptBoot(records, 'B');
     render(w);
     await submit(w, 'C', 'I changed my mind');
     await tick(300);
-    expect(records.length).toBe(1);
-    const v = view(w);
-    expect(v.checked).toBe('B');
-    expect(v.lockText).toBe('This answer is your grade.');
-    expect(v.buttonHidden).toBe(true);
-    expect(w.document.getElementById(`success-${QID}`).textContent).toContain('it was correct');
+    expect(records).toHaveLength(1);
+    expect(view(w).checked).toBe('B');
+    expect(successLine(w).textContent).toBe('The gradebook already had your first answer on this question (B). That answer stands.');
+    expect(successLine(w).style.color).toBe(GREEN);
   });
 
-  it('the kept first answer equals the chosen letter: no auto-send; the retry form says to pick a different letter', async () => {
+  it('the kept answer equals the chosen letter: nothing to reconcile', async () => {
     const records = [];
-    const w = keptBoot(records, { kept: 'C' });
+    const w = keptBoot(records, 'C');
     render(w);
-    await submit(w, 'C', 'I misread the axis');   // a ready explanation is still never sent as the retry
+    await submit(w, 'C', 'I misread the axis');
     await tick(300);
-    expect(records.length).toBe(1);
-    const v = view(w);
-    expect(v.checked).toBeNull();
-    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(v.buttonDisabled).toBe(true);
-    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-    expect(w.document.getElementById(`success-${QID}`).textContent).toBe('The gradebook already had your first answer on this question (C), and it was not correct. Pick a different letter and explain what changed your mind.');
+    expect(records).toHaveLength(1);
+    expect(view(w).checked).toBe('C');
+    expect(successLine(w).textContent).toBe('Not correct. The correct answer is shown below.');
   });
 });
 
 describe('ledger restore repaints the question', () => {
-  it('a restored accepted retry (attempt-2 row) settles and reveals a rendered question', async () => {
+  it('a historical retry (attempt-2 row) settles the item with that answer shown', async () => {
     const w = boot();
     seedMine(w, { answer: 'C', attempts: 1 });
     render(w);
     await tick(300);
-    expectLocked(view(w));
-    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-1' };
-    w.ROSTER_SERVICE_URL = 'https://roster.test';
-    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
-      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
-      { source: 'curriculum_quiz', item_id: QID, attempt: 2, response: 'B', reasoning: 'I misread the axis', recorded_at: '2026-09-29T10:05:00Z' },
-    ] }) });
-    await w.restoreOwnAnswersFromLedger();
-    await tick(300);
+    await restoreWith(w, [row(1, 'C'), row(2, 'B', { reasoning: 'I misread the axis' })]);
     const v = view(w);
     expectRevealed(w, v);
     expect(v.checked).toBe('B');
-    // F: the restored explanation is in the (locked) textarea
+    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(2);
+    // the restored explanation is in the (locked) textarea
     expect(w.document.getElementById(`reason-${QID}`).value).toBe('I misread the axis');
   });
 
-  it('a teacher reset (no attempt-2 row on the server) drops the local accepted retry and reopens the form', async () => {
-    const acceptedWrong = JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'accepted', value: 'A', submittedAt: 9 } } });
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
+  it('a fresh device with no local answer restores a historical retry as that answer', async () => {
+    const w = boot();
+    render(w);
+    await tick(300);
+    expectLocked(view(w));
+    await restoreWith(w, [row(1, 'C'), row(2, 'A')]);
+    const v = view(w);
+    expectRevealed(w, v);
+    expect(v.checked).toBe('A');
+  });
+
+  it('a historical retry gone from the server (teacher reset): the first answer shows, still settled', async () => {
+    const w = boot();
     seedMine(w, { answer: 'A', attempts: 2, reason: 'I meant B' });
     render(w);
     await tick(300);
-    expectRevealed(w, view(w));
-    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
-    w.ROSTER_SERVICE_URL = 'https://roster.test';
-    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
-      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
-    ] }) });
-    await w.restoreOwnAnswersFromLedger();
-    await tick(300);
+    await restoreWith(w, [row(1, 'C')]);
     const v = view(w);
-    expect(v.keyShown).toBe(false);        // the reveal box closed again
-    expect(v.peerLetters).toBe(0);
-    expect(v.radiosDisabled).toBe(false);
-    expect(v.checked).toBeNull();   // nothing preselected; the kept first answer C is disabled
-    expect(w.document.querySelector(`input[name="choice-${QID}"][value="C"]`).disabled).toBe(true);
-    expect(v.panelText).toContain('retry with an explanation');
-    expect(v.buttonText).toBe('Submit retry (half credit if correct)');
-    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toBeUndefined();
+    expect(w.eval(`classData.users.Me.answers['${QID}'].value`)).toBe('C');
     expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(1);
-  });
-
-  it('a retry accepted after the restore fetch began is kept even when the reply lacks its row', async () => {
-    const w = boot();
-    seedMine(w, { answer: 'C', attempts: 1 });
-    render(w);
-    await tick(300);
-    w.rosterClient = { token: () => 'tok', studentId: () => 'stu-me' };
-    w.ROSTER_SERVICE_URL = 'https://roster.test';
-    w.fetch = () => Promise.resolve({ status: 200, json: async () => ({ ok: true, rows: [
-      { source: 'curriculum_quiz', item_id: QID, attempt: 1, response: 'C', recorded_at: '2026-09-29T10:00:00Z' },
-    ] }) });
-    const restore = w.restoreOwnAnswersFromLedger();
-    // Lands while the fetch is in flight: an accepted retry newer than the fetch start.
-    w.localStorage.setItem('quizRetryState_Me', JSON.stringify({ firstAnswers: { [QID]: 'C' }, retries: { [QID]: { state: 'accepted', value: 'B', submittedAt: Date.now() + 1000 } } }));
-    w.eval(`_quizRetryStateCache = {}; classData.users.Me.answers['${QID}'] = { value: 'B', timestamp: Date.now() }; classData.users.Me.attempts['${QID}'] = 2;`);
-    await restore;
-    await tick(300);
-    expect(JSON.parse(w.localStorage.getItem('quizRetryState_Me')).retries[QID]).toMatchObject({ state: 'accepted', value: 'B' });
-    expect(w.eval(`classData.users.Me.attempts['${QID}']`)).toBe(2);
+    expect(v.checked).toBe('C');
+    expectRevealed(w, v);
+    expect(v.lockText).toBe('This answer is your grade.');
   });
 
   it('F: an already-rendered FRQ input shows the restored response', async () => {
@@ -828,10 +697,58 @@ describe('ledger restore repaints the question', () => {
   });
 });
 
+describe('FRQ is unchanged; a PC makeup item takes one answer too', () => {
+  it('an FRQ keeps unlimited revisions: every submit records, the button reads Update Answer', async () => {
+    const records = [];
+    const w = boot({ records });
+    w.eval(`document.getElementById('host').innerHTML = renderQuestion(currentQuestions[1], 1).html;`);
+    await tick(200);
+    for (const text of ['first draft', 'second draft']) {
+      w.document.getElementById(`frq-${FRQ}`).value = text;
+      expect(w.eval(`submitAnswer('${FRQ}', 'free-response')`)).toBe(true);
+      await tick(250);
+    }
+    expect(records.map(r => [r.itemId, r.attempt, r.response])).toEqual([[FRQ, 1, 'first draft'], [FRQ, 1, 'second draft']]);
+    expect(w.eval(`classData.users.Me.attempts['${FRQ}']`)).toBe(2);
+    expect(w.document.getElementById(`submit-${FRQ}`).textContent.trim()).toBe('Update Answer');
+  });
+
+  it('a PC makeup item (no key on the page) goes to the PC route as attempt 1, never says "Not correct" or offers Talk, and refuses a second answer', async () => {
+    const PC = 'U1-PC26-MCQ-A-Q01';
+    const records = [];
+    const w = boot({ records });
+    w.eval(`currentQuestions = [{ id: '${PC}', type: 'multiple-choice', prompt: 'Secure?',
+      choices: [{ key: 'A', value: 'one' }, { key: 'B', value: 'two' }, { key: 'C', value: 'three' }] }];
+      document.getElementById('host').innerHTML = renderQuestion(currentQuestions[0], 0).html;`);
+    await tick(250);
+    w.document.querySelector(`input[name="choice-${PC}"][value="A"]`).click();
+    expect(w.eval(`submitAnswer('${PC}', 'multiple-choice')`)).toBe(true);
+    await tick(250);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ source: 'pc', itemId: PC, attempt: 1, response: 'A', kind: 'pc', part: 'A' });
+    expect(w.document.getElementById(`success-${PC}`).textContent).toBe('📝 Answer submitted successfully!');
+    // No key on the page, so no "not correct" to talk through: the server scores a PC item.
+    const talk = w.document.getElementById(`talk-${PC}`);
+    expect(talk).not.toBeNull();
+    expect(talk.style.display).toBe('none');
+    expect(talk.textContent).toBe('');
+
+    // Settled: the choices lock, and a second submit is refused before anything is recorded.
+    const radioB = w.document.querySelector(`input[name="choice-${PC}"][value="B"]`);
+    expect(radioB.disabled).toBe(true);
+    radioB.disabled = false;
+    radioB.checked = true;
+    w.document.getElementById(`reason-${PC}`).value = 'I changed my mind about the spread';
+    w.eval(`submitAnswer('${PC}', 'multiple-choice')`);
+    await tick(250);
+    expect(records.map(r => [r.source, r.attempt, r.response])).toEqual([['pc', 1, 'A']]);
+    expect(w.eval(`classData.users.Me.answers['${PC}'].value`)).toBe('A');
+    expect(w.document.getElementById(`error-${PC}`).textContent).toBe('This answer is already your grade.');
+  });
+});
+
 // QUIZ_MCQ_REVEAL_SPEC (teacher 2026-09-29): one box, no repeated letter, no filler.
 describe('settled MCQ reveal: one box', () => {
-  const acceptedWrong = JSON.stringify({ firstAnswers: { [QID]: 'A' }, retries: { [QID]: { state: 'accepted', value: 'C', submittedAt: 9 } } });
-
   function withoutExplanation(w) {
     w.eval(`currentQuestions[0].explanation = undefined;`);
   }
@@ -869,9 +786,9 @@ describe('settled MCQ reveal: one box', () => {
     expect(w.document.getElementById('host').textContent).not.toContain('Official explanation not available');
   });
 
-  it('wrong (retry accepted) + explanation: the correct letter and the explanation, one box', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
-    seedMine(w, { answer: 'C', attempts: 2 });
+  it('wrong + explanation: the correct letter and the explanation, one box', async () => {
+    const w = boot();
+    seedMine(w, { answer: 'C', attempts: 1 });
     render(w);
     await tick(300);
     const box = keyBox(w);
@@ -883,10 +800,10 @@ describe('settled MCQ reveal: one box', () => {
     expect(view(w).cbShown).toBe(false);
   });
 
-  it('wrong (retry accepted) + no explanation: the letter only, no filler', async () => {
-    const w = boot({ seedLocalStorage: { quizRetryState_Me: acceptedWrong } });
+  it('wrong + no explanation: the letter only, no filler', async () => {
+    const w = boot();
     withoutExplanation(w);
-    seedMine(w, { answer: 'C', attempts: 2 });
+    seedMine(w, { answer: 'C', attempts: 1 });
     render(w);
     await tick(300);
     const box = keyBox(w);

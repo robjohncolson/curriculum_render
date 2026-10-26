@@ -124,7 +124,7 @@ function fnBodyAssigned(src, name) {
 describe('DN2d — feeder wired into the LIVE submit path', () => {
   it('window.submitAnswer calls recordToGradebookLedger(questionId, value, ...)', () => {
     const body = fnBodyAssigned(html, 'submitAnswer');
-    // QUIZ_FIRST_ANSWER_SPEC v2: a third options arg carries attempt + reasoning + the 409 revert.
+    // A third options arg carries the reasoning and the first-answer-kept reconcile.
     expect(body).toMatch(/recordToGradebookLedger\s*\(\s*questionId\s*,\s*value\s*[,)]/);
   });
   it('recordToGradebookLedger is a top-level function (callable from submitAnswer)', () => {
@@ -198,10 +198,10 @@ describe('DN2d runtime — feeder source/itemId/unit derivation', () => {
     });
   });
 
-  it('quiz retry (spec v2): attempt + reasoning ride along; PC stays attempt 1 without reasoning', () => {
+  it('every quiz write is attempt 1 (QUIZ_RETRY_REMOVAL_SPEC): reasoning rides along; PC stays attempt 1 without reasoning', () => {
     const f = makeFeeder();
-    f.feed('U1-L2-Q01', 'C', { attempt: 2, reasoning: '  I misread the axis ' });
-    expect(f.calls[0]).toMatchObject({ source: 'curriculum_quiz', attempt: 2, reasoning: 'I misread the axis' });
+    f.feed('U1-L2-Q01', 'C', { attempt: 2, reasoning: '  I misread the axis ' });   // a stray attempt is ignored
+    expect(f.calls[0]).toMatchObject({ source: 'curriculum_quiz', attempt: 1, reasoning: 'I misread the axis' });
     f.feed('U3-PC-MCQ-A-Q05', 'C', { attempt: 2, reasoning: 'ignored for pc rows' });
     expect(f.calls[1].attempt).toBe(1);
     expect(f.calls[1].reasoning).toBeUndefined();

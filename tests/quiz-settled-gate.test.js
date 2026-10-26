@@ -1,8 +1,8 @@
 /**
- * QUIZ_FIRST_ANSWER_SPEC v2 (teacher 2026-09-29): one answer; one explained retry after a WRONG
- * first answer, PENDING until the roster server accepts it; nothing from classmates (cards,
- * letters, chart, consensus, key) until the item is settled; only classmates who explained get a
- * card. Supersedes peer-letters-hidden.test.js (v1).
+ * QUIZ_RETRY_REMOVAL_SPEC (teacher 2026-10-26): one answer per multiple-choice question; the first
+ * answer is the grade and settles the item. Nothing from classmates (cards, letters, chart,
+ * consensus, key) until the item is settled; only classmates who explained get a card
+ * (QUIZ_FIRST_ANSWER_SPEC v2, whose retry is removed).
  *
  * Source pins only — the behaviour is exercised at runtime in quiz-settled-dom.test.js (real page
  * scripts in jsdom). These pins catch a gate being bypassed in a renderer that test does not reach.
@@ -47,28 +47,23 @@ describe('quizSettledFor: the one gate', () => {
     expect(html).not.toMatch(/→ Choice \$\{c\.choice\}<\/span>/);
   });
 
-  it('a PENDING retry is never settled; an ACCEPTED one is', () => {
+  it('an answered MCQ is settled: the first answer is the grade, no retry state exists', () => {
     const fn = fnSrc('quizSettledFor');
-    expect(fn).toContain("if (retryStatus === 'pending') return false;");
-    expect(fn).toContain("if (retryStatus === 'accepted') return true;");
-    // pending first, then the correct-first exception; anything else (incl. 2 attempts, no record) stays closed
-    expect(fn.indexOf("'pending') return false")).toBeLessThan(fn.indexOf('if (firstAnswerWasCorrect(questionId)) return true;'));
-    expect(fn.trim().endsWith('return false;\n        }')).toBe(true);
+    expect(fn).toContain('if (_quizIsFrq(questionId)) return true;');
+    expect(fn).toContain('return isQuestionAnswered(questionId);');
+    for (const gone of ['canRetry', '_quizRetryState', '_saveQuizRetryState', '_quizRetryStatus', '_quizEffectiveAttempts',
+      'firstAnswerWasCorrect', '_quizRetryUnknown', '_quizRetryPicks', '_quizRetryFirstLetter', '_quizRetrySubmitReady',
+      '_settleQuizRetry', '_revertRefusedRetry', '_applyAcceptedRetry', '_quizRetryOwner', '_sayWrongRetryRecorded',
+      '_quizRetrySentText', '_sayKeptFirstAnswerStands', '_reportLedgerOutcome', '_trackQuizWrite']) {
+      expect(html, gone).not.toMatch(new RegExp('function ' + gone + '\\s*\\('));
+    }
+    expect(html).not.toContain('quizRetryState_');
+    expect(html).not.toMatch(/QUIZ_RETRY_[A-Z_]+ =/);
+    expect(html).not.toContain('half credit if correct');
   });
 
-  it('canRetry encodes attempts === 0 || (attempts === 1 && first answer wrong), and never while pending', () => {
-    const fn = fnSrc('canRetry');
-    expect(fn).toContain("if (_quizRetryStatus(questionId) === 'pending') return false;");
-    expect(fn).toContain('return attempts === 0 || (attempts === 1 && !firstAnswerWasCorrect(questionId));');
-  });
-
-  it('retry state (first answers + pending/accepted retries) is persisted per student', () => {
-    expect(fnSrc('_quizRetryState')).toContain('localStorage.getItem(`quizRetryState_${user}`');
-    expect(fnSrc('_saveQuizRetryState')).toContain('localStorage.setItem(`quizRetryState_${user}`');
-  });
-
-  it('the retry needs 3+ words with a letter or digit (the server rule)', () => {
-    expect(fnSrc('retryReasoningReady')).toContain('/[\\p{L}\\p{N}]/u');
+  it('"Talk it through" sends at 3+ words with a letter or digit', () => {
+    expect(fnSrc('talkReasoningReady')).toContain('/[\\p{L}\\p{N}]/u');
   });
 });
 
@@ -78,7 +73,7 @@ describe('surfaces behind the gate', () => {
     expect(fn.indexOf('quizSettledFor(questionId)')).toBeGreaterThan(0);
     expect(fn.indexOf('quizSettledFor(questionId)')).toBeLessThan(fn.indexOf('const choiceCounts'));
     expect(fn).toContain('QUIZ_PEERS_LOCKED_TEXT');
-    expect(html).toContain("'Answer (and, if you were wrong, retry with an explanation) to see what classmates wrote.'");
+    expect(html).toContain("var QUIZ_PEERS_LOCKED_TEXT = 'Answer to see what classmates wrote.';");
     expect(html).not.toContain('Class results unlock with the answer key');
   });
 
@@ -131,23 +126,20 @@ describe('surfaces behind the gate', () => {
   });
 });
 
-describe('retry form + outcomes', () => {
-  it('labels, button text and the pending line per spec', () => {
+describe('the one-answer form + the ledger write', () => {
+  it('two modes, first and settled; the first-answer hint per spec', () => {
     const fn = fnSrc('_quizFormState');
-    expect(fn).toContain("'You were not correct. One retry for half credit: explain what changed your mind.'");
-    expect(fn).toContain("'Submit retry (half credit if correct)'");
-    expect(fn).toContain("mode: 'pending'");
-    expect(html).toContain("'Retry saved \\u2014 waiting for the server / connection.'");
+    expect(fn).toContain("mode: 'first'");
+    expect(fn).toContain("mode: 'settled'");
+    expect(fn).not.toMatch(/mode: '(retry|pending|checking)'/);
+    expect(fn).toContain("'Optional: say why, in your own words. It protects you from a mis-click.'");
     expect(html).toContain("'This answer is your grade.'");
   });
 
-  it('the retry button is re-checked live on every input (not rendered disabled once)', () => {
+  it('typing or a new pick only voids a card or a pending read', () => {
     expect(html).toContain("document.addEventListener('input', _onQuizReasonInput);");
-    const fn = fnSrc('_onQuizReasonInput');
-    expect(fn).toContain("_quizFormState(questionId).mode !== 'retry'");
-    expect(fn).toContain('button.disabled = !_quizRetrySubmitReady(questionId);');
-    // a retry is a new click: a letter other than the first answer, and 3+ words
-    expect(fnSrc('_quizRetrySubmitReady')).toContain("retryReasoningReady(textarea ? textarea.value : '')");
+    expect(fnSrc('_onQuizReasonInput')).not.toContain('button.disabled');
+    expect(fnSrc('_onQuizChoiceChange')).not.toContain('_paintQuizSubmitButton');
   });
 
   it('the dead "Add Explanation to Retry" path is gone', () => {
@@ -155,22 +147,13 @@ describe('retry form + outcomes', () => {
     expect(html).not.toContain('Add Reasoning to Retry');
   });
 
-  it('the submit sends attempt + reasoning and routes the server answer through _settleQuizRetry', () => {
+  it('every quiz write is attempt 1 with the reasoning; a replayed retry outcome repaints from the ledger', () => {
     const feeder = fnSrc('recordToGradebookLedger');
-    expect(feeder).toContain('attempt: (!isPc && ledgerOpts.attempt) ? ledgerOpts.attempt : 1');
+    expect(feeder).toContain('attempt: 1');
+    expect(feeder).not.toContain('ledgerOpts.attempt');
     expect(feeder).toContain('rec.reasoning = ledgerOpts.reasoning.trim();');
-    expect(feeder).toContain('_reportLedgerOutcome(ledgerOpts, r);');
-    expect(fnSrc('_reportLedgerOutcome')).toContain("r.reason === 'retry-not-allowed'");
-    expect(html).toContain('? (outcome, detail) => _settleQuizRetry(submitUsername, questionId, outcome, detail)');
     expect(html).toContain("window.addEventListener('gradebook:quiz-retry-outcome'");
-  });
-
-  it('the rollback waits for the submit writes, fixes IDB + outbox, and uses the submitting student', () => {
-    const fn = fnSrc('_revertRefusedRetry');
-    expect(fn.indexOf('await _awaitQuizWrites(username, questionId);')).toBeGreaterThan(0);
-    expect(fn.indexOf('await _awaitQuizWrites(username, questionId);')).toBeLessThan(fn.indexOf('restore('));
-    expect(fn).toContain('storage.removeOutboxItem(op.id)');
-    expect(fn).not.toContain('classData.users[currentUsername]');
+    expect(html).toContain("var QUIZ_RETRIES_CLOSED_TEXT = 'Retries have closed; your first answer stands.';");
   });
 
   it('the submit and Share My Reasoning pass the reasoning to Railway', () => {

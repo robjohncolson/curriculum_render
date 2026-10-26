@@ -21,10 +21,6 @@
         .congruence-pick .muted { display: block; margin-top: 2px; font-size: 0.85em; color: var(--text-secondary, #666); }
         .congruence-fix.link { display: block; padding: 4px 0; border: 0; background: none; color: var(--accent-primary, #3498db); font: inherit; text-decoration: underline; cursor: pointer; }
         @media (max-width: 600px) { .congruence-pick { display: block; width: 100%; margin-right: 0; } }
-        /* The retry form's first (wrong) letter (QUIZ_INCONGRUENCE_CHECK_SPEC §1): muted and named, so a
-           retry is a new click. Neutral grey: the words say "not correct", no colour does. */
-        .choice.first-answer, .choice.first-answer label, .choice.first-answer input[type="radio"]:disabled { cursor: default; }
-        .first-answer-tag { margin-left: 8px; font-size: 0.8em; font-style: italic; color: #6c757d; }
     </style>
 
     <!-- Local-first libraries (no network delay) -->
@@ -1802,7 +1798,7 @@
                         value: answer.answer_value,
                         timestamp: parseInt(answer.timestamp)
                     };
-                    // answers.reasoning: a value shows, '' / null clears (a refused retry's explanation).
+                    // answers.reasoning: a value shows, '' / null clears.
                     if (Object.prototype.hasOwnProperty.call(answer, 'reasoning')) {
                         peerData[answer.username].reasons[answer.question_id] = (typeof answer.reasoning === 'string' && answer.reasoning.trim()) ? answer.reasoning : '';
                     }
@@ -2992,6 +2988,7 @@
         // device / after a storage wipe saw none of their own work (worksheets
         // restore server-side; the quiz did not). Timestamp-max → never clobbers
         // newer in-progress local work. Best-effort: never throws / blocks sign-in.
+        // Resolves true once the server's rows are read and applied, false when the read failed.
         window.restoreOwnAnswersFromLedger = async function restoreOwnAnswersFromLedger() {
             try {
                 const rc = window.rosterClient;
@@ -2999,13 +2996,12 @@
                 const sid = (rc && typeof rc.studentId === 'function') ? rc.studentId() : null;
                 const base = window.ROSTER_SERVICE_URL;
                 const user = window.currentUsername;
-                if (!token || !sid || !base || !user) return;
-                const fetchStartedAt = Date.now();   // a retry accepted after this instant may be missing from the reply
+                if (!token || !sid || !base || !user) return false;
                 const res = await fetch(base + '/ledger/student/' + encodeURIComponent(sid), { headers: { Authorization: 'Bearer ' + token } });
-                if (res.status !== 200) return;
+                if (res.status !== 200) return false;
                 const data = await res.json();
                 const rows = (data && data.rows) || [];
-                if (!rows.length) return;
+                if (!rows.length) return true;
                 ensureClassDataInitialized();
                 if (!classData.users[user]) classData.users[user] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
                 const u = classData.users[user];
@@ -3013,11 +3009,9 @@
                 if (!u.timestamps) u.timestamps = {};
                 let restored = 0;
                 const changed = new Set();   // question ids whose visible state may have moved
-                const settledRetries = new Map();   // question id → the pending retry this restore found accepted
+                const moved = new Set();     // keyed MCQs whose local letter gave way to the ledger's
                 if (!u.attempts) u.attempts = {};
                 if (!u.reasons) u.reasons = {};
-                const retryState = _quizRetryState(user);
-                let retryStateChanged = false;
                 const tsOf = (r) => (r && r.recorded_at ? (Date.parse(r.recorded_at) || 0) : 0);
                 const hasResponse = (r) => !!r && r.response !== undefined && r.response !== null && r.response !== '';
                 const parseResponse = (value) => {
@@ -3064,67 +3058,24 @@
                         return;
                     }
 
-                    // Keyed MCQ (spec v2): the SERVER decides. The first answer is its attempt-1 row.
-                    if (hasResponse(a1) && retryState.firstAnswers[qid] !== a1.response) {
-                        retryState.firstAnswers[qid] = a1.response;
-                        retryStateChanged = true;
-                        changed.add(qid);
-                    }
-                    const retry = retryState.retries[qid];
-
-                    if (hasResponse(a2)) {
-                        // An accepted retry exists. If THIS device has a different retry still in
-                        // flight, it keeps its own outcome (it will be refused) — remember what the
-                        // server accepted so that refusal restores this value, never the refused one.
-                        if (retry && retry.state === 'pending' && retry.value !== a2.response) {
-                            if (retry.serverAccepted !== a2.response) {
-                                retry.serverAccepted = a2.response;
-                                retry.serverAcceptedAt = tsOf(a2);
-                                retry.serverAcceptedReasoning = typeof a2.reasoning === 'string' ? a2.reasoning : '';
-                                retryStateChanged = true;
-                            }
-                            return;
-                        }
-                        // Otherwise the accepted answer IS the server's attempt-2 response. A retry this device
-                        // was still waiting on lost its reply: the verdict that reply would have given is due.
-                        if (retry && retry.state === 'pending') settledRetries.set(qid, a2.response);
-                        retryState.retries[qid] = { state: 'accepted', value: a2.response, submittedAt: tsOf(a2) };
-                        // The retry is decided: void this student's unsent pick. Only theirs: this reply can
-                        // land after a same-tab sign-in, and the next student's pick is not its business.
-                        if (_quizRetryChoiceUser === user) delete _quizRetryChoice[qid];
-                        retryStateChanged = true;
-                        changed.add(qid);
-                        if (localValue(qid) !== a2.response || Number(u.attempts[qid]) !== 2) takeServer(qid, a2, 2);
-                        else if (typeof a2.reasoning === 'string' && a2.reasoning.trim() && getReasonString(u.reasons[qid]) !== a2.reasoning) {
-                            u.reasons[qid] = a2.reasoning; restored++;
-                        }
-                        return;
-                    }
-
-                    if (!hasResponse(a1)) return;
-                    if (retry && retry.state === 'pending') return;   // its own outcome decides
-                    if (retry && retry.state === 'accepted') {
-                        // Accepted on this device, but the server holds no attempt-2 row any more: the
-                        // teacher reset the retry (POST /ledger/quiz-reset). Drop the local record and
-                        // fall back to the kept first answer so the retry form reopens. A retry accepted
-                        // after this fetch began may simply be missing from the reply: keep that one.
-                        if ((Number(retry.submittedAt) || 0) >= fetchStartedAt) return;
-                        delete retryState.retries[qid];
-                        retryStateChanged = true;
-                        takeServer(qid, a1, 1);
-                        return;
-                    }
-                    // No retry on the server: the graded answer is attempt 1. A local second attempt
-                    // with no record (pre-v2 / lost state) and any local first answer that differs
-                    // from the server's kept first answer both reconcile to the server.
-                    if (!u.answers[qid] || Number(u.attempts[qid]) !== 1 || localValue(qid) !== a1.response) {
-                        takeServer(qid, a1, 1);
-                    } else if (typeof a1.reasoning === 'string' && a1.reasoning.trim() && !getReasonString(u.reasons[qid]).trim()) {
-                        u.reasons[qid] = a1.reasoning; restored++; changed.add(qid);
+                    // Keyed MCQ: the SERVER decides. The graded answer is the attempt-1 row, or a historical
+                    // attempt-2 row (a retry recorded before retries closed, QUIZ_RETRY_REMOVAL_SPEC rule 2).
+                    // A local answer that differs (a refused replayed retry, another device's first
+                    // answer) reconciles to it.
+                    const graded = hasResponse(a2) ? a2 : a1;
+                    if (!hasResponse(graded)) return;
+                    const gradedAttempt = graded === a2 ? 2 : 1;
+                    if (!u.answers[qid] || Number(u.attempts[qid]) !== gradedAttempt || localValue(qid) !== graded.response) {
+                        // A local explanation for another letter does not belong under this one.
+                        if (localValue(qid) !== graded.response) u.reasons[qid] = '';
+                        if (u.answers[qid] && localValue(qid) !== graded.response) moved.add(qid);
+                        takeServer(qid, graded, gradedAttempt);
+                    } else if (typeof graded.reasoning === 'string' && graded.reasoning.trim() && !getReasonString(u.reasons[qid]).trim()) {
+                        u.reasons[qid] = graded.reasoning; restored++; changed.add(qid);
                     }
                 });
-                if (retryStateChanged) _saveQuizRetryState(user);
                 if (restored > 0 && typeof saveClassData === 'function') saveClassData();
+                moved.forEach(function (qid) { _syncPeerAnswer(user, qid); });
                 // Repaint every visible affected question from its state: inputs, form, key, chart, peers.
                 changed.forEach(function (qid) {
                     if (!(currentQuestions || []).some(function (q) { return q && q.id === qid; })) return;
@@ -3135,13 +3086,11 @@
                         frqInput.value = String(restoredValue);
                     }
                     const reasonInput = document.getElementById(`reason-${qid}`);
-                    if (reasonInput && _quizFormState(qid).mode !== 'retry') {
-                        reasonInput.value = getReasonString(u.reasons[qid]);
-                    }
+                    if (reasonInput) reasonInput.value = getReasonString(u.reasons[qid]);
                     _refreshAfterReveal(qid);
-                    if (settledRetries.has(qid) && user === currentUsername) _sayWrongRetryRecorded(qid, settledRetries.get(qid));
                 });
-            } catch (_) { /* best-effort — never block sign-in */ }
+                return true;
+            } catch (_) { return false; /* best-effort — never block sign-in */ }
         };
 
         // Smart sync - only sync new or updated answers (current user only)
@@ -4780,15 +4729,6 @@ window.submitManualMerge = submitManualMerge;
             return classData.users[currentUsername]?.attempts?.[questionId] || 0;
         }
 
-        // QUIZ_FIRST_ANSWER_SPEC v2 (teacher 2026-09-29): one answer, plus exactly ONE retry after a
-        // WRONG first answer (the retry needs an explanation and becomes the grade). A correct first
-        // answer is final; there is never a third attempt. FRQs keep unlimited revisions.
-        function canRetry(questionId) {
-            if (_quizIsFrq(questionId)) return true;
-            if (_quizRetryStatus(questionId) === 'pending') return false;
-            const attempts = _quizEffectiveAttempts(questionId);
-            return attempts === 0 || (attempts === 1 && !firstAnswerWasCorrect(questionId));
-        }
         // Replace the entire detectUnitAndLessons function:
         function detectUnitAndLessons(questions) {
             if (!questions || questions.length === 0) return null;
@@ -6980,7 +6920,6 @@ function renderLessonSelector(unitInfo) {
             const questionNumber = index + 1;
             const isAnswered = isQuestionAnswered(question.id);
             const attempts = getAttemptCount(question.id);
-            const canRetryQuestion = canRetry(question.id);
 
             // Track chart tasks for two-phase rendering
             const chartTasks = [];
@@ -7022,31 +6961,23 @@ function renderLessonSelector(unitInfo) {
             if (question.type === 'multiple-choice') {
                 const choices = question.choices || question.attachments?.choices || [];
                 const savedAnswer = classData.users[currentUsername]?.answers?.[question.id];
-                const isDisabled = isAnswered && !canRetryQuestion;
-                // The open retry form, as _applyQuizFormState paints it: the first letter disabled and
-                // tagged, and only the student's own new pick checked (QUIZ_INCONGRUENCE_CHECK_SPEC §1).
-                const firstLetter = _quizRetryFirstLetter(question.id);
-                const retryPick = firstLetter ? _quizRetryPicks()[question.id] : undefined;
+                // One answer per question (QUIZ_RETRY_REMOVAL_SPEC rule 1): answered = settled.
+                const isDisabled = isAnswered;
 
                 html += '<div class="choices">';
                 choices.forEach(choice => {
-                    const isFirst = !!firstLetter && choice.key === firstLetter;
-                    const isSelected = firstLetter
-                        ? !isFirst && choice.key === retryPick
-                        : savedAnswer?.value === choice.key || savedAnswer === choice.key;
-                    const choiceDisabled = isDisabled || isFirst;
+                    const isSelected = savedAnswer?.value === choice.key || savedAnswer === choice.key;
                     html += `
-                        <div class="choice ${isSelected ? 'selected' : ''} ${choiceDisabled ? 'disabled' : ''} ${isFirst ? 'first-answer' : ''}">
+                        <div class="choice ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}">
                             <label>
                                 <input type="radio"
                                        name="choice-${question.id}"
                                        value="${choice.key}"
                                        ${isSelected ? 'checked' : ''}
-                                       ${choiceDisabled ? 'disabled' : ''}>
+                                       ${isDisabled ? 'disabled' : ''}>
                                 <span class="choice-key">${choice.key}.</span>
                                 <span>${choice.value}</span>
                                 ${choice.image ? `<img src="${choice.image}" alt="Choice ${choice.key}" style="max-width: 100%; height: auto; display: block; margin-top: 6px;">` : ''}
-                                ${isFirst ? `<span class="first-answer-tag" aria-hidden="false">${QUIZ_FIRST_ANSWER_TAG_TEXT}</span>` : ''}
                             </label>
                         </div>
                     `;
@@ -7140,7 +7071,7 @@ function renderLessonSelector(unitInfo) {
             }
 
             // Add reasoning section in main column (ONLY for MCQs, not FRQs)
-            // QUIZ_FIRST_ANSWER_SPEC v2: first answer → (if wrong) one explained retry → settled.
+            // One answer, then settled (QUIZ_RETRY_REMOVAL_SPEC rule 1).
             if (question.type !== 'free-response') {
                 const form = _quizFormState(question.id);
                 const savedReason = getReasonString(classData.users[currentUsername]?.reasons?.[question.id]);
@@ -7154,10 +7085,10 @@ function renderLessonSelector(unitInfo) {
                                 <label class="reason-label" id="reason-label-${question.id}">${form.label}</label>
                                 <textarea
                                     id="reason-${question.id}"
-                                    class="reason-textarea ${form.mode === 'retry' ? 'required' : ''}"
+                                    class="reason-textarea"
                                     placeholder="${form.placeholder}"
                                     ${form.mode === 'settled' ? 'readonly' : ''}
-                                >${form.mode === 'retry' ? '' : savedReason}</textarea>
+                                >${savedReason}</textarea>
                             </div>
                             <div>
                                 <button
@@ -7379,23 +7310,13 @@ function renderLessonSelector(unitInfo) {
             return { html, chartTasks };
         }
 
-        // ── QUIZ_FIRST_ANSWER_SPEC v2 (teacher 2026-09-29) ───────────────────────────────────
-        // A multiple-choice item is SETTLED once the student has answered AND either the first
-        // answer was correct or their one retry was ACCEPTED by the roster server. A retry that is
-        // still in flight / queued offline is PENDING: nothing is revealed until the server says
-        // yes (a 409 reverts it). Nothing from classmates (cards, letters, chart, consensus line)
-        // and no answer key shows before settlement; once settled everything appears at once.
-        // FRQs are unchanged (always "settled").
-        var QUIZ_PEERS_LOCKED_TEXT = 'Answer (and, if you were wrong, retry with an explanation) to see what classmates wrote.';
-        var QUIZ_RETRY_PENDING_TEXT = 'Retry saved \u2014 waiting for the server / connection.';
-        var QUIZ_RETRY_CHECKING_TEXT = 'Checking your retry with the server\u2026';
-        // A wrong retry, recorded: the reveal box below it shows the key, and that must never read as
-        // "your retry was marked correct" (2026-10-26 teacher test).
-        var QUIZ_RETRY_WRONG_TEXT = 'Not correct. This retry is your grade. The correct answer is shown below.';
-        // A right retry, sent: worth half credit (QUIZ_RETRY_HALF_CREDIT_SPEC §3). The reconcile path ends
-        // its own line with the suffix.
-        var QUIZ_RETRY_CORRECT_TEXT = '✅ Correct on your retry: half credit.';
-        var QUIZ_RETRY_CORRECT_SUFFIX = '✅ It is correct: half credit.';
+        // ── One answer per question (QUIZ_RETRY_REMOVAL_SPEC, teacher 2026-10-26) ──────────────
+        // A multiple-choice item is SETTLED once the student has answered: the first answer the
+        // ledger records is the grade, and there is no retry. Nothing from classmates (cards,
+        // letters, chart, consensus line) and no answer key shows before that; once settled
+        // everything appears at once. FRQs are unchanged (always "settled").
+        var QUIZ_PEERS_LOCKED_TEXT = 'Answer to see what classmates wrote.';
+        var QUIZ_WRONG_FIRST_TEXT = 'Not correct. The correct answer is shown below.';
 
         // Classmates' text (names, letters, explanations) is untrusted: never render it as HTML.
         function _escHtml(value) {
@@ -7431,38 +7352,6 @@ function renderLessonSelector(unitInfo) {
             return copy;
         }
 
-        // Retry state, persisted per student in localStorage (classData is rebuilt from IDB on load
-        // and would drop it): firstAnswers[qid] = the first letter; retries[qid] = { state:
-        // 'pending'|'accepted', value, submittedAt, before } where `before` is the pre-retry
-        // snapshot used to revert a refused retry.
-        var _quizRetryStateCache = {};
-        function _quizRetryState(username) {
-            const user = username || currentUsername;
-            if (!user) return { firstAnswers: {}, retries: {} };
-            if (_quizRetryStateCache[user]) return _quizRetryStateCache[user];
-            const state = { firstAnswers: {}, retries: {} };
-            try {
-                const saved = JSON.parse(localStorage.getItem(`quizRetryState_${user}`) || 'null');
-                if (saved && typeof saved === 'object') {
-                    Object.assign(state.firstAnswers, saved.firstAnswers || {});
-                    Object.assign(state.retries, saved.retries || {});
-                }
-            } catch (_) { /* localStorage may be blocked */ }
-            _quizRetryStateCache[user] = state;
-            return state;
-        }
-        function _saveQuizRetryState(username) {
-            const user = username || currentUsername;
-            if (!user) return;
-            try {
-                localStorage.setItem(`quizRetryState_${user}`, JSON.stringify(_quizRetryState(user)));
-            } catch (_) { /* localStorage may be blocked */ }
-        }
-        function _quizRetryStatus(questionId, username) {
-            const retry = _quizRetryState(username).retries[questionId];
-            return retry ? retry.state : null;
-        }
-
         function _quizQuestionFor(questionId) {
             const fromCurrent = (typeof currentQuestions !== 'undefined' && Array.isArray(currentQuestions))
                 ? currentQuestions.find(q => q && q.id === questionId) : null;
@@ -7490,55 +7379,20 @@ function renderLessonSelector(unitInfo) {
             return String(value).toLowerCase().trim() === String(key).toLowerCase().trim();
         }
 
-        // An answered item counts as at least one attempt (restored answers may lack a count).
-        function _quizEffectiveAttempts(questionId) {
-            const attempts = getAttemptCount(questionId);
-            if (attempts > 0) return attempts;
-            return isQuestionAnswered(questionId) ? 1 : 0;
-        }
-
         function _currentAnswerValue(questionId) {
             const current = classData.users[currentUsername]?.answers?.[questionId];
             return (current && typeof current === 'object') ? current.value : current;
         }
 
-        // Correctness of the FIRST answer: the recorded first answer when we have it, else the
-        // current answer while only one attempt exists (it IS the first answer then).
-        function firstAnswerWasCorrect(questionId) {
-            let first = _quizRetryState().firstAnswers[questionId];
-            if (first === undefined || first === null) {
-                if (_quizEffectiveAttempts(questionId) !== 1) return false;
-                first = _currentAnswerValue(questionId);
-            }
-            return _quizAnswerMatchesKey(questionId, first);
-        }
-
+        // The first answer is the grade, so an answered item is settled (works signed out).
         function quizSettledFor(questionId) {
             if (_quizIsFrq(questionId)) return true;
-            if (!isQuestionAnswered(questionId)) return false;
-            const retryStatus = _quizRetryStatus(questionId);
-            if (retryStatus === 'pending') return false;
-            if (retryStatus === 'accepted') return true;
-            // Correct-first exception FIRST: a correct first answer is the grade and there is no retry
-            // to check (the local key decides; works signed out).
-            if (firstAnswerWasCorrect(questionId)) return true;
-            // A second attempt settles ONLY with an explicit accepted record. Two local attempts with
-            // no record (a pre-v2 profile, or lost retry state) stay closed until the ledger restore
-            // reconciles them with the server ("checking").
-            return false;
+            return isQuestionAnswered(questionId);
         }
 
-        // Answered twice, but no local record of the retry's outcome: wait for the server.
-        function _quizRetryUnknown(questionId) {
-            return !_quizIsFrq(questionId)
-                && isQuestionAnswered(questionId)
-                && _quizRetryStatus(questionId) === null
-                && _quizEffectiveAttempts(questionId) >= 2
-                && !firstAnswerWasCorrect(questionId);   // correct first answer: nothing to check
-        }
-
-        // The retry button enables at 3+ words (tokens with a letter or digit — the server's rule).
-        function retryReasoningReady(text) {
+        // "Talk it through" sends at 3+ words (tokens with a letter or digit), counted like
+        // railway-server/quiz-congruence.js counts them.
+        function talkReasoningReady(text) {
             if (typeof text !== 'string') return false;
             return text.trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length >= 3;
         }
@@ -8184,73 +8038,16 @@ function renderLessonSelector(unitInfo) {
             return `${n} ${n === 1 ? 'classmate' : 'classmates'} explained`;
         }
 
-        // Form state for an MCQ: 'first' (not answered), 'retry' (one explained retry open),
-        // 'pending' (retry sent, server has not answered) or 'settled' (this answer is the grade).
-        // Letter the open retry form shows selected (it preselects nothing else, and never the first
-        // answer): set by the student's own click (_onQuizChoiceChange) and by _reconcileKeptFirstAnswer,
-        // cleared only by a submit that goes out or by the item leaving retry mode. Repaints must not
-        // clobber it.
-        var _quizRetryChoice = {};
-        var _quizRetryChoiceUser = null;   // the student whose picks _quizRetryChoice holds
-
-        // The picks belong to one student: a same-tab sign-in as someone else starts with none, so
-        // the next student never sees (or submits) a letter the last one clicked.
-        function _quizRetryPicks() {
-            const user = currentUsername || null;
-            if (user !== _quizRetryChoiceUser) {
-                _quizRetryChoice = {};
-                _quizRetryChoiceUser = user;
-            }
-            return _quizRetryChoice;
-        }
-
-        // The retry form's first (wrong) letter, or null outside retry mode. The student already
-        // knows it is not correct, so it shows disabled and tagged, and a retry must be another letter.
-        // The recorded first answer first: it is what decided retry mode (firstAnswerWasCorrect),
-        // and after a refused retry it can be the server's letter while the stored one is not.
-        function _quizRetryFirstLetter(questionId, form = _quizFormState(questionId)) {
-            if (form.mode !== 'retry') return null;
-            return _quizRetryState().firstAnswers[questionId] || _currentAnswerValue(questionId) || null;
-        }
-
-        // Submit retry enables on a new click (a letter other than the first answer) and 3+ words.
-        function _quizRetrySubmitReady(questionId, form = _quizFormState(questionId)) {
-            const checkedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
-            if (!checkedRadio || checkedRadio.value === _quizRetryFirstLetter(questionId, form)) return false;
-            const textarea = document.getElementById(`reason-${questionId}`);
-            return retryReasoningReady(textarea ? textarea.value : '');
-        }
-
-        var QUIZ_FIRST_ANSWER_TAG_TEXT = 'your first answer (not correct)';
-
-        // Marks the retry form's first letter: class first-answer and a tag inside the label, so a
-        // screen reader hears it with the option. Idempotent, so repaints never flash it.
-        function _paintFirstAnswerTag(choiceDiv, isFirst) {
-            choiceDiv.classList.toggle('first-answer', isFirst);
-            const tag = choiceDiv.querySelector('.first-answer-tag');
-            if (!isFirst) {
-                if (tag) tag.remove();
-                return;
-            }
-            const label = choiceDiv.querySelector('label');
-            if (tag || !label) return;
-            const span = document.createElement('span');
-            span.className = 'first-answer-tag';
-            span.setAttribute('aria-hidden', 'false');
-            span.textContent = QUIZ_FIRST_ANSWER_TAG_TEXT;
-            label.appendChild(span);
-        }
-
         // Confirm card (QUIZ_INCONGRUENCE_CHECK_SPEC §5): _quizCongruencePrompt[qid] = { picked,
-        // pointsTo, text, attempt } while the card is up. Page-lifetime, never persisted. Cleared by
+        // pointsTo, text } while the card is up. Page-lifetime, never persisted. Cleared by
         // the card's buttons, any change on the item's radios, any input on its explanation, the
         // start of every submitAnswer, a full renderQuestion, and _applyQuizFormState when the form
         // no longer shows the exact text and pick the card was computed from.
         var _quizCongruencePrompt = {};
         var _quizCongruenceUser = null;   // the student whose cards _quizCongruencePrompt holds
 
-        // The cards belong to one student, like the retry picks: a same-tab sign-in as someone
-        // else starts with none. Every read and write of a marker goes through here.
+        // The cards belong to one student: a same-tab sign-in as someone else starts with none.
+        // Every read and write of a marker goes through here.
         function _quizCongruenceMarkers() {
             const user = currentUsername || null;
             if (user !== _quizCongruenceUser) {
@@ -8270,18 +8067,13 @@ function renderLessonSelector(unitInfo) {
                 return choice ? _escHtml(choice.value) : '';
             };
             const id = _escHtml(questionId);
-            // In the retry form the first letter is never a button (a retry is another letter, §1
-            // rule 1): when the explanation argues for it, the sentence names it instead.
-            const firstLetter = _quizRetryFirstLetter(questionId);
-            const letters = [marker.pointsTo, marker.picked].filter(letter => letter !== firstLetter).sort();   // A–E order
+            const letters = [marker.pointsTo, marker.picked].sort();   // A–E order
             const buttons = letters.map(letter =>
                 `<button type="button" class="congruence-pick" data-letter="${_escHtml(letter)}">${_escHtml(letter)} <span class="muted">${optionText(letter)}</span></button>`
             ).join('');
             const pointsTo = _escHtml(marker.pointsTo);
             const picked = _escHtml(marker.picked);
-            const title = marker.pointsTo === firstLetter
-                ? `<strong>Your explanation argues for ${pointsTo}, your first answer, which was not correct.</strong> You picked ${picked}: send it as your retry, or fix your explanation.`
-                : `<strong>Your explanation points to ${pointsTo}, but you picked ${picked}.</strong> Which one is your answer?`;
+            const title = `<strong>Your explanation points to ${pointsTo}, but you picked ${picked}.</strong> Which one is your answer?`;
             return `<div class="congruence-card" role="group" aria-labelledby="congruence-title-${id}">`
                 + `<p id="congruence-title-${id}" class="congruence-title" tabindex="-1">${title}</p>`
                 + buttons
@@ -8327,9 +8119,9 @@ function renderLessonSelector(unitInfo) {
         // The server's own deadline (railway-server/quiz-congruence.js): past it, it answers
         // { letter: null } with a 200, so a null that took this long is a timeout, not a read.
         var QUIZ_CONGRUENCE_SERVER_DEADLINE_MS = 3500;
-        // The retry minimum (teacher decision 2026-10-26; 5 until then): short explanations such as
-        // "law of large numbers" argue for an option too. railway-server/quiz-congruence.js repeats it.
-        var QUIZ_CONGRUENCE_READ_MIN_WORDS = 3;
+        // Any length (QUIZ_RETRY_REMOVAL_SPEC rule 4; 3 until then): one real word such as "median" can
+        // name an option. An empty or punctuation-only box sends nothing. railway-server/quiz-congruence.js repeats it.
+        var QUIZ_CONGRUENCE_READ_MIN_WORDS = 1;
         var QUIZ_CONGRUENCE_READ_MAX_CHARS = 2000;
         var QUIZ_CONGRUENCE_READ_PAUSE_MS = 5 * 60 * 1000;
 
@@ -8337,12 +8129,12 @@ function renderLessonSelector(unitInfo) {
         // pause it for five minutes (a struggling network should not cost 4 s per submit).
         var _quizCongruenceReadState = { off: false, timeouts: 0, pausedUntil: 0 };
 
-        // Pending checks: _quizCongruenceChecks()[qid] = { text, picked, attempt, startedAt } while a
+        // Pending checks: _quizCongruenceChecks()[qid] = { text, picked, startedAt } while a
         // read is out. Cleared by the events that clear a card; the reply is used only while the
         // same marker object is still there and the form still shows its text and pick.
         var _quizCongruencePending = {};
         var _quizCongruencePendingUser = null;
-        // One answer per (student, item, attempt, exact text), for the life of the page.
+        // One answer per (student, item, exact text), for the life of the page.
         var _quizCongruenceReadAnswers = {};
         var _quizCongruenceReadAnswersUser = null;
 
@@ -8365,14 +8157,14 @@ function renderLessonSelector(unitInfo) {
             return _quizCongruenceReadAnswers;
         }
 
-        function _congruenceCacheKey(questionId, attempt, text) {
-            return JSON.stringify([questionId, attempt, text]);
+        function _congruenceCacheKey(questionId, text) {
+            return JSON.stringify([questionId, text]);
         }
 
         // → the cached letter or null, or undefined when this text was never read.
-        function _congruenceReadCached(questionId, attempt, text) {
+        function _congruenceReadCached(questionId, text) {
             const cache = _congruenceReadCache();
-            const key = _congruenceCacheKey(questionId, attempt, text);
+            const key = _congruenceCacheKey(questionId, text);
             return Object.prototype.hasOwnProperty.call(cache, key) ? cache[key] : undefined;
         }
 
@@ -8399,7 +8191,7 @@ function renderLessonSelector(unitInfo) {
         // Spec §1.2: this submit and this item may have a read (cached, or sent when reachable).
         // Reads only the item's id, type and options: never the key, never the pick.
         function _congruenceReadEligible(questionId, text, opts) {
-            if (opts && (opts.congruenceConfirmed || opts.congruenceAiSkip)) return false;   // the card's or the system's own submit
+            if (opts && opts.congruenceConfirmed) return false;   // the card's own submit
             if (/^U\d+-PC/i.test(questionId)) return false;   // College Board-secure: never leaves the page
             if (typeof text !== 'string' || text.length > QUIZ_CONGRUENCE_READ_MAX_CHARS) return false;
             const words = text.trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length;
@@ -8479,16 +8271,13 @@ function renderLessonSelector(unitInfo) {
             state.pausedUntil = Date.now() + QUIZ_CONGRUENCE_READ_PAUSE_MS;
         }
 
-        // The form still shows the exact text and pick the check was made for, on the same attempt.
+        // The item is still unanswered and the form still shows the exact text and pick the check was made for.
         function _congruenceCheckStillShown(questionId, check) {
-            const mode = _quizFormState(questionId).mode;
-            if (mode !== 'first' && mode !== 'retry') return false;
+            if (_quizFormState(questionId).mode !== 'first') return false;
             const reasonBox = document.getElementById(`reason-${questionId}`);
             if (!reasonBox || reasonBox.value.trim() !== check.text) return false;
             const checkedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
-            if (!checkedRadio || checkedRadio.value !== check.picked) return false;
-            if (check.picked === _quizRetryFirstLetter(questionId)) return false;   // its pick is now the first answer
-            return _quizEffectiveAttempts(questionId) + 1 === check.attempt;
+            return !!checkedRadio && checkedRadio.value === check.picked;
         }
 
         function _clearCongruenceCheck(questionId) {
@@ -8505,7 +8294,7 @@ function renderLessonSelector(unitInfo) {
         }
 
         // A letter other than the pick → the shipped card. Anything else → the submit the untouched
-        // flow would have made, through the card's own confirmed path (same letter, text, attempt).
+        // flow would have made, through the card's own confirmed path (same letter and text).
         function _onCongruenceRead(questionId, check, result) {
             _noteCongruenceReadOutcome(result.outcome);
             if (_quizCongruenceChecks()[questionId] !== check) {
@@ -8516,18 +8305,15 @@ function renderLessonSelector(unitInfo) {
             delete _quizCongruenceChecks()[questionId];
             _paintQuizSubmitButton(questionId);
             if (!_congruenceCheckStillShown(questionId, check)) return;   // the read was about old text
-            if (result.outcome === 'ok') _congruenceReadCache()[_congruenceCacheKey(questionId, check.attempt, check.text)] = result.letter;
+            if (result.outcome === 'ok') _congruenceReadCache()[_congruenceCacheKey(questionId, check.text)] = result.letter;
 
             if (result.letter && result.letter !== check.picked) {
-                _quizCongruenceMarkers()[questionId] = { picked: check.picked, pointsTo: result.letter, text: check.text, attempt: check.attempt };
+                _quizCongruenceMarkers()[questionId] = { picked: check.picked, pointsTo: result.letter, text: check.text };
                 _paintCongruenceCard(questionId);
                 _focusById(`congruence-title-${questionId}`);
                 return;
             }
-            window.submitAnswer(questionId, 'multiple-choice', {
-                congruenceConfirmed: true,
-                congruenceAttempt: check.attempt
-            });
+            window.submitAnswer(questionId, 'multiple-choice', { congruenceConfirmed: true });
         }
 
         // Send-on-exit (spec §9 concern 4, decision 5): a pressed Submit still waiting on its read is
@@ -8542,10 +8328,7 @@ function renderLessonSelector(unitInfo) {
                 _paintQuizSubmitButton(questionId);
                 if (!_congruenceCheckStillShown(questionId, check)) continue;
                 try {
-                    window.submitAnswer(questionId, 'multiple-choice', {
-                        congruenceConfirmed: true,
-                        congruenceAttempt: check.attempt
-                    });
+                    window.submitAnswer(questionId, 'multiple-choice', { congruenceConfirmed: true });
                 } catch (_) { /* the next item still goes */ }
             }
         }
@@ -8554,44 +8337,15 @@ function renderLessonSelector(unitInfo) {
             window.addEventListener('pagehide', _flushCongruenceChecks);
         }
 
+        // Form state for an MCQ: 'first' (not answered) or 'settled' (answered: this answer is the grade).
         function _quizFormState(questionId) {
             if (!isQuestionAnswered(questionId)) {
                 return {
                     mode: 'first',
                     label: 'Explain your reasoning (optional; classmates only see answers that come with an explanation):',
-                    placeholder: 'Explain why you chose this answer...',
+                    placeholder: 'Optional: say why, in your own words. It protects you from a mis-click.',
                     buttonText: 'Submit Answer',
                     buttonDisabled: false,
-                    lockText: ''
-                };
-            }
-            if (_quizRetryUnknown(questionId)) {
-                return {
-                    mode: 'checking',
-                    label: 'Your explanation:',
-                    placeholder: '',
-                    buttonText: 'Submit retry (half credit if correct)',
-                    buttonDisabled: true,
-                    lockText: QUIZ_RETRY_CHECKING_TEXT
-                };
-            }
-            if (_quizRetryStatus(questionId) === 'pending') {
-                return {
-                    mode: 'pending',
-                    label: 'Your retry explanation:',
-                    placeholder: '',
-                    buttonText: 'Submit retry (half credit if correct)',
-                    buttonDisabled: true,
-                    lockText: QUIZ_RETRY_PENDING_TEXT
-                };
-            }
-            if (canRetry(questionId)) {
-                return {
-                    mode: 'retry',
-                    label: 'You were not correct. One retry for half credit: explain what changed your mind.',
-                    placeholder: 'What changed your mind? (at least 3 words)',
-                    buttonText: 'Submit retry (half credit if correct)',
-                    buttonDisabled: true,
                     lockText: ''
                 };
             }
@@ -8605,30 +8359,22 @@ function renderLessonSelector(unitInfo) {
             };
         }
 
-        // Bring an already-rendered MCQ form in line with its state (after a submit, a revert, a
-        // server answer or a restore): choices, stored selection, textarea, button, lock line.
-        function _applyQuizFormState(questionId, { clearReason = false } = {}) {
+        // Bring an already-rendered MCQ form in line with its state (after a submit, a server answer
+        // or a restore): choices, stored selection, textarea, button, lock line.
+        function _applyQuizFormState(questionId) {
             if (_quizIsFrq(questionId)) return;
             const form = _quizFormState(questionId);
-            const locked = form.mode === 'settled' || form.mode === 'pending' || form.mode === 'checking';
+            const locked = form.mode === 'settled';
             const stored = _currentAnswerValue(questionId);
-            const firstLetter = _quizRetryFirstLetter(questionId, form);
-            const picks = _quizRetryPicks();
-            if (form.mode !== 'retry') delete picks[questionId];   // a pick means nothing outside the open retry form
-            if (firstLetter && picks[questionId] === firstLetter) delete picks[questionId];   // a first answer that landed late
-            // A card is only ever shown over the exact text and pick it was computed from (§5).
+            // A card is only ever shown over the exact text and pick it was computed from (§5), and
+            // is stale once a first answer lands (another device's, via restore).
             const marker = _quizCongruenceMarkers()[questionId];
             if (marker) {
                 const reasonBox = document.getElementById(`reason-${questionId}`);
                 const checkedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
-                const stillOpen = form.mode === 'first' || form.mode === 'retry';
                 const sameText = !!reasonBox && reasonBox.value.trim() === marker.text;
                 const samePick = !!checkedRadio && checkedRadio.value === marker.picked;
-                // A first-answer card is stale once a first answer lands (another device's, via restore),
-                // and a retry card once its pick turns out to be that first answer.
-                const sameAttempt = marker.attempt === _quizEffectiveAttempts(questionId) + 1;
-                const pickOpen = marker.picked !== firstLetter;
-                if (!stillOpen || !sameText || !samePick || !sameAttempt || !pickOpen) delete _quizCongruenceMarkers()[questionId];
+                if (locked || !sameText || !samePick) delete _quizCongruenceMarkers()[questionId];
             }
             // A pending AI read, likewise: only over the exact text and pick it was asked about.
             const check = _quizCongruenceChecks()[questionId];
@@ -8637,21 +8383,16 @@ function renderLessonSelector(unitInfo) {
             const cardUp = _quizCongruenceMarkers()[questionId];
             const checkUp = _quizCongruenceChecks()[questionId];
             let shown = stored;
-            // A retry is a new click: nothing preselected but the student's own pick (§1 rule 1).
-            if (form.mode === 'retry') shown = picks[questionId] !== firstLetter ? picks[questionId] : null;
             if (checkUp) shown = checkUp.picked;
-            if (cardUp) shown = cardUp.picked;   // the card's pick first, in first and retry mode
+            if (cardUp) shown = cardUp.picked;   // the card's pick first
             document.querySelectorAll(`input[name="choice-${questionId}"]`).forEach(radio => {
-                radio.disabled = locked || radio.value === firstLetter;
-                if (form.mode === 'retry') radio.checked = radio.value === shown;
-                else if (shown !== undefined && shown !== null && shown !== '') radio.checked = radio.value === shown;
+                radio.disabled = locked;
+                if (shown !== undefined && shown !== null && shown !== '') radio.checked = radio.value === shown;
             });
             document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
                 const radio = div.querySelector('input[type="radio"]');
-                const isFirst = !!radio && radio.value === firstLetter;
-                div.classList.toggle('disabled', locked || isFirst);
+                div.classList.toggle('disabled', locked);
                 if (radio) div.classList.toggle('selected', !!radio.checked);
-                _paintFirstAnswerTag(div, isFirst);
             });
             const label = document.getElementById(`reason-label-${questionId}`);
             if (label) label.textContent = form.label;
@@ -8659,8 +8400,6 @@ function renderLessonSelector(unitInfo) {
             if (textarea) {
                 textarea.placeholder = form.placeholder;
                 textarea.readOnly = locked;
-                textarea.classList.toggle('required', form.mode === 'retry');
-                if (clearReason && form.mode === 'retry') textarea.value = '';
             }
             _paintQuizSubmitButton(questionId, form);
             const lockLine = document.getElementById(`grade-lock-${questionId}`);
@@ -8675,7 +8414,7 @@ function renderLessonSelector(unitInfo) {
         function _paintQuizSubmitButton(questionId, form = _quizFormState(questionId)) {
             const button = document.getElementById(`submit-${questionId}`);
             if (!button) return;
-            const locked = form.mode === 'settled' || form.mode === 'pending' || form.mode === 'checking';
+            const locked = form.mode === 'settled';
             const checking = !!_quizCongruenceChecks()[questionId];
             button.textContent = checking ? QUIZ_CONGRUENCE_CHECKING_TEXT : form.buttonText;
             button.style.display = locked ? 'none' : '';
@@ -8685,54 +8424,43 @@ function renderLessonSelector(unitInfo) {
                 button.disabled = true;
                 return;
             }
-            button.disabled = form.mode === 'retry'
-                ? !_quizRetrySubmitReady(questionId, form)
-                : form.buttonDisabled;
+            button.disabled = form.buttonDisabled;
         }
 
-        // Live enable of the retry button: re-checked on EVERY keystroke (v1's bug was rendering
-        // the disabled state once and never re-checking it). Delegated, so re-renders are covered.
+        // Typing in the explanation voids a card or a pending read: both were about the old text.
+        // Delegated, so re-renders are covered.
         function _onQuizReasonInput(event) {
             const target = event && event.target;
             if (!target || typeof target.id !== 'string' || !target.id.startsWith('reason-')) return;
             const questionId = target.id.slice('reason-'.length);
-            if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every mode: the card was about the old text
-            if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);   // and so was a pending read
-            if (_quizFormState(questionId).mode !== 'retry') return;
-            const button = document.getElementById(`submit-${questionId}`);
-            if (button) button.disabled = !_quizRetrySubmitReady(questionId);
+            if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);
+            if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);
         }
-        if (!window.__quizRetryInputWired) {
-            window.__quizRetryInputWired = true;
+        if (!window.__quizReasonInputWired) {
+            window.__quizReasonInputWired = true;
             document.addEventListener('input', _onQuizReasonInput);
         }
 
-        // The letter clicked in the open retry form is the student's pick. Without this, every
-        // repaint (a classmate's answer, the 30 s peer pull, the ledger restore) re-checked the
-        // stored first answer and Submit sent it again. Delegated, so re-renders are covered.
+        // A new pick voids a card or a pending read. Delegated, so re-renders are covered.
         function _onQuizChoiceChange(event) {
             const target = event && event.target;
             if (!target || target.type !== 'radio' || typeof target.name !== 'string' || !target.name.startsWith('choice-')) return;
             const questionId = target.name.slice('choice-'.length);
-            // Every mode: a new pick voids the card, and the highlight follows the checked radio now
-            // instead of at the next repaint.
+            // The highlight follows the checked radio now instead of at the next repaint.
             if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);
             if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);
             document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
                 const radio = div.querySelector('input[type="radio"]');
                 if (radio) div.classList.toggle('selected', !!radio.checked);
             });
-            if (_quizFormState(questionId).mode !== 'retry') return;
-            _quizRetryPicks()[questionId] = target.value;
-            _paintQuizSubmitButton(questionId);   // a new letter can enable Submit retry
         }
-        if (!window.__quizRetryChoiceWired) {
-            window.__quizRetryChoiceWired = true;
+        if (!window.__quizChoiceChangeWired) {
+            window.__quizChoiceChangeWired = true;
             document.addEventListener('change', _onQuizChoiceChange);
         }
 
-        // The confirm card's buttons. A letter is the student's answer: check it and send, with the
-        // attempt the card was shown for (submitAnswer re-checks if the item has moved since).
+        // The confirm card's buttons. A letter is the student's answer: check it and send (submitAnswer
+        // refuses if the item was answered meanwhile).
         // "Let me fix my explanation" hands the textarea back. Delegated, so repaints are covered.
         function _onCongruenceCardClick(event) {
             const target = event && event.target;
@@ -8742,7 +8470,6 @@ function renderLessonSelector(unitInfo) {
             const host = button.closest('.congruence-host');
             if (!host || !host.id.startsWith('congruence-')) return;
             const questionId = host.id.slice('congruence-'.length);
-            const marker = _quizCongruenceMarkers()[questionId];
 
             if (button.classList.contains('congruence-fix')) {
                 _clearCongruenceCard(questionId);
@@ -8759,13 +8486,9 @@ function renderLessonSelector(unitInfo) {
                 const r = div.querySelector('input[type="radio"]');
                 if (r) div.classList.toggle('selected', !!r.checked);
             });
-            if (_quizFormState(questionId).mode === 'retry') _quizRetryPicks()[questionId] = letter;
             _clearCongruenceCard(questionId);
 
-            const sent = window.submitAnswer(questionId, 'multiple-choice', {
-                congruenceConfirmed: true,
-                congruenceAttempt: marker ? marker.attempt : null
-            });
+            const sent = window.submitAnswer(questionId, 'multiple-choice', { congruenceConfirmed: true });
             if (sent) {
                 const success = document.getElementById(`success-${questionId}`);
                 const successShown = !!success && success.classList.contains('show') && !!success.textContent.trim();
@@ -8878,7 +8601,7 @@ function renderLessonSelector(unitInfo) {
         // final); this page mirrors it per (student, item) in localStorage so a reload shows the
         // lock. A signed grant is kept as a PENDING credit until the roster ledger acknowledges
         // it; the roster ledger keeps the higher review credit, so delivery is always safe.
-        var TALK_OPENING_TEXT = "You've used your retry. Talk it through with the AI: explain why the correct answer is right and why yours wasn't. If you show you understand, you get half credit.";
+        var TALK_OPENING_TEXT = 'Talk it through with the AI: explain why the correct answer is right and why yours was not.';
         var TALK_MAX_EXCHANGES = 2;
         var TALK_FALLBACK_FOLLOW_UP = 'Say a little more: what makes the correct answer right, and what is wrong with the answer you chose?';
         var TALK_E1_MARKER = '{"mode":"understanding","phase":1}';
@@ -9025,6 +8748,7 @@ function renderLessonSelector(unitInfo) {
         // The gate: multiple-choice, settled, and the answer that counts does not match the key.
         function _talkEligible(questionId) {
             if (_quizIsFrq(questionId)) return false;
+            if (_quizKeyFor(questionId) === null) return false;   // a PC item: the server scores it
             if (!quizSettledFor(questionId)) return false;
             return !_quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId));
         }
@@ -9100,17 +8824,17 @@ function renderLessonSelector(unitInfo) {
             const textarea = document.getElementById(`talk-text-${questionId}`);
             if (textarea && draft) textarea.value = draft;
             const button = document.getElementById(`talk-send-${questionId}`);
-            if (button) button.disabled = !!_talkSending[questionId] || !retryReasoningReady(draft);
+            if (button) button.disabled = !!_talkSending[questionId] || !talkReasoningReady(draft);
             if (textarea && _talkSending[questionId]) textarea.readOnly = true;
         }
 
-        // Send enables live at 3+ real words (the same rule as the retry explanation).
+        // Send enables live at 3+ real words.
         function _onTalkInput(event) {
             const target = event && event.target;
             if (!target || typeof target.id !== 'string' || !target.id.startsWith('talk-text-')) return;
             const questionId = target.id.slice('talk-text-'.length);
             const button = document.getElementById(`talk-send-${questionId}`);
-            if (button) button.disabled = !!_talkSending[questionId] || !retryReasoningReady(target.value);
+            if (button) button.disabled = !!_talkSending[questionId] || !talkReasoningReady(target.value);
         }
         if (!window.__quizTalkInputWired) {
             window.__quizTalkInputWired = true;
@@ -9251,7 +8975,7 @@ function renderLessonSelector(unitInfo) {
 
             const textarea = document.getElementById(`talk-text-${questionId}`);
             const message = textarea ? textarea.value.trim() : '';
-            if (!retryReasoningReady(message)) return;
+            if (!talkReasoningReady(message)) return;
 
             const button = document.getElementById(`talk-send-${questionId}`);
             const status = document.getElementById(`talk-status-${questionId}`);
@@ -9338,20 +9062,14 @@ function renderLessonSelector(unitInfo) {
         };
 
         // QUIZ appeal rule (teacher 2026-09-29): a multiple-choice appeal is only about the AI's
-        // FEEDBACK on a correct answer (the grade is already full credit). A wrong answer uses the
-        // one explained retry, then "Talk it through". The server enforces the same rule.
+        // FEEDBACK on a correct answer (the grade is already full credit). A wrong answer uses
+        // "Talk it through". The server enforces the same rule.
         function _appealAllowedFor(questionId, questionType) {
             if (questionType !== 'multiple-choice') return true;
             try { return _quizAnswerMatchesKey(questionId, _currentAnswerValue(questionId)); } catch (_) { return false; }
         }
+        // A historical right retry is full credit too (QUIZ_RETRY_REMOVAL_SPEC rule 2).
         var MCQ_CORRECT_FEEDBACK_NOTE = 'Your answer is correct: full credit. This feedback is about your explanation only and does not change your grade.';
-        // A right retry is worth half, or full when made before the cutoff (QUIZ_RETRY_HALF_CREDIT_SPEC §1).
-        // The page never computes a grade, so this note names no credit at all.
-        var MCQ_CORRECT_RETRY_FEEDBACK_NOTE = 'Your retry is correct. This feedback is about your explanation only and does not change your grade.';
-        function _mcqCorrectFeedbackNote(questionId) {
-            if (_quizEffectiveAttempts(questionId) >= 2) return MCQ_CORRECT_RETRY_FEEDBACK_NOTE;
-            return MCQ_CORRECT_FEEDBACK_NOTE;
-        }
 
         // Populate peer reasoning section with peer response cards
         function populatePeerReasoning(questionId, contributors) {
@@ -9727,9 +9445,8 @@ function renderLessonSelector(unitInfo) {
 
         // Submit answer
         // Returns true when the submit went out, false on every early return (the confirm card
-        // included). opts.congruenceConfirmed + opts.congruenceAttempt come from the card's letter
-        // buttons and skip the congruence check only for the attempt the card was shown for.
-        // opts.congruenceAiSkip (the reconcile auto-send) runs the detector but never the AI read.
+        // included). opts.congruenceConfirmed comes from the card's letter buttons and the AI read's
+        // reply: the student already chose, so the congruence check is skipped.
         window.submitAnswer = function(questionId, questionType, opts) {
             if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every submit starts without a card
             if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);   // or a pending read
@@ -9768,12 +9485,10 @@ function renderLessonSelector(unitInfo) {
             // Get current attempt count
             const attempts = getAttemptCount(questionId);
 
-            // MCQ: one explained retry after a wrong first answer, nothing after that (spec v2)
-            if (!isFRQ && !canRetry(questionId)) {
+            // MCQ: one answer; the first one is the grade (QUIZ_RETRY_REMOVAL_SPEC rule 1)
+            if (!isFRQ && isQuestionAnswered(questionId)) {
                 if (errorSpan) {
-                    errorSpan.textContent = _quizRetryStatus(questionId) === 'pending'
-                        ? QUIZ_RETRY_PENDING_TEXT
-                        : (_quizRetryUnknown(questionId) ? QUIZ_RETRY_CHECKING_TEXT : 'This answer is already your grade.');
+                    errorSpan.textContent = 'This answer is already your grade.';
                     errorSpan.classList.add('show');
                 }
                 return false;
@@ -9785,15 +9500,6 @@ function renderLessonSelector(unitInfo) {
             let value = '';
             if (questionType === 'multiple-choice') {
                 const selectedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
-                // A retry is a new click: a letter other than the first answer (§1 rule 1).
-                const firstLetter = _quizRetryFirstLetter(questionId);
-                if (firstLetter && (!selectedRadio || selectedRadio.value === firstLetter)) {
-                    if (errorSpan) {
-                        errorSpan.textContent = 'Pick a different letter for your retry.';
-                        errorSpan.classList.add('show');
-                    }
-                    return false;
-                }
                 if (!selectedRadio) {
                     if (errorSpan) {
                         errorSpan.textContent = 'Please select an answer.';
@@ -9865,42 +9571,23 @@ function renderLessonSelector(unitInfo) {
                 // For MCQ, get reasoning from regular reason textarea
                 reasonTextarea = document.getElementById(`reason-${questionId}`);
                 reason = reasonTextarea ? reasonTextarea.value.trim() : '';
-
-                // A retry needs an explanation of the change of mind (3+ words, as the server enforces)
-                if (_quizEffectiveAttempts(questionId) > 0 && !retryReasoningReady(reason)) {
-                    if (errorSpan) {
-                        errorSpan.textContent = 'One retry for half credit: explain what changed your mind (at least 3 words).';
-                        errorSpan.classList.add('show');
-                    }
-                    if (reasonTextarea) {
-                        reasonTextarea.classList.add('required');
-                        reasonTextarea.focus();
-                    }
-                    return false;
-                }
             }
             // For FRQ, we don't collect reasoning - the answer IS the explanation
 
-            // The student this submit belongs to (a later rollback must not follow currentUsername).
+            // The student this submit belongs to (a later reconcile must not follow currentUsername).
             const submitUsername = currentUsername;
-            const ledgerAttempt = isFRQ ? 1 : _quizEffectiveAttempts(questionId) + 1;
 
             // QUIZ_INCONGRUENCE_CHECK_SPEC §2: an explanation that argues for a different letter than
             // the one picked asks first. Correctness-blind (§3): the detector never sees the key.
             // Nothing has been written or queued yet, so the card costs nothing.
             if (questionType === 'multiple-choice' && reason) {
-                const confirmed = !!(opts && opts.congruenceConfirmed) && opts.congruenceAttempt === ledgerAttempt;
+                const confirmed = !!(opts && opts.congruenceConfirmed);
                 if (!confirmed) {
                     const question = _quizQuestionFor(questionId);
                     const choices = (question && (question.choices || (question.attachments && question.attachments.choices))) || [];
-                    let firstKey = null;
-                    if (ledgerAttempt === 2) {
-                        firstKey = _quizRetryState(submitUsername).firstAnswers[questionId];
-                        if (firstKey === undefined || firstKey === null) firstKey = _currentAnswerValue(questionId);
-                    }
-                    const pointsTo = quizExplanationPointsTo(reason, choices, value, firstKey, (question && question.prompt) || '');
+                    const pointsTo = quizExplanationPointsTo(reason, choices, value, null, (question && question.prompt) || '');
                     if (pointsTo && pointsTo !== value) {
-                        _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo, text: reason, attempt: ledgerAttempt };
+                        _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo, text: reason };
                         _paintCongruenceCard(questionId);
                         _focusById(`congruence-title-${questionId}`);
                         return false;
@@ -9908,13 +9595,13 @@ function renderLessonSelector(unitInfo) {
                     // The detector is silent: the AI read (QUIZ_CONGRUENCE_AI_READ_SPEC §4). A cached
                     // answer decides at once; otherwise the read goes out and its reply sends or asks.
                     if (!pointsTo && _congruenceReadEligible(questionId, reason, opts)) {
-                        const cached = _congruenceReadCached(questionId, ledgerAttempt, reason);
+                        const cached = _congruenceReadCached(questionId, reason);
                         if (cached === undefined && _congruenceReadReachable()) {
-                            _startCongruenceRead(questionId, { text: reason, picked: value, attempt: ledgerAttempt, startedAt: Date.now() });
+                            _startCongruenceRead(questionId, { text: reason, picked: value, startedAt: Date.now() });
                             return false;
                         }
                         if (cached && cached !== value) {
-                            _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo: cached, text: reason, attempt: ledgerAttempt };
+                            _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo: cached, text: reason };
                             _paintCongruenceCard(questionId);
                             _focusById(`congruence-title-${questionId}`);
                             return false;
@@ -9940,36 +9627,6 @@ function renderLessonSelector(unitInfo) {
             const timestampNow = Date.now();
 
             const userRecord = classData.users[submitUsername];
-            const retryState = _quizRetryState(submitUsername);
-
-            // This submit goes out and decides the letter. Only here, after every refusal above:
-            // a submit that returns early leaves the student's pick in place.
-            if (!isFRQ) delete _quizRetryPicks()[questionId];
-
-            // Keep the FIRST answer so its correctness survives the retry (spec v2 §4).
-            if (!isFRQ && ledgerAttempt === 1) {
-                retryState.firstAnswers[questionId] = value;
-                _saveQuizRetryState(submitUsername);
-            }
-
-            // A retry is PENDING until the roster server accepts it; the snapshot reverts a refusal.
-            if (!isFRQ && ledgerAttempt === 2) {
-                let submitStudentId = null;
-                try { submitStudentId = window.rosterClient && typeof window.rosterClient.studentId === 'function' ? window.rosterClient.studentId() : null; } catch (_) {}
-                retryState.retries[questionId] = {
-                    state: 'pending',
-                    value: value,
-                    studentId: submitStudentId,
-                    submittedAt: timestampNow,
-                    before: {
-                        answer: userRecord.answers[questionId],
-                        reason: userRecord.reasons ? userRecord.reasons[questionId] : undefined,
-                        attempts: userRecord.attempts ? userRecord.attempts[questionId] : undefined,
-                        timestamp: userRecord.timestamps ? userRecord.timestamps[questionId] : undefined
-                    }
-                };
-                _saveQuizRetryState(submitUsername);
-            }
 
             userRecord.answers[questionId] = {
                 value: value,
@@ -9982,24 +9639,20 @@ function renderLessonSelector(unitInfo) {
             }
 
             userRecord.timestamps[questionId] = new Date().toISOString();
-            userRecord.attempts[questionId] = isFRQ ? attempts + 1 : ledgerAttempt;
+            userRecord.attempts[questionId] = isFRQ ? attempts + 1 : 1;
 
-            // Save to both classData and IDB (tracked: a revert waits for these writes to land)
-            _trackQuizWrite(submitUsername, questionId, saveClassData());
+            // Save to both classData and IDB
+            saveClassData();
 
             // DN2d gradebook ledger feeder -- wired into the LIVE submit path
             // (s123 P1: this was orphaned in the never-called saveAnswerWithTracking,
-            // so quiz/PC grades never reached the ledger). MCQ: attempt 1 = first answer,
-            // attempt 2 = the explained retry; a 409 from the server reverts this submit.
+            // so quiz/PC grades never reached the ledger). Every write is attempt 1: the
+            // first answer the ledger records is the grade (QUIZ_RETRY_REMOVAL_SPEC rule 1).
             recordToGradebookLedger(questionId, value, {
-                attempt: ledgerAttempt,
                 reasoning: isFRQ ? undefined : reason,
-                onOutcome: (!isFRQ && ledgerAttempt === 2)
-                    ? (outcome, detail) => _settleQuizRetry(submitUsername, questionId, outcome, detail)
-                    : null,
-                onFirstAnswerKept: (!isFRQ && ledgerAttempt === 1)
-                    ? (kept) => _reconcileKeptFirstAnswer(submitUsername, questionId, value, reason, kept)
-                    : null
+                onFirstAnswerKept: isFRQ
+                    ? null
+                    : (kept) => _reconcileKeptFirstAnswer(submitUsername, questionId, value, kept)
             });
 
             // Also save to answers_username format for localStorage compatibility
@@ -10017,9 +9670,9 @@ function renderLessonSelector(unitInfo) {
 
             // Save directly to IDB for durability
             if (typeof saveAnswer === 'function') {
-                _trackQuizWrite(submitUsername, questionId, saveAnswer(submitUsername, questionId, value, timestampNow)
+                saveAnswer(submitUsername, questionId, value, timestampNow)
                     .then(() => console.log(`✅ Answer saved to IDB: ${questionId}`))
-                    .catch(e => console.warn('IDB save failed:', e)));
+                    .catch(e => console.warn('IDB save failed:', e));
             }
 
             // Sync to Supabase if turbo mode is active
@@ -10027,8 +9680,7 @@ function renderLessonSelector(unitInfo) {
                 // PHASE 2 OPTIMIZATION: Use batching queue instead of immediate sync
                 if (window.submitAnswerViaRailway) {
                     // Railway has its own batching, use it directly
-                    // Tracked: a rollback must not send its clear before this POST has landed.
-                    _trackQuizWrite(submitUsername, questionId, window.submitAnswerViaRailway(currentUsername, questionId, value, timestampNow, isFRQ ? undefined : reason)
+                    window.submitAnswerViaRailway(currentUsername, questionId, value, timestampNow, isFRQ ? undefined : reason)
                         .then(success => {
                             if (success) {
                                 console.log(`✅ Answer synced via Railway for ${questionId}`);
@@ -10037,7 +9689,7 @@ function renderLessonSelector(unitInfo) {
                         })
                         .catch(error => {
                             console.log(`⚠️ Failed to sync answer via Railway: ${error.message}`);
-                        }));
+                        });
                 } else {
                     // Use batching queue for Supabase
                     queueAnswerForSync(currentUsername, questionId, value, timestampNow);
@@ -10066,9 +9718,9 @@ function renderLessonSelector(unitInfo) {
             const submitBtn = document.getElementById(`submit-${questionId}`);
             const qContainer = document.querySelector(`[data-question-id="${questionId}"]`);
 
-            // Update the form: MCQ → retry form (wrong first answer) or locked (settled); FRQ → Update Answer
+            // Update the form: MCQ → settled; FRQ → Update Answer
             if (!isFRQ) {
-                _applyQuizFormState(questionId, { clearReason: true });
+                _applyQuizFormState(questionId);
             } else if (submitBtn) {
                 submitBtn.textContent = 'Update Answer';
             }
@@ -10082,17 +9734,12 @@ function renderLessonSelector(unitInfo) {
                 }
 
                 // (an item with no key on the page, a PC makeup, is scored by the server: never "Not correct" here)
-                // A right retry earns half credit (QUIZ_RETRY_HALF_CREDIT_SPEC §1); a right first answer, full.
-                const isRetry = !isFRQ && ledgerAttempt === 2;
                 if (isCorrect) {
-                    successSpan.textContent = isRetry ? QUIZ_RETRY_CORRECT_TEXT : '✅ Correct answer submitted!';
+                    successSpan.textContent = '✅ Correct answer submitted!';
                     successSpan.style.color = '#27ae60';
-                } else if (!isFRQ && correctAnswer && canRetry(questionId)) {
-                    successSpan.textContent = 'Not correct. You get one retry for half credit: explain what changed your mind, then submit.';
+                } else if (!isFRQ && correctAnswer) {
+                    successSpan.textContent = QUIZ_WRONG_FIRST_TEXT;
                     successSpan.style.color = '#c0392b';
-                } else if (!isFRQ && _quizRetryStatus(questionId) === 'pending') {
-                    successSpan.textContent = QUIZ_RETRY_PENDING_TEXT;
-                    successSpan.style.color = '#3498db';
                 } else {
                     successSpan.textContent = '📝 Answer submitted successfully!';
                     successSpan.style.color = '#3498db';
@@ -11347,9 +10994,9 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 }
             }
 
-            // Update feedback text (a correct first answer says full credit; a correct retry names no credit, since the server decides half or full)
+            // Update feedback text (a correct answer says full credit)
             const _mcqCorrectNote = (result.questionType === 'multiple-choice' && _appealAllowedFor(questionId, 'multiple-choice'))
-                ? _mcqCorrectFeedbackNote(questionId) + ' ' : '';
+                ? MCQ_CORRECT_FEEDBACK_NOTE + ' ' : '';
             updateText(feedbackText, _mcqCorrectNote + (result.feedback || 'Review the official solution for detailed grading criteria.'));
 
             // Phase 3B: Update matched list using keyed diffing
@@ -12020,11 +11667,10 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 return;
             }
 
-            // Wrong MCQ: the old "Request AI Review" appeal is replaced by the retry and then
-            // "Talk it through" (QUIZ_AI_HALF_CREDIT_SPEC) — never shown for multiple choice.
+            // Wrong MCQ: the old "Request AI Review" appeal is replaced by "Talk it through"
+            // (QUIZ_AI_HALF_CREDIT_SPEC) — never shown for multiple choice.
             const aiReviewBtn = document.getElementById(`btn-ai-review-${questionId}`);
             if (aiReviewBtn) aiReviewBtn.style.display = 'none';
-            const wrongSettled = quizSettledFor(questionId);
 
             // Store initial result for potential appeal
             window.gradingResults[questionId] = {
@@ -12045,9 +11691,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                             <span class="ai-badge">📋 Auto-graded</span>
                         </div>
                         <div class="grading-feedback-text">
-                            ${wrongSettled
-                                ? 'Your answer was not correct. Talk it through with the AI below: show you understand and you earn half credit.'
-                                : 'Your answer was not correct. Use your one retry first.'}
+                            Your answer was not correct. Talk it through with the AI below: show you understand and you earn half credit.
                         </div>
                     </div>
                 `;
@@ -12439,7 +12083,7 @@ if (chartInstances[`dotplot-${questionId}`]) {
                 displayGradingFeedback(questionId, gradingResult);
 
                 // Show appeal button if not perfect score (multiple choice: correct answers only,
-                // a feedback appeal; a wrong answer uses the retry, then "Talk it through")
+                // a feedback appeal; a wrong answer uses "Talk it through")
                 if (gradingResult.score !== 'E' && _appealAllowedFor(questionId, questionType)) {
                     const appealBtn = document.getElementById(`btn-appeal-${questionId}`);
                     if (appealBtn) appealBtn.style.display = 'inline-block';
@@ -12647,10 +12291,10 @@ Respond with JSON:
         // Submit appeal
         window.submitAppeal = async function(questionId, questionType) {
             // Multiple choice: a CORRECT answer may appeal the AI's feedback (the grade is already
-            // full credit); a wrong answer uses the retry, then "Talk it through" (teacher 2026-09-29).
+            // full credit); a wrong answer uses "Talk it through" (teacher 2026-09-29).
             if (questionType === 'multiple-choice' && !_appealAllowedFor(questionId, questionType)) {
                 const fbMcq = document.getElementById(`grading-feedback-${questionId}`);
-                if (fbMcq) fbMcq.innerHTML = '<div class="grading-feedback"><span class="grading-text">Multiple-choice questions are not appealed. If your final answer was wrong, use "Talk it through".</span></div>';
+                if (fbMcq) fbMcq.innerHTML = '<div class="grading-feedback"><span class="grading-text">Multiple-choice questions are not appealed. If your answer was wrong, use "Talk it through".</span></div>';
                 return;
             }
             const engine = getGradingEngine();
@@ -13104,7 +12748,7 @@ Respond with JSON:
                     if (submitBtn) {
                         const isFRQ = questionType === 'free-response';
                         if (!isFRQ) {
-                            // MCQ: retry form or locked, per QUIZ_FIRST_ANSWER_SPEC v2
+                            // MCQ: open or settled (QUIZ_RETRY_REMOVAL_SPEC)
                             _applyQuizFormState(qId);
                         } else {
                             submitBtn.textContent = 'Update Answer';
@@ -13788,36 +13432,6 @@ Respond with JSON:
             };
         }
 
-        // ── Quiz retry outcome (QUIZ_FIRST_ANSWER_SPEC v2) ─────────────────────────────────────
-        // A retry (attempt 2) stays PENDING until the roster server answers. accepted → settled
-        // (reveal); queued offline → still pending (the replay decides later); refused (409) or a
-        // final failure → the local submit is rolled back in order, and the student is told why.
-        var QUIZ_RETRY_REFUSED_TEXT = {
-            'correct-first': 'Your first answer was correct, so it is already your grade. No retry.',
-            'already-retried': 'You already used your one retry. That answer is your grade.',
-            'no-first-answer': 'The gradebook has no first answer from you on this question, so this retry was not saved.',
-            'explanation-required': 'A retry needs an explanation of what changed your mind (at least 3 words).',
-            'no-more-attempts': 'No more attempts on this question. Your answer is final.',
-            'invalid-attempt': 'This retry was not accepted by the gradebook.'
-        };
-        var QUIZ_RETRY_FAILED_TEXT = 'Your retry could not be saved to the gradebook (check that you are signed in), so it was undone. Try again.';
-
-        // Local writes started by a submit; a rollback waits for them so a late save can never
-        // restore the rejected answer after the revert.
-        var _quizPendingWrites = {};
-        function _trackQuizWrite(username, questionId, promise) {
-            if (!promise || typeof promise.then !== 'function') return;
-            const key = `${username}|${questionId}`;
-            const list = _quizPendingWrites[key] || (_quizPendingWrites[key] = []);
-            list.push(Promise.resolve(promise).catch(() => {}));
-        }
-        async function _awaitQuizWrites(username, questionId) {
-            const key = `${username}|${questionId}`;
-            const list = _quizPendingWrites[key] || [];
-            delete _quizPendingWrites[key];
-            await Promise.all(list);
-        }
-
         // Hide the line under Submit 3 s after its latest message. One timer per line: a newer message
         // restarts it, so the timer of the submit before it never cuts it short.
         function _fadeSuccessLine(span) {
@@ -13825,227 +13439,97 @@ Respond with JSON:
             span._fadeTimer = setTimeout(() => span.classList.remove('show'), 3000);
         }
 
-        // A refused or failed retry earned nothing: take back the green half-credit line it showed.
-        function _clearRetryCorrectLine(questionId) {
-            const span = document.getElementById(`success-${questionId}`);
+        // A line under Submit that stays until the next submit: the student should read it.
+        function _sayUnderSubmit(questionId, text, color) {
+            const span = document.getElementById(`success-${questionId}`) || document.getElementById(`error-${questionId}`);
             if (!span) return;
-            const shown = span.textContent || '';
-            if (shown !== QUIZ_RETRY_CORRECT_TEXT && !shown.endsWith(QUIZ_RETRY_CORRECT_SUFFIX)) return;
             clearTimeout(span._fadeTimer);
-            span.textContent = '';
-            span.classList.remove('show');
+            span.textContent = text;
+            span.style.color = color;
+            span.classList.add('show');
         }
 
-        // The server accepted a wrong retry and the reveal box with the key has just painted: say plainly,
-        // in red, that the retry is wrong and is the grade. Read from the retry and the key: the line may be
-        // empty by now (a re-render or a reload, before a queued retry replays). It replaces the "waiting"
-        // line or nothing, and follows the reconcile path's "sent as your one retry" line; any other message
-        // stays. A right retry is green already; an item with no key on the page (a PC makeup, scored by the
-        // server) gets no verdict.
-        function _sayWrongRetryRecorded(questionId, value) {
-            const span = document.getElementById(`success-${questionId}`);
-            if (!span || _quizKeyFor(questionId) === null) return;
-            const sentText = _quizRetrySentText(_quizRetryState(currentUsername).firstAnswers[questionId], value);
-            const shown = span.textContent;
-            if (shown && shown !== QUIZ_RETRY_PENDING_TEXT && shown !== sentText) return;
-            if (_quizAnswerMatchesKey(questionId, value)) return;
-            span.textContent = shown === sentText ? `${sentText} ${QUIZ_RETRY_WRONG_TEXT}` : QUIZ_RETRY_WRONG_TEXT;
-            span.style.color = '#c0392b';
-            span.classList.add('show');   // the reply may land after the submit line has faded
-            _fadeSuccessLine(span);
+        // ── Retries have closed (QUIZ_RETRY_REMOVAL_SPEC rule 6) ─────────────────────────────────
+        // An attempt 2 queued offline by the old page replays through gradebook-client.js, which drops
+        // it from the queue and tells the page the outcome. Accepted (it reached the server before the
+        // cutoff): that retry is the grade. Refused: the ledger holds the answer that counts. Either
+        // way the ledger restore paints it; until a read lands the page claims nothing.
+        var QUIZ_RETRIES_CLOSED_TEXT = 'Retries have closed; your first answer stands.';
+        // A failed ledger read is tried again after each of these waits.
+        var QUIZ_LEDGER_REREAD_DELAYS_MS = [5000, 30000, 120000];
+
+        // Is the queued answer's owner (roster id and page user) the one signed in now?
+        function _signedInAs(owner) {
+            const rc = window.rosterClient;
+            const sid = (rc && typeof rc.studentId === 'function') ? rc.studentId() : null;
+            return !!sid && String(sid) === owner.studentId && window.currentUsername === owner.username;
         }
 
-        // One handler for the online result AND a replayed offline write.
-        function _settleQuizRetry(username, questionId, outcome, detail) {
-            const retry = _quizRetryState(username).retries[questionId];
-            if (!retry || retry.state !== 'pending') return Promise.resolve();
-            if (outcome === 'queued') {
-                if (username === currentUsername) _refreshAfterReveal(questionId);
-                return Promise.resolve();
+        // Read the owner's ledger, again after a failed read. Stops once someone else signs in: their
+        // token reads their own ledger. The owner's next sign-in restores it then.
+        async function _restoreFromLedgerUntilRead(owner) {
+            for (let i = 0; ; i++) {
+                if (!_signedInAs(owner)) return false;
+                const read = await window.restoreOwnAnswersFromLedger();
+                if (!_signedInAs(owner)) return false;
+                if (read) return true;
+                if (i >= QUIZ_LEDGER_REREAD_DELAYS_MS.length) return false;
+                await new Promise(resolve => setTimeout(resolve, QUIZ_LEDGER_REREAD_DELAYS_MS[i]));
             }
-            if (outcome === 'accepted') {
-                _quizRetryState(username).retries[questionId] = { state: 'accepted', value: retry.value, submittedAt: retry.submittedAt };
-                _saveQuizRetryState(username);
-                if (username === currentUsername) {
-                    _refreshAfterReveal(questionId);
-                    _sayWrongRetryRecorded(questionId, retry.value);
-                }
-                return Promise.resolve();
-            }
-            return _revertRefusedRetry(username, questionId, retry, outcome === 'refused' ? detail : null, outcome);
         }
 
-        // Ordered rollback of a refused/failed retry: wait for the submit's own writes, restore the
-        // in-memory state, the IDB stores and the localStorage mirror, drop the refused answer from
-        // the sync outbox, re-sync the answer that counts, then repaint.
-        // The ledger restore (or a replay) settled this item as ACCEPTED while a rollback was in
-        // flight: that accepted value is the grade. Put it back everywhere and repaint.
-        async function _applyAcceptedRetry(username, questionId, accepted) {
-            if (!classData.users[username]) classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
-            const user = classData.users[username];
-            const ts = accepted.submittedAt || Date.now();
-            if (!user.answers) user.answers = {};
-            if (!user.attempts) user.attempts = {};
-            if (!user.timestamps) user.timestamps = {};
-            user.answers[questionId] = { value: accepted.value, timestamp: ts };
-            user.attempts[questionId] = 2;
-            user.timestamps[questionId] = ts;
-            try {
-                const key = `answers_${username}`;
-                const mirror = JSON.parse(localStorage.getItem(key) || '{}');
-                mirror[questionId] = { value: accepted.value, timestamp: ts };
-                localStorage.setItem(key, JSON.stringify(mirror));
-            } catch (_) { /* localStorage may be blocked */ }
-            if (username === currentUsername && typeof saveClassData === 'function') {
-                try { await saveClassData(); } catch (_) {}
-            }
-            if (typeof saveAnswer === 'function') {
-                try { await saveAnswer(username, questionId, accepted.value, Date.now()); } catch (_) {}
-            }
-            if (username === currentUsername) _refreshAfterReveal(questionId);
-        }
-
-        async function _revertRefusedRetry(username, questionId, retry, detail, outcome) {
-            try {
-                await _awaitQuizWrites(username, questionId);
-                const state = _quizRetryState(username);
-                // Re-read the CURRENT record after the wait: the ledger restore may have accepted
-                // this item meanwhile (never delete an accepted record), or a newer retry replaced it.
-                const current = state.retries[questionId];
-                if (current && current.state === 'accepted') {
-                    await _applyAcceptedRetry(username, questionId, current);
-                    return;
-                }
-                if (!current || current.submittedAt !== retry.submittedAt) return;   // superseded / already handled
-                retry = current;
-                // The server already holds an accepted retry for this item (seen by the ledger
-                // restore): the refused local value must never stay as the grade — restore THAT.
-                const serverAccepted = retry && retry.serverAccepted !== undefined;
-                const before = serverAccepted
-                    ? {
-                        answer: { value: retry.serverAccepted, timestamp: retry.serverAcceptedAt || Date.now() },
-                        reason: retry.serverAcceptedReasoning || '',
-                        attempts: 2,
-                        timestamp: retry.serverAcceptedAt || Date.now()
-                    }
-                    : ((retry && retry.before) || {});
-                let ownAccepted = null;
-                if (serverAccepted) {
-                    ownAccepted = { state: 'accepted', value: retry.serverAccepted, submittedAt: retry.serverAcceptedAt || 0 };
-                    state.retries[questionId] = ownAccepted;
-                } else {
-                    delete state.retries[questionId];
-                }
-                _saveQuizRetryState(username);
-                // After every await below: if an accepted record appeared that we did not write
-                // (the restore settled the item mid-rollback), stop and apply it instead.
-                const settledElsewhere = async () => {
-                    const now = _quizRetryState(username).retries[questionId];
-                    if (!now || now === ownAccepted) return false;
-                    if (now.state === 'accepted') await _applyAcceptedRetry(username, questionId, now);
-                    return true;   // accepted elsewhere, or a newer pending retry: this rollback is over
-                };
-
-                if (!classData.users[username]) classData.users[username] = { answers: {}, reasons: {}, timestamps: {}, attempts: {}, charts: {} };
-                const user = classData.users[username];
-                const restore = (bucket, value) => {
-                    if (!user[bucket]) user[bucket] = {};
-                    if (value === undefined) delete user[bucket][questionId];
-                    else user[bucket][questionId] = value;
-                };
-                restore('answers', before.answer);
-                restore('reasons', before.reason);
-                restore('attempts', before.attempts);
-                restore('timestamps', before.timestamp);
-                try {
-                    const key = `answers_${username}`;
-                    const mirror = JSON.parse(localStorage.getItem(key) || '{}');
-                    if (before.answer === undefined) delete mirror[questionId];
-                    else mirror[questionId] = before.answer;
-                    localStorage.setItem(key, JSON.stringify(mirror));
-                } catch (_) { /* localStorage may be blocked */ }
-
-                const prevValue = before.answer && typeof before.answer === 'object' ? before.answer.value : before.answer;
-                // '' (not undefined): the refused retry's explanation must be CLEARED on the peer server.
-                const prevReason = getReasonString(before.reason) || '';
-                if (username === currentUsername && typeof saveClassData === 'function') {
-                    try { await saveClassData(); } catch (_) { /* best-effort */ }
-                }
-                if (await settledElsewhere()) return;
-                try {
-                    if (typeof waitForStorage === 'function') {
-                        const storage = await waitForStorage();
-                        // This student's own IDB stores (saveClassData only writes the signed-in user).
-                        if (before.reason === undefined) await storage.remove('reasons', [username, questionId]);
-                        else await storage.set('reasons', [username, questionId], { username, questionId, value: before.reason, updatedAt: Date.now() });
-                        if (before.attempts === undefined) await storage.remove('attempts', [username, questionId]);
-                        else await storage.set('attempts', [username, questionId], { username, questionId, count: before.attempts, updatedAt: Date.now() });
-                        if (typeof storage.getOutboxAll === 'function' && typeof storage.removeOutboxItem === 'function') {
-                            const ops = await storage.getOutboxAll();
-                            for (const op of (ops || [])) {
-                                const payload = op && op.payload;
-                                if (op && op.opType === 'answer_submit' && payload
-                                    && payload.username === username && payload.questionId === questionId
-                                    && payload.timestamp === retry.submittedAt) {
-                                    await storage.removeOutboxItem(op.id);
-                                }
-                            }
-                        }
-                    }
-                } catch (_) { /* best-effort: the classData restore above already holds */ }
-                if (await settledElsewhere()) return;
-                // Put classmates' view back on the answer that counts (IDB + outbox + live).
-                if (prevValue !== undefined && typeof saveAnswer === 'function') {
-                    try { await saveAnswer(username, questionId, prevValue, Date.now()); } catch (_) {}
-                }
-                if (await settledElsewhere()) return;
-                // The clear carries the CURRENT time: the cr server ignores any older write (a late
-                // original retry POST) for this (username, question).
-                if (prevValue !== undefined && turboModeActive && window.submitAnswerViaRailway) {
-                    window.submitAnswerViaRailway(username, questionId, prevValue, Date.now(), prevReason).catch(() => {});
-                }
-
-                if (username !== currentUsername) return;
-                _refreshAfterReveal(questionId);
-                _clearRetryCorrectLine(questionId);
-                const message = outcome === 'refused'
-                    ? (QUIZ_RETRY_REFUSED_TEXT[detail] || 'This retry was not accepted by the gradebook.')
-                    : QUIZ_RETRY_FAILED_TEXT;
-                const errorSpan = document.getElementById(`error-${questionId}`);
-                if (errorSpan) {
-                    errorSpan.textContent = message;
-                    errorSpan.classList.add('show');
-                }
-                if (typeof showMessage === 'function') showMessage(message, 'error');
-            } catch (_) { /* never throw from a background write */ }
-        }
-
-        // Which local student queued this pending retry? Bound by the roster studentId the retry
-        // was captured under — never by whoever happens to be signed in when the replay lands.
-        function _quizRetryOwner(studentId, itemId) {
-            if (!studentId || !itemId) return null;
-            const names = new Set(Object.keys(_quizRetryStateCache));
-            try {
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.indexOf('quizRetryState_') === 0) names.add(key.slice('quizRetryState_'.length));
-                }
-            } catch (_) { /* localStorage may be blocked */ }
-            for (const name of names) {
-                const retry = _quizRetryState(name).retries[itemId];
-                if (retry && retry.state === 'pending' && String(retry.studentId) === String(studentId)) return name;
-            }
-            return null;
-        }
-
-        // A queued retry replayed later by gradebook-client.js (accepted or refused then).
-        window.addEventListener('gradebook:quiz-retry-outcome', (event) => {
+        // `username` is the owner signed in when gradebook-client.js sent the replay.
+        window.addEventListener('gradebook:quiz-retry-outcome', async (event) => {
             const detail = (event && event.detail) || {};
-            if (!detail.itemId) return;
-            const owner = _quizRetryOwner(detail.studentId, String(detail.itemId));
-            if (!owner) return;
-            _settleQuizRetry(owner, String(detail.itemId), detail.outcome, detail.reason || null);
+            if (!detail.itemId || !detail.studentId || !detail.username) return;
+            const owner = { studentId: String(detail.studentId), username: String(detail.username) };
+            const questionId = String(detail.itemId);
+            // The refused letter never reaches classmates, whoever is signed in by now.
+            if (detail.outcome === 'refused') await _dropQueuedPeerAnswers(owner.username, questionId, detail.response);
+            // The restore moves the owner's answer, and classmates' view, to the one that counts.
+            if (!(await _restoreFromLedgerUntilRead(owner))) return;
+            // Only a first answer can "stand": a refusal over a historical retry says nothing.
+            if (detail.outcome !== 'refused' || detail.reason !== 'retries-closed') return;
+            const user = classData.users[owner.username];
+            if (!user || !user.attempts || Number(user.attempts[questionId]) !== 1) return;
+            _sayUnderSubmit(questionId, QUIZ_RETRIES_CLOSED_TEXT, '#3498db');
         });
+
+        // Drop this student's queued peer writes for one question (only those carrying `value`, when
+        // given). The outbox outlives the page, so a dropped letter left there would publish later.
+        async function _dropQueuedPeerAnswers(username, questionId, value) {
+            try {
+                if (typeof waitForStorage !== 'function') return;
+                const storage = await waitForStorage();
+                if (typeof storage.getOutboxAll !== 'function' || typeof storage.removeOutboxItem !== 'function') return;
+                for (const op of (await storage.getOutboxAll()) || []) {
+                    const payload = op && op.payload;
+                    if (!payload || op.opType !== 'answer_submit') continue;
+                    if (payload.username !== username || payload.questionId !== questionId) continue;
+                    if (value !== undefined && payload.value !== value) continue;
+                    await storage.removeOutboxItem(op.id);
+                }
+            } catch (_) { /* best-effort */ }
+        }
+
+        // Put classmates' view on the answer that counts. Peer server only, never the ledger. The
+        // queued write is the one that lasts: it replaces every queued write for the question and
+        // carries the current time, which beats the dropped letter's older write. The live write is a
+        // head start ('' clears the dropped letter's explanation there). Never throws.
+        async function _syncPeerAnswer(username, questionId) {
+            try {
+                const user = classData.users[username];
+                const answer = user && user.answers ? user.answers[questionId] : undefined;
+                const value = (answer && typeof answer === 'object') ? answer.value : answer;
+                if (value === undefined) return;
+                if (turboModeActive && window.submitAnswerViaRailway) {
+                    const reason = getReasonString(user.reasons ? user.reasons[questionId] : '');
+                    window.submitAnswerViaRailway(username, questionId, value, Date.now(), reason).catch(() => {});
+                }
+                await _dropQueuedPeerAnswers(username, questionId);
+                if (typeof saveAnswer === 'function') await saveAnswer(username, questionId, value, Date.now());
+            } catch (_) { /* best-effort: the ledger holds the grade */ }
+        }
 
         // Gradebook ledger feeder (DN2d). Fire-and-forget, no-ops without a
         // roster token; questionId IS the manifest item_id. source by id shape,
@@ -14068,9 +13552,9 @@ Respond with JSON:
                         itemId: questionId,
                         unit: gbU ? ('U' + gbU[1]) : undefined,
                         response: answer,
-                        attempt: (!isPc && ledgerOpts.attempt) ? ledgerOpts.attempt : 1
+                        attempt: 1   // the first answer is the grade (QUIZ_RETRY_REMOVAL_SPEC rule 1)
                     };
-                    // Quiz retry explanation (QUIZ_FIRST_ANSWER_SPEC v2): stored on the ledger row.
+                    // The student's explanation, stored on the ledger row.
                     if (!isPc && typeof ledgerOpts.reasoning === 'string' && ledgerOpts.reasoning.trim()) {
                         rec.reasoning = ledgerOpts.reasoning.trim();
                     }
@@ -14093,145 +13577,47 @@ Respond with JSON:
                             if (r && r.ok && r.firstAnswerKept && typeof ledgerOpts.onFirstAnswerKept === 'function') {
                                 try { ledgerOpts.onFirstAnswerKept(r.keptResponse); } catch (_) { /* never block */ }
                             }
-                            _reportLedgerOutcome(ledgerOpts, r);
-                        }).catch(function () { _reportLedgerOutcome(ledgerOpts, null); });
-                    } else {
-                        _reportLedgerOutcome(ledgerOpts, null);
+                        }).catch(function () { /* fire-and-forget */ });
                     }
-                } else {
-                    _reportLedgerOutcome(ledgerOpts, null);   // no gradebook client: nothing was saved
                 }
             } catch (_) { /* never block cr's submit */ }
         }
 
-        // The reconcile path's line once it has sent the retry (_sayWrongRetryRecorded adds the verdict to it).
-        function _quizRetrySentText(kept, chosen) {
-            return `The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`;
-        }
-
-        // The roster already held a first answer for this item — a fresh device answered before its
-        // ledger restore landed — so the server kept THAT letter and ignored this one
-        // (firstAnswerKept + keptResponse). Reconcile to the kept first answer; when it was wrong,
-        // the letter just chosen becomes the one explained retry: sent at once if the explanation
-        // is ready, otherwise the retry form opens with it and says why. (2026-10-23: a student's
-        // corrected answer was lost this way and his grade stayed down.)
-        function _reconcileKeptFirstAnswer(username, questionId, chosen, reason, kept) {
+        // The roster already held a first answer for this item (a fresh device answered before its
+        // ledger restore landed), so the server kept THAT letter and ignored this one (firstAnswerKept
+        // + keptResponse). The kept answer is the grade: show it settled and say so (QUIZ_RETRY_REMOVAL_SPEC
+        // rule 5). Nothing is re-sent to the ledger; classmates' view moves to the kept answer.
+        function _reconcileKeptFirstAnswer(username, questionId, chosen, kept) {
             try {
-                if (typeof kept !== 'string' || !kept) return;
+                if (typeof kept !== 'string' || !kept || kept === chosen) return;
                 if (_quizIsFrq(questionId) || _quizKeyFor(questionId) === null) return;
                 const user = classData.users[username];
                 if (!user || !user.answers) return;
                 const local = user.answers[questionId];
                 const localValue = (local && typeof local === 'object') ? local.value : local;
-                const retryState = _quizRetryState(username);
-                // Only while this submit is still the state: a restore or a retry may have moved on.
-                if (localValue !== chosen) return;
-                if (Number(user.attempts && user.attempts[questionId]) !== 1) return;
-                if (retryState.retries[questionId]) return;
-                if (kept === chosen) {   // nothing to reconcile, and the same letter is never a retry
-                    _sayKeptFirstAnswerStands(username, questionId, kept);
-                    return;
-                }
+                if (localValue !== chosen) return;   // a restore has moved on already
 
-                retryState.firstAnswers[questionId] = kept;
-                _saveQuizRetryState(username);
                 const now = Date.now();
                 user.answers[questionId] = { value: kept, timestamp: now };
                 if (!user.timestamps) user.timestamps = {};
                 user.timestamps[questionId] = new Date(now).toISOString();
+                if (!user.attempts) user.attempts = {};
                 user.attempts[questionId] = 1;
+                // The typed explanation argued for the dropped letter; the kept row's own comes back
+                // with the next ledger restore.
                 if (!user.reasons) user.reasons = {};
-                user.reasons[questionId] = reason || '';
-                if (typeof saveClassData === 'function') _trackQuizWrite(username, questionId, saveClassData());
+                user.reasons[questionId] = '';
+                if (typeof saveClassData === 'function') saveClassData();
+                _syncPeerAnswer(username, questionId);
 
                 if (username !== currentUsername) return;
                 if (!document.querySelector(`[data-question-id="${questionId}"]`)) return;
-                // The student's retry already underway (a card up or an AI read out), before the
-                // repaint drops one whose pick is the kept letter.
-                const retryUnderway = !!(_quizCongruenceMarkers()[questionId] || _quizCongruenceChecks()[questionId]);
+                const reasonInput = document.getElementById(`reason-${questionId}`);
+                if (reasonInput) reasonInput.value = '';
                 _refreshAfterReveal(questionId);
-
-                const span = document.getElementById(`success-${questionId}`) || document.getElementById(`error-${questionId}`);
-                const say = (text, color) => {
-                    if (!span) return;
-                    span.textContent = text;
-                    span.style.color = color;
-                    span.classList.add('show');
-                };
-                if (_quizAnswerMatchesKey(questionId, kept)) {
-                    say(`The gradebook already had your first answer on this question (${kept}), and it was correct — that answer is your grade.`, '#27ae60');
-                    return;
-                }
-
-                // A card already up is the student's own retry, asked about their own text and pick:
-                // never put the first explanation under it or send for them. They answer the card.
-                // A pending AI read is the same retry, pressed: its reply sends it or asks.
-                if (_quizCongruenceMarkers()[questionId] || _quizCongruenceChecks()[questionId]) {
-                    say(`The gradebook already had your first answer on this question (${kept}). Check the question below and submit your one retry.`, '#c0392b');
-                    return;
-                }
-                // Its pick was the kept letter, so the repaint dropped it: the student picks again.
-                if (retryUnderway) {
-                    _sayKeptFirstAnswerStands(username, questionId, kept);
-                    return;
-                }
-
-                // Put the just-chosen letter and explanation back as the retry (the marker keeps the
-                // letter selected through the render timers and peer repaints).
-                _quizRetryPicks()[questionId] = chosen;
-                _applyQuizFormState(questionId);
-                const textarea = document.getElementById(`reason-${questionId}`);
-                if (textarea) textarea.value = reason || '';
-                if (retryReasoningReady(reason || '')) {
-                    // The system's own submit: the detector still runs, the AI read never does.
-                    const sent = window.submitAnswer(questionId, 'multiple-choice', { congruenceAiSkip: true });
-                    if (sent === true) {
-                        // a right retry says so at once, as a plain submit does; a wrong one hears when the server accepts it
-                        if (_quizAnswerMatchesKey(questionId, chosen)) {
-                            say(`${_quizRetrySentText(kept, chosen)} ${QUIZ_RETRY_CORRECT_SUFFIX}`, '#27ae60');
-                        } else {
-                            say(_quizRetrySentText(kept, chosen), '#3498db');
-                        }
-                        return;
-                    }
-                    if (_quizCongruenceMarkers()[questionId]) {   // the explanation points elsewhere: the card asks
-                        say(`The gradebook already had your first answer on this question (${kept}). Check the question below and submit your one retry.`, '#c0392b');
-                        _focusById(`congruence-title-${questionId}`);
-                        return;
-                    }
-                }
-                const button = document.getElementById(`submit-${questionId}`);
-                if (button) button.disabled = !_quizRetrySubmitReady(questionId);
-                say(`The gradebook already had your first answer on this question (${kept}). To make ${chosen} your one retry, explain what changed your mind (at least 3 words) and submit.`, '#c0392b');
+                const color = _quizAnswerMatchesKey(questionId, kept) ? '#27ae60' : '#c0392b';
+                _sayUnderSubmit(questionId, `The gradebook already had your first answer on this question (${kept}). That answer stands.`, color);
             } catch (_) { /* never break the submit path */ }
-        }
-
-        // The roster already held this same letter as the first answer (another device sent it
-        // first). A wrong one leaves the retry form open on it: say so, and never send for the
-        // student, since a retry is a new click on a different letter. A right one is the grade,
-        // as the submit line already says.
-        function _sayKeptFirstAnswerStands(username, questionId, kept) {
-            if (username !== currentUsername) return;
-            if (_quizRetryFirstLetter(questionId) !== kept) return;
-            const span = document.getElementById(`success-${questionId}`) || document.getElementById(`error-${questionId}`);
-            if (!span) return;
-            clearTimeout(span._fadeTimer);   // an instruction stays until the student acts on it
-            span.textContent = `The gradebook already had your first answer on this question (${kept}), and it was not correct. Pick a different letter and explain what changed your mind.`;
-            span.style.color = '#c0392b';
-            span.classList.add('show');
-        }
-
-        // record() result → the retry outcome the page acts on (spec v2 pending model).
-        function _reportLedgerOutcome(ledgerOpts, r) {
-            try {
-                if (!ledgerOpts || typeof ledgerOpts.onOutcome !== 'function') return;
-                let outcome = 'failed';
-                if (r && r.ok && !r.queued) outcome = 'accepted';
-                else if (r && r.queued) outcome = 'queued';
-                else if (r && r.reason === 'retry-not-allowed') outcome = 'refused';
-                else if (r && r.reason === 'read-only') outcome = 'accepted';   // teacher view-as: nothing to protect
-                ledgerOpts.onOutcome(outcome, (r && r.detail) || null);
-            } catch (_) { /* never throw from a background write */ }
         }
 
         // One-time "your session expired — sign in again" notice. Guarded + idempotent.

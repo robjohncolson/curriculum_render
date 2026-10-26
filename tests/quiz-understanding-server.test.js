@@ -510,12 +510,12 @@ describe('legacy appeals: free-response / worksheet only (round 3, item 9)', () 
     ...extra
   });
 
-  it('a canonical MCQ answered WRONG cannot use the legacy appeal: retry, then Talk it through (no AI, no grant)', async () => {
-    for (const qid of ['U1-L1-Q01', 'U1-L1-Q02']) {        // settled wrong; wrong with the retry still open
+  it('a canonical MCQ answered WRONG cannot use the legacy appeal: Talk it through (no AI, no grant)', async () => {
+    for (const qid of ['U1-L1-Q01', 'U1-L1-Q02']) {        // two items answered wrong
       const { handler, calls, store } = loadRoute({ appealResult: { score: 'E', feedback: 'x' } });
       const res = await run(handler, legacyBody(qid));     // the request even CLAIMS free-response
       expect(res.statusCode).toBe(400);
-      expect(res.body.error).toMatch(/use your one retry, then Talk it through/);
+      expect(res.body.error).toBe('Your answer was not correct: use Talk it through.');
       expect(calls.prompts).toHaveLength(0);
       expect(calls.grants).toHaveLength(0);
       expect(store.rows).toHaveLength(0);

@@ -6,6 +6,8 @@ the 2026-10-23 teacher retry reset (`POST /ledger/quiz-reset`) and `_reconcileKe
 Reviewed 2026-10-25 by a six-lens adversarial pass (key leakage, state races, detector red team, UX,
 implementability, completeness; 22 findings confirmed and folded in — the biggest one is §0).
 
+Retry removed 2026-10-26, see QUIZ_RETRY_REMOVAL_SPEC.md; sections on the retry describe history.
+
 Teacher (2026-10-25, in session): "on friday, a student had a problem with quiz in curriculum_render — he had
 provided correct written response, but accidentally selected incorrect multiple choice. He was graded as incorrect,
 and I had to do a lot to get it fixed. I wonder if we can fix this so that in the future, if anything is marked
