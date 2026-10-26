@@ -3071,6 +3071,9 @@
                         }
                         // Otherwise the accepted answer IS the server's attempt-2 response.
                         retryState.retries[qid] = { state: 'accepted', value: a2.response, submittedAt: tsOf(a2) };
+                        // The retry is decided: void this student's unsent pick. Only theirs: this reply can
+                        // land after a same-tab sign-in, and the next student's pick is not its business.
+                        if (_quizRetryChoiceUser === user) delete _quizRetryChoice[qid];
                         retryStateChanged = true;
                         changed.add(qid);
                         if (localValue(qid) !== a2.response || Number(u.attempts[qid]) !== 2) takeServer(qid, a2, 2);
@@ -7507,9 +7510,22 @@ function renderLessonSelector(unitInfo) {
 
         // Form state for an MCQ: 'first' (not answered), 'retry' (one explained retry open),
         // 'pending' (retry sent, server has not answered) or 'settled' (this answer is the grade).
-        // Letter the open retry form shows selected instead of the stored first answer: set by
-        // _reconcileKeptFirstAnswer, cleared by the next submit. Repaints must not clobber it.
+        // Letter the open retry form shows selected instead of the stored first answer: set by the
+        // student's own click (_onQuizChoiceChange) and by _reconcileKeptFirstAnswer, cleared only
+        // by a submit that goes out or by the item leaving retry mode. Repaints must not clobber it.
         var _quizRetryChoice = {};
+        var _quizRetryChoiceUser = null;   // the student whose picks _quizRetryChoice holds
+
+        // The picks belong to one student: a same-tab sign-in as someone else starts with none, so
+        // the next student never sees (or submits) a letter the last one clicked.
+        function _quizRetryPicks() {
+            const user = currentUsername || null;
+            if (user !== _quizRetryChoiceUser) {
+                _quizRetryChoice = {};
+                _quizRetryChoiceUser = user;
+            }
+            return _quizRetryChoice;
+        }
 
         function _quizFormState(questionId) {
             if (!isQuestionAnswered(questionId)) {
@@ -7569,7 +7585,9 @@ function renderLessonSelector(unitInfo) {
             const form = _quizFormState(questionId);
             const locked = form.mode === 'settled' || form.mode === 'pending' || form.mode === 'checking';
             const stored = _currentAnswerValue(questionId);
-            const shown = (form.mode === 'retry' && _quizRetryChoice[questionId]) ? _quizRetryChoice[questionId] : stored;
+            const picks = _quizRetryPicks();
+            if (form.mode !== 'retry') delete picks[questionId];   // a pick means nothing outside the open retry form
+            const shown = (form.mode === 'retry' && picks[questionId]) ? picks[questionId] : stored;
             document.querySelectorAll(`input[name="choice-${questionId}"]`).forEach(radio => {
                 radio.disabled = locked;
                 if (shown !== undefined && shown !== null && shown !== '') radio.checked = radio.value === shown;
@@ -7616,6 +7634,22 @@ function renderLessonSelector(unitInfo) {
         if (!window.__quizRetryInputWired) {
             window.__quizRetryInputWired = true;
             document.addEventListener('input', _onQuizReasonInput);
+        }
+
+        // The letter clicked in the open retry form is the student's pick. Without this, every
+        // repaint (a classmate's answer, the 30 s peer pull, the ledger restore) re-checked the
+        // stored first answer and Submit sent it again. Delegated, so re-renders are covered.
+        function _onQuizChoiceChange(event) {
+            const target = event && event.target;
+            if (!target || target.type !== 'radio' || typeof target.name !== 'string' || !target.name.startsWith('choice-')) return;
+            const questionId = target.name.slice('choice-'.length);
+            // Part B hook: clear this item's confirm-card marker here (every mode).
+            if (_quizFormState(questionId).mode !== 'retry') return;
+            _quizRetryPicks()[questionId] = target.value;
+        }
+        if (!window.__quizRetryChoiceWired) {
+            window.__quizRetryChoiceWired = true;
+            document.addEventListener('change', _onQuizChoiceChange);
         }
 
         // ── MCQ AI-area restore ──────────────────────────────────────────────────────────────
@@ -8578,7 +8612,6 @@ function renderLessonSelector(unitInfo) {
 
             const errorSpan = document.getElementById(`error-${questionId}`);
             const successSpan = document.getElementById(`success-${questionId}`);
-            if (!isFRQ) delete _quizRetryChoice[questionId];   // this submit decides the letter now
 
             // Clear previous messages
             if (errorSpan) {
@@ -8718,6 +8751,10 @@ function renderLessonSelector(unitInfo) {
             const userRecord = classData.users[submitUsername];
             const retryState = _quizRetryState(submitUsername);
             const ledgerAttempt = isFRQ ? 1 : _quizEffectiveAttempts(questionId) + 1;
+
+            // This submit goes out and decides the letter. Only here, after every refusal above:
+            // a submit that returns early leaves the student's pick in place.
+            if (!isFRQ) delete _quizRetryPicks()[questionId];
 
             // Keep the FIRST answer so its correctness survives the retry (spec v2 §4).
             if (!isFRQ && ledgerAttempt === 1) {
@@ -12883,7 +12920,7 @@ Respond with JSON:
 
                 // Put the just-chosen letter and explanation back as the retry (the marker keeps the
                 // letter selected through the render timers and peer repaints).
-                _quizRetryChoice[questionId] = chosen;
+                _quizRetryPicks()[questionId] = chosen;
                 _applyQuizFormState(questionId);
                 const textarea = document.getElementById(`reason-${questionId}`);
                 if (textarea) textarea.value = reason || '';
