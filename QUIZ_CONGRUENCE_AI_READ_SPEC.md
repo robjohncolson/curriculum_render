@@ -1,6 +1,6 @@
 # Quiz confirm card, Phase 2: an AI read for explanations that name no option (spec v1, draft, 2026-10-26)
 
-Status: APPROVED by the teacher 2026-10-26 ("go!") with the §9 decisions below; implementation in flight. Extends QUIZ_INCONGRUENCE_CHECK_SPEC
+Status: APPROVED by the teacher 2026-10-26 ("go!") with the §9 decisions below; shipped 2026-10-26 (the commit carrying this line). Extends QUIZ_INCONGRUENCE_CHECK_SPEC
 Part B (§2–§5, shipped 2026-10-26, cr `4a25e5f`) with the phase its §4 last paragraph held back. Touches cr
 `index.html`, a new `railway-server/quiz-congruence.js` mounted by `railway-server/server.js` (Railway auto-deploys
 on push to main), tests, and one advisory script. No roster-server, ledger, migration or grade-engine change. The

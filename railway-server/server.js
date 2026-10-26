@@ -19,6 +19,7 @@ import { createCalcReadHandlers } from './apstat-park/calc-read-routes.mjs';
 import { applyWrongMcqCap, getReceiptIssuer, initReceipts, issueReceipt, issueReviewGrant } from './receipts.js';
 import { verifyToken } from './token.js';
 import { gradeBodyShapeError } from './grade-shape.js';
+import { CONGRUENCE_BODY_LIMIT, createQuizCongruenceRoute, quizCongruenceJsonErrorHandler } from './quiz-congruence.js';
 import { createHmac } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { dirname, resolve as resolvePath } from 'path';
@@ -80,6 +81,22 @@ app.post(
   express.json({ limit: aiGradeRouteConfig['/api/ai/grade-worksheet'].bodyBytes }),
   aiGradeAuthFor('/api/ai/grade-worksheet'),
   aiGradeJsonErrorHandlerFor('/api/ai/grade-worksheet'),
+);
+// The quiz confirm card's AI read (QUIZ_CONGRUENCE_AI_READ_SPEC §2): its own parser, its own 401
+// and its own per-student quota. It calls callAI directly, never through gradingQueue: a 3.5 s
+// read would expire waiting behind an end-of-period grading burst. The providers and the stats
+// are read at request time (they are defined further down).
+app.post(
+  '/api/quiz/congruence',
+  express.json({ limit: CONGRUENCE_BODY_LIMIT }),
+  createQuizCongruenceRoute({
+    sidFromRequest,
+    loadBank: () => loadCanonicalCurriculum(),
+    providers: () => AI_PROVIDERS,
+    callAI: (prompt, provider, opts) => callAI(prompt, provider, opts),
+    countProviderCall: (provider) => countCongruenceProviderCall(provider),
+  }),
+  quizCongruenceJsonErrorHandler,
 );
 app.use(express.json());
 
@@ -765,6 +782,19 @@ for (const p of AI_PROVIDERS) {
   });
 }
 let nextProviderIndex = 0;
+
+// The congruence read counts in providerStats like any call, but never waits for capacity.
+function countCongruenceProviderCall(provider) {
+  const stats = providerStats.get(provider.name);
+  if (!stats) return;
+  const now = Date.now();
+  if (now - stats.minuteStart > 60000) {
+    stats.requestsThisMinute = 0;
+    stats.minuteStart = now;
+  }
+  stats.requestsThisMinute++;
+  stats.lastRequestTime = now;
+}
 
 // Pick next provider. A provider flagged `primary` (DeepSeek) is PINNED as the
 // preferred grader and used whenever it's under its RPM limit; the others are

@@ -6508,6 +6508,8 @@ function renderLessonSelector(unitInfo) {
 
         // Back to units
         window.backToUnits = function() {
+            // A pressed Submit still waiting on its AI read goes out before the form is replaced.
+            try { _flushCongruenceChecks(); } catch (_) { /* never block navigation */ }
             // TASK 4.1: Clean up activity listeners before returning to units
             cleanupActivityTracking();
 
@@ -6529,6 +6531,8 @@ function renderLessonSelector(unitInfo) {
 
         // Back to lessons
         window.backToLessons = function() {
+            // A pressed Submit still waiting on its AI read goes out before the form is replaced.
+            try { _flushCongruenceChecks(); } catch (_) { /* never block navigation */ }
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -8070,6 +8074,239 @@ function renderLessonSelector(unitInfo) {
             return true;
         }
 
+        // ── AI read (QUIZ_CONGRUENCE_AI_READ_SPEC §1, §4) ──
+        // When the detector is silent, the server asks DeepSeek which ONE option the explanation
+        // argues for. Correctness-blind: the request is { questionId, explanation } and nothing else,
+        // and the pick is compared here, after the reply. Advisory: every failure submits as today.
+        var QUIZ_CONGRUENCE_CHECKING_TEXT = 'Checking your explanation\u2026';
+        var QUIZ_CONGRUENCE_READ_BUDGET_MS = 4000;
+        // The server's own deadline (railway-server/quiz-congruence.js): past it, it answers
+        // { letter: null } with a 200, so a null that took this long is a timeout, not a read.
+        var QUIZ_CONGRUENCE_SERVER_DEADLINE_MS = 3500;
+        var QUIZ_CONGRUENCE_READ_MIN_WORDS = 5;
+        var QUIZ_CONGRUENCE_READ_MAX_CHARS = 2000;
+        var QUIZ_CONGRUENCE_READ_PAUSE_MS = 5 * 60 * 1000;
+
+        // A 404 (server not deployed yet) turns the read off for the page; two timeouts in a row
+        // pause it for five minutes (a struggling network should not cost 4 s per submit).
+        var _quizCongruenceReadState = { off: false, timeouts: 0, pausedUntil: 0 };
+
+        // Pending checks: _quizCongruenceChecks()[qid] = { text, picked, attempt, startedAt } while a
+        // read is out. Cleared by the events that clear a card; the reply is used only while the
+        // same marker object is still there and the form still shows its text and pick.
+        var _quizCongruencePending = {};
+        var _quizCongruencePendingUser = null;
+        // One answer per (student, item, attempt, exact text), for the life of the page.
+        var _quizCongruenceReadAnswers = {};
+        var _quizCongruenceReadAnswersUser = null;
+
+        // Both belong to one student, like the cards: a same-tab sign-in starts with none.
+        function _quizCongruenceChecks() {
+            const user = currentUsername || null;
+            if (user !== _quizCongruencePendingUser) {
+                _quizCongruencePending = {};
+                _quizCongruencePendingUser = user;
+            }
+            return _quizCongruencePending;
+        }
+
+        function _congruenceReadCache() {
+            const user = currentUsername || null;
+            if (user !== _quizCongruenceReadAnswersUser) {
+                _quizCongruenceReadAnswers = {};
+                _quizCongruenceReadAnswersUser = user;
+            }
+            return _quizCongruenceReadAnswers;
+        }
+
+        function _congruenceCacheKey(questionId, attempt, text) {
+            return JSON.stringify([questionId, attempt, text]);
+        }
+
+        // → the cached letter or null, or undefined when this text was never read.
+        function _congruenceReadCached(questionId, attempt, text) {
+            const cache = _congruenceReadCache();
+            const key = _congruenceCacheKey(questionId, attempt, text);
+            return Object.prototype.hasOwnProperty.call(cache, key) ? cache[key] : undefined;
+        }
+
+        function _congruenceChoices(question) {
+            return (question && (question.choices || (question.attachments && question.attachments.choices))) || [];
+        }
+
+        function _congruenceRosterToken() {
+            try {
+                return window.rosterClient?.token?.() || null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        // A read can go out now: not turned off by a 404 or paused by timeouts, online, signed in.
+        function _congruenceReadReachable() {
+            if (_quizCongruenceReadState.off) return false;
+            if (Date.now() < _quizCongruenceReadState.pausedUntil) return false;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+            return !!_congruenceRosterToken();
+        }
+
+        // Spec §1.2: this submit and this item may have a read (cached, or sent when reachable).
+        // Reads only the item's id, type and options: never the key, never the pick.
+        function _congruenceReadEligible(questionId, text, opts) {
+            if (opts && (opts.congruenceConfirmed || opts.congruenceAiSkip)) return false;   // the card's or the system's own submit
+            if (/^U\d+-PC/i.test(questionId)) return false;   // College Board-secure: never leaves the page
+            if (typeof text !== 'string' || text.length > QUIZ_CONGRUENCE_READ_MAX_CHARS) return false;
+            const words = text.trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length;
+            if (words < QUIZ_CONGRUENCE_READ_MIN_WORDS) return false;
+            const question = _quizQuestionFor(questionId);
+            if (!question || question.type !== 'multiple-choice') return false;
+            const options = _congruenceChoices(question);
+            if (options.length < 2) return false;
+            return options.every(option => option && typeof option.value === 'string' && option.value.trim());
+        }
+
+        // The whole request: the item id and the explanation. Nothing else ever goes out.
+        function _congruenceReadBody(questionId, text) {
+            return { questionId, explanation: text };
+        }
+
+        // → { letter, outcome } with outcome 'ok' | 'timeout' | 'notfound' | 'error'. Never throws.
+        // A late reply after the 4 s budget is ignored. A null that came back at or past the
+        // server's deadline is a server-side timeout and counts toward the pause like a client one.
+        function _fetchCongruenceRead(questionId, text) {
+            const letters = _congruenceChoices(_quizQuestionFor(questionId)).map(option => option && option.key);
+            const sentAt = Date.now();
+            return new Promise(resolve => {
+                let settled = false;
+                let timer = null;
+                const controller = (typeof AbortController === 'function') ? new AbortController() : null;
+                const finish = (letter, outcome) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve({ letter, outcome });
+                };
+                timer = setTimeout(() => {
+                    finish(null, 'timeout');
+                    try { if (controller) controller.abort(); } catch (_) {}
+                }, QUIZ_CONGRUENCE_READ_BUDGET_MS);
+
+                Promise.resolve().then(() => {
+                    const engine = (typeof getGradingEngine === 'function') ? getGradingEngine() : null;
+                    const base = (engine && engine.serverUrl) || window.RAILWAY_SERVER_URL || 'https://curriculumrender-production.up.railway.app';
+                    const headers = { 'Content-Type': 'application/json' };
+                    const token = _congruenceRosterToken();
+                    if (token) headers.Authorization = `Bearer ${token}`;
+                    return fetch(`${base}/api/quiz/congruence`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(_congruenceReadBody(questionId, text)),
+                        signal: controller ? controller.signal : undefined
+                    });
+                }).then(async response => {
+                    if (response.status === 404) return finish(null, 'notfound');
+                    if (response.status !== 200) return finish(null, 'error');
+                    let body = null;
+                    try { body = await response.json(); } catch (_) { body = null; }
+                    const letter = (body && typeof body === 'object') ? body.letter : undefined;
+                    if (letter === null && Date.now() - sentAt >= QUIZ_CONGRUENCE_SERVER_DEADLINE_MS) return finish(null, 'timeout');
+                    if (letter === null) return finish(null, 'ok');
+                    if (typeof letter === 'string' && letters.includes(letter)) return finish(letter, 'ok');
+                    finish(null, 'error');
+                }).catch(() => finish(null, 'error'));
+            });
+        }
+
+        function _noteCongruenceReadOutcome(outcome) {
+            const state = _quizCongruenceReadState;
+            if (outcome === 'notfound') {
+                state.off = true;
+                return;
+            }
+            if (outcome !== 'timeout') {
+                state.timeouts = 0;
+                return;
+            }
+            state.timeouts += 1;
+            if (state.timeouts < 2) return;
+            state.timeouts = 0;
+            state.pausedUntil = Date.now() + QUIZ_CONGRUENCE_READ_PAUSE_MS;
+        }
+
+        // The form still shows the exact text and pick the check was made for, on the same attempt.
+        function _congruenceCheckStillShown(questionId, check) {
+            const mode = _quizFormState(questionId).mode;
+            if (mode !== 'first' && mode !== 'retry') return false;
+            const reasonBox = document.getElementById(`reason-${questionId}`);
+            if (!reasonBox || reasonBox.value.trim() !== check.text) return false;
+            const checkedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
+            if (!checkedRadio || checkedRadio.value !== check.picked) return false;
+            return _quizEffectiveAttempts(questionId) + 1 === check.attempt;
+        }
+
+        function _clearCongruenceCheck(questionId) {
+            delete _quizCongruenceChecks()[questionId];
+            _paintQuizSubmitButton(questionId);
+        }
+
+        function _startCongruenceRead(questionId, check) {
+            _quizCongruenceChecks()[questionId] = check;
+            _paintQuizSubmitButton(questionId);
+            _fetchCongruenceRead(questionId, check.text)
+                .then(result => _onCongruenceRead(questionId, check, result))
+                .catch(() => { /* never break the page */ });
+        }
+
+        // A letter other than the pick → the shipped card. Anything else → the submit the untouched
+        // flow would have made, through the card's own confirmed path (same letter, text, attempt).
+        function _onCongruenceRead(questionId, check, result) {
+            _noteCongruenceReadOutcome(result.outcome);
+            if (_quizCongruenceChecks()[questionId] !== check) {
+                // Cleared, flushed, superseded, or another student signed in: never acts.
+                if (!_quizCongruenceChecks()[questionId]) _paintQuizSubmitButton(questionId);
+                return;
+            }
+            delete _quizCongruenceChecks()[questionId];
+            _paintQuizSubmitButton(questionId);
+            if (!_congruenceCheckStillShown(questionId, check)) return;   // the read was about old text
+            if (result.outcome === 'ok') _congruenceReadCache()[_congruenceCacheKey(questionId, check.attempt, check.text)] = result.letter;
+
+            if (result.letter && result.letter !== check.picked) {
+                _quizCongruenceMarkers()[questionId] = { picked: check.picked, pointsTo: result.letter, text: check.text, attempt: check.attempt };
+                _paintCongruenceCard(questionId);
+                _focusById(`congruence-title-${questionId}`);
+                return;
+            }
+            window.submitAnswer(questionId, 'multiple-choice', {
+                congruenceConfirmed: true,
+                congruenceAttempt: check.attempt
+            });
+        }
+
+        // Send-on-exit (spec §9 concern 4, decision 5): a pressed Submit still waiting on its read is
+        // sent, not lost, when the tab closes, the topic reloads, or the student goes back to the
+        // topics or units, as long as the form still shows its text and pick. Same confirmed path
+        // as the reply.
+        function _flushCongruenceChecks() {
+            const checks = _quizCongruenceChecks();
+            for (const questionId of Object.keys(checks)) {
+                const check = checks[questionId];
+                delete checks[questionId];
+                _paintQuizSubmitButton(questionId);
+                if (!_congruenceCheckStillShown(questionId, check)) continue;
+                try {
+                    window.submitAnswer(questionId, 'multiple-choice', {
+                        congruenceConfirmed: true,
+                        congruenceAttempt: check.attempt
+                    });
+                } catch (_) { /* the next item still goes */ }
+            }
+        }
+        if (!window.__quizCongruenceFlushWired) {
+            window.__quizCongruenceFlushWired = true;
+            window.addEventListener('pagehide', _flushCongruenceChecks);
+        }
+
         function _quizFormState(questionId) {
             if (!isQuestionAnswered(questionId)) {
                 return {
@@ -8140,10 +8377,15 @@ function renderLessonSelector(unitInfo) {
                 const samePick = !!checkedRadio && checkedRadio.value === marker.picked;
                 if (!stillOpen || !sameText || !samePick) delete _quizCongruenceMarkers()[questionId];
             }
+            // A pending AI read, likewise: only over the exact text and pick it was asked about.
+            const check = _quizCongruenceChecks()[questionId];
+            if (check && !_congruenceCheckStillShown(questionId, check)) delete _quizCongruenceChecks()[questionId];
             _paintCongruenceCard(questionId);
             const cardUp = _quizCongruenceMarkers()[questionId];
+            const checkUp = _quizCongruenceChecks()[questionId];
             let shown = stored;
             if (form.mode === 'retry' && picks[questionId]) shown = picks[questionId];
+            if (checkUp) shown = checkUp.picked;
             if (cardUp) shown = cardUp.picked;   // the card's pick first, in first and retry mode
             document.querySelectorAll(`input[name="choice-${questionId}"]`).forEach(radio => {
                 radio.disabled = locked;
@@ -8163,19 +8405,33 @@ function renderLessonSelector(unitInfo) {
                 textarea.classList.toggle('required', form.mode === 'retry');
                 if (clearReason && form.mode === 'retry') textarea.value = '';
             }
-            const button = document.getElementById(`submit-${questionId}`);
-            if (button) {
-                button.textContent = form.buttonText;
-                button.style.display = locked ? 'none' : '';
-                button.disabled = form.mode === 'retry'
-                    ? !retryReasoningReady(textarea ? textarea.value : '')
-                    : form.buttonDisabled;
-            }
+            _paintQuizSubmitButton(questionId, form);
             const lockLine = document.getElementById(`grade-lock-${questionId}`);
             if (lockLine) {
                 lockLine.textContent = form.lockText;
                 lockLine.style.display = form.lockText ? '' : 'none';
             }
+        }
+
+        // The Submit button for the form's state. While an AI read is out it reads "Checking your
+        // explanation…" and stays disabled, so peer repaints and the 30 s pull never re-enable it.
+        function _paintQuizSubmitButton(questionId, form = _quizFormState(questionId)) {
+            const button = document.getElementById(`submit-${questionId}`);
+            if (!button) return;
+            const locked = form.mode === 'settled' || form.mode === 'pending' || form.mode === 'checking';
+            const checking = !!_quizCongruenceChecks()[questionId];
+            const textarea = document.getElementById(`reason-${questionId}`);
+            button.textContent = checking ? QUIZ_CONGRUENCE_CHECKING_TEXT : form.buttonText;
+            button.style.display = locked ? 'none' : '';
+            if (checking) button.setAttribute('aria-busy', 'true');
+            else button.removeAttribute('aria-busy');
+            if (checking) {
+                button.disabled = true;
+                return;
+            }
+            button.disabled = form.mode === 'retry'
+                ? !retryReasoningReady(textarea ? textarea.value : '')
+                : form.buttonDisabled;
         }
 
         // Live enable of the retry button: re-checked on EVERY keystroke (v1's bug was rendering
@@ -8185,6 +8441,7 @@ function renderLessonSelector(unitInfo) {
             if (!target || typeof target.id !== 'string' || !target.id.startsWith('reason-')) return;
             const questionId = target.id.slice('reason-'.length);
             if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every mode: the card was about the old text
+            if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);   // and so was a pending read
             if (_quizFormState(questionId).mode !== 'retry') return;
             const button = document.getElementById(`submit-${questionId}`);
             if (button) button.disabled = !retryReasoningReady(target.value);
@@ -8204,6 +8461,7 @@ function renderLessonSelector(unitInfo) {
             // Every mode: a new pick voids the card, and the highlight follows the checked radio now
             // instead of at the next repaint.
             if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);
+            if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);
             document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
                 const radio = div.querySelector('input[type="radio"]');
                 if (radio) div.classList.toggle('selected', !!radio.checked);
@@ -9207,8 +9465,10 @@ function renderLessonSelector(unitInfo) {
         // Returns true when the submit went out, false on every early return (the confirm card
         // included). opts.congruenceConfirmed + opts.congruenceAttempt come from the card's letter
         // buttons and skip the congruence check only for the attempt the card was shown for.
+        // opts.congruenceAiSkip (the reconcile auto-send) runs the detector but never the AI read.
         window.submitAnswer = function(questionId, questionType, opts) {
             if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every submit starts without a card
+            if (_quizCongruenceChecks()[questionId]) _clearCongruenceCheck(questionId);   // or a pending read
             if (!currentUsername) {
                 showMessage('Please enter your username first!', 'error');
                 return false;
@@ -9371,6 +9631,21 @@ function renderLessonSelector(unitInfo) {
                         _paintCongruenceCard(questionId);
                         _focusById(`congruence-title-${questionId}`);
                         return false;
+                    }
+                    // The detector is silent: the AI read (QUIZ_CONGRUENCE_AI_READ_SPEC §4). A cached
+                    // answer decides at once; otherwise the read goes out and its reply sends or asks.
+                    if (!pointsTo && _congruenceReadEligible(questionId, reason, opts)) {
+                        const cached = _congruenceReadCached(questionId, ledgerAttempt, reason);
+                        if (cached === undefined && _congruenceReadReachable()) {
+                            _startCongruenceRead(questionId, { text: reason, picked: value, attempt: ledgerAttempt, startedAt: Date.now() });
+                            return false;
+                        }
+                        if (cached && cached !== value) {
+                            _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo: cached, text: reason, attempt: ledgerAttempt };
+                            _paintCongruenceCard(questionId);
+                            _focusById(`congruence-title-${questionId}`);
+                            return false;
+                        }
                     }
                 }
             }
@@ -13563,7 +13838,8 @@ Respond with JSON:
 
                 // A card already up is the student's own retry, asked about their own text and pick:
                 // never put the first explanation under it or send for them. They answer the card.
-                if (_quizCongruenceMarkers()[questionId]) {
+                // A pending AI read is the same retry, pressed: its reply sends it or asks.
+                if (_quizCongruenceMarkers()[questionId] || _quizCongruenceChecks()[questionId]) {
                     say(`The gradebook already had your first answer on this question (${kept}). Check the question below and submit your one retry.`, '#c0392b');
                     return;
                 }
@@ -13575,7 +13851,8 @@ Respond with JSON:
                 const textarea = document.getElementById(`reason-${questionId}`);
                 if (textarea) textarea.value = reason || '';
                 if (retryReasoningReady(reason || '')) {
-                    const sent = window.submitAnswer(questionId, 'multiple-choice');
+                    // The system's own submit: the detector still runs, the AI read never does.
+                    const sent = window.submitAnswer(questionId, 'multiple-choice', { congruenceAiSkip: true });
                     if (sent === true) {
                         say(`The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`, '#3498db');
                         return;
@@ -13780,6 +14057,8 @@ Respond with JSON:
 
         // Modify backToUnits function to go back to unit menu instead
         window.backToUnits = function() {
+            // A pressed Submit still waiting on its AI read goes out before the form is replaced.
+            try { _flushCongruenceChecks(); } catch (_) { /* never block navigation */ }
             // Clear any existing charts
             Object.values(chartInstances).forEach(chart => {
                 if (chart && typeof chart.destroy === 'function') {
@@ -13895,6 +14174,8 @@ Respond with JSON:
 
         // Shared renderer for a new-topic selection or a direct old-id locator.
         window.loadLessonWithResources = async function(selection) {
+            // A pressed Submit still waiting on its AI read goes out before the form is rebuilt.
+            try { _flushCongruenceChecks(); } catch (_) { /* never block a topic load */ }
             const options = typeof selection === 'object'
                 ? selection
                 : { newTopic: String(selection) };
