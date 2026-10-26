@@ -1,6 +1,6 @@
 # Quiz retry form: keep the student's pick, and ask when the explanation points to a different letter (spec v1, 2026-10-25)
 
-Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A ships first, then the two §0 resets, then Part B. Client-only (curriculum_render `index.html` + tests); no roster-server,
+Status: APPROVED by the teacher 2026-10-25 (both parts; "use your best judgement"). Part A shipped 2026-10-25 (cr `0389295`), the two §0 resets done the same evening, Part B shipped 2026-10-26 (the commit carrying this line). Client-only (curriculum_render `index.html` + tests); no roster-server,
 ledger, migration or grade-engine change. Builds on QUIZ_FIRST_ANSWER_SPEC v2 (one explained retry = the grade),
 the 2026-10-23 teacher retry reset (`POST /ledger/quiz-reset`) and `_reconcileKeptFirstAnswer` (cr `02dbe58`).
 Reviewed 2026-10-25 by a six-lens adversarial pass (key leakage, state races, detector red team, UX,
@@ -286,15 +286,18 @@ picked, we'll ask which one you mean before it counts."
 
 ## 7. Tests (cr `tests/`, Vitest + jsdom, same harness as `quiz-settled-dom.test.js`)
 
-**Contract.** The tables below and the §0 cases (as item + letters, never names or ids) are the contract the JS
-port must reproduce row for row. `scripts/quiz-congruence-dry-run.py` is the Python the tables were generated with
-(advisory, not run by CI; `python -I -X utf8 scripts/quiz-congruence-dry-run.py <ledger rows json> <peer-data json>
-data/curriculum.js`).
+**Contract.** `tests/fixtures/quiz-congruence-corpus.json` — 255 rows in 38 sets: the tables below (spec:*), the
+32 Spanish/notation review cases, the 86 red-team rows (adversarial-*), the 40 rows written against real bank items
+plus the §0 cases on their real items (bank:*, prompt and choices inlined from `data/curriculum.js`; letters only,
+never names or ids). Every row's `expect` was computed by the Python reference `scripts/quiz-congruence-dry-run.py`
+(`points_to`; advisory, not run by CI; `python -I -X utf8 scripts/quiz-congruence-dry-run.py <ledger rows json>
+<peer-data json> data/curriculum.js`), and the JS port must reproduce every row — the two known residual cards
+included. `humanSays` is informational. Regenerate the fixture only together with the Python.
 
 `quiz-retry-pick.test.js` — **Part A** (§1.4).
 
-`quiz-congruence.test.js` — **detector unit tests**: every row below; the §0 cases; the correctness-blind source
-pins (§3); the retry fallback (`firstAnswers[qid]` absent, classData first answer present → the card for
+`quiz-congruence.test.js` — **detector unit tests**: every fixture row (one `it` per set, naming the failing rows);
+the correctness-blind source pins (§3); the retry fallback (`firstAnswers[qid]` absent, classData first answer present → the card for
 "I accidentally chose A." does not appear).
 
 `quiz-congruence-dom.test.js` — **runtime** (real `renderQuestion` + real `submitAnswer`, `gradebookClient.record`

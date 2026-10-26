@@ -11,6 +11,17 @@
     <meta name="theme-color" content="#1d2b53">
 
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Explanation ↔ pick confirm card (QUIZ_INCONGRUENCE_CHECK_SPEC §5). Neutral on purpose:
+           no colour or icon on it may read as right or wrong. */
+        .congruence-card { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border-tertiary, #ddd); border-radius: 8px; background: var(--bg-secondary, #fff); color: var(--text-primary, #2c3e50); }
+        .congruence-title { margin: 0 0 10px; }
+        .congruence-title:focus { outline: 2px solid var(--border-primary, #3498db); outline-offset: 2px; }
+        .congruence-pick { display: inline-block; margin: 0 8px 8px 0; padding: 8px 12px; border: 1px solid var(--border-tertiary, #ddd); border-radius: 6px; background: var(--bg-tertiary, #f8f9fa); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+        .congruence-pick .muted { display: block; margin-top: 2px; font-size: 0.85em; color: var(--text-secondary, #666); }
+        .congruence-fix.link { display: block; padding: 4px 0; border: 0; background: none; color: var(--accent-primary, #3498db); font: inherit; text-decoration: underline; cursor: pointer; }
+        @media (max-width: 600px) { .congruence-pick { display: block; width: 100%; margin-right: 0; } }
+    </style>
 
     <!-- Local-first libraries (no network delay) -->
     <script src="lib/chart.min.js"></script>
@@ -7112,6 +7123,10 @@ function renderLessonSelector(unitInfo) {
             if (question.type !== 'free-response') {
                 const form = _quizFormState(question.id);
                 const savedReason = getReasonString(classData.users[currentUsername]?.reasons?.[question.id]);
+                // A full rebuild (topic reload, sign-in) writes a fresh form: the stored explanation and
+                // pick, or none, never the text and pick a card was computed from. The card goes with
+                // the form (§5); kept, it showed over an empty form and its letter sent no explanation.
+                delete _quizCongruenceMarkers()[question.id];
                 html += `
                         <div class="answer-section">
                             <div class="reason-wrapper">
@@ -7138,6 +7153,7 @@ function renderLessonSelector(unitInfo) {
                                 <span id="error-${question.id}" class="error-msg"></span>
                                 <span id="success-${question.id}" class="success-msg"></span>
                             </div>
+                            <div id="congruence-${question.id}" class="congruence-host" data-card-html=""></div>
                         </div>
                         <!-- Answer key + class chart hosts: filled by displayAnswerKey / showDotplot once settled -->
                         <div id="answer-key-${question.id}" class="answer-key-section" style="display:none;"></div>
@@ -7499,6 +7515,464 @@ function renderLessonSelector(unitInfo) {
             return text.trim().split(/\s+/).filter(token => /[\p{L}\p{N}]/u.test(token)).length >= 3;
         }
 
+        // ── Explanation ↔ pick congruence (QUIZ_INCONGRUENCE_CHECK_SPEC §4) ──
+        // quizExplanationPointsTo(text, choices, pickedKey, firstAnswerKey, prompt) returns the one option
+        // letter the explanation argues for, or null when that is unclear. It is a function-by-function
+        // port of points_to() in scripts/quiz-congruence-dry-run.py; tests/fixtures/
+        // quiz-congruence-corpus.json is the contract and tests/quiz-congruence.test.js runs every row.
+        // Correctness-blind by construction (spec §3): it gets the explanation, the item's printed text
+        // and the letters, never the key. Pure: no page state, no clock, no network, no randomness.
+        //
+        // Reading it next to the Python:
+        //   * Python's \w, \b, \d and \s know Unicode. Here \w is [\p{L}\p{N}_] (W), \b is a lookaround
+        //     on W, \d is \p{Nd}, and WS is exactly the set of characters Python treats as whitespace.
+        //   * Python counts code points, JS strings count UTF-16 units. Offsets are only compared with
+        //     each other, so they stay in units; lengths and the 40-character look-back count code points.
+        //   * A pattern Python matched with re.IGNORECASE runs here without /i over caseless() text.
+        //   * A pattern with lookbehind or the d flag is built with `new RegExp` during the call, never
+        //     written as a literal: lookbehind is a parse error before Safari 16.4 and would take the whole
+        //     quiz script down. There the call throws instead, and the catch answers "unclear" (null),
+        //     which submits as today.
+        const quizExplanationPointsTo = (() => {
+            const NOUN_CUES = new Set(['option', 'choice', 'answer', 'letter', 'ans', 'opt',
+                'opción', 'opcion', 'respuesta', 'letra', 'inciso', 'alternativa']);
+            const VERB_CUES = new Set(['is', 'its', "it's", 'be', 'was', 'pick', 'picked', 'chose', 'choose', 'choosing',
+                'select', 'selected', 'think', 'thought', 'say', 'said', 'with', 'keep', 'keeping',
+                'picking', 'to', 'go', 'went', 'going', 'stick', 'stay', 'now', 'actually', 'definitely',
+                'probably', 'likely', 'maybe', 'either', 'guess', 'guessed', 'put', 'putting', 'pressed',
+                'clicked', 'click', 'press', 'meant', 'mean', 'want', 'wanted', 'chosen',
+                'es', 'sería', 'seria', 'era', 'elegí', 'elegi', 'escogí', 'escogi', 'puse', 'pongo',
+                'marqué', 'marque', 'seleccioné', 'seleccione', 'creo', 'pienso', 'la', 'opté', 'opte']);
+            const AFTER_CUES = new Set(['because', 'since', 'as', 'bc', 'b/c', 'cuz', 'cause', 'is', 'was', 'would', 'will',
+                'makes', 'seems', 'due', 'which', 'and', 'but', 'so', 'for', 'the', 'it', 'if', 'when',
+                'porque', 'ya', 'pues', 'es', 'era', 'por', 'y', 'pero']);
+            const NEG_BEFORE = new Set(['not', "isn't", 'isnt', "wasn't", 'wasnt', "aren't", "can't", 'cant', 'cannot', "couldn't",
+                "wouldn't", "shouldn't", "doesn't", 'doesnt', "didn't", 'didnt', "don't", 'dont', 'never',
+                'no', 'eliminate', 'eliminated', 'eliminating', 'rule', 'ruled', 'out', 'instead',
+                'rather', 'than', 'except', 'unless', 'wrong', 'incorrect', 'nor', 'against', 'without',
+                'originally', 'initially', 'first', 'previously', 'before', 'earlier', 'from',
+                'tampoco', 'nunca', 'excepto', 'vez', 'antes', 'primero', 'incorrecta', 'incorrecto', 'mal']);
+            const NEG_AFTER = new Set(['wrong', 'incorrect', 'not', "isn't", 'isnt', "can't", 'cant', 'cannot', "doesn't",
+                'doesnt', "didn't", 'didnt', 'false', 'impossible', 'unlikely', "wouldn't", 'fails',
+                'ignores', 'only', 'never', 'too', 'out',
+                'no', 'incorrecta', 'incorrecto', 'mal', 'tampoco', 'nunca']);
+            // a copula or modal may sit between the letter and the negation word: "C is wrong", "D would be wrong"
+            const COPULA = new Set(['is', 'was', 'isnt', "isn't", 'are', 'be', 'being', 'would', 'could', 'can', 'cant', "can't",
+                'will', 'might', 'may', 'does', 'do', 'did', 'seems', 'seemed', 'makes', 'made', 'looks',
+                'sounds', 'also', 'still', 'just', 'really', 'probably', 'definitely', 'es', 'era', 'está']);
+            // "X to Y" is a change of mind only after one of these (or with an arrow); otherwise it is a range/comparison
+            const CHANGE_VERBS = new Set(['changed', 'change', 'changing', 'switched', 'switch', 'switching', 'moved', 'move',
+                'swapped', 'swap', 'went', 'cambié', 'cambie', 'cambio']);
+            const GRADE_OR_NAME_BEFORE = new Set(['a', 'an', 'got', 'get', 'getting', 'earned', 'scored', 'mr', 'mrs', 'ms', 'dr',
+                'vitamin', 'hepatitis', 'grade']);
+            const LABEL_NOUNS = '(?:events?|groups?|teams?|treatments?|samples?|plans?|parts?|machines?|brands?|types?|classes|' +
+                'players?|lines?|routes?|regions?|airports?|stations?|cities|schools?|stores?|models?|versions?|' +
+                'methods?|grupo|grupos|evento|eventos|región|region|regiones|muestra|muestras|plan|planes|tipo|tipos|' +
+                'group|team|treatment|sample|plan|part|machine|brand|type|class|player|line|route|' +
+                'method|model|version|store|school|city|company|diet|drug|variety|bag|box|coin|die|' +
+                'histogram|graph|plot|distribution|dataset|data set|set|study|design|survey|test|' +
+                'section|strategy|scenario|table|chart|curve|point|region|interval|variable|' +
+                'population|batch|lot|location|site|branch|supplier|factory|farm|field|plant|' +
+                'fertilizer|species|breed|dog|cat|student|person|worker|employee|candidate|' +
+                'restaurant|hotel|airline|flight|train|bus|car|truck|road|highway|bridge|' +
+                'program|course|teacher|instructor|coach|doctor|hospital|clinic|lab|' +
+                'quiz|exam|form|list|column|row|bin|cell|block|unit|level|grade|tier|' +
+                'patient|subject|participant|volunteer|respondent|customer|client|user|voter|' +
+                'squad|club|league|division|conference|district|county|state|country|' +
+                'stock|fund|portfolio|account|bank|loan|card|policy|package|bundle|' +
+                'recipe|dish|meal|menu|flavor|color|colour|shade|paint|fabric|material|agency|agencies|' +
+                'simulation|simulations|strain|strains|department|departments|condition|conditions)';
+
+            // Python's \w and \s, character for character (str.split(), str.strip() and \S use the same \s).
+            const W = String.raw`\p{L}\p{N}_`;
+            const WS = String.raw`\t\n\v\f\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000`;
+            // a prompt that asks for the FALSE / NOT supported statement: "D is not supported" names the answer
+            // (Python: \b(not|false|...)\b with re.IGNORECASE, so it runs over caseless() text)
+            const NEGATIVE_QUESTION = String.raw`(?<![${W}])(not|false|incorrect|least|cannot|never|invalid|except)(?![${W}])`;
+
+            function rx(source, flags = '') {
+                return new RegExp(source, flags + 'u');
+            }
+
+            // Python's re.IGNORECASE compares simple lowercase letters (the dotted capital I matches i, the
+            // Kelvin sign matches k) and also counts dotless i as i, long s as s and final sigma as sigma.
+            // JS's /i flag misses both i's and lets a combining mark (U+0345) count as \p{L}. So those
+            // patterns run without /i over this copy. It has the same length (the dotted I is mapped before
+            // toLowerCase, which would make it two characters), so a match's offsets point at the same
+            // characters of the original text.
+            function caseless(s) {
+                return s.replace(/\u0130/g, 'i').toLowerCase()
+                    .replace(/\u0131/g, 'i').replace(/\u017f/g, 's').replace(/\u03c2/g, '\u03c3');
+            }
+
+            // The end of s without its trailing run of `oneChar` (a pattern for one code point). A scan
+            // from the end, not a `[…]+$` regex: that one retries the whole run from every start and
+            // took seconds on a pasted run of 40,000 spaces.
+            const isHighSurrogate = (unit) => unit >= 0xD800 && unit <= 0xDBFF;
+            const isLowSurrogate = (unit) => unit >= 0xDC00 && unit <= 0xDFFF;
+            function trimEndWhile(s, oneChar) {
+                let end = s.length;
+                while (end > 0) {
+                    const pair = end >= 2 && isHighSurrogate(s.charCodeAt(end - 2)) && isLowSurrogate(s.charCodeAt(end - 1));
+                    const start = pair ? end - 2 : end - 1;
+                    if (!oneChar.test(s.slice(start, end))) break;
+                    end = start;
+                }
+                return s.slice(0, end);
+            }
+
+            // Python's str.strip(), str.split() and len() (code points), all without arguments.
+            function pyStrip(s) {
+                return trimEndWhile(s.replace(rx(`^[${WS}]+`), ''), rx(`^[${WS}]$`));
+            }
+            function pySplit(s) {
+                return s.match(rx(`[^${WS}]+`, 'g')) || [];
+            }
+            function pyLen(s) {
+                return Array.from(s).length;
+            }
+
+            // Python's re.escape(): only what is special in a JS /u pattern takes the backslash.
+            function escapeRegExp(s) {
+                return s.replace(/[\\^$.*+?()[\]{}|/]/g, '\\$&');
+            }
+
+            // Python's str(choice.get("value", "")); a missing or null value is empty.
+            function choiceText(choice) {
+                const value = choice.value;
+                return value === undefined || value === null ? '' : String(value);
+            }
+
+            // Python's text[max(0, end - n):end]: the last n code points before `end` (2n units always hold them).
+            function lastCodePoints(text, end, n) {
+                return Array.from(text.slice(Math.max(0, end - 2 * n), end)).slice(-n).join('');
+            }
+
+            // _tokens: every run of non-whitespace, with its offsets.
+            function tokens(text) {
+                return Array.from(text.matchAll(rx(`[^${WS}]+`, 'g')),
+                    m => ({ start: m.index, end: m.index + m[0].length, tok: m[0] }));
+            }
+
+            // _strip: a token without its outer punctuation, lowercased ("C," → "c"; "it's" keeps its ').
+            function strip(tok) {
+                return trimEndWhile(tok.replace(rx(`^[^${W}']+`), ''), rx(`^[^${W}']$`)).toLowerCase();
+            }
+
+            // _clean_item_text: prompt + choice texts with HTML tags and LaTeX delimiters removed ("\(B\)" → " B ").
+            function cleanItemText(prompt, choices) {
+                let corpus = [prompt].concat(choices.map(choiceText)).join(' ');
+                corpus = corpus.replace(/<[^>]+>/g, ' ');
+                corpus = corpus.replace(/\\[()[\]]|\$/g, ' ');
+                return corpus.replace(rx(`[${WS}]+`, 'g'), ' ');
+            }
+
+            // label_info: (letters the item itself prints as labels, cleaned item text).
+            // Every standalone uppercase A-E the item prints is a label ("random variable B", "Agency B",
+            // "events A and B", "P(A)"), except an "A" that is the article (followed by a lowercase word);
+            // plus LaTeX subscripts (\mu_A, \bar{x}_B) and "<label noun> A" even when lowercase follows.
+            function labelInfo(prompt, choices) {
+                const corpus = cleanItemText(prompt, choices);
+                const found = new Set();
+                for (const m of corpus.matchAll(rx('(?<![A-Za-z0-9])([A-E])(?![A-Za-z0-9])', 'g'))) {
+                    const letter = m[1];
+                    const end = m.index + 1;
+                    if (letter === 'A' && rx(`^[${WS}][a-z]`).test(corpus.slice(end, end + 2))) continue;
+                    found.add(letter);
+                }
+                for (const m of corpus.matchAll(/_\{?([A-E])\}?/g)) {
+                    found.add(m[1]);
+                }
+                // re.IGNORECASE in the Python: matched over caseless(corpus), hence [a-e]; the letters are then
+                // read, case-sensitively, from the same span of the original corpus
+                const listed = rx(String.raw`(?<![${W}])${LABEL_NOUNS}[${WS}]+((?:[a-e](?![${W}])(?:[${WS}]*,[${WS}]*|[${WS}]*,?[${WS}]*(?:and|or|y|o)[${WS}]+|[${WS}]+)?)+)`, 'gd');
+                for (const m of caseless(corpus).matchAll(listed)) {
+                    const span = corpus.slice(m.indices[1][0], m.indices[1][1]);
+                    for (const n of span.matchAll(rx(`(?<![${W}])([A-E])(?![${W}])`, 'g'))) {
+                        found.add(n[1].toUpperCase());
+                    }
+                }
+                for (const m of corpus.matchAll(rx(String.raw`(?<![${W}])[A-Za-z]\([${WS}]*([A-E])(?![${W}])`, 'g'))) {
+                    found.add(m[1]);
+                }
+                return { labels: found, itemText: corpus };
+            }
+
+            // Python's t[i - 1].isalpha(): the code point that ends just before i (an emoji is two units).
+            function isAlphaBefore(t, i) {
+                return /\p{L}$/u.test(t.slice(Math.max(0, i - 2), i));
+            }
+
+            // _inside_notation walks back from the letter and stops at the first "(" or "[" that no ")" or "]"
+            // in between closes (then checks the character before it), or at ". ! ?" (then: no). Read
+            // forwards, that bracket is the innermost one still open since the last ". ! ?", so one pass with
+            // a stack answers every offset at once (the walk back made a long paste quadratic):
+            // openBracketBefore(t)[pos] is that bracket's offset, or -1.
+            function openBracketBefore(t) {
+                const open = [];
+                const before = new Array(t.length + 1).fill(-1);
+                for (let i = 0; i < t.length; i++) {
+                    before[i] = open.length ? open[open.length - 1] : -1;
+                    const ch = t[i];
+                    if (ch === '(' || ch === '[') {
+                        open.push(i);
+                    } else if (ch === ')' || ch === ']') {
+                        open.pop();
+                    } else if (ch === '.' || ch === '!' || ch === '?') {
+                        open.length = 0;
+                    }
+                }
+                before[t.length] = open.length ? open[open.length - 1] : -1;
+                return before;
+            }
+
+            // _inside_notation: true when the letter sits inside P(...), E[...], Var(...): an identifier
+            // right before the unmatched opening bracket.
+            function insideNotation(t, openBefore, pos) {
+                const i = openBefore[pos];
+                return i > 0 && (isAlphaBefore(t, i) || t[i - 1] === '(' || t[i - 1] === '|');
+            }
+
+            // points_to: { letter, refs }; refs are the letter references it weighed, in text order.
+            function pointsTo(text, choices, firstLetter, prompt) {
+                const keys = choices.filter(c => c.key).map(c => String(c.key).toUpperCase());
+                if (typeof text !== 'string' || !pyStrip(text) || !keys.length) return { letter: null, refs: [] };
+                let t = text.replace(/\u2019/g, "'").replace(/\u201c/g, '"').replace(/\u201d/g, '"');
+                t = pyStrip(t.replace(rx(`[${WS}]+`, 'g'), ' '));
+                const tCaseless = caseless(t);
+                const toks = tokens(t);
+                const { labels, itemText } = labelInfo(prompt, choices);
+                const itemCaseless = caseless(itemText);
+                const negativeQuestion = rx(NEGATIVE_QUESTION).test(caseless(prompt.replace(/<[^>]+>/g, ' ')));
+
+                const refs = [];             // { letter, pos, strength, negated }
+                const consumed = new Set();  // positions claimed by the change / range patterns
+
+                // Worked out once per call instead of once per letter (same answers; a 6,000-character paste
+                // of bare letters went from ~75 ms to ~13 ms): each token's _strip, the token covering each
+                // offset, the two token patterns add() tests, the item-text bigram answers, the open bracket
+                // before each offset, and whether the explanation writes an equation.
+                const stripped = toks.map(x => strip(x.tok));
+                const tokenAt = new Array(t.length).fill(null);
+                toks.forEach((x, i) => {
+                    for (let p = x.start; p < x.end; p++) tokenAt[p] = i;
+                });
+                const numberToken = rx(String.raw`^[\p{Nd}.,%]+$`);
+                const labelNounToken = rx(`^${LABEL_NOUNS}$`);
+                const itemBigrams = new Map();
+                const openBefore = openBracketBefore(t);
+                const writesEquation = t.includes('=');
+
+                // tok_index_at: the index of the token that covers offset pos, or null (a space)
+                function tokIndexAt(pos) {
+                    return pos >= 0 && pos < tokenAt.length ? tokenAt[pos] : null;
+                }
+
+                function context(pos) {
+                    const i = tokIndexAt(pos);
+                    if (i === null) return { before: [], after: [], i: null };
+                    return { before: stripped.slice(Math.max(0, i - 6), i), after: stripped.slice(i + 1, i + 4), i };
+                }
+
+                // Does the item's own text print "<word> X"? (re.search with re.IGNORECASE: both sides caseless)
+                function itemPrintsBigram(word, letter) {
+                    const key = `${word} ${letter}`;
+                    if (!itemBigrams.has(key)) {
+                        const bigram = rx(String.raw`(?<![A-Za-z])${escapeRegExp(caseless(word))}[${WS}]+${letter.toLowerCase()}(?![A-Za-z0-9])`);
+                        itemBigrams.set(key, bigram.test(itemCaseless));
+                    }
+                    return itemBigrams.get(key);
+                }
+
+                function rawBefore(i) {
+                    return toks.slice(Math.max(0, i - 6), i).map(x => x.tok);
+                }
+
+                function isLetter(tok) {
+                    return keys.includes(tok.toUpperCase());
+                }
+
+                function negation(before, after, beforeRaw = []) {
+                    // before: "not C", "ruled out C", "instead of C", "en vez de C"
+                    if (before.slice(-3).some(w => NEG_BEFORE.has(w))) return true;
+                    // "I don't really think it is C": a verb cue within 4 tokens, negated 1-2 tokens before the cue;
+                    // the scan stops at a clause break ("no es la C, es la D": the "no" belongs to C only)
+                    for (let k = 1; k <= Math.min(4, before.length); k++) {
+                        const cue = before[before.length - k];
+                        const raw = beforeRaw.length >= k ? beforeRaw[beforeRaw.length - k] : cue;
+                        if ([',', ';', '.', ':'].some(p => raw.endsWith(p))) break;
+                        if (VERB_CUES.has(cue)) {
+                            const beforeCue = before.slice(Math.max(0, before.length - k - 2), before.length - k);
+                            if (beforeCue.some(w => NEG_BEFORE.has(w))) return true;
+                        }
+                    }
+                    // after: "C wrong", "C is wrong", "C would be wrong" — but "c not d" keeps C (the negation is D's),
+                    // and in a negative question ("which is NOT supported") "D is not supported" names the answer
+                    if (after.length && NEG_AFTER.has(after[0]) && !(after.length > 1 && isLetter(after[1]))) return true;
+                    if (negativeQuestion) return false;
+                    if (after.length > 1 && COPULA.has(after[0]) && NEG_AFTER.has(after[1])
+                        && !(after.length > 2 && isLetter(after[2]))) return true;
+                    if (after.length > 2 && COPULA.has(after[0]) && COPULA.has(after[1]) && NEG_AFTER.has(after[2])) return true;
+                    return false;
+                }
+
+                function add(letter, pos, strength) {
+                    letter = letter.toUpperCase();
+                    if (!keys.includes(letter) || consumed.has(pos)) return;
+                    const { before, after, i } = context(pos);
+                    if (i === null) return;
+                    const tok = toks[i].tok;
+                    const last = before.length ? before[before.length - 1] : '';
+                    // numbers next to the letter: "5 C 2", "10 C 3" (combinatorics), never an option
+                    if ((before.length && numberToken.test(last || 'x')) || (after.length && numberToken.test(after[0] || 'x'))) return;
+                    // "got a B", "an A on the test" (a grade); "Dr. B", "vitamin C" (a name)
+                    if (before.length && GRADE_OR_NAME_BEFORE.has(last)) return;
+                    // "Region C", "Group B", "Airport S": a label in the student's own sentence
+                    if (before.length && labelNounToken.test(last) && strength === 'upper') return;
+                    // the item's own "<word> X" bigram ("Agency B", "letter A", "Condition B") is a label
+                    if (before.length && last && (strength === 'upper' || strength === 'noun') && itemPrintsBigram(last, letter)) return;
+                    // P(A), P(B|A), P(A and B), E[X]: notation
+                    if (insideNotation(t, openBefore, pos)) return;
+                    if (pos >= 1 && t[pos - 1] === '|') return;
+                    if (['|', '∩', '∪', "'", '^', 'ᶜ', '(', '['].includes(t.slice(pos + 1, pos + 2))) return;
+                    // b/c, a/b, A/B testing: a letter touching a slash is an abbreviation
+                    if (t.slice(pos + 1, pos + 2) === '/' || (pos >= 1 && t[pos - 1] === '/')) return;
+                    // E.g., C.I., A.M.: dotted abbreviations; 20°C
+                    if (/^[A-Za-z]\.[A-Za-z]/.test(tok) || (pos >= 1 && t[pos - 1] === '°')) return;
+                    // "y = a + bx, the slope is b": in an explanation that writes an equation, a lowercase letter
+                    // after a verb is a variable, not an option (noun cues like "option b" still count)
+                    if (strength === 'verb' && /[a-z]/.test(t[pos]) && writesEquation) return;
+                    refs.push({ letter, pos, strength, negated: negation(before, after, rawBefore(i)) });
+                }
+
+                // change of mind vs range / comparison -------------------------------------------------
+                const changeOrRange = rx(String.raw`(?<![A-Za-z0-9])\(?([A-Ea-e])\)?[${WS}]*(->|→|=>|to|into|-|–|—|through|thru)[${WS}]*\(?([A-Ea-e])\)?(?![A-Za-z0-9])`, 'gd');
+                for (const m of t.matchAll(changeOrRange)) {
+                    const a = m[1].toUpperCase();
+                    const b = m[3].toUpperCase();
+                    const sep = m[2];
+                    if (!keys.includes(a) || !keys.includes(b) || a === b) continue;
+                    const posA = m.indices[1][0];
+                    const posB = m.indices[3][0];
+                    const lead = pySplit(lastCodePoints(t, m.index, 40)).map(strip).slice(-3);
+                    const arrow = ['->', '→', '=>'].includes(sep);
+                    const change = arrow || (['to', 'into'].includes(sep) && lead.some(w => CHANGE_VERBS.has(w)));
+                    if (change) {
+                        refs.push({ letter: a, pos: posA, strength: 'change', negated: true });
+                        refs.push({ letter: b, pos: posB, strength: 'change', negated: false });
+                        consumed.add(posA);
+                        consumed.add(posB);
+                    } else if (a.charCodeAt(0) < b.charCodeAt(0) && ['-', '–', '—', 'to', 'through', 'thru'].includes(sep)) {
+                        const { before, after, i } = context(posB);
+                        const neg = negation(before, after, i !== null ? rawBefore(i) : []);
+                        for (let code = a.charCodeAt(0); code <= b.charCodeAt(0); code++) {
+                            refs.push({ letter: String.fromCharCode(code), pos: posA, strength: 'range', negated: neg });
+                        }
+                        consumed.add(posA);
+                        consumed.add(posB);
+                    }
+                }
+
+                // strong cues (the noun and verb patterns are re.IGNORECASE in the Python) ------------------
+                const nounAlt = Array.from(NOUN_CUES).filter(w => /^\p{L}+$/u.test(w)).map(escapeRegExp)
+                    .sort((x, y) => pyLen(y) - pyLen(x)).join('|');
+                const nounCue = rx(String.raw`(?<![${W}])(?:${nounAlt})[${WS}]*[:#]?[${WS}]*(?:la[${WS}]+|el[${WS}]+|the[${WS}]+)?\(?([A-Ea-e])\)?(?![A-Za-z0-9/])`, 'gd');
+                for (const m of tCaseless.matchAll(nounCue)) {
+                    add(t[m.indices[1][0]], m.indices[1][0], 'noun');
+                }
+                for (const m of t.matchAll(rx(String.raw`(?<![A-Za-z0-9])\(([A-Ea-e])\)`, 'gd'))) {
+                    add(m[1], m.indices[1][0], 'paren');
+                }
+                const leading = rx(String.raw`^[${WS}]*\(?([A-Ea-e])[.):\-](?:[${WS}]|$)`, 'd').exec(t);
+                if (leading) {
+                    add(leading[1], leading.indices[1][0], 'lead');
+                }
+                const verbAlt = Array.from(VERB_CUES).filter(w => !['to', 'with', 'either'].includes(w))
+                    .map(escapeRegExp).sort().join('|');
+                const verbCue = rx(String.raw`(?<![${W}])(${verbAlt})[${WS}]+(?:be[${WS}]+|that[${WS}]+|it'?s[${WS}]+|answer[${WS}]+|option[${WS}]+|choice[${WS}]+)?\(?([B-Eb-e])\)?(?![A-Za-z0-9/])`, 'gd');
+                for (const m of tCaseless.matchAll(verbCue)) {
+                    add(t[m.indices[2][0]], m.indices[2][0], 'verb');
+                }
+
+                // plain uppercase letters -----------------------------------------------------------------
+                for (const m of t.matchAll(rx('(?<![A-Za-z0-9/])([A-E])(?![A-Za-z0-9/])', 'g'))) {
+                    const letter = m[1];
+                    const pos = m.index;
+                    const { before, after, i } = context(pos);
+                    if (i === null) continue;
+                    const tok = toks[i].tok;
+                    const afterChar = t.slice(pos + 1, pos + 2);
+                    const last = before.length ? before[before.length - 1] : '';
+                    const cueWordBefore = before.length > 0 && (NOUN_CUES.has(last) || VERB_CUES.has(last));
+                    const cue = cueWordBefore
+                        || '.,;:!?)'.includes(afterChar)   // also true at the very end (afterChar ''), as in Python
+                        || (after.length > 0 && AFTER_CUES.has(after[0]))
+                        || ['.', ',', ')', ':', ';', '!', '?'].some(p => tok.endsWith(p));
+                    if (letter === 'A' && !cue) continue;               // the article: "A sample of 30..."
+                    if (labels.has(letter) && !cueWordBefore) continue;  // a letter the item uses as a label needs an explicit cue
+                    add(letter, pos, 'upper');
+                }
+
+                // a negated letter passes its negation along a bare list: "ruled out A, B, C, D"
+                refs.sort((x, y) => x.pos - y.pos);
+                const bareList = rx(`^[${WS},;&/]*(?:and|or|y|o|nor|,)?[${WS},;&/]*$`);
+                for (let k = 1; k < refs.length; k++) {
+                    const prev = refs[k - 1];
+                    const cur = refs[k];
+                    if (prev.negated && !cur.negated && prev.pos < cur.pos) {
+                        const between = t.slice(prev.pos + 1, cur.pos);
+                        if (bareList.test(between)) {
+                            refs[k] = { letter: cur.letter, pos: cur.pos, strength: cur.strength, negated: true };
+                        }
+                    }
+                }
+
+                // fold --------------------------------------------------------------------------------------
+                const supported = new Set(refs.filter(r => !r.negated).map(r => r.letter));
+                const first = firstLetter ? String(firstLetter).toUpperCase() : null;
+                if (first) supported.delete(first);   // a retry naturally names the answer it leaves
+
+                // the whole explanation is an option's text (pasted), not a phrase inside it ----------------
+                // Trailing dots go by trimEndWhile too: /\.+$/ retries a long dot run from every start.
+                const norm = s => trimEndWhile(pyStrip(s.replace(/<[^>]+>/g, ' ').replace(rx(`[${WS}]+`, 'g'), ' '))
+                    .toLowerCase(), /^\.$/);
+                const nt = norm(t);
+                const textHits = new Set();
+                for (const c of choices) {
+                    if (!c.key) continue;   // a choice without a key is never an answer (the Python would call it "NONE")
+                    const v = norm(choiceText(c));
+                    if (pyLen(v) < 12 || pySplit(v).length < 3 || !/[a-z]/.test(v) || !nt.includes(v)) continue;
+                    const extraWords = pySplit(nt).length - pySplit(v).length;
+                    if (pyLen(v) >= 0.7 * pyLen(nt) || extraWords <= 3) textHits.add(String(c.key).toUpperCase());
+                }
+                if (first) textHits.delete(first);
+                if (textHits.size === 1) {
+                    const hit = Array.from(textHits)[0];
+                    if (supported.size === 0) {
+                        supported.add(hit);
+                    } else if (!(supported.size === 1 && supported.has(hit))) {
+                        return { letter: null, refs };   // the pasted option and the named letter disagree
+                    }
+                }
+                return { letter: supported.size === 1 ? Array.from(supported)[0] : null, refs };
+            }
+
+            // pickedKey is part of the contract but unused, exactly as in the Python: the caller compares
+            // the answer with the pick. A non-string text, or no keyed choices, is "unclear".
+            function quizExplanationPointsTo(text, choices, pickedKey, firstAnswerKey, prompt) {
+                try {
+                    const list = Array.isArray(choices) ? choices.filter(c => c !== null && typeof c === 'object') : [];
+                    const itemPrompt = typeof prompt === 'string' ? prompt : '';
+                    return pointsTo(text, list, firstAnswerKey, itemPrompt).letter;
+                } catch (_) {
+                    return null;   // no regex lookbehind (Safari before 16.4) or an input nobody foresaw: unclear
+                }
+            }
+            return quizExplanationPointsTo;
+        })();
+        // ── end congruence ──
+        window.quizExplanationPointsTo = quizExplanationPointsTo;   // the submit path and the tests call it
+
         // A classmate's card appears only when they wrote an explanation (spec §1.6).
         function _peerExplained(peer) {
             return !!(peer && typeof peer.reason === 'string' && peer.reason.trim());
@@ -7525,6 +7999,75 @@ function renderLessonSelector(unitInfo) {
                 _quizRetryChoiceUser = user;
             }
             return _quizRetryChoice;
+        }
+
+        // Confirm card (QUIZ_INCONGRUENCE_CHECK_SPEC §5): _quizCongruencePrompt[qid] = { picked,
+        // pointsTo, text, attempt } while the card is up. Page-lifetime, never persisted. Cleared by
+        // the card's buttons, any change on the item's radios, any input on its explanation, the
+        // start of every submitAnswer, a full renderQuestion, and _applyQuizFormState when the form
+        // no longer shows the exact text and pick the card was computed from.
+        var _quizCongruencePrompt = {};
+        var _quizCongruenceUser = null;   // the student whose cards _quizCongruencePrompt holds
+
+        // The cards belong to one student, like the retry picks: a same-tab sign-in as someone
+        // else starts with none. Every read and write of a marker goes through here.
+        function _quizCongruenceMarkers() {
+            const user = currentUsername || null;
+            if (user !== _quizCongruenceUser) {
+                _quizCongruencePrompt = {};
+                _quizCongruenceUser = user;
+            }
+            return _quizCongruencePrompt;
+        }
+
+        function _congruenceCardHtml(questionId) {
+            const marker = _quizCongruenceMarkers()[questionId];
+            if (!marker) return '';
+            const q = _quizQuestionFor(questionId);
+            const choices = (q && (q.choices || (q.attachments && q.attachments.choices))) || [];
+            const optionText = (letter) => {
+                const choice = choices.find(c => c && c.key === letter);
+                return choice ? _escHtml(choice.value) : '';
+            };
+            const id = _escHtml(questionId);
+            const letters = [marker.pointsTo, marker.picked].sort();   // A–E order, the two letters only
+            const buttons = letters.map(letter =>
+                `<button type="button" class="congruence-pick" data-letter="${_escHtml(letter)}">${_escHtml(letter)} <span class="muted">${optionText(letter)}</span></button>`
+            ).join('');
+            return `<div class="congruence-card" role="group" aria-labelledby="congruence-title-${id}">`
+                + `<p id="congruence-title-${id}" class="congruence-title" tabindex="-1"><strong>Your explanation points to ${_escHtml(marker.pointsTo)}, but you picked ${_escHtml(marker.picked)}.</strong> Which one is your answer?</p>`
+                + buttons
+                + `<button type="button" class="congruence-fix link">Let me fix my explanation</button>`
+                + `</div>`;
+        }
+
+        // Rewrites the host only when the card changed (the displayAnswerKey idiom), so a repaint
+        // neither flashes the card nor moves focus. Never focuses: only the two show sites do.
+        function _paintCongruenceCard(questionId) {
+            const host = document.getElementById(`congruence-${questionId}`);
+            if (!host) return;
+            const html = _congruenceCardHtml(questionId);
+            if (host.dataset.cardHtml === html) return;
+            host.innerHTML = html;
+            host.dataset.cardHtml = html;
+            if (!html) return;
+            if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+                try { Promise.resolve(MathJax.typesetPromise([host])).catch(() => {}); } catch (_) {}
+            }
+        }
+
+        function _clearCongruenceCard(questionId) {
+            delete _quizCongruenceMarkers()[questionId];
+            _paintCongruenceCard(questionId);
+        }
+
+        // Focus by id; a span or p gets tabindex -1 first so it can take focus.
+        function _focusById(id) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            if (!el.hasAttribute('tabindex') && !/^(BUTTON|INPUT|TEXTAREA|SELECT|A)$/.test(el.tagName)) el.setAttribute('tabindex', '-1');
+            el.focus();
+            return true;
         }
 
         function _quizFormState(questionId) {
@@ -7587,7 +8130,21 @@ function renderLessonSelector(unitInfo) {
             const stored = _currentAnswerValue(questionId);
             const picks = _quizRetryPicks();
             if (form.mode !== 'retry') delete picks[questionId];   // a pick means nothing outside the open retry form
-            const shown = (form.mode === 'retry' && picks[questionId]) ? picks[questionId] : stored;
+            // A card is only ever shown over the exact text and pick it was computed from (§5).
+            const marker = _quizCongruenceMarkers()[questionId];
+            if (marker) {
+                const reasonBox = document.getElementById(`reason-${questionId}`);
+                const checkedRadio = document.querySelector(`input[name="choice-${questionId}"]:checked`);
+                const stillOpen = form.mode === 'first' || form.mode === 'retry';
+                const sameText = !!reasonBox && reasonBox.value.trim() === marker.text;
+                const samePick = !!checkedRadio && checkedRadio.value === marker.picked;
+                if (!stillOpen || !sameText || !samePick) delete _quizCongruenceMarkers()[questionId];
+            }
+            _paintCongruenceCard(questionId);
+            const cardUp = _quizCongruenceMarkers()[questionId];
+            let shown = stored;
+            if (form.mode === 'retry' && picks[questionId]) shown = picks[questionId];
+            if (cardUp) shown = cardUp.picked;   // the card's pick first, in first and retry mode
             document.querySelectorAll(`input[name="choice-${questionId}"]`).forEach(radio => {
                 radio.disabled = locked;
                 if (shown !== undefined && shown !== null && shown !== '') radio.checked = radio.value === shown;
@@ -7627,6 +8184,7 @@ function renderLessonSelector(unitInfo) {
             const target = event && event.target;
             if (!target || typeof target.id !== 'string' || !target.id.startsWith('reason-')) return;
             const questionId = target.id.slice('reason-'.length);
+            if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every mode: the card was about the old text
             if (_quizFormState(questionId).mode !== 'retry') return;
             const button = document.getElementById(`submit-${questionId}`);
             if (button) button.disabled = !retryReasoningReady(target.value);
@@ -7643,13 +8201,69 @@ function renderLessonSelector(unitInfo) {
             const target = event && event.target;
             if (!target || target.type !== 'radio' || typeof target.name !== 'string' || !target.name.startsWith('choice-')) return;
             const questionId = target.name.slice('choice-'.length);
-            // Part B hook: clear this item's confirm-card marker here (every mode).
+            // Every mode: a new pick voids the card, and the highlight follows the checked radio now
+            // instead of at the next repaint.
+            if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);
+            document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
+                const radio = div.querySelector('input[type="radio"]');
+                if (radio) div.classList.toggle('selected', !!radio.checked);
+            });
             if (_quizFormState(questionId).mode !== 'retry') return;
             _quizRetryPicks()[questionId] = target.value;
         }
         if (!window.__quizRetryChoiceWired) {
             window.__quizRetryChoiceWired = true;
             document.addEventListener('change', _onQuizChoiceChange);
+        }
+
+        // The confirm card's buttons. A letter is the student's answer: check it and send, with the
+        // attempt the card was shown for (submitAnswer re-checks if the item has moved since).
+        // "Let me fix my explanation" hands the textarea back. Delegated, so repaints are covered.
+        function _onCongruenceCardClick(event) {
+            const target = event && event.target;
+            const button = (target && typeof target.closest === 'function')
+                ? target.closest('.congruence-pick, .congruence-fix') : null;
+            if (!button) return;
+            const host = button.closest('.congruence-host');
+            if (!host || !host.id.startsWith('congruence-')) return;
+            const questionId = host.id.slice('congruence-'.length);
+            const marker = _quizCongruenceMarkers()[questionId];
+
+            if (button.classList.contains('congruence-fix')) {
+                _clearCongruenceCard(questionId);
+                _focusById(`reason-${questionId}`);
+                return;
+            }
+
+            const letter = button.dataset.letter;
+            const radios = Array.from(document.querySelectorAll(`input[name="choice-${questionId}"]`));
+            const radio = radios.find(r => r.value === letter);
+            if (!radio) return;
+            radio.checked = true;
+            document.querySelectorAll(`[data-question-id="${questionId}"] .choice`).forEach(div => {
+                const r = div.querySelector('input[type="radio"]');
+                if (r) div.classList.toggle('selected', !!r.checked);
+            });
+            if (_quizFormState(questionId).mode === 'retry') _quizRetryPicks()[questionId] = letter;
+            _clearCongruenceCard(questionId);
+
+            const sent = window.submitAnswer(questionId, 'multiple-choice', {
+                congruenceConfirmed: true,
+                congruenceAttempt: marker ? marker.attempt : null
+            });
+            if (sent) {
+                const success = document.getElementById(`success-${questionId}`);
+                const successShown = !!success && success.classList.contains('show') && !!success.textContent.trim();
+                _focusById(successShown ? `success-${questionId}` : `grade-lock-${questionId}`);
+                return;
+            }
+            if (_quizCongruenceMarkers()[questionId]) return;   // the check ran again and the card is back, title focused
+            const error = document.getElementById(`error-${questionId}`);
+            if (error && error.classList.contains('show')) _focusById(`error-${questionId}`);
+        }
+        if (!window.__quizCongruenceClickWired) {
+            window.__quizCongruenceClickWired = true;
+            document.addEventListener('click', _onCongruenceCardClick);
         }
 
         // ── MCQ AI-area restore ──────────────────────────────────────────────────────────────
@@ -8590,10 +9204,14 @@ function renderLessonSelector(unitInfo) {
 
 
         // Submit answer
-        window.submitAnswer = function(questionId, questionType) {
+        // Returns true when the submit went out, false on every early return (the confirm card
+        // included). opts.congruenceConfirmed + opts.congruenceAttempt come from the card's letter
+        // buttons and skip the congruence check only for the attempt the card was shown for.
+        window.submitAnswer = function(questionId, questionType, opts) {
+            if (_quizCongruenceMarkers()[questionId]) _clearCongruenceCard(questionId);   // every submit starts without a card
             if (!currentUsername) {
                 showMessage('Please enter your username first!', 'error');
-                return;
+                return false;
             }
 
             // Determine if this is a free-response question
@@ -8606,7 +9224,7 @@ function renderLessonSelector(unitInfo) {
                 if (question?.solution?.parts?.length > 0 && !question.requiresGraph) {
                     // This is a multi-part FRQ - handled by submitPartAnswer instead
                     console.log('Multi-part FRQ submission handled by progressive system');
-                    return;
+                    return false;
                 }
             }
 
@@ -8634,7 +9252,7 @@ function renderLessonSelector(unitInfo) {
                         : (_quizRetryUnknown(questionId) ? QUIZ_RETRY_CHECKING_TEXT : 'This answer is already your grade.');
                     errorSpan.classList.add('show');
                 }
-                return;
+                return false;
             }
 
             // FRQs have unlimited retries - no max attempts check needed
@@ -8648,7 +9266,7 @@ function renderLessonSelector(unitInfo) {
                         errorSpan.textContent = 'Please select an answer.';
                         errorSpan.classList.add('show');
                     }
-                    return;
+                    return false;
                 }
                 value = selectedRadio.value;
             } else {
@@ -8676,7 +9294,7 @@ function renderLessonSelector(unitInfo) {
                             errorSpan.textContent = 'Please add at least one bar to your histogram.';
                             errorSpan.classList.add('show');
                         }
-                        return;
+                        return false;
                     }
 
                     // Build chart JSON
@@ -8700,7 +9318,7 @@ function renderLessonSelector(unitInfo) {
                             errorSpan.textContent = 'Please enter a response.';
                             errorSpan.classList.add('show');
                         }
-                        return;
+                        return false;
                     }
                     value = textarea.value.trim();
                 }
@@ -8725,10 +9343,37 @@ function renderLessonSelector(unitInfo) {
                         reasonTextarea.classList.add('required');
                         reasonTextarea.focus();
                     }
-                    return;
+                    return false;
                 }
             }
             // For FRQ, we don't collect reasoning - the answer IS the explanation
+
+            // The student this submit belongs to (a later rollback must not follow currentUsername).
+            const submitUsername = currentUsername;
+            const ledgerAttempt = isFRQ ? 1 : _quizEffectiveAttempts(questionId) + 1;
+
+            // QUIZ_INCONGRUENCE_CHECK_SPEC §2: an explanation that argues for a different letter than
+            // the one picked asks first. Correctness-blind (§3): the detector never sees the key.
+            // Nothing has been written or queued yet, so the card costs nothing.
+            if (questionType === 'multiple-choice' && reason) {
+                const confirmed = !!(opts && opts.congruenceConfirmed) && opts.congruenceAttempt === ledgerAttempt;
+                if (!confirmed) {
+                    const question = _quizQuestionFor(questionId);
+                    const choices = (question && (question.choices || (question.attachments && question.attachments.choices))) || [];
+                    let firstKey = null;
+                    if (ledgerAttempt === 2) {
+                        firstKey = _quizRetryState(submitUsername).firstAnswers[questionId];
+                        if (firstKey === undefined || firstKey === null) firstKey = _currentAnswerValue(questionId);
+                    }
+                    const pointsTo = quizExplanationPointsTo(reason, choices, value, firstKey, (question && question.prompt) || '');
+                    if (pointsTo && pointsTo !== value) {
+                        _quizCongruenceMarkers()[questionId] = { picked: value, pointsTo, text: reason, attempt: ledgerAttempt };
+                        _paintCongruenceCard(questionId);
+                        _focusById(`congruence-title-${questionId}`);
+                        return false;
+                    }
+                }
+            }
 
             // Save answer
             if (!classData.users[currentUsername]) {
@@ -8746,11 +9391,8 @@ function renderLessonSelector(unitInfo) {
             // Create timestamp as number for consistency
             const timestampNow = Date.now();
 
-            // The student this submit belongs to (a later rollback must not follow currentUsername).
-            const submitUsername = currentUsername;
             const userRecord = classData.users[submitUsername];
             const retryState = _quizRetryState(submitUsername);
-            const ledgerAttempt = isFRQ ? 1 : _quizEffectiveAttempts(questionId) + 1;
 
             // This submit goes out and decides the letter. Only here, after every refusal above:
             // a submit that returns early leaves the student's pick in place.
@@ -8996,6 +9638,7 @@ function renderLessonSelector(unitInfo) {
             if (!isFRQ) {
                 displayAnswerKey(questionId, isCorrect, hasExplanation, attempts + 1);
             }
+            return true;
         }
 
         // Graph input helper: Add a new row for histogram data entry
@@ -12918,6 +13561,13 @@ Respond with JSON:
                     return;
                 }
 
+                // A card already up is the student's own retry, asked about their own text and pick:
+                // never put the first explanation under it or send for them. They answer the card.
+                if (_quizCongruenceMarkers()[questionId]) {
+                    say(`The gradebook already had your first answer on this question (${kept}). Check the question below and submit your one retry.`, '#c0392b');
+                    return;
+                }
+
                 // Put the just-chosen letter and explanation back as the retry (the marker keeps the
                 // letter selected through the render timers and peer repaints).
                 _quizRetryPicks()[questionId] = chosen;
@@ -12925,12 +13575,19 @@ Respond with JSON:
                 const textarea = document.getElementById(`reason-${questionId}`);
                 if (textarea) textarea.value = reason || '';
                 if (retryReasoningReady(reason || '')) {
-                    window.submitAnswer(questionId, 'multiple-choice');
-                    say(`The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`, '#3498db');
-                    return;
+                    const sent = window.submitAnswer(questionId, 'multiple-choice');
+                    if (sent === true) {
+                        say(`The gradebook already had your first answer on this question (${kept}). Your ${chosen} was sent as your one retry.`, '#3498db');
+                        return;
+                    }
+                    if (_quizCongruenceMarkers()[questionId]) {   // the explanation points elsewhere: the card asks
+                        say(`The gradebook already had your first answer on this question (${kept}). Check the question below and submit your one retry.`, '#c0392b');
+                        _focusById(`congruence-title-${questionId}`);
+                        return;
+                    }
                 }
                 const button = document.getElementById(`submit-${questionId}`);
-                if (button) button.disabled = true;
+                if (button) button.disabled = !retryReasoningReady(reason || '');
                 say(`The gradebook already had your first answer on this question (${kept}). To make ${chosen} your one retry, explain what changed your mind (at least 3 words) and submit.`, '#c0392b');
             } catch (_) { /* never break the submit path */ }
         }
