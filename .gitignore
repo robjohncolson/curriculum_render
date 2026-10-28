@@ -4,3 +4,13 @@ railway-server/.env
 railway-server/*.log
 railway-server/state/
 test-results/
+
+# --- local scratch and student data, never commit (2026-10-28) ---
+state/cross-agent/
+state/cross-agent-log.json
+scripts/sy2627-predelete-dump.json
+scripts/merge_usernames.js
+scripts/check_orphans.*
+__pycache__/
+*.pyc
+node_modules/
