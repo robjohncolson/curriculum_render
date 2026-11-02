@@ -41,3 +41,7 @@ Delete the retry-only suites (`quiz-retry-pick`, `quiz-retry-click-dom`, `quiz-r
 ## 5. Rollout
 
 Both pushes the same evening, outside class blocks: follow-alongs (roster-server redeploys) and curriculum_render (GitHub Pages plus the cr Railway server for the floor). Cutoff midnight EDT. Teacher announcement Tuesday 2026-10-27: one answer per quiz question, the first answer is the grade, write a short why if you like, it protects you from a mis-click.
+
+## Addendum 2026-11-02: retry restored
+
+Reverted on 2026-11-02 at the teacher's request, after a student reported she could no longer write an explanation after a wrong answer. The explained retry is back exactly as it stood before this spec: a wrong first answer may be explained and retried once, and a correct retry earns half credit under the rule in follow-alongs `QUIZ_RETRY_HALF_CREDIT_SPEC.md` (roster-server `quizCredit`, `QUIZ_RETRY_HALF_CREDIT_FROM`). The explanation congruence card and the AI read stay. On follow-alongs, roster-server `QUIZ_RETRIES_CLOSED_FROM` is set to null so the ledger accepts attempt 2 again.
