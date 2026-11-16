@@ -1,3 +1,27 @@
+# Rules for Grok Build (read first)
+
+You are taking over this repo from Claude Code (handover finished 2026-11-27). This is the AP Statistics quiz and Progress Check app (GitHub Pages `robjohncolson.github.io/curriculum_render/`, branch `main`) plus `railway-server/` (answer sync, peer data, AI grading, appeals) on Railway. Students use both live. `CLAUDE.md` is a 35k reference and only its first 10,000 characters load: open it for architecture detail, but where it disagrees with this block or your memory topics, this block and the topics are newer. Your workspace memory topics hold the history: read the matching topic before acting.
+
+## Hard rules
+- **`data/curriculum.js` is sacred.** It mirrors AP Classroom. Never add, edit or remove questions in it. A new or fixed question goes in follow-alongs `data/formula-probe-supplement.js` (`U{N}-L{N}-QS{N}` ids).
+- **Quiz retry policy (current, 2026-11-02):** wrong answer -> explanation -> ONE retry at HALF credit; classmates' letters and the class chart stay hidden until the answer key is revealed. `CLAUDE.md`'s "unlimited attempts" section is out of date. Grading lives in follow-alongs `roster-server/` (ledger.js, scoring.js), not here.
+- **Never lower a stored grade.** AI grading only raises.
+- **Identity is the roster.** Same origin as the follow-alongs Desk, so localStorage (`apstats_roster.v1`) is shared. Never add a path that mints a non-roster username.
+- **Old 9-unit keys are storage ids, never printed.** Labels come from the CED-2026 crosswalk vendored here by follow-alongs `node scripts/sync-ced-crosswalk.mjs`; never hand-edit the vendored copies in `data/` or `railway-server/data/`.
+
+## Pushing
+1. **Teacher sign-off in THIS session**, then `touch "$(git rev-parse --git-dir)/PUSH_APPROVED"` and a plain `git push origin main`. The pre-push hook deletes the sentinel. Never `--no-verify`, never force-push.
+2. The hook also refuses a push whose `sw.js` BUILD stamp is older than a precached asset: run `node scripts/bump-build.mjs` (writes `version-check.js`, `version.json`, `sw.js`) and commit those three.
+3. **Never during a live class block:** a push redeploys `railway-server/` (bell times: follow-alongs `apstat-park/class-session.mjs` BELL_SCHEDULE).
+4. Before pushing: `npm test` (root) and, if you touched it, the `railway-server/` tests. After: check the Railway `/health` and follow-alongs `status.html`.
+
+## Shared dirty tree and privacy
+- Never `git stash`, `git reset --hard` or `git add -A`; stage only your own paths and read the staged diff.
+- This repo is public: never commit student names, answers of a named student, or keys. The Supabase service key lives only in Railway variables.
+
+## GitNexus
+The block below assumes GitNexus MCP tools you may not have (index broken since 2026-11-08). Without them, find callers with `rg` and read them before editing a shared function.
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
